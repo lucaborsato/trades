@@ -1,0 +1,41 @@
+# 0=only integration, 1=grid search, 2=Levenberg-Marquardt, 3=PIKAIA (GA), 4=PSO, 5=PolyChord.
+progtype = 0
+# bootstrap: <=0 no bootstrap, >0 yes bootstrap (Nboot set to 100 if <100)
+nboot = 0
+# bootstrap_scaling = .true. or T, .false. or F, default .false.
+bootstrap_scaling = T
+# epoch of the elements [JD].
+tepoch = 2455088.212
+# time start of the integration [JD]. Set this to a value > 9.e7 if you want to use the tepoch (next parameter) 
+tstart = 2454965.
+# time duration of the integration in days
+tint = 500.
+# initial time step size in days
+step = 1.e-3
+# time interval in days of write data in files (if < stepsize the program will write every step)
+wrttime = 0.04167
+# number of bodies to use (from 2 to N, where the max N is the number of files in bodies.lst)
+NB = 3
+# number of the body to check if it transits (from 2 to N, 1 for everyone, 0 for no check).
+idtra = 1
+# 0/1=no/yes duration fit
+durcheck = 0
+# tolerance in the integration (stepsize selection etc)
+tol_int = 1.e-13
+# write orbit condition: 1[write], 0[do not write]
+wrtorb = 1
+# write constants condition: 1[write], 0[do not write]
+wrtconst = 1
+# write orbital elements condition: 1[write], 0[do not write]
+wrtel = 1
+# check of Radial Velocities condition: 1[check, read from obsRV.dat], 0[do not check]
+rvcheck = 1
+# grid option: id of the perturber body [integer >1, <= tot bodies; else no perturber]
+idpert = 3
+# lmon: Levenberg-Marquardt off = 0[no LM], on=1[yes LM]. Default lmon = 0
+lmon = 0
+# weight_chi_square: parameter needed to weight the fitness function, such that
+# fitness = Chi^2_r * weight_chi_square + Chi^2_wr * (1. - weight_chi_square),
+# where Chi^2_wr is the reduced Chi Square but weighted by the number of data for each data set (Chi2r * Ndata/Nset for all dataset).
+# Default weight_chi_square = 1.
+weight_chi_square = 1.

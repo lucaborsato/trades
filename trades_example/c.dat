@@ -1,0 +1,9 @@
+0.094348 0.094349 0.01 ss    # Mmin Mmax X ss/rn/sn=StepSize/RandomNumber/StepNumber [Mjup]
+0.823    # Radius of Planet [Rjup]
+38.986097 0. 0. rn    # Period [day] - set it > 9000000. to calculate from semi-major axis
+999. 0. 0. rn    # semi major axis [AU] - set it to 999.0 if there is no value available
+0.067645 0. 0. rn    # eccentricity
+167.573369 0. 0. rn    # argument of the pericenter [deg]
+307.432620 0. m    # value - type[t=>time of pericenter passage [JD]; m=> mean anomaly [deg]
+89.12 0.    # orbit inclination [deg]
+359.889907 0.    # longitude of the ascending node [deg]
