@@ -405,6 +405,7 @@ module ode_run
 
 !     Hc=Hillcheck(m,rin)
     Hc=mutual_Hill_check(m,rin)
+!     write(*,*)' mutual_Hill_check = ',Hc
     if(Hc) return
 
     allocate(X(NB),Y(NB),Z(NB),cX(NB),cY(NB),cR(NB),rmean(NB))
@@ -463,6 +464,7 @@ module ode_run
     iftime=0
     compare=10
 
+!     write(*,'(a)',advance='NO')' mutual_Hill_check: '
     integration: do
       j1=j1+1
 
@@ -491,6 +493,7 @@ module ode_run
 
 !       Hc=Hillcheck(m,r2)
       Hc=mutual_Hill_check(m,r2)
+!       if(Hc) write(*,'(a7,i6,a6,l)')'iter = ',j1,' Hc = ',Hc
       if(Hc) return
 
       ! RV check
@@ -980,7 +983,8 @@ module ode_run
     write(*,*)
     
     resw=zero
-
+    Hc = .false.
+    
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),i(NB),lN(NB),clN(NB))
 
     ! from the allpar and par to keplerian elements: due to the LMdif approach/code
@@ -1079,6 +1083,7 @@ module ode_run
           &cntT0,T0_stat,T0_sim,Hc)
     end if
 
+    write(*,*)' Hc = ',Hc
     if((idtra.ge.1).and.(idtra.le.NB)) call close_tra(utra,fltra)
     if(wrtorb.eq.1) close(uorb)
     if(wrtconst.eq.1) close(ucon)

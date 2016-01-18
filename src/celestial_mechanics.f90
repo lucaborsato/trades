@@ -309,26 +309,28 @@ module celestial_mechanics
     real(dp)::Hill_radius_ij,delta_ij,stability_criterion
     integer::i,ii,j
     
-    do i=2,(NB-1)
-      call rrdot_to_invsma(i,m,rin,sma_i,hill_check)
-      if(hill_check) return
-      sma_i=one/sma_i
+    hill_check=.false.
+    if(NB.gt.2)then
+      do i=2,(NB-1)
+        call rrdot_to_invsma(i,m,rin,sma_i,hill_check)
+        if(hill_check) return
+        sma_i=one/sma_i
 
-      j=i+1
-      call rrdot_to_invsma(j,m,rin,sma_j,hill_check)
-      if(hill_check) return
-      sma_j=one/sma_j
+        j=i+1
+        call rrdot_to_invsma(j,m,rin,sma_j,hill_check)
+        if(hill_check) return
+        sma_j=one/sma_j
 
-      Hill_radius_ij = mutual_Hill_radius(m(1),m(i),sma_i,m(j),sma_j)
-      delta_ij = abs(sma_j - sma_i)
-      stability_criterion = sqrt_12 * Hill_radius_ij
-      if(delta_ij.lt.stability_criterion)then
-        hill_check = .true. ! if true is bad/unstable
-        return
-      end if
-    
-    end do
-  
+        Hill_radius_ij = mutual_Hill_radius(m(1),m(i),sma_i,m(j),sma_j)
+        delta_ij = abs(sma_j - sma_i)
+        stability_criterion = sqrt_12 * Hill_radius_ij
+        if(delta_ij.lt.stability_criterion)then
+          hill_check = .true. ! if true is bad/unstable
+          return
+        end if
+      end do
+    end if
+        
     return
   end function mutual_Hill_check
   
