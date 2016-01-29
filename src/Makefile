@@ -47,7 +47,7 @@ PCOBJ = $(PCOBJ_1.F90=.o)
 # FILES_OUT = $(patsubst %.xls,%.xlsx,$(patsubst %.doc,%.docx,$(FILES_IN)))
 PCOBJ = $(patsubst %.F90,%.o,$(patsubst %.f90,%.o, $(PCSRC)))
 
-SOURCES = parameters.f90 random_trades.f90 convert_type.f90 lin_fit.f90 celestial_mechanics.f90 init_trades.f90 statistics.f90 timing.f90 rotations.f90 sort.f90 eq_motion.f90 output_files.f90 numerical_integrator.f90 radial_velocities.f90 transits.f90 ode_run.f90 grid_search.f90 lm.f90 pikaia.f90 util_sort.f90 util_qmc.f90 opti_pso.f90 gaussian.f90 bootstrap.f90 PolyChord_driver.f90
+SOURCES = parameters.f90 random_trades.f90 convert_type.f90 lin_fit.f90 celestial_mechanics.f90  init_trades.f90 statistics.f90 timing.f90 rotations.f90 sort.f90 eq_motion.f90 output_files.f90 numerical_integrator.f90 radial_velocities.f90 transits.f90 ode_run.f90 derived_parameters_mod.f90 grid_search.f90 lm.f90 pikaia.f90  util_sort.f90 util_qmc.f90 opti_pso.f90 gaussian.f90 bootstrap.f90 PolyChord_driver.f90
 OBJECTS = $(SOURCES:.f90=.o)
 
 # .PHONY: print_obj

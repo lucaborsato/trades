@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.5.0 by Luca Borsato - 2016**    
+**`TRADES` v2.5.1 by Luca Borsato - 2016**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -89,6 +89,7 @@ To solve the inverse problem, `TRADES` can be run in different modes:
     optimizers. 
     However, the `GA` should converge to a global solution (if it exists)
     after the appropriate number of iterations.    
+    At the moment if the `GA` after the predefine iteration has a fitness (or `$\chi^2_\textrm{r}$`) higher than 1000, it will continue (it stops if it reaches the iteration step with fitness lower than 1000 or if it reaches fitness <= 1.).    
       
     
 *  **particle swarm optimization ([`PSO`][PSO], Tada 2007):**    
@@ -157,7 +158,7 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
 2. Extract the tar.bz2 (or .zip) file in your drive. 
     It should contain a `README.md` file, `bin/` and `src/` folders.    
     The `src/` folder should countains the following f90 source files:    
-    - **Module source files:** `constants.f90 parameters.f90 random_trades.f90 convert_type.f90 lin_fit.f90 celestial_mechanics.f90 init_trades.f90 statistics.f90 timing.f90 rotations.f90 sort.f90 eq_motion.f90 output_files.f90 numerical_integrator.f90 radial_velocities.f90 transits.f90 ode_run.f90 grid_search.f90 lm.f90 pikaia.f90 util_sort.f90 util_qmc.f90 opti_pso.f90 gaussian.f90 bootstrap.f90 PolyChord_driver.f90`    
+    - **Module source files:** `constants.f90 parameters.f90 random_trades.f90 convert_type.f90 lin_fit.f90 celestial_mechanics.f90 init_trades.f90 statistics.f90 timing.f90 rotations.f90 sort.f90 eq_motion.f90 output_files.f90 numerical_integrator.f90 radial_velocities.f90 transits.f90 ode_run.f90 derived_parameters_mod.f90 grid_search.f90 lm.f90 pikaia.f90 util_sort.f90 util_qmc.f90 opti_pso.f90 gaussian.f90 bootstrap.f90 PolyChord_driver.f90`    
     - **PolyChord folder** `PolyChord/` with source files:
         `utils.f90 abort.F90 settings.f90 params.f90 array_utils.f90 priors.f90 mpi_utils.F90 calculate.f90 random_utils.F90 chordal_sampling.f90 run_time_info.f90 clustering.f90 read_write.f90 feedback.f90 generate.F90 ini.f90 nested_sampling.F90`
     - **Main `TRADES` file:** `trades.f90`    
@@ -195,6 +196,7 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
   **Remember to type `make clean_libchord` to remove PolyChord files and library.**    
   **Remember to type `make cleanall` to remove `*.o`, `*.mod`, and all the executable files before re-compiling `TRADES`.**    
   **To compile in parallel mode the `openMP` libraries must be properly installed (as suggested by your Linux distribution) and the `MPI` (`Open-MPI`) libraries and compilers.**    
+  **2016-01-28 WARNING:** on K/Ubuntu 14.04.3 LTS (updated) the system `mpi.mod` fails to compile the code with `MPI` because the version this module is compiled is different from the `gfortran` system. This means that PolyChord cannot be used with `MPI` option. Sorry about that, that's not my fault ... check it if it works on your system.    
       
 ---
 
@@ -313,6 +315,23 @@ List of the files with explanation:
 
 9.  `NB3_observations.dat`: same kind of file `NB2_observations.dat`, but for the planet in the third row of `bodies.lst`, i.e., `c.dat` is planet 3.     
     Example file [`NB3_observations.dat`](trades_example/NB3_observations.dat)     
+    
+10. `derived_boundaries.dat`: this file a special file.    
+    If you have some derived parameters (or other values) that can reduce your parameter space you have to create this file in your simulation folder.    
+    If the file does not exist it will not be used (no derived parameters will be checked). The file should have a line for each parameter, the name in the first column (please keep it short), the min and the max value in the 2nd and 3rd column. Keep last line empty so the code can determine the end of file.    
+    `derived_boundaries.dat` example:    
+    ```
+    # name phase_min phase_max
+    ph2 34. 180.
+    ph3 180. 270.
+        
+    ```
+    In order to use the derived parameters you have to modify by your own the `derived_parameters_mod.f90`.    
+    There are 2 base subroutines and 1 function, the first to read the `derived_boundaries.dat` file and that allow to set the flag to check or not the parameters.   
+    Then you have a subroutine that is used to compute the derived parameters given the fitted parameter (`fitting_parameters`) or using global variables (check the `parameters.f90` module...or ask me).   
+    The fuction at the end call the subroutine to compute the derive parameters and check if the value is within the min and max boundaries read in the file.    
+    
+    
 
 ---
 

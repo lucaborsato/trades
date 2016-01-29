@@ -5,6 +5,7 @@ program main_trades
   use constants
   use parameters
   use init_trades
+  use derived_parameters_mod
   use timing,only:timer
   use transits,only:set_ephem
   use output_files,only:write_lm_inputpar,write_par,write_simlst
@@ -59,7 +60,7 @@ program main_trades
 
   write(*,'(a)')""
   write(*,'(a)')" ======================================================"
-  write(*,'(a)')" TRADES v. 2.5.0 -- Luca Borsato 2016"
+  write(*,'(a)')" TRADES v. 2.5.1 -- Luca Borsato 2016"
   write(*,'(a)')" ======================================================"
   write(*,'(a)')""
   write(*,'(a,i4,a,i0.2,a,i0.2,a,i0.2,a,i0.2,a,i0.2)')" START TIME: ",&
@@ -89,9 +90,13 @@ program main_trades
   nRV=0 ! set number of RV points to zero (warning -Wunitialized ...)
   ! IT CALLS ALL THE SUBROUTINES TO READ ALL PARAMETERS AND DATA TO STORE IN COMMON MODULE PARAMETERS
   call read_first(cpuid,m,R,P,a,e,w,mA,i,lN)
+  call set_all_param(m,R,P,e,w,mA,i,lN,system_parameters)
   ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
   call set_ephem()
-
+  
+  ! check if there are derived parameters to compute and to check
+  call init_derived_parameters(1,path)
+  
   write(*,'(a)') " -----------------------------------------------------"
   write(*,'(a)') " ====================================================="
   write(*,'(a)')""
@@ -236,6 +241,7 @@ program main_trades
 
       doGlobal: do jgrid=1,nGlobal
         call set_par(m,R,P,a,e,w,mA,i,lN,allpar,par)
+!         call set_par(m,R,P,a,e,w,mA,i,lN,system_parameters,par)
         cpuid = 1
         ! --- PIKAIA/GENETIC ---
         if(progtype.eq.3)then
@@ -413,7 +419,7 @@ program main_trades
 
     ! PolyChord - testing
     if(progtype.eq.5)then
-      call set_par(m,R,P,a,e,w,mA,i,lN,PC_allpar,par) ! set common variable PC_allpar needed by loglikelihood
+      call set_par(m,R,P,a,e,w,mA,i,lN,system_parameters,par) ! set common variable system_parameters needed by loglikelihood
       call PC_driver(PolyChord_info)
 
     end if
@@ -452,10 +458,15 @@ program main_trades
   if(allocated(epoT0obs)) deallocate(epoT0obs,T0obs,eT0obs)
   if(allocated(allpar))   deallocate(allpar,par)
   if(allocated(id))       deallocate(id,idall,parid)
-  if(allocated(PC_allpar))deallocate(PC_allpar)
+  if(allocated(system_parameters))deallocate(system_parameters)
   if(allocated(par_min))  deallocate(par_min,par_max)
   if(allocated(minpar))   deallocate(minpar,maxpar)
   if(allocated(k_b))      deallocate(k_b)
+  if(allocated(population)) deallocate(population,population_fitness)
+  if(allocated(derived_names)) deallocate(derived_names,derived_boundaries)
+  if(allocated(pso_best_evolution)) deallocate(pso_best_evolution)
+
+    
 end program
 
 

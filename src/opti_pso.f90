@@ -9,7 +9,7 @@
 !----------------------------------------------------------------------
 module opti_pso
   use constants,only:dp,sprec,zero,one,TOLERANCE
-  use parameters,only:path,wrtAll,seed_pso,ndata,nfit,dof,inv_dof,npar,parid,np_pso,nit_pso,wrt_pso,minpar,maxpar
+  use parameters,only:path,wrtAll,seed_pso,ndata,nfit,dof,inv_dof,npar,parid,np_pso,nit_pso,wrt_pso,minpar,maxpar,population,population_fitness,pso_best_evolution
   use init_trades,only:get_unit
   use random_trades
   use convert_type,only:string
@@ -57,86 +57,173 @@ module opti_pso
   contains
 
 
-  ! function to be use with PSO
-  function fpso(allpar,par) result(fn_val)
+!   ! function to be use with PSO
+!   function fpso(allpar,par) result(fn_val)
+!     use ode_run,only:ode_lm
+!     real(dp)::fn_val
+!     real(dp),dimension(:),intent(in)::allpar,par
+! !     real(dp)::chi2
+!     real(dp),dimension(:),allocatable::wpar,wall
+!     real(dp),dimension(:),allocatable::resw,resw2
+!     integer::n,iflag
+! 
+!     n=size(par)
+!     iflag=1
+!     allocate(wpar(n),wall(npar))
+!     wall=allpar
+!     wpar=par
+!     allocate(resw(ndata),resw2(ndata))
+!     resw=zero
+!     call ode_lm(wall,ndata,n,wpar,resw,iflag)
+!     resw2=resw*resw
+! !     chi2=sum(resw2)
+! !     fn_val=1._dp/chi2
+! !     fn_val=real(dof,dp)/sum(resw2)
+!     fn_val=one/sum(resw2)
+!     deallocate(wpar,wall,resw,resw2)
+! 
+!     return
+!   end function fpso
+
+  function pso_fitness(all_par,fitting_parameters) result(fitness)
     use ode_run,only:ode_lm
-    real(dp)::fn_val
-    real(dp),dimension(:),intent(in)::allpar,par
-!     real(dp)::chi2
-    real(dp),dimension(:),allocatable::wpar,wall
-    real(dp),dimension(:),allocatable::resw,resw2
-    integer::n,iflag
-
-    n=size(par)
+    use derived_parameters_mod
+    real(dp)::fitness
+    real(dp),intent(in),dimension(:)::all_par,fitting_parameters
+    logical::check
+    real(dp),dimension(:),allocatable::resw
+    integer::i,iflag
+    logical::check_status
+    
     iflag=1
-    allocate(wpar(n),wall(npar))
-    wall=allpar
-    wpar=par
-    allocate(resw(ndata),resw2(ndata))
-    resw=zero
-    call ode_lm(wall,ndata,n,wpar,resw,iflag)
-    resw2=resw*resw
-!     chi2=sum(resw2)
-!     fn_val=1._dp/chi2
-!     fn_val=real(dof,dp)/sum(resw2)
-    fn_val=one/sum(resw2)
-    deallocate(wpar,wall,resw,resw2)
+    check = .true.
+    check_status=.true.
+    
+    checkloop: do i=1,nfit
+      if(fitting_parameters(i).lt.minpar(i))then
+        check=.false.
+        exit checkloop
+      else if(fitting_parameters(i).gt.maxpar(i))then
+        check=.false.
+        exit checkloop
+      end if
+    end do checkloop
 
+    if(check)then
+      if(check_derived) check_status=check_derived_parameters(fitting_parameters)
+      if(check_status)then
+        allocate(resw(ndata))
+        resw=zero
+        call ode_lm(all_par,ndata,nfit,fitting_parameters,resw,iflag)
+        fitness=sum(resw*resw)
+        ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
+        deallocate(resw)
+        if (fitness.ge.resmax)then
+!           check=.false.
+          fitness=resmax
+        end if
+      else ! check_status
+        fitness=resmax
+      end if
+    else
+      fitness=resmax
+    end if
+    
     return
-  end function fpso
-
+  end function pso_fitness
+    
+  
   ! another function called by the PSO module
-  function evfpso(allpar,par,ichi2r) result(ir)
+  function evfpso(allpar,par,inv_fitness) result(ir)
     integer::ir
     real(dp),dimension(:),intent(in)::allpar,par
-    real(dp),intent(out)::ichi2r
+    real(dp),intent(out)::inv_fitness
+    real(dp)::fitness
 
-    ichi2r=fpso(allpar,par)
+!     inv_fitness=fpso(allpar,par)
+    fitness=pso_fitness(allpar, par)
+    inv_fitness=one/fitness
     ir=0
 
     return
   end function evfpso
+  
   ! ------------------------------------------------------------------ !
 
   ! ---------------------------------------------------------------------------
   ! PSO driver by Luca Borsato, it uses parameter read from pso.opt file
-  subroutine pso_driver(iGlobal,evfunc,n,allpar,minpar,maxpar,xpar,ichi2r)
+!   subroutine pso_driver(iGlobal,evfunc,n,allpar,minpar,maxpar,xpar,inv_fitness)
+!     integer,intent(in)::iGlobal,n
+!     real(dp),dimension(:),intent(in)::allpar,minpar,maxpar
+!     real(dp),intent(out)::inv_fitness
+!     real(dp),dimension(:)::xpar
+! !     real(dp),dimension(size(xpar))::ipar
+!     real(dp),dimension(:),allocatable::ipar
+!     integer::ip
+! 
+!     interface
+!       !-------- evaluation function -------
+!       integer function evfunc(allpar, xpar, inv_fitness)  ! return number of constrained condition
+!         use constants,only:dp
+!         real(dp),dimension(:),intent(in)::allpar,xpar    ! parameter set
+!         real(dp), intent(out) :: inv_fitness       ! evaluation value
+!       end function evfunc
+!     end interface
+! 
+!     ! set initial fitting parameters to mean value of the boundaries
+! !     xpar = 0.5_dp*(minpar+maxpar) ! it avoids bad input values
+! !     xpar=minpar
+!     
+! !     call init_random_seed_input(np_pso,seed_pso+iGlobal)
+!     allocate(ipar(size(xpar)))
+! !     ipar=xpar
+!     ipar=minpar
+!     write(*,'(a)')" MIN                   MAX"
+!     do ip=1,n
+!       write(*,'(2g15.8)')minpar(ip),maxpar(ip)
+!     end do
+!     write(*,*)
+!     flush(6)
+!     
+!     call do_pso(n,minpar,maxpar,ipar,np_pso,nit_pso,wrt_pso,1,&
+!         &evfunc,allpar,xpar,inv_fitness,iGlobal)
+!     deallocate(ipar)
+!     flush(6)
+!     
+!     return
+!   end subroutine pso_driver
+
+
+  subroutine pso_driver(iGlobal,evfunc,n,allpar,minpar,maxpar,xpar,inv_fitness)
     integer,intent(in)::iGlobal,n
     real(dp),dimension(:),intent(in)::allpar,minpar,maxpar
-    real(dp),intent(out)::ichi2r
+    real(dp),intent(out)::inv_fitness
     real(dp),dimension(:)::xpar
-!     real(dp),dimension(size(xpar))::ipar
     real(dp),dimension(:),allocatable::ipar
-    integer::ip
+!     integer::ip
 
     interface
       !-------- evaluation function -------
-      integer function evfunc(allpar, xpar, ichi2r)  ! return number of constrained condition
+      integer function evfunc(allpar, xpar, inv_fitness)  ! return number of constrained condition
         use constants,only:dp
         real(dp),dimension(:),intent(in)::allpar,xpar    ! parameter set
-        real(dp), intent(out) :: ichi2r       ! evaluation value
+        real(dp), intent(out) :: inv_fitness       ! evaluation value
       end function evfunc
     end interface
 
-    ! set initial fitting parameters to mean value of the boundaries
-!     xpar = 0.5_dp*(minpar+maxpar) ! it avoids bad input values
-!     xpar=minpar
-    
-!     call init_random_seed_input(np_pso,seed_pso+iGlobal)
-    allocate(ipar(size(xpar)))
-!     ipar=xpar
+    if(.not.allocated(ipar)) allocate(ipar(n))
+    if(.not.allocated(population)) allocate(population(n,np_pso,nit_pso))
+    if(.not.allocated(population_fitness)) allocate(population_fitness(np_pso,nit_pso))
     ipar=minpar
-    write(*,'(a)')" MIN                   MAX"
-    do ip=1,n
-      write(*,'(2g15.8)')minpar(ip),maxpar(ip)
-    end do
-    write(*,*)
-    flush(6)
+    population=zero
+    population_fitness=zero
     
+!     call do_pso(n,minpar,maxpar,ipar,np_pso,nit_pso,wrt_pso,1,&
+!         &evfunc,allpar,xpar,inv_fitness,iGlobal)
     call do_pso(n,minpar,maxpar,ipar,np_pso,nit_pso,wrt_pso,1,&
-        &evfunc,allpar,xpar,ichi2r,iGlobal)
+        &evfunc,allpar,xpar,inv_fitness,iGlobal)
+
     deallocate(ipar)
-    flush(6)
     
     return
   end subroutine pso_driver
@@ -156,33 +243,6 @@ module opti_pso
 
     return
   end subroutine bestpso_init
-
-
-
-!   ! created with the purpose to select a good number of simulations per file
-!   ! to avoid too big files...not used now
-!   subroutine getWrtSim(np,nit,nRows,nWp,nFiles)
-!     use parameters,only:nfit
-!     integer,intent(in)::np,nit
-!     integer,intent(out)::nRows,nWp,nFiles
-!     real(dp),parameter::dimGB=one,&
-!         &GB2Byte=dimGB*1024._dp*1024._dp*1024._dp
-!     integer,parameter::fChar=2*dp
-!     integer::oneRow
-! 
-!     nRows=np*nit
-!     oneRow=(6*2+1)+(nfit*fChar)+(3*fChar)
-!     nWp=int( ((GB2Byte/oneRow)/real(nit,dp)) + 0.5_dp )
-! 
-!     if(nWp.ge.np)then
-!       nFiles=1
-!       nWp=np
-!     else
-!       nFiles=(np/nWp)+1
-!     end if
-! 
-!     return
-!   end subroutine getWrtSim
 
   ! to determine the % of simulations
   function getStat(i,n) result(out)
@@ -376,9 +436,9 @@ module opti_pso
     !-------------------------------------------
     ! variables for Luca Borsato's stuff
     !integer::ipso,nrows,nlast
-    real(dp),dimension(:,:),allocatable::bestpso
+!     real(dp),dimension(:,:),allocatable::bestpso
     integer,dimension(:),allocatable::idbest
-    integer::wrt_it,it_c,uall,ubest
+    integer::wrt_it,uall,ubest !it_c
     !-------------------------------------------
 
     !===== Print PSO parameters =====
@@ -415,9 +475,9 @@ module opti_pso
 
     ! added by Luca Borsato, stuff to save in write to a file best particles
     call check_file_pso(iGlobal,uall,ubest)
-    call bestpso_init(it,idbest,bestpso)
+    call bestpso_init(it,idbest,pso_best_evolution)
     wrt_it=10
-    it_c=1
+!     it_c=1
     !***********************************************************
     !*********************** Main Loop *************************
     i = 0
@@ -470,6 +530,9 @@ module opti_pso
           end if
       end if
 
+      ! added by Luca...the original is after exit_loop
+      i = i + 1
+      
       !===== Check exit conditions =====
       if((it > 0 .and. i >= it) .or. (ie > 0 .and. evcount >= ie)) then
           exit_loop = .true.
@@ -497,6 +560,28 @@ module opti_pso
           write(*,'(10000g25.15)') unscaling(n, gxbest)
           write(*,'(a)')" "
       end if
+      
+      ! save all data
+!       write(*,*)'iter=',i,' saving to iter = iter = ',i
+      if(uall.gt.0) call write_allpso(uall,i,ip,p)
+      call save_population(i,ip,p) ! it modifies population(:,:,i), population_fitness(:,i)
+      ! save and store best by Luca Borsato
+      !call bestpso_store(i,best,gxbest,gebest,idbest,pso_best_evolution)
+      call bestpso_store(ubest,i,best,gxbest,gebest,idbest,pso_best_evolution)
+      if(getStat(i,it).ge.wrt_it)then
+          write(*,'(a,i4,a)')" Completed iterations: ",getStat(i,it)," of 100%"
+          !call write_bestpso(it_c,i,idbest,bestpso)
+          write(*,'(a)')' Best position'
+          write(*,'(a,i4)')    ' minloc(one/p(1:np)%ev) = ',minloc((one/p(1:np)%ev),dim=1)
+          write(*,'(a,i4)')    '                   best = ',best
+          write(*,'(a)')' Best fitness'
+          write(*,'(a,F20.6)') ' minval(one/p(1:np)%ev) = ',minval(one/p(1:np)%ev)
+          write(*,'(a,F20.6)') '         one/p(best)%ev = ',one/p(best)%ev
+          write(*,'(a,F20.6)') '             one/gebest = ',one/gebest
+          write(*,*)
+!           it_c=i
+          wrt_it=wrt_it+10
+      end if
 
       !===== Exit loop =====
       if(exit_loop) exit
@@ -506,19 +591,19 @@ module opti_pso
           call  p_move(n, gxbest, w, c1, c2, c3, vmax, vrand, flag, p(j))
       end do
 
-      i = i + 1
+!       i = i + 1
 
-      ! save all data
-      if(uall.gt.0) call write_allpso(uall,i,ip,p)
-      ! save and store best by Luca Borsato
-      !call bestpso_store(i,best,gxbest,gebest,idbest,bestpso)
-      call bestpso_store(ubest,i,best,gxbest,gebest,idbest,bestpso)
-      if(getStat(i,it).ge.wrt_it)then
-          write(*,'(a,i4,a)')" Completed iterations: ",getStat(i,it)," of 100%"
-          !call write_bestpso(it_c,i,idbest,bestpso)
-          it_c=i+1
-          wrt_it=wrt_it+10
-      end if
+!       ! save all data
+!       if(uall.gt.0) call write_allpso(uall,i,ip,p)
+!       ! save and store best by Luca Borsato
+!       !call bestpso_store(i,best,gxbest,gebest,idbest,bestpso)
+!       call bestpso_store(ubest,i,best,gxbest,gebest,idbest,bestpso)
+!       if(getStat(i,it).ge.wrt_it)then
+!           write(*,'(a,i4,a)')" Completed iterations: ",getStat(i,it)," of 100%"
+!           !call write_bestpso(it_c,i,idbest,bestpso)
+!           it_c=i+1
+!           wrt_it=wrt_it+10
+!       end if
 
 !       if(i.eq.1)stop
     end do
@@ -527,7 +612,7 @@ module opti_pso
     !write(*,'(2(a,i6))')" DONE ",i," ITERATION IN PSO AND nit_pso was ",nit_pso
     !read(*,*)
     !if(it_c.lt.it) call write_bestpso(it_c,it,idbest,bestpso)
-    if(allocated(bestpso)) deallocate(idbest,bestpso)
+    if(allocated(idbest)) deallocate(idbest)
     close(ubest)
     if(uall.gt.0) close(uall)
 
@@ -1044,39 +1129,68 @@ module opti_pso
     return
   end subroutine check_file_pso
 
-  ! subroutine to store 10% of nit_pso iteration
-  subroutine bestpso_store(ubest,ipos,ipx,x_sc,iChi2r,idbest,bestpso)
+  ! subroutine to store iteration
+!   subroutine bestpso_store(ubest,ipos,ipx,x_sc,iChi2r,idbest,bestpso)
+!     integer,intent(in)::ubest,ipos,ipx
+!     real(dp),dimension(:),intent(in)::x_sc
+!     real(dp),intent(in)::iChi2r
+!     integer,dimension(:),intent(out)::idbest
+!     real(dp),dimension(:,:)::bestpso
+!     real(dp),dimension(:),allocatable::x_unsc
+!     real(dp)::tChi2,Chi2,Chi2r
+!     character(512)::fmtw
+! 
+!     allocate(x_unsc(nfit))
+!     x_unsc=unscaling(nfit, x_sc(1:nfit)) ! scale parameters to physical value
+!     Chi2=real(dof,dp)/iChi2r
+!     Chi2r=Chi2*inv_dof
+!     bestpso(1:nfit,ipos)=x_unsc(1:nfit)
+!     deallocate(x_unsc)
+!     if(iChi2r.ge.huge(zero))then
+!       tChi2=huge(zero)
+!       Chi2=tChi2
+!       Chi2r=Chi2
+!     else if(iChi2r.le.TOLERANCE)then
+!       tChi2=iChi2r
+!       Chi2=huge(zero)
+!       Chi2r=Chi2*inv_dof
+!     else
+!       tChi2=iChi2r
+!       Chi2=real(dof,dp)/iChi2r
+!       Chi2r=Chi2*inv_dof
+!     end if
+!     bestpso(nfit+1,ipos)=iChi2r
+!     bestpso(nfit+2,ipos)=Chi2
+!     bestpso(nfit+3,ipos)=Chi2r
+!     idbest(ipos)=ipx
+!     ! added 2014-07-14: write best each iteration
+!     fmtw=adjustl("(i6,1x,i6,10000("//sprec//"))")
+!     write(ubest,trim(fmtw))ipos,idbest(ipos),bestpso(:,ipos)
+!     flush(ubest)
+! 
+!     return
+!   end subroutine bestpso_store
+  subroutine bestpso_store(ubest,ipos,ipx,x_sc,inv_fitness,idbest,bestpso)
     integer,intent(in)::ubest,ipos,ipx
     real(dp),dimension(:),intent(in)::x_sc
-    real(dp),intent(in)::iChi2r
+    real(dp),intent(in)::inv_fitness
     integer,dimension(:),intent(out)::idbest
     real(dp),dimension(:,:)::bestpso
     real(dp),dimension(:),allocatable::x_unsc
-    real(dp)::tChi2,Chi2,Chi2r
+    real(dp)::fitness_x_dof,fitness
     character(512)::fmtw
 
     allocate(x_unsc(nfit))
     x_unsc=unscaling(nfit, x_sc(1:nfit)) ! scale parameters to physical value
-    Chi2=real(dof,dp)/iChi2r
-    Chi2r=Chi2*inv_dof
     bestpso(1:nfit,ipos)=x_unsc(1:nfit)
     deallocate(x_unsc)
-    if(iChi2r.ge.huge(zero))then
-      tChi2=huge(zero)
-      Chi2=tChi2
-      Chi2r=Chi2
-    else if(iChi2r.le.TOLERANCE)then
-      tChi2=iChi2r
-      Chi2=huge(zero)
-      Chi2r=Chi2*inv_dof
-    else
-      tChi2=iChi2r
-      Chi2=real(dof,dp)/iChi2r
-      Chi2r=Chi2*inv_dof
-    end if
-    bestpso(nfit+1,ipos)=iChi2r
-    bestpso(nfit+2,ipos)=Chi2
-    bestpso(nfit+3,ipos)=Chi2r
+
+    fitness=one/inv_fitness
+    fitness_x_dof=real(dof,dp)*fitness
+
+    bestpso(nfit+1,ipos)=inv_fitness
+    bestpso(nfit+2,ipos)=fitness_x_dof
+    bestpso(nfit+3,ipos)=fitness
     idbest(ipos)=ipx
     ! added 2014-07-14: write best each iteration
     fmtw=adjustl("(i6,1x,i6,10000("//sprec//"))")
@@ -1085,6 +1199,7 @@ module opti_pso
 
     return
   end subroutine bestpso_store
+
 
   ! write best simulations into file
   subroutine write_bestpso(it_i,it_e,idbest,bestpso)
@@ -1111,6 +1226,48 @@ module opti_pso
   end subroutine write_bestpso
   
   ! writes all the simulations stored in pp into file
+!   subroutine write_allpso(uall,it,ip,pp)
+!     integer,intent(in)::uall,it
+!     type(type_p),dimension(:),intent(in)::pp ! particles
+!     integer,dimension(:),intent(in)::ip ! index of particles
+!     integer::np
+!     integer::j
+!     character(128)::wfmt
+!     real(dp)::iChi2r,Chi2,Chi2r,tChi2
+!     real(dp),dimension(:),allocatable::xpar
+! 
+!     np=size(ip)
+!     wfmt="(i6,1x,i4,1x,1000("//trim(sprec)//",1x))"
+! 
+!     allocate(xpar(nfit))
+! 
+!     ! it selectes the best way to write bad chi2, usefull for post-analysis
+!     do j=1,np
+!       iChi2r=pp(j)%ev
+!       if(iChi2r.ge.huge(zero))then
+!           tChi2=huge(zero)
+!           Chi2=tChi2
+!           Chi2r=Chi2
+!       else if(iChi2r.le.TOLERANCE)then
+!           tChi2=iChi2r
+!           Chi2=huge(zero)
+!           Chi2r=Chi2*inv_dof
+!       else
+!           tChi2=iChi2r
+!           Chi2=real(dof,dp)/iChi2r
+!           Chi2r=Chi2*inv_dof
+!       end if
+!       xpar=zero
+!       xpar=unscaling(nfit,pp(j)%x(:))
+!       write(uall,trim(wfmt))it,ip(j),xpar,iChi2r,Chi2,Chi2r
+!       flush(uall)
+!     end do
+! 
+!     deallocate(xpar)
+! 
+!     return
+!   end subroutine write_allpso
+
   subroutine write_allpso(uall,it,ip,pp)
     integer,intent(in)::uall,it
     type(type_p),dimension(:),intent(in)::pp ! particles
@@ -1118,7 +1275,7 @@ module opti_pso
     integer::np
     integer::j
     character(128)::wfmt
-    real(dp)::iChi2r,Chi2,Chi2r,tChi2
+    real(dp)::inv_fitness,fitness_x_dof,fitness
     real(dp),dimension(:),allocatable::xpar
 
     np=size(ip)
@@ -1126,25 +1283,13 @@ module opti_pso
 
     allocate(xpar(nfit))
 
-    ! it selectes the best way to write bad chi2, usefull for post-analysis
     do j=1,np
-      iChi2r=pp(j)%ev
-      if(iChi2r.ge.huge(zero))then
-          tChi2=huge(zero)
-          Chi2=tChi2
-          Chi2r=Chi2
-      else if(iChi2r.le.TOLERANCE)then
-          tChi2=iChi2r
-          Chi2=huge(zero)
-          Chi2r=Chi2*inv_dof
-      else
-          tChi2=iChi2r
-          Chi2=real(dof,dp)/iChi2r
-          Chi2r=Chi2*inv_dof
-      end if
+      inv_fitness=pp(j)%ev
+      fitness=one/inv_fitness
+      fitness_x_dof=real(dof,dp)*fitness
       xpar=zero
       xpar=unscaling(nfit,pp(j)%x(:))
-      write(uall,trim(wfmt))it,ip(j),xpar,iChi2r,Chi2,Chi2r
+      write(uall,trim(wfmt))it,ip(j),xpar,inv_fitness,fitness_x_dof,fitness
       flush(uall)
     end do
 
@@ -1152,5 +1297,24 @@ module opti_pso
 
     return
   end subroutine write_allpso
+
+  subroutine save_population(it,ip,pp)
+    integer,intent(in)::it
+    integer,dimension(:),intent(in)::ip ! index of particles
+    type(type_p),dimension(:),intent(in)::pp ! particles
+    real(dp)::fitness
+    integer::np
+    integer::j
+    np=size(ip)
+    
+    do j=1,np
+      fitness=one/pp(j)%ev ! compute fitness as inverse of inv_fitness
+      population_fitness(j,it)=fitness
+      population(:,j,it)=unscaling(nfit,pp(j)%x(:))
+    end do
+    
+    return
+  end subroutine save_population
+  
   
 end module opti_pso

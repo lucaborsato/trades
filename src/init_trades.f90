@@ -139,7 +139,7 @@ module init_trades
   ! ------------------------------------------------------------------ !
 
   ! ------------------------------------------------------------------ !
-  ! IT READS ARGUMENT/OPTION FOR THE dpOGRAM FROM arg.in FILE
+  ! IT READS ARGUMENT/OPTION FOR THE PROGRAM FROM arg.in FILE
 !   subroutine read_arg(cpuid)
 !     integer,intent(in)::cpuid
 !     integer::uread
@@ -761,7 +761,8 @@ module init_trades
     deallocate(Pvec)
     
     call set_minmax() ! it modifies minpar and maxpar
-
+    
+    
     return
   end subroutine read_par_boundaries
 

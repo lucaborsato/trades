@@ -33,6 +33,9 @@ module parameters
   integer::ndata,npar,nfit,dof
   real(dp)::inv_dof
 
+  ! complete list of all the parameters for the whole system: M1,R1,M2,P2,a2,e2,...and so on
+  real(dp),dimension(:),allocatable::system_parameters ! needed by ode_lm -> dimension == npar
+  
   ! single maximum values for the weighted residuals
 !   real(dp),parameter::resmax=1.e20_dp
   real(dp),parameter::resmax=1.e10_dp
@@ -69,16 +72,26 @@ module parameters
 
   ! for PIK/PSO
   integer::wrtAll,nGlobal
-
+  
+  real(dp),dimension(:,:,:),allocatable::population
+  real(dp),dimension(:,:),allocatable::population_fitness
+  real(dp),dimension(:,:),allocatable::pso_best_evolution
 
   
   ! for PolyChord
   type(program_settings)::settings
 !   type(prior),dimension(1)::trades_prior ! NOT NEEDED IN POLYCHORD V1.2
-  real(dp),dimension(:),allocatable::PC_allpar ! needed by ode_lm
   
   ! other boundaries
   real(dp),dimension(:,:),allocatable::e_bounds
+  
+  ! derived parameters
+  integer::n_derived=0
+  logical::check_derived=.false.
+  character(10),dimension(:),allocatable::derived_names
+  real(dp),dimension(:,:),allocatable::derived_boundaries
+
+  
   
   interface norm2par
     module procedure norm2par_1,norm2par_2

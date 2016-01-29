@@ -67,32 +67,86 @@ module Genetic_Algorithm
   end function getStat
 
     ! function to be use with PIKAIA genetic algorithm
-  function fpik(n,allpar,par) result(fn_val)
+!   function fpik(n,allpar,par) result(fn_val)
+!     use ode_run,only:ode_lm
+!     real(dp)::fn_val
+!     integer,intent(in)::n
+!     real(dp),dimension(:),intent(in)::allpar,par
+!     real(dp),dimension(:),allocatable::wpar,wall
+!     real(dp),dimension(:),allocatable::resw,resw2
+! !     real(dp)::chi2
+!     integer::iflag
+! 
+!     iflag=1
+!     allocate(wpar(n),wall(npar))
+!     wall=allpar
+!     call norm2par(par,wpar,wall)
+!     allocate(resw(ndata),resw2(ndata))
+!     resw=0._dp
+!     call ode_lm(wall,ndata,n,wpar,resw,iflag)
+!     resw2=resw*resw
+! !     chi2=sum(resw2)
+! !     fn_val=1._dp/chi2
+! !     fn_val=real(dof,dp)/sum(resw2)
+!     fn_val=one/sum(resw2)
+!     deallocate(wpar,wall,resw,resw2)
+! 
+!     return
+!   end function fpik
+  function fpik(n,all_par,fitting_parameters) result(inv_fitness)
     use ode_run,only:ode_lm
-    real(dp)::fn_val
+    use derived_parameters_mod
+    real(dp)::inv_fitness
     integer,intent(in)::n
-    real(dp),dimension(:),intent(in)::allpar,par
-    real(dp),dimension(:),allocatable::wpar,wall
-    real(dp),dimension(:),allocatable::resw,resw2
-!     real(dp)::chi2
-    integer::iflag
-
+    real(dp),intent(in),dimension(:)::all_par
+    real(dp),intent(in),dimension(n)::fitting_parameters
+    real(dp)::fitness
+    
+    logical::check
+    real(dp),dimension(:),allocatable::resw
+    integer::i,iflag
+    logical::check_status
+    
     iflag=1
-    allocate(wpar(n),wall(npar))
-    wall=allpar
-    call norm2par(par,wpar,wall)
-    allocate(resw(ndata),resw2(ndata))
-    resw=0._dp
-    call ode_lm(wall,ndata,n,wpar,resw,iflag)
-    resw2=resw*resw
-!     chi2=sum(resw2)
-!     fn_val=1._dp/chi2
-!     fn_val=real(dof,dp)/sum(resw2)
-    fn_val=one/sum(resw2)
-    deallocate(wpar,wall,resw,resw2)
+    check = .true.
+    check_status=.true.
+    
+    checkloop: do i=1,nfit
+      if(fitting_parameters(i).lt.minpar(i))then
+        check=.false.
+        exit checkloop
+      else if(fitting_parameters(i).gt.maxpar(i))then
+        check=.false.
+        exit checkloop
+      end if
+    end do checkloop
 
+    if(check)then
+      if(check_derived) check_status=check_derived_parameters(fitting_parameters)
+      if(check_status)then
+        allocate(resw(ndata))
+        resw=zero
+        call ode_lm(all_par,ndata,nfit,fitting_parameters,resw,iflag)
+        fitness=sum(resw*resw)
+        ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
+        deallocate(resw)
+        if (fitness.ge.resmax)then
+!           check=.false.
+          fitness=resmax
+        end if
+      else ! check_status
+        fitness=resmax
+      end if
+    else
+      fitness=resmax
+    end if
+
+    inv_fitness=one/fitness
+    
     return
   end function fpik
+
+
   ! ------------------------------------------------------------------ !
   
   ! driver that initialize variabel, factors and calls the pikaia subroutine.
@@ -104,13 +158,23 @@ module Genetic_Algorithm
 
     integer::cpuid,STATUS
 
+!     interface
+!       function ff(n,xall,x) result(fn_val)
+!         use constants,only:dp
+!         implicit none
+!         integer,intent(in)::n
+!         real(dp),dimension(:),intent(in)::xall,x
+!         real(dp)::fn_val
+!       end function ff
+!     end interface
     interface
       function ff(n,xall,x) result(fn_val)
         use constants,only:dp
         implicit none
-        integer,intent(in)::n
-        real(dp),dimension(:),intent(in)::xall,x
         real(dp)::fn_val
+        integer,intent(in)::n
+        real(dp),intent(in),dimension(:)::xall
+        real(dp),intent(in),dimension(n)::x
       end function ff
     end interface
 
@@ -197,13 +261,23 @@ module Genetic_Algorithm
     integer,intent(out)::STATUS
     integer,intent(in)::iGlobal
 
+!     interface
+!       function ff(n,xall,x) result(fn_val)
+!         use constants,only:dp
+!         implicit none
+!         integer,intent(in)::n
+!         real(dp),dimension(:),intent(in)::xall,x
+!         real(dp)::fn_val
+!       end function ff
+!     end interface
     interface
       function ff(n,xall,x) result(fn_val)
         use constants,only:dp
         implicit none
-        integer,intent(in)::n
-        real(dp),dimension(:),intent(in)::xall,x
         real(dp)::fn_val
+        integer,intent(in)::n
+        real(dp),intent(in),dimension(:)::xall
+        real(dp),intent(in),dimension(n)::x
       end function ff
     end interface
 
@@ -398,13 +472,15 @@ module Genetic_Algorithm
     call check_file_pik(iGlobal,uall,ubest)
 
     !     Main Generation Loop
-    do  ig = 1, ngen
-
+!     do  ig = 1, ngen
+    ig=0
+    gen_do: do
+      ig=ig+1
       ! ======================
       ! insert by Luca Borsato
-      write(*,'(a)')" ------------------------------- "
-      write(*,'(a)')" Generation number: ",ig
-      flush(6)
+!       write(*,'(a)')" ------------------------------- "
+!       write(*,'(a)')" Generation number: ",ig
+!       flush(6)
 !       write(*,'("  Done pair number: ")',advance='yes')
       ! ======================
       !        Main Population Loop
@@ -481,6 +557,12 @@ module Genetic_Algorithm
       
       if(getStat(ig,ngen).ge.wrtgen)then
           write(*,'(a,i4,a)')" Completed iterations: ",getStat(ig,ngen)," of 100%"
+          write(*,'(a,i6,2(a,g25.14))')" DONE PIKAIA GENERATION ",ig,&
+            & " fitness_x_dof = ",bestpik(n+2,ig),&
+            & " fitness = ",bestpik(n+3,ig)
+          write(*,'(a)')" Parameters "
+          write(*,'(1000g20.8)')bestpik(1:n,ig)
+          write(*,'(a)')""
           flush(6)
           igc = ig + 1
           wrtgen=wrtgen+10
@@ -488,8 +570,9 @@ module Genetic_Algorithm
 
       if(iwrt.eq.ig)then
           write(*,'(a,i6)')" DONE PIKAIA GENERATION ",ig
-          write(*,'(a)')" BEST " 
-          write(*,'(2(a,g25.14))')" Chi^2 = ",bestpik(n+2,ig)," Chi^2_r = ",bestpik(n+3,ig)
+          write(*,'(a,i6,2(a,g25.14))')" DONE PIKAIA GENERATION ",ig,&
+            & " fitness_x_dof = ",bestpik(n+2,ig),&
+            & " fitness = ",bestpik(n+3,ig)
           write(*,'(a)')" Parameters "
           write(*,'(1000g20.8)')bestpik(1:n,ig)
           write(*,'(a)')""
@@ -497,7 +580,27 @@ module Genetic_Algorithm
           iwrt=iwrt+ivrb
       end if
 !       if(ig.eq.1)stop
-    end do
+
+!     end do
+      if(ig.ge.ngen)then
+        if(bestpik(n+3,ig).ge.1000._dp)then
+          write(*,'(a)')''
+          write(*,'(a,i6,a)')' Too high fitness > 1000, continue for other ',ngen,' iterations'
+          flush(6)
+          ig=0
+          wrtgen=10
+          igc=1
+          if(uall.gt.0) close(uall)
+          close(ubest)
+          call check_file_pik(iGlobal,uall,ubest) ! reset file
+        else
+          exit gen_do
+        end if
+      else if(bestpik(n+3,ig).le.one)then
+        exit gen_do
+      end if
+    
+    end do gen_do
 
     if(uall.gt.0) close(uall)
     !     Return best phenotype and its fitness
@@ -508,11 +611,20 @@ module Genetic_Algorithm
     !call write_pik(ngen,storepik)
     close(ubest)
 
-    write(*,'(a,i6)')" DONE LAST PIKAIA GENERATION ",ngen
+!     write(*,'(a,i6)')" DONE LAST PIKAIA GENERATION ",ngen
+!     write(*,'(a)')" BEST " 
+!     write(*,'(1(a,g20.8))')" fitness_x_dof = ",bestpik(n+2,ngen)
+!     write(*,'(1(a,g20.8))')"       fitness = ",bestpik(n+3,ngen)
+!     write(*,'(a)')" Parameters "
+!     write(*,'(1000g20.8)')bestpik(1:n,ngen)
+!     write(*,'(a)')""
+    write(*,'(a,i6)')" DONE LAST PIKAIA GENERATION ",ig
     write(*,'(a)')" BEST " 
-    write(*,'(2(a,g20.8))')" Chi^2 = ",bestpik(n+2,ngen)," Chi^2_r = ",bestpik(n+3,ngen)
+    write(*,'(a,i6,2(a,g25.14))')" DONE PIKAIA GENERATION ",ig,&
+            & " fitness_x_dof = ",bestpik(n+2,ig),&
+            & " fitness = ",bestpik(n+3,ig)
     write(*,'(a)')" Parameters "
-    write(*,'(1000g20.8)')bestpik(1:n,ngen)
+    write(*,'(1000g20.8)')bestpik(1:n,ig)
     write(*,'(a)')""
     if(allocated(bestpik)) deallocate(idbest,bestpik)
 
@@ -1089,16 +1201,27 @@ module Genetic_Algorithm
     !     Output:
     integer, intent(out)     :: nnew
 
+!     interface
+!       function ff(n,xall,x) result(fn_val)
+!         use constants,only:dp
+!         implicit none
+!         integer,intent(in)::n
+!         real(dp),dimension(:),intent(in)::xall,x
+!         real(dp)::fn_val
+!       end function ff
+!     end interface
     interface
       function ff(n,xall,x) result(fn_val)
         use constants,only:dp
         implicit none
-        integer,intent(in)::n
-        real(dp),dimension(:),intent(in)::xall,x
         real(dp)::fn_val
+        integer,intent(in)::n
+        real(dp),intent(in),dimension(:)::xall
+        real(dp),intent(in),dimension(n)::x
       end function ff
     end interface
 
+    
     ! EXTERNAL ff
 
     !     Local:
@@ -1199,16 +1322,27 @@ module Genetic_Algorithm
     real(dp), intent(out)     :: fitns(np)
     integer, intent(out)  :: nnew
 
+!     interface
+!       function ff(n,xall,x) result(fn_val)
+!         use constants,only:dp
+!         implicit none
+!         integer,intent(in)::n
+!         real(dp),dimension(:),intent(in)::xall,x
+!         real(dp)::fn_val
+!       end function ff
+!     end interface
     interface
       function ff(n,xall,x) result(fn_val)
         use constants,only:dp
         implicit none
-        integer,intent(in)::n
-        real(dp),dimension(:),intent(in)::xall,x
         real(dp)::fn_val
+        integer,intent(in)::n
+        real(dp),intent(in),dimension(:)::xall
+        real(dp),intent(in),dimension(n)::x
       end function ff
     end interface
 
+    
     ! EXTERNAL ff
 
     !     Local:
@@ -1484,7 +1618,8 @@ module Genetic_Algorithm
       fmtpik=trim(adjustl(fmtpik))//&
             &" "//parid(ip)
     end do
-    fmtpik=trim(adjustl(fmtpik))//" invChi2r Chi2 Chi2r"
+!     fmtpik=trim(adjustl(fmtpik))//" invChi2r Chi2 Chi2r"
+    fmtpik=trim(adjustl(fmtpik))//" inv_fitness fitness_x_dof fitness"
     write(ubest,'(a)')trim(adjustl(fmtpik))
     !close(ubest)
 
@@ -1517,7 +1652,8 @@ module Genetic_Algorithm
     real(dp),dimension(:,:),intent(out)::bestpik
     integer::inp
     real(dp),dimension(:),allocatable::xpik,parpik
-    real(dp)::iChi2r,Chi2,Chi2r
+!     real(dp)::iChi2r,Chi2,Chi2r
+    real(dp)::inv_fitness,fitness_x_dof,fitness
     character(512)::fmtw
 
     inp=ifit(ipop)
@@ -1526,24 +1662,35 @@ module Genetic_Algorithm
     parpik=zero
     call norm2par(xpik,parpik) ! convert parameters from [0, 1] to physical values
     bestpik(1:nfit,igen)=parpik
-    ! proper chi2 and chi2r to write
-    if(fitns(inp).ge.huge(zero))then
-      iChi2r=huge(zero)
-      Chi2=real(dof,dp)/iChi2r
-      Chi2r=Chi2
-    else if(fitns(inp).le.TOLERANCE)then
-      iChi2r=fitns(inp)
-      Chi2=huge(zero)
-      Chi2r=Chi2*inv_dof
-    else 
-      iChi2r=fitns(inp)
-      Chi2=real(dof,dp)/iChi2r
-      Chi2r=Chi2*inv_dof
-    end if
-    bestpik(nfit+1,igen)=iChi2r
-    bestpik(nfit+2,igen)=Chi2
-    bestpik(nfit+3,igen)=Chi2r
+
+!         ! proper chi2 and chi2r to write
+!     if(fitns(inp).ge.huge(zero))then
+!       iChi2r=huge(zero)
+!       Chi2=real(dof,dp)/iChi2r
+!       Chi2r=Chi2
+!     else if(fitns(inp).le.TOLERANCE)then
+!       iChi2r=fitns(inp)
+!       Chi2=huge(zero)
+!       Chi2r=Chi2*inv_dof
+!     else 
+!       iChi2r=fitns(inp)
+!       Chi2=real(dof,dp)/iChi2r
+!       Chi2r=Chi2*inv_dof
+!     end if
+!     bestpik(nfit+1,igen)=iChi2r
+!     bestpik(nfit+2,igen)=Chi2
+!     bestpik(nfit+3,igen)=Chi2r
+!     idbest(igen)=inp
+    
+    
+    inv_fitness=fitns(inp)
+    fitness=one/inv_fitness
+    fitness_x_dof=real(dof,dp)*fitness
+    bestpik(nfit+1,igen)=inv_fitness
+    bestpik(nfit+2,igen)=fitness_x_dof
+    bestpik(nfit+3,igen)=fitness
     idbest(igen)=inp
+    
     ! added 2014-07-14: write best each iteration
     fmtw=adjustl("(i6,1x,i6,1000("//trim(sprec)//"))")
     write(ubest,trim(fmtw))igen,idbest(igen),bestpik(:,igen)
@@ -1562,7 +1709,8 @@ module Genetic_Algorithm
     integer::np
     integer::j
     character(128)::wfmt
-    real(dp)::iChi2r,Chi2,Chi2r,tChi2
+    real(dp)::inv_fitness,fitness_x_dof,fitness
+!     real(dp)::iChi2r,Chi2,Chi2r,tChi2
     real(dp),dimension(:),allocatable::xpar
 
     np=size(ip)
@@ -1570,24 +1718,29 @@ module Genetic_Algorithm
 
     allocate(xpar(nfit))
 
+!     do j=1,np
+!       iChi2r=fitns(j)
+!       if(iChi2r.ge.huge(zero))then
+!           tChi2=huge(zero)
+!           Chi2=tChi2
+!           Chi2r=Chi2
+!       else if(iChi2r.le.TOLERANCE)then
+!           tChi2=iChi2r
+!           Chi2=huge(zero)
+!           Chi2r=Chi2*inv_dof
+!       else
+!           tChi2=iChi2r
+!           Chi2=real(dof,dp)/iChi2r
+!           Chi2r=Chi2*inv_dof
+!       end if
     do j=1,np
-      iChi2r=fitns(j)
-      if(iChi2r.ge.huge(zero))then
-          tChi2=huge(zero)
-          Chi2=tChi2
-          Chi2r=Chi2
-      else if(iChi2r.le.TOLERANCE)then
-          tChi2=iChi2r
-          Chi2=huge(zero)
-          Chi2r=Chi2*inv_dof
-      else
-          tChi2=iChi2r
-          Chi2=real(dof,dp)/iChi2r
-          Chi2r=Chi2*inv_dof
-      end if
+      inv_fitness=fitns(j)
+      fitness=one/inv_fitness
+      fitness_x_dof=real(dof,dp)*fitness
       xpar=zero
       call norm2par(pp(1:nfit,j),xpar)
-      write(uall,trim(wfmt))ig,ip(j),xpar,iChi2r,Chi2,Chi2r
+!       write(uall,trim(wfmt))ig,ip(j),xpar,iChi2r,Chi2,Chi2r
+      write(uall,trim(wfmt))ig,ip(j),xpar,inv_fitness,fitness_x_dof,fitness
       flush(uall)
     end do
 

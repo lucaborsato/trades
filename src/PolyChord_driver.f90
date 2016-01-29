@@ -8,21 +8,21 @@ module PolyChord_driver
 
 ! read settings in init_trades.f90
 
-! fix the PC_allpar in case a parameter has been read with a value not in [par_min, par_max]
+! fix the system_parameters in case a parameter has been read with a value not in [par_min, par_max]
 
-  subroutine fix_PC_allpar()
+  subroutine fix_system_parameters()
     integer::i
     
     do i=1,npar
       if( tofit(i).eq. 1)then
-        if( (PC_allpar(i).lt.par_min(i)) .or. (PC_allpar(i).gt.par_max(i)) )then
-          PC_allpar(i) = par_min(i)
+        if( (system_parameters(i).lt.par_min(i)) .or. (system_parameters(i).gt.par_max(i)) )then
+          system_parameters(i) = par_min(i)
         end if
       end if
     end do
   
     return
-  end subroutine fix_PC_allpar
+  end subroutine fix_system_parameters
 
   function loglikelihood(theta,phi)
     use constants,only:dp,zero
@@ -37,7 +37,7 @@ module PolyChord_driver
 !     write(*,'(a,1000(f17.8))')" phys par = ",theta
     allocate(resw(ndata))
     resw=zero
-    call ode_lm(PC_allpar,ndata,nfit,theta,resw,iflag)
+    call ode_lm(system_parameters,ndata,nfit,theta,resw,iflag)
 !     loglikelihood=-0.5_dp*(sum(resw*resw)/real(dof,dp))
     loglikelihood=-0.5_dp*sum(resw*resw) ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
     deallocate(resw)
@@ -83,7 +83,7 @@ module PolyChord_driver
     integer::i
     
 !     interface
-!       subroutine fix_PC_allpar()
+!       subroutine fix_system_parameters()
 !       end subroutine
 !     end interface
 
@@ -127,7 +127,7 @@ module PolyChord_driver
 
     ! ------- (1d) Define the parameters of the loglikelihood and the system settings -------
     ! already set loglikelihood and system settings when reading PolyChord.opt file
-    call fix_PC_allpar()
+    call fix_system_parameters()
     
     
     output_info=zero ! set to zero....why not...
