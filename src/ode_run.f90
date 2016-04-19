@@ -7,6 +7,7 @@ module ode_run
   use numerical_integrator,only:int_rk_a
   use transits
   use radial_velocities
+  use gls_module,only:check_periodogram,check_and_write_periodogram
   use output_files
   implicit none
 
@@ -123,7 +124,7 @@ module ode_run
     real(dp),dimension(:,:),allocatable,intent(out)::gamma
     real(dp),dimension(:)::resw
     real(dp),dimension(:),allocatable::dRV,wi
-    integer::j,j1,a,aRV,bRV
+    integer::j,aRV,bRV
 
     if(.not.allocated(gamma)) allocate(gamma(nRVset,2))
     gamma=zero
@@ -619,7 +620,7 @@ module ode_run
     integer::cntT0,nTs
     real(dp),dimension(:,:),allocatable::T0_sim
     integer,dimension(:,:),allocatable::T0_stat
-    logical::checkpar
+    logical::checkpar,gls_check
 
     resw=zero
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),i(NB),lN(NB),clN(NB))
@@ -685,6 +686,7 @@ module ode_run
           &cntT0,T0_stat,T0_sim,Hc)
     end if
 
+    gls_check=.true.
     if(Hc)then
 !       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
@@ -693,7 +695,12 @@ module ode_run
       !call setval_2(RVobs,RV_sim,eRVobs,T0obs,T0_sim,eT0obs,resw)
       !call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
-      call check_max_residuals(resw,ndata)
+      call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+      if(.not.gls_check)then
+        resw=set_max_residuals(ndata)
+      else
+        call check_max_residuals(resw,ndata)
+      end if
     end if
 
     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
@@ -946,7 +953,7 @@ module ode_run
 
     ! ------------------------------------------------------------------ !
   ! subroutine to write file and to screen the data ... what it writes
-  ! depends on the option marked with 1 in arg.in file
+  ! depends on the option isim and wrtid/lmon in arg.in file
   subroutine ode_out(cpuid,isim,wrtid,allpar,par,resw)
     integer,intent(in)::cpuid,isim,wrtid
     real(dp),dimension(:),intent(in)::allpar,par
@@ -966,7 +973,7 @@ module ode_run
     integer::cntT0,nTs
     real(dp),dimension(:,:),allocatable::T0_sim
     integer,dimension(:,:),allocatable::T0_stat
-    logical::checkpar
+    logical::checkpar,gls_check
 
     real(dp)::chi2r_RV,chi2r_T0,chi2wr_RV,chi2wr_T0,fitness,w_chi2r
     real(dp),dimension(:),allocatable::resw_temp
@@ -977,9 +984,11 @@ module ode_run
     integer,dimension(:),allocatable::uele,utra
     character(512),dimension(:),allocatable::flele,fltra
 
+    integer::i_par
+    
     write(*,*)
     write(*,'(a)')" EXECUTING SIMPLE INTEGRATION AND WRITING FINAL FILES"
-    write(*,'(a,i3)')" LM wrtid = ",wrtid
+    write(*,'(a,i3)')" LM on[1]/off[0] = ",wrtid
     write(*,*)
     
     resw=zero
@@ -1010,16 +1019,19 @@ module ode_run
     end if
 
     write(*,*)
-    write(*,*)" par"
-    write(*,*)par
-    write(*,*)"  m = ",m
-    write(*,*)"  P = ",P
-    write(*,*)"  a = ",a
-    write(*,*)"  e = ",e
-    write(*,*)"  w = ",w
-    write(*,*)" mA = ",mA
-    write(*,*)"  i = ",i
-    write(*,*)" lN = ",lN
+    write(*,'(a)')"parid par"
+    do i_par=1,nfit
+      write(*,'(a10,F17.12)')parid(i_par),par(i_par)
+    end do
+    write(*,*)
+    write(*,'(a,1000(F17.12,1x))')"  m = ",m
+    write(*,'(a,1000(F17.12,1x))')"  P = ",P
+    write(*,'(a,1000(F17.12,1x))')"  a = ",a
+    write(*,'(a,1000(F17.12,1x))')"  e = ",e
+    write(*,'(a,1000(F17.12,1x))')"  w = ",w
+    write(*,'(a,1000(F17.12,1x))')" mA = ",mA
+    write(*,'(a,1000(F17.12,1x))')"  i = ",i
+    write(*,'(a,1000(F17.12,1x))')" lN = ",lN
     write(*,*)
     
     ! write orbital elements into a file
@@ -1118,6 +1130,9 @@ module ode_run
       w_chi2r=real(ndata,dp)/real(nRV,dp)
       chi2wr_RV=chi2r_RV*w_chi2r
       deallocate(resw_temp)
+      ! 2016-04-08: added gls check
+      call check_and_write_periodogram(cpuid,isim,wrtid,jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+      if(.not.gls_check)resw=set_max_residuals(ndata)
     end if
 
     if(cntT0.gt.0)then

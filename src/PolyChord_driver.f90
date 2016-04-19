@@ -2,6 +2,7 @@ module PolyChord_driver
   use constants
   use parameters
   use ode_run,only:ode_lm
+  use fitness_module
   implicit none
   
   contains
@@ -24,31 +25,102 @@ module PolyChord_driver
     return
   end subroutine fix_system_parameters
 
+!   function calculate_fitness(all_parameters,fitting_parameters) result(fitness)
+!     use ode_run,only:ode_lm
+!     use derived_parameters_mod
+!     real(dp)::fitness
+!     real(dp),intent(in),dimension(:)::all_parameters
+!     real(dp),intent(in),dimension(:)::fitting_parameters
+!     logical::check
+!     real(dp),dimension(:),allocatable::run_all_parameteres
+!     real(dp),dimension(:),allocatable::resw
+!     integer::i,iflag
+!     logical::check_status
+!     
+!     iflag=1
+!     check=.true.
+!     check_status=.true.
+!     
+!     checkloop: do i=1,nfit
+!       if(fitting_parameters(i).lt.minpar(i))then
+!         check=.false.
+!         exit checkloop
+!       else if(fitting_parameters(i).gt.maxpar(i))then
+!         check=.false.
+!         exit checkloop
+!       end if
+!     end do checkloop
+! 
+!     if(check)then
+! 
+!       allocate(run_all_parameteres(npar))
+!       run_all_parameteres=all_parameters
+!       if(check_derived) check_status=check_derived_parameters(fitting_parameters)
+!       if(fix_derived) call fix_derived_parameters(fitting_parameters,run_all_parameteres,check_status)
+! 
+!       if(check_status)then
+!         allocate(resw(ndata))
+!         resw=zero
+!         call ode_lm(run_all_parameteres,ndata,nfit,fitting_parameters,resw,iflag)
+!         fitness=sum(resw*resw)
+!         ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
+!         deallocate(resw)
+!         if (fitness.ge.resmax)then
+! !           check=.false.
+!           fitness=resmax
+!         end if
+!       else ! check_status
+!         fitness=resmax
+!       end if
+!       deallocate(run_all_parameteres)
+!     else
+!       fitness=resmax
+!     end if
+!     
+!     return
+!   end function calculate_fitness
+  
   function loglikelihood(theta,phi)
     use constants,only:dp,zero
     real(dp),intent(in),dimension(:)::theta
     real(dp),intent(out),dimension(:)::phi
     real(dp)::loglikelihood
+    real(dp)::fitness
 
-    real(dp),dimension(:),allocatable::resw
-    integer::iflag=1
-    
-!     write(*,'(a)')"# ================================================ # "
-!     write(*,'(a,1000(f17.8))')" phys par = ",theta
-    allocate(resw(ndata))
-    resw=zero
-    call ode_lm(system_parameters,ndata,nfit,theta,resw,iflag)
-!     loglikelihood=-0.5_dp*(sum(resw*resw)/real(dof,dp))
-    loglikelihood=-0.5_dp*sum(resw*resw) ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
-    deallocate(resw)
-!     write(*,'(2(a,f17.8))')" logLikelihood = ",loglikelihood,&
-!       &" Chi^2_r = ",-2._dp*loglikelihood
-!     write(*,'(a)')"# ================================================ # "
+!     fitness=calculate_fitness(system_parameters,theta)
+    fitness=bound_fitness_function(system_parameters,theta)
+    loglikelihood=-0.5_dp*fitness
     
     ! Use up these parameters to stop irritating warnings
     if(size(phi).gt.0)phi=zero
   
   end function loglikelihood
+
+!   function loglikelihood(theta,phi)
+!     use constants,only:dp,zero
+!     real(dp),intent(in),dimension(:)::theta
+!     real(dp),intent(out),dimension(:)::phi
+!     real(dp)::loglikelihood
+! 
+!     real(dp),dimension(:),allocatable::resw
+!     integer::iflag=1
+!     
+! !     write(*,'(a)')"# ================================================ # "
+! !     write(*,'(a,1000(f17.8))')" phys par = ",theta
+!     allocate(resw(ndata))
+!     resw=zero
+!     call ode_lm(system_parameters,ndata,nfit,theta,resw,iflag)
+! !     loglikelihood=-0.5_dp*(sum(resw*resw)/real(dof,dp))
+!     loglikelihood=-0.5_dp*sum(resw*resw) ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
+!     deallocate(resw)
+! !     write(*,'(2(a,f17.8))')" logLikelihood = ",loglikelihood,&
+! !       &" Chi^2_r = ",-2._dp*loglikelihood
+! !     write(*,'(a)')"# ================================================ # "
+!     
+!     ! Use up these parameters to stop irritating warnings
+!     if(size(phi).gt.0)phi=zero
+!   
+!   end function loglikelihood
 
 
   subroutine PC_driver(output_info) ! BASED ON PolyChord.F90 in original PolyChordv1.2 src
@@ -72,7 +144,8 @@ module PolyChord_driver
     ! 3) ndead
     ! 4) number of likelihood calls
     ! 5) log(evidence) + log(prior volume)
-    double precision, dimension(5)            :: output_info
+!     double precision, dimension(5)            :: output_info
+    real(dp), dimension(5)            :: output_info
 
 !     type(program_settings)                    :: settings  ! The program settings  ! in parameters module
     type(prior), dimension(:),allocatable     :: priors    ! The details of the priors

@@ -19,7 +19,7 @@ module constants
 
   !various
   real(dp),parameter::s24h=86400._dp !seconds in a day = 24h = 86400s
-  real(dp),parameter::zero=0._dp,one=1._dp
+  real(dp),parameter::zero=0._dp,one=1._dp,two=2._dp
   real(dp),parameter::TOLERANCE=epsilon(zero)
   real(dp),parameter::sqrt2 = sqrt(2._dp)
   real(dp),parameter::sqrt_12 = sqrt(12._dp) ! = 2*sqrt(3) needed for stability criterion with the mutual R_Hill
@@ -92,5 +92,16 @@ module constants
   integer::ncpu
   integer,dimension(:,:),allocatable::unit2
 
+  ! define new data type for grid search
+  type parameter_grid
+    character(15)::name ! name/id of the parameter
+    real(dp),dimension(3)::input_values=zero ! min, max, step as read from input file
+    character(2)::step_type='rn' ! input step type as read from the input file: 'ss/rn/sn'
+    real(dp)::step_grid=one ! calculated step size of the parameter
+    integer::n_steps=1 ! number of steps calculated, it take into account the min and max values
+    real(dp),dimension(:),allocatable::grid_values ! values of the grid parameter with dimension n_steps
+  end type parameter_grid
 
+  
+  
 end module constants

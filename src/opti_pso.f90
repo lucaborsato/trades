@@ -13,6 +13,7 @@ module opti_pso
   use init_trades,only:get_unit
   use random_trades
   use convert_type,only:string
+  use fitness_module
   implicit none
   private
 
@@ -85,68 +86,93 @@ module opti_pso
 !     return
 !   end function fpso
 
-  function pso_fitness(all_par,fitting_parameters) result(fitness)
-    use ode_run,only:ode_lm
-    use derived_parameters_mod
-    real(dp)::fitness
-    real(dp),intent(in),dimension(:)::all_par,fitting_parameters
-    logical::check
-    real(dp),dimension(:),allocatable::resw
-    integer::i,iflag
-    logical::check_status
-    
-    iflag=1
-    check = .true.
-    check_status=.true.
-    
-    checkloop: do i=1,nfit
-      if(fitting_parameters(i).lt.minpar(i))then
-        check=.false.
-        exit checkloop
-      else if(fitting_parameters(i).gt.maxpar(i))then
-        check=.false.
-        exit checkloop
-      end if
-    end do checkloop
-
-    if(check)then
-      if(check_derived) check_status=check_derived_parameters(fitting_parameters)
-      if(check_status)then
-        allocate(resw(ndata))
-        resw=zero
-        call ode_lm(all_par,ndata,nfit,fitting_parameters,resw,iflag)
-        fitness=sum(resw*resw)
-        ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
-        deallocate(resw)
-        if (fitness.ge.resmax)then
-!           check=.false.
-          fitness=resmax
-        end if
-      else ! check_status
-        fitness=resmax
-      end if
-    else
-      fitness=resmax
-    end if
-    
-    return
-  end function pso_fitness
+! comment: now from fitness_module
+!   function pso_fitness(all_par,fitting_parameters) result(fitness)
+!     use ode_run,only:ode_lm
+!     use derived_parameters_mod
+!     real(dp)::fitness
+!     real(dp),intent(in),dimension(:)::all_par
+!     real(dp),intent(in),dimension(:)::fitting_parameters
+!     logical::check
+!     real(dp),dimension(:),allocatable::run_all_par
+!     real(dp),dimension(:),allocatable::resw
+!     integer::i,iflag
+!     logical::check_status
+!     
+!     iflag=1
+!     check=.true.
+!     check_status=.true.
+!     
+!     checkloop: do i=1,nfit
+!       if(fitting_parameters(i).lt.minpar(i))then
+!         check=.false.
+!         exit checkloop
+!       else if(fitting_parameters(i).gt.maxpar(i))then
+!         check=.false.
+!         exit checkloop
+!       end if
+!     end do checkloop
+! 
+!     if(check)then
+! 
+!       allocate(run_all_par(npar))
+!       run_all_par=all_par
+!       if(check_derived) check_status=check_derived_parameters(fitting_parameters)
+!       if(fix_derived) call fix_derived_parameters(fitting_parameters,run_all_par,check_status)
+! 
+!       if(check_status)then
+!         allocate(resw(ndata))
+!         resw=zero
+!         call ode_lm(run_all_par,ndata,nfit,fitting_parameters,resw,iflag)
+!         fitness=sum(resw*resw)
+!         ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
+!         deallocate(resw)
+!         if (fitness.ge.resmax)then
+! !           check=.false.
+!           fitness=resmax
+!         end if
+!       else ! check_status
+!         fitness=resmax
+!       end if
+!       deallocate(run_all_par)
+!     else
+!       fitness=resmax
+!     end if
+!     
+!     return
+!   end function pso_fitness
     
   
-  ! another function called by the PSO module
+!   ! another function called by the PSO module
+!   function evfpso(allpar,par,inv_fitness) result(ir)
+!     integer::ir
+!     real(dp),dimension(:),intent(in)::allpar,par
+!     real(dp),intent(out)::inv_fitness
+!     real(dp)::fitness
+! 
+! !     inv_fitness=fpso(allpar,par)
+!     fitness=pso_fitness(allpar, par)
+!     inv_fitness=one/fitness
+!     ir=0
+! 
+!     return
+!   end function evfpso
+  
+  ! another function called by the PSO module, and now it uses the fitness function
+  ! from the fitness_module module
   function evfpso(allpar,par,inv_fitness) result(ir)
     integer::ir
     real(dp),dimension(:),intent(in)::allpar,par
     real(dp),intent(out)::inv_fitness
     real(dp)::fitness
 
-!     inv_fitness=fpso(allpar,par)
-    fitness=pso_fitness(allpar, par)
+    fitness=bound_fitness_function(allpar, par)
     inv_fitness=one/fitness
     ir=0
 
     return
   end function evfpso
+
   
   ! ------------------------------------------------------------------ !
 

@@ -640,7 +640,8 @@ module output_files
   ! adapted subroutine to write only final parameters
   subroutine write_parameters(cpuid,isim,wrtid,par,resw)
     integer,intent(in)::cpuid,isim,wrtid
-    real(dp),dimension(:),intent(in)::par,resw
+    real(dp),dimension(:),intent(in)::par
+    real(dp),dimension(:),intent(in)::resw
     integer::upar,j
     character(512)::flpar
     character(80)::fmt
@@ -657,17 +658,29 @@ module output_files
 !     write(*,'(a,i4,a,a)')" IN write_par_f => upar = ",upar," flpar = ",&
 !         &trim(flpar)
     write(upar,'(a,i3a)')"# CPU ",cpuid," PARAMETERS "
+    
     fmt=adjustl("(2(a,"//trim(sprec)//"),a,i6)")
+    write(*,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",&
+      &fitness,&
+      &" => Fitness*dof = ",(fitness*real(dof,dp)),&
+      &" dof = ",dof
     write(upar,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",&
       &fitness,&
       &" => Fitness*dof = ",(fitness*real(dof,dp)),&
       &" dof = ",dof
+      
+    write(*,'(a,F20.7)')"# LogLikelihood = - Fitness / 2 = ", -0.5_dp*fitness
     write(upar,'(a,F20.7)')"# LogLikelihood = - Fitness / 2 = ", -0.5_dp*fitness
+    
+    write(*,'(a,5x,a)')"# parameter "," value "
     write(upar,'(a,5x,a)')"# parameter "," value "
+    
     fmt=adjustl("(a10,4x,"//trim(sprec)//")")
     do j=1,nfit
+      write(*,trim(fmt))trim(parid(j)),par(j)
       write(upar,trim(fmt))trim(parid(j)),par(j)
     end do
+    flush(6)
     flush(upar)
     close(upar)
 

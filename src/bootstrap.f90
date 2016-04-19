@@ -49,11 +49,11 @@ module bootstrap
 
     scale_errorbar=one
     if(bootstrap_scaling) scale_errorbar=sqrt(fitness)
-    write(*,*)' Fitness value (Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ', fitness, ' dof = ', dof
-    write(*,'(a,l,a,f20.12)')' Bootstrap scaling (',bootstrap_scaling,') = ',&
-      &scale_errorbar
-    write(*,*)
-    flush(6)
+!     write(*,*)' Fitness value (Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ', fitness, ' dof = ', dof
+!     write(*,'(a,l,a,f20.12)')' Bootstrap scaling (',bootstrap_scaling,') = ',&
+!       &scale_errorbar
+!     write(*,*)
+!     flush(6)
     
     call init_random_seed_clock(nboot)
     !2.  run nboot iterations
@@ -64,8 +64,9 @@ module bootstrap
     bootstrap: do iboot=1,nboot
       cpu=1
       !$ cpu = omp_get_thread_num() + 1
-      write(*,'(2(a,i5),a)')" CPU ",cpu,&
-            &" BOOTSTRAP ITERATION NUMBER ",iboot," ... "
+!       write(*,'(2(a,i5),a)')" CPU ",cpu,&
+!             &" BOOTSTRAP ITERATION NUMBER ",iboot," ... "
+            
       !2.a generation of ndata (RVboot and T0boot) with Gaussian distribution N(mean,var)
       !    where mean = data (RVok or T0ok) and var = square error data (eRVobs, eT0obs)
       if(nRV.gt.0)then
@@ -96,15 +97,15 @@ module bootstrap
             &RVboot,T0boot,resw,diag,sig,info,iwa)
 
       storeboot(iboot,:)=b_par
-      write(*,'(2(a,i5))')" CPU ",cpu,&
-            &" DONE bootstrap iteration ",iboot
+!       write(*,'(2(a,i5))')" CPU ",cpu,&
+!             &" DONE bootstrap iteration ",iboot
       flush(6)
 
     end do bootstrap
     !$omp end parallel do
 
     call wrt_storeboot(isim,parok,storeboot)
-    write(*,'(a)')" Written bootstrap file"
+!     write(*,'(a)')" Written bootstrap file"
 
     !3.  sort all new parameters and compute the percentiles
     call calc_percentile(parok,storeboot,percentile)
@@ -217,7 +218,7 @@ module bootstrap
     intperc(7)=int(p7*nboot+0.5_dp) ! 99.87%
     if(intperc(1).eq.1) intperc(7)=nboot
     allocate(vec(nboot))
-    write(*,*)"ifit iper inteperc(iper) vec(intperc(iper)) perc(iper,ifit)"
+!     write(*,*)"ifit iper inteperc(iper) vec(intperc(iper)) perc(iper,ifit)"
     do ifit=1,nfit
       vec=store(:,ifit)
       if((parid(ifit)(1:1).eq.'w').or.&
@@ -233,7 +234,7 @@ module bootstrap
       call sort(vec)
       do iper=1,nperc
           perc(iper,ifit)=vec(intperc(iper))
-          write(*,*)ifit,iper,intperc(iper),vec(intperc(iper)),perc(iper,ifit)
+!           write(*,*)ifit,iper,intperc(iper),vec(intperc(iper)),perc(iper,ifit)
       end do
     end do
     deallocate(vec)
@@ -260,10 +261,10 @@ module bootstrap
     !$ cpuid=omp_get_thread_num()+1
     uboot=get_unit(cpuid)
     open(uboot,file=trim(flboot))
-    write(*,*)" writing ",trim(flboot)
+!     write(*,*)" writing ",trim(flboot)
     do ip=1,7
       write(uboot,trim(fmt))perc(ip,:)
-      write(*,'(i5,1x,10000(f25.14,1x))')ip,perc(ip,:)
+!       write(*,'(i5,1x,10000(f25.14,1x))')ip,perc(ip,:)
     end do
     close(uboot)
 

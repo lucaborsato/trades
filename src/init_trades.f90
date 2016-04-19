@@ -247,6 +247,8 @@ module init_trades
                 read(line(idx+1:idh),*) k_chi2r
                 if(k_chi2r.gt.one.or.k_chi2r.lt.zero) k_chi2r = one
                 k_chi2wr = one - k_chi2r
+              else if(line(1:idx-1).eq.'secondary_parameters')then
+                read(line(idx+1:idh),*) secondary_parameters
               end if
             end if
           end if
@@ -378,36 +380,103 @@ module init_trades
   end subroutine set_parid_list
   
   ! allocation and zero initialization of Keplerian elements
-  subroutine init_zero_par(m,R,P,a,e,w,mA,i,lN,tau)
-    real(dp),dimension(:),allocatable,intent(out)::m,R,P,a,e,w,mA,i,lN
+  subroutine init_zero_par(m,R,P,a,e,w,mA,inc,lN,tau)
+    real(dp),dimension(:),allocatable,intent(out)::m,R,P,a,e,w,mA,inc,lN
     real(dp),dimension(:),allocatable,intent(out)::tau
 
     if(.not.allocated(m)) allocate(m(NB),R(NB),P(NB),a(NB),e(NB),&
-        &w(NB),mA(NB),i(NB),lN(NB),tau(NB))
+        &w(NB),mA(NB),inc(NB),lN(NB),tau(NB))
     m=zero
+    m(2:NB)=9999._dp ! high values
     R=zero
+    R(2:NB)=9999._dp ! high values
     P=zero
+    P(2:NB)=9.e7_dp ! high values
     a=zero
+    a(2:NB)=999._dp ! high values
     e=zero
+    e(2:NB)=999._dp ! high values
     w=zero
+    w(2:NB)=999._dp ! high values
     mA=zero
-    i=zero
+    mA(2:NB)=999._dp ! high values
+    inc=zero
+    inc(2:NB)=999._dp ! high values
     tau=zero
+    tau(2:NB)=9.e8_dp ! high values
+    lN=zero
+    lN(2:NB)=999._dp ! high values
 
     return
   end subroutine init_zero_par
 
   ! reads the orbital elements from the files
+!   subroutine read_par(cpuid,m,R,P,a,e,w,mA,i,lN)
+!     use celestial_mechanics,only:semax,period
+!     integer,intent(in)::cpuid
+!     real(dp),dimension(:),allocatable,intent(out)::m,R,P,a,e,w,mA,i,lN
+!     real(dp),dimension(:),allocatable::tau
+!     character::ttype
+!     integer::unit,j
+!     logical::fstat
+!     real(dp)::tempm
+! 
+!     inquire(file=trim(path)//trim(bfiles(1)),exist=fstat)
+!     if(fstat)then
+!       call init_zero_par(m,R,P,a,e,w,mA,i,lN,tau)
+!       !read and convert star mass from Msun to Mjup
+!       unit=get_unit(cpuid)
+!       open(unit,file=trim(path)//bfiles(1),status='OLD')
+!       read(unit,*) m(1) ! Msun
+!       read(unit,*) R(1) ! Rsun
+!       close(unit)
+!       do j=2,NB
+!         unit=get_unit(cpuid)
+!         open(unit,file=trim(path)//trim(bfiles(j)),status='OLD')
+!         read(unit,*) m(j)
+!         read(unit,*) R(j)
+!         read(unit,*) P(j)
+!         read(unit,*) a(j)
+!         read(unit,*) e(j)
+!         read(unit,*) w(j)
+!         if(w(j).ge.360._dp) w(j)=mod(w(j),360._dp)
+!         read(unit,*) tau(j),tempm,ttype
+!         if(ttype.eq.'t')then
+!           mA(j)=mod((360._dp/P(j))*(tepoch-tau(j)),360._dp)
+!         else
+!           mA(j)=tau(j)
+!         end if
+!         read(unit,*) i(j)
+!         read(unit,*) lN(j)
+!         close(unit)
+!         m(j)=m(j)*Mjups
+!         R(j)=R(j)*Rjups
+!         if(a(j).ge.999._dp)then
+!           a(j)=semax(m(1),m(j),P(j))
+!         else if(P(j).ge.9.e6_dp)then
+!           P(j)=period(m(1),m(j),a(j))
+!         end if
+!       end do
+!     else
+!       write(*,'(a,a,a)')" CANNOT FIND STAR FILE ",trim(path),trim(bfiles(1))
+!       write(*,'(a)')""
+!       stop
+!     end if
+!     deallocate(tau)
+! 
+!     return
+!   end subroutine read_par
+
+  ! updated subroutine to read parameters from x.dat files
+  ! WARNING: added tau row
   subroutine read_par(cpuid,m,R,P,a,e,w,mA,i,lN)
-    use celestial_mechanics,only:semax,period
+    use celestial_mechanics,only:semax,period,tau2mA
     integer,intent(in)::cpuid
     real(dp),dimension(:),allocatable,intent(out)::m,R,P,a,e,w,mA,i,lN
+    
     real(dp),dimension(:),allocatable::tau
-    character::ttype
     integer::unit,j
     logical::fstat
-    character(80)::fmt
-    real(dp)::tempm
 
     inquire(file=trim(path)//trim(bfiles(1)),exist=fstat)
     if(fstat)then
@@ -418,52 +487,69 @@ module init_trades
       read(unit,*) m(1) ! Msun
       read(unit,*) R(1) ! Rsun
       close(unit)
-!       fmt=adjustl('(a,g25.15,a)')
-!       write(*,trim(fmt))" Mstar = ",m(1)," [Msun]"
-!       write(*,'(2(a,g25.15),a)')" Rstar = ",R(1)," [Rsun] = ",&
-!           &R(1)*RsunAU," [AU]"
-!       write(*,'(a,i4)')" NB = ",NB
+      
       do j=2,NB
-!         write(*,'(a,i3,a)',advance='no')" body ",j," INSERTED VALUES ... "
+        
         unit=get_unit(cpuid)
         open(unit,file=trim(path)//trim(bfiles(j)),status='OLD')
-!         write(*,'(1x,a,1x)',advance='no')trim(path)//trim(bfiles(j))
         read(unit,*) m(j)
-!         write(*,'(a,g25.12)',advance='no')" m ",m(j)
         read(unit,*) R(j)
-!         write(*,'(a,g25.12)',advance='no')" R ",R(j)
         read(unit,*) P(j)
-!         write(*,'(a,g25.12)',advance='no')" P ",P(j)
         read(unit,*) a(j)
-!         write(*,'(a,g25.12)',advance='no')" a ",a(j)
         read(unit,*) e(j)
-!         write(*,'(a,g25.12)',advance='no')" e ",e(j)
         read(unit,*) w(j)
-        if(w(j).ge.360._dp) w(j)=mod(w(j),360._dp)
-!         write(*,'(a,g25.12)',advance='no')" w ",w(j)
-        read(unit,*) tau(j),tempm,ttype
-        if(ttype.eq.'t')then
-          mA(j)=mod((360._dp/P(j))*(tepoch-tau(j)),360._dp)
-        else
-          mA(j)=tau(j)
-        end if
-!         write(*,'(a,g25.12,a,a)',advance='no')" mA (",mA(j),ttype,")"
+        read(unit,*) mA(j)
+        read(unit,*) tau(j)
         read(unit,*) i(j)
-!         write(*,'(a,g25.12)',advance='no')" i ",i(j)
         read(unit,*) lN(j)
-!         write(*,'(a,g25.12)')" lN ",lN(j)
         close(unit)
+        
+        ! adjust and select properly the parameters
         m(j)=m(j)*Mjups
         R(j)=R(j)*Rjups
+        
         if(a(j).ge.999._dp)then
           a(j)=semax(m(1),m(j),P(j))
-!           write(*,'(a,g25.12)')" calculated a = ",a(j)
-        else if(P(j).ge.9000000._dp)then
+        else if(P(j).ge.9.e6_dp)then
           P(j)=period(m(1),m(j),a(j))
-!           write(*,'(a,g25.12)')" calculated P = ",P(j)
         end if
+
+        if(w(j).ge.360._dp) w(j)=mod(w(j),360._dp)
+        
+        ! if mA >= 999 check if it has to use the pericenter time tau
+        if(mA(j).ge.999._dp)then
+          
+          ! check also if tau < 9.e8
+          if(tau(j).lt.9.e8_dp)then
+            ! from tau to mA
+!             mA(j)=mod((360._dp/P(j))*(tepoch-tau(j)),360._dp)
+            mA(j)=tau2mA(tau(j),tepoch,P(j))
+            
+          else
+            deallocate(tau)
+            write(*,'(a,a)')' WARNING: MISSING BOTH MEAN ANOMAMLY AND TIME OF PERICENTER FOR PLANET INPUT FILE ',trim(bfiles(j))
+            stop
+          end if
+          
+        end if
+        
+        
+!         write(*,*)'READ - FIXED VALUES:'
+!         write(*,*) m(j)
+!         write(*,*) R(j)
+!         write(*,*) P(j)
+!         write(*,*) a(j)
+!         write(*,*) e(j)
+!         write(*,*) w(j)
+!         write(*,*) tau(j)
+!         write(*,*) i(j)
+!         write(*,*) lN(j)
+!         write(*,*)
+        
       end do
+      
     else
+      deallocate(tau)
       write(*,'(a,a,a)')" CANNOT FIND STAR FILE ",trim(path),trim(bfiles(1))
       write(*,'(a)')""
       stop
@@ -472,6 +558,7 @@ module init_trades
 
     return
   end subroutine read_par
+
 
   ! read and initialize RV data
   ! FILE TYPE: JD RVobs err_RVobs
@@ -745,6 +832,9 @@ module init_trades
       read(upar,*) par_min(8+j1),par_max(8+j1)
       if(par_min(8+j1).ge.par_max(8+j1)) par_max(8+j1)=par_min(8+j1)+one
 
+      ! time pericenter: skip
+      read(upar,*)
+      
       ! inclination
       read(upar,*) par_min(9+j1),par_max(9+j1)
       if(par_min(9+j1).ge.par_max(9+j1)) par_max(9+j1)=par_min(9+j1)+one
@@ -757,7 +847,7 @@ module init_trades
     end do
 
     amin=R(1)*RsunAU
-    amax=5._dp*semax(m(1),0._dp,maxval(Pvec))
+    amax=5._dp*semax(m(1),zero,maxval(Pvec))
     deallocate(Pvec)
     
     call set_minmax() ! it modifies minpar and maxpar
@@ -951,6 +1041,15 @@ module init_trades
     character(80)::fmt
     integer,dimension(:),allocatable::nset
 
+    ! IT DEFINES THE STRING TO WRITE THE REAL WITH RIGHT DECIMAL: PRECISION
+    sprec=trim(adjustl("g"//&
+    &trim(adjustl(string(2*prec)))//&
+    &"."//&
+    &trim(adjustl(string(prec)))))
+    ! prec, sprec in module 'constants'
+    write(*,'(a,a,a,a)')" SELECTED PATH: ",trim(path),&
+    &" FORMAT EDIT DESCRIPTOR: ",trim(sprec)
+  
     ! IT READS THE ARGUMENTS OF INTEGRATION AND STORE IN COMMON MODULE PARAMETERS.
     ! THE VARIBLES WILL NOT BE MODIFIED FURTHERMORE.
     call read_arg(cpuid)
@@ -967,6 +1066,10 @@ module init_trades
       write(*,'(a,1000a)')" BODY NAME: ",trim(bnames(j)),&
       &" FILE NAME: ",trim(path),trim(bfiles(j))
     end do
+    
+!     if(progtype.le.1)then
+!       call idpar() ! IT DEFINES THE ID OF THE PARAMETERS TO BE FITTED
+!     if(progtype.le.1.and.lmon.eq.0)then
     if(progtype.le.1)then
       call idpar() ! IT DEFINES THE ID OF THE PARAMETERS TO BE FITTED
     else
@@ -1105,10 +1208,32 @@ module init_trades
     return
   end subroutine init_param
 
+  subroutine set_all_parameter_names(kel_id)
+    character(5),dimension(3:10),intent(in)::kel_id
+  
+    integer::i_par,body,cnt_kel
+    allocate(all_names_list(npar)) ! all_names_list in 'parameters' module
+    
+    all_names_list(1)=trim(adjustl(kel_id(3)))//'1' ! mass of the star, id 1
+    all_names_list(2)=trim(adjustl(kel_id(4)))//'1' ! radius of the star, id 1
+    all_names_str=trim(adjustl(all_names_list(1)))//' '//trim(adjustl(all_names_list(2)))
+    cnt_kel=3
+    do i_par=3,npar
+      body=int(int(i_par-3)/8)+2
+      all_names_list(i_par)=trim(adjustl(kel_id(cnt_kel)))//trim(adjustl(string(body)))
+      all_names_str=trim(adjustl(all_names_str))//' '//trim(adjustl(all_names_list(i_par)))
+      cnt_kel=cnt_kel+1
+      if(cnt_kel.eq.11) cnt_kel=3
+    end do
+!     write(*,'(a)')trim(adjustl(all_names_str))
+  
+    return
+  end subroutine set_all_parameter_names
+  
   ! determines the id of the parameters to be fitted ... only for helpful write
   subroutine idpar()
     integer::pos,cntid,j,body
-    character(2),dimension(3:10)::elid
+    character(5),dimension(3:10)::elid
     data elid /"m", "R", "P", "e", "w", "mA", "i", "lN"/
 
     if(.not.allocated(id)) allocate(id(nfit),idall(nfit),parid(nfit))
@@ -1131,6 +1256,8 @@ module init_trades
       if(cntid.eq.10) cntid=2
     end do
 
+    call set_all_parameter_names(elid)
+    
     return
   end subroutine idpar
 
@@ -1155,11 +1282,13 @@ module init_trades
       if(cntid.eq.10) cntid=2
     end do
 
+    call set_all_parameter_names(elid)
+    
     return
   end subroutine idpar_fit
 
   
-    ! from keplerian orbital elements to the parameters needed by L-M
+  ! from keplerian orbital elements to the parameters needed by L-M
   ! calls some previous subroutines
   subroutine set_par(m,R,P,a,e,w,mA,i,lN,allpar,par)
     real(dp),dimension(:),intent(in)::m,R,P,a,e,w,mA,i,lN

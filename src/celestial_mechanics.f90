@@ -40,6 +40,87 @@ module celestial_mechanics
     return
   end function period
 
+  ! vector version
+  !   function to compute the semi-major axis of an orbit from Period
+  subroutine semax_vec(ms,mp,P,sma)
+    real(dp),intent(IN)::ms
+    real(dp),dimension(:),intent(in)::mp,P
+    real(dp),dimension(:),intent(out)::sma
+    real(dp),dimension(:),allocatable::mu,P2
+    real(dp)::dpi2=dpi*dpi,athird=1._dp/3._dp
+
+    allocate(mu(size(mp)),P2(size(P)))
+    mu=Giau*(ms+mp)
+    P2=P*P
+    sma=((mu*P2)/dpi2)**(athird)
+    deallocate(mu,P2)
+    
+    return
+  end subroutine semax_vec
+  
+!   function to compute the period given the semi-major axis
+  subroutine period_vec(ms,mp,a,a2P)
+    real(dp),intent(IN)::ms
+    real(dp),dimension(:),intent(IN)::mp,a
+    real(dp),dimension(:),intent(out)::a2P
+    real(dp),dimension(:),allocatable::mu,a3
+
+    allocate(mu(size(mp)),a3(size(a)))
+    mu=Giau*(ms+mp)
+    a3=a**3
+    a2P=dpi*sqrt(a3/mu)
+    deallocate(mu,a3)
+
+    return
+  end subroutine period_vec
+
+  
+  
+  ! time pericentre to mean anomaly
+  function tau2mA(tau, t_ref, per) result(mA)
+    real(dp)::mA
+    real(dp),intent(in)::tau,t_ref,per
+    
+    mA = mod( ((360._dp/per)*(t_ref-tau)) , 360._dp)
+    
+    return
+  end function tau2mA
+  
+  ! mean anomaly to time pericentre
+  function mA2tau(mA, t_ref, per) result(tau)
+    real(dp)::tau
+    real(dp),intent(in)::mA,t_ref,per
+    
+    tau = t_ref - (mA*per/360._dp)
+    
+    return
+  end function mA2tau
+  
+  ! vector version
+  ! time pericentre to mean anomaly
+  subroutine tau2mA_vec(tau, t_ref, per, mA)
+    real(dp),dimension(:),intent(in)::tau,per
+    real(dp),intent(in)::t_ref
+    real(dp),dimension(:),intent(out)::mA
+    
+    mA = mod( ((360._dp/per)*(t_ref-tau)) , 360._dp)
+    
+    return
+  end subroutine tau2mA_vec
+  
+  ! mean anomaly to time pericentre
+  subroutine mA2tau_vec(mA, t_ref, per, tau)
+    real(dp),dimension(:),intent(in)::mA,per
+    real(dp),intent(in)::t_ref
+    real(dp),dimension(:),intent(out)::tau
+    
+    tau = t_ref - (mA*per/360._dp)
+    
+    return
+  end subroutine mA2tau_vec
+
+  
+  
 !   calculates Eccentric anomaly from meanAnomaly [deg] and eccentricity
   function EAnom(mA,ecc) result(EA)
     real(dp)::EA
@@ -70,6 +151,22 @@ module celestial_mechanics
 
     return
   end function EAnom
+
+  function calculate_true_anomaly(mean_anomaly, eccentricity) result(true_anomaly)
+    real(dp)::true_anomaly
+    
+    real(dp),intent(in)::mean_anomaly,eccentricity
+    
+    real(dp)::EA,tan_EA,ecc_coeff
+    
+    EA=EAnom(mean_anomaly,eccentricity)
+    tan_EA=tan(EA*0.5_dp)
+    ecc_coeff=sqrt((one+eccentricity)/(one-eccentricity))
+    true_anomaly = two * atan(ecc_coeff*tan_EA)
+  
+    return
+  end function calculate_true_anomaly
+
   
 !   calculate the module of a 3-D vector
   function dist_1(r) result(out)
@@ -276,7 +373,7 @@ module celestial_mechanics
     real(dp),dimension(:),intent(in)::m,rin
     real(dp)::sma_i, sma_j
     real(dp)::Hill_radius_ij,delta_ij,stability_criterion
-    integer::i,ii,j
+    integer::i,j
     
     do i=2,(NB-1)
       call rrdot_to_invsma(i,m,rin,sma_i,hill_check)
@@ -307,7 +404,7 @@ module celestial_mechanics
     real(dp),dimension(:),intent(in)::m,rin
     real(dp)::sma_i, sma_j
     real(dp)::Hill_radius_ij,delta_ij,stability_criterion
-    integer::i,ii,j
+    integer::i,j
     
     hill_check=.false.
     if(NB.gt.2)then
@@ -670,13 +767,13 @@ module celestial_mechanics
     v0=dist(rout(4:6))
     reca=(2._dp/r0)-((v0**2)/mu)
     if(reca.lt.0._dp)then
-      write(*,*)" In fgfunctions reca < 0"
+!       write(*,*)" In fgfunctions reca < 0"
       Hc=.true.
       return
     end if
     a=1._dp/reca
     if((a.le.amin).or.(a.ge.amax))then
-      write(*,*)" In fgfunctions a < amin or a > amax"
+!       write(*,*)" In fgfunctions a < amin or a > amax"
       Hc=.true.
       return
     end if

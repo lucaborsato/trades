@@ -76,16 +76,16 @@ program main_trades
   ! IT READS THE COMMAND ARGUMENT THAT DEFINE THE PATH OF THE FOLDER WITH THE FILES
   call read_com_arg(path)
 
-  ! IT DEFINES THE STRING TO WRITE THE REAL WITH RIGHT DECIMAL: dpECISION
-  sprec=trim(adjustl("g"//&
-  &trim(adjustl(string(2*prec)))//&
-  &"."//&
-  &trim(adjustl(string(prec)))))
+!   ! IT DEFINES THE STRING TO WRITE THE REAL WITH RIGHT DECIMAL: PRECISION
+!   sprec=trim(adjustl("g"//&
+!   &trim(adjustl(string(2*prec)))//&
+!   &"."//&
+!   &trim(adjustl(string(prec)))))
 
   write(*,'(a)') " -----------------------------------------------------"
   write(*,'(a)') " SUMMARY INFO "
-  write(*,'(a,a,a,a)')" SELECTED PATH: ",trim(path),&
-  &" FORMAT EDIT DESCRIPTOR: ",trim(sprec)
+!   write(*,'(a,a,a,a)')" SELECTED PATH: ",trim(path),&
+!   &" FORMAT EDIT DESCRIPTOR: ",trim(sprec)
 
   nRV=0 ! set number of RV points to zero (warning -Wunitialized ...)
   ! IT CALLS ALL THE SUBROUTINES TO READ ALL PARAMETERS AND DATA TO STORE IN COMMON MODULE PARAMETERS
@@ -103,10 +103,25 @@ program main_trades
   write(*,'(4(a))')" PROGTYPE ",trim(adjustl(string(progtype))),&
   &" IDPERT ",trim(adjustl(string(idpert)))
   write(*,'(a)')""
-
+  !
+  ! progtype + lmon + nboot
+  !
+  ! lmon = 0 (no LM), 1 (yes LM)
+  ! nboot > 0 (yes bootstrap), < 0 (no bootstrap)
+  ! progtype:
+  ! 0 = only integration e write report file
+  ! 1 = only grid search
+  ! 2 = LM only and write report file before and after
+  ! 3 = PIKAIA
+  ! 4 = PSO
+  ! 5 = PolyChord
+  
+  
   flush(6)
 
+  ! -------------------
   ! --- GRID SEARCH ---
+  ! -------------------
   if(progtype.eq.1)then
     !$omp parallel default(shared) &
     !$omp private(cpuid,ncpu)
@@ -143,8 +158,9 @@ program main_trades
       info=0
       write(*,*)""
 
-      ! LM fit if idpert is greater than 0
+      ! LM fit if lmon is greater than 0
       if(lmon.gt.0)then
+      ! LM fit if idpert is greater than 0
         if(idpert.gt.0)then
           fmt=adjustl("(a,i6,a,1000"//trim(sprec)//")")
           write(*,*)""
@@ -228,12 +244,17 @@ program main_trades
     !$omp end master
     !$omp barrier
     !$omp end parallel
+  ! -------------------
+  ! --- END GRID SEARCH ---
+  ! -------------------
 
+    
   ! === OTHER METHODS (PIK-PSO-LM-BOOTSTRAP-ONLY INTEGRATION) === 
   else if((progtype.eq.0).or.(progtype.gt.1))then
+  
     if(progtype.lt.5)then
       write(*,'(a,i3)')" PROGTYPE: ",progtype
-      if(progtype.gt.1)then
+      if(progtype.gt.2)then
         write(*,*)
         write(*,'(a,i3)')" GLOBAL SEARCH -- NUMBER OF GLOBAL SIMULATIONS = ",nGlobal
         write(*,*)
@@ -243,7 +264,10 @@ program main_trades
         call set_par(m,R,P,a,e,w,mA,i,lN,allpar,par)
 !         call set_par(m,R,P,a,e,w,mA,i,lN,system_parameters,par)
         cpuid = 1
+        
+        ! ----------------------
         ! --- PIKAIA/GENETIC ---
+        ! ----------------------
         if(progtype.eq.3)then
           write(*,'(a)')" +++++++++++++++++++++++++++++++++++++++++++++++++++ "
           write(*,'(a)')" +++++++++++++++++++++++++++++++++++++++++++++++++++ "
@@ -275,8 +299,13 @@ program main_trades
           write(*,'(a)') " -----------------------------------------------------"
           call norm2par(xpar,par,allpar) ! from [0-1] parameter values to physical values
           deallocate(xpar)
-
-        ! --- PARTICLE SWARM OPTIMIZATION ---
+        ! ----------------------
+        ! --- END PIKAIA/GENETIC ---
+        ! ----------------------
+        
+        ! -----------------------------------------
+        ! --- PARTICLE SWARM OPTIMIZATION (PSO) ---
+        ! -----------------------------------------
         else if(progtype.eq.4)then
           write(*,'(a)')" +++++++++++++++++++++++++++++++++++++++++++++++++++ "
           write(*,'(a)')" +++++++++++++++++++++++++++++++++++++++++++++++++++ "
@@ -306,7 +335,10 @@ program main_trades
           write(*,*)""
           write(*,'(a)') " -----------------------------------------------------"
           deallocate(xpar)
-
+        ! -----------------------------------------
+        ! --- END PARTICLE SWARM OPTIMIZATION (PSO) ---
+        ! -----------------------------------------
+          
         end if
 
         ! write files with parameters from global search, without LM fit
@@ -320,7 +352,8 @@ program main_trades
         write(*,*)
         write(*,'(a)') " -----------------------------------------------------"
         call cpu_time(start1)
-        call ode_out(cpuid,jgrid,0,allpar,par,resw)
+!         call ode_out(cpuid,jgrid,0,allpar,par,resw)
+        call ode_out(cpuid,jgrid,0,system_parameters,par,resw)
         call cpu_time(end1)
         call timer(start1,end1,hour1,minute1,sec1)
         write(*,'(a)') " -----------------------------------------------------"
@@ -341,8 +374,11 @@ program main_trades
           write(*,*)""
         end if
 
+         ! changed 2016-03-14
+        if(progtype.eq.2) write(*,'(a)')' PROGTYPE = 2 => Simulation with fit-type orbital elements, i.e. (ecosw,esinw)'
+!         if((progtype.eq.2).or.(lmon.eq.1))then
         ! -- LM --- alone or after PIK/PSO
-        if((progtype.eq.2).or.(lmon.eq.1))then
+        if(lmon.eq.1)then
           write(*,'(a,i4,a)')" CPU ",cpuid," CALLING LM with INPUT PARAMETERS:"
           write(*,*)""
           call write_lm_inputpar(cpuid,par)
@@ -451,20 +487,24 @@ program main_trades
     &date_values(5),":",date_values(6),":",date_values(7)
   write(*,'(a)')""
 
-  if(allocated(bnames))   deallocate(bnames,bfiles)
-  if(allocated(tofit))    deallocate(tofit)
-  if(allocated(m))        deallocate(m,R,P,a,e,w,mA,i,lN,e_bounds)
-  if(allocated(jdRV))     deallocate(jdRV,RVobs,eRVobs)
-  if(allocated(epoT0obs)) deallocate(epoT0obs,T0obs,eT0obs)
-  if(allocated(allpar))   deallocate(allpar,par)
-  if(allocated(id))       deallocate(id,idall,parid)
-  if(allocated(system_parameters))deallocate(system_parameters)
-  if(allocated(par_min))  deallocate(par_min,par_max)
-  if(allocated(minpar))   deallocate(minpar,maxpar)
-  if(allocated(k_b))      deallocate(k_b)
-  if(allocated(population)) deallocate(population,population_fitness)
-  if(allocated(derived_names)) deallocate(derived_names,derived_boundaries)
-  if(allocated(pso_best_evolution)) deallocate(pso_best_evolution)
+  if(allocated(m)) deallocate(m,R,P,a,e,w,mA,i,lN)
+!   if(allocated(fitting_parameters)) deallocate(fitting_parameters)
+  if(allocated(allpar)) deallocate(allpar,par)
+  call deallocate_all()
+!   if(allocated(bnames))   deallocate(bnames,bfiles)
+!   if(allocated(tofit))    deallocate(tofit)
+!   if(allocated(e_bounds)) deallocate(e_bounds)
+!   if(allocated(jdRV))     deallocate(jdRV,RVobs,eRVobs)
+!   if(allocated(epoT0obs)) deallocate(epoT0obs,T0obs,eT0obs)
+!   if(allocated(id))       deallocate(id,idall,parid)
+!   if(allocated(system_parameters)) deallocate(system_parameters)
+!   if(allocated(par_min))  deallocate(par_min,par_max)
+!   if(allocated(minpar))   deallocate(minpar,maxpar)
+!   if(allocated(k_b))      deallocate(k_b)
+!   if(allocated(population)) deallocate(population,population_fitness)
+!   if(allocated(derived_names)) deallocate(derived_names,derived_boundaries)
+!   if(allocated(pso_best_evolution)) deallocate(pso_best_evolution)
+
 
     
 end program

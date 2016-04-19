@@ -1,11 +1,19 @@
 # TRADES
     
-**`TRADES` v2.5.1 by Luca Borsato - 2016**    
+**`TRADES` v2.6.0 by Luca Borsato - 2016**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
 Feel free to use or modify the code, but please cite [Borsato et al. (2014)][Borsato2014].    
 Comments are welcome!    
+[TRADES@github](https://github.com/lucaborsato/trades)    
+
+
+**WARNING:**     
+**only tested on a Unix/Linux machine (i.e., Centos Rocks 5.3, Ubuntu > 12.04 and derivatives)**    
+**Please use `gfortran` version greater than `4.8.1`. Previous versions could fail to compile.**    
+**`MPI/open-MPI` required in order to compile the PolyChord library. In the future this will be fixed.**    
+**`openMP` required to compile parallel versions `TRADES`**
 
 ---
 
@@ -27,6 +35,9 @@ The program `TRADES` models the dynamics of multiple planet systems and
 reproduces the observed transit times (`$T_0$`, or mid-transit times) and 
 radial velocities (RVs).
 These `$T_0$s` and RVs are computed during the integration of the planetary orbits.    
+Hereafter, I will use the reduced chi-squared (`$\chi^{2}_\textrm{r} = \chi^{2}/\textrm{dof}$`)
+as the fitness parameter, but it would be also possible to use a `$\chi^{2}_\textrm{w,dof}$` weighted/scaled
+by the number of each type of data set: transits and radial velocities.    
 We have developed `TRADES` from zero because we want to avoid black-box programs,
 it would be easier to parallelize it with openMP, and include additional algorithms.    
 To solve the inverse problem, `TRADES` can be run in different modes:    
@@ -35,21 +46,17 @@ To solve the inverse problem, `TRADES` can be run in different modes:
     it runs a simple integration of the orbits of the planetary system calculating the `$T_0$s` and the RVs.    
 
     
-*  **_grid_ search:**    
-    TRADES samples the orbital elements of a perturbing body in a four-dimensional grid:
-    the mass, $M$, the period, `$P$` (or the semi-major axis, `$a$`), the eccentricity, `$e$`,
-    and the argument of the pericenter, `$\omega$`. 
+*  **grid search:**    
+    TRADES samples the orbital elements of one perturbing body 
+    (all the parameters are allowed in the grid, but remember that the number of simulations
+    will increase hugely).
     The grid parameters can be evenly sampled on a fixed grid by setting
     the number of steps, or the step size, or by a number of points
     chosen randomly within the parameter bounds. 
     For any given set of values, the orbits are integrated, and the residuals
     between the observed and computed `$T_0$s` and RVs are computed.
     For each combination of the parameters, the `LM` algorithm can be called and
-    the best case is the one with the lowest residuals (lowest `$\chi^2$`).
-    We have selected these four parameters for the grid search because
-    they represent the minimal set of parameters required to model a coplanar system.
-    In the future, we intend to add the possibility of making the
-    grid search over all the set of parameters for each body.    
+    the best case is the one with the lowest residuals (lowest reduced chi-squared = `$\chi^{2}/\textrm{dof} = \chi^{2}_\textrm{r}$`).    
 
 
 *  **Levenberg-Marquardt (`LM`, `lmdif` from [`MINPACK`][MINPACK]) algorithm:**    
@@ -68,18 +75,18 @@ To solve the inverse problem, `TRADES` can be run in different modes:
     The `epsfcn` parameter, which is the parameter that determines the first
     Jacobian matrix, is automatically selected in a logarithmic range from
     the machine precision up to `$10^{−6}$` ; the best value is the one
-    that returns the lower `$\chi^2$`.
+    that returns the lower `$\chi^2_\textrm{r}$`.
     This method has the advantage to be scale invariant, but it assumes that
     each parameter is varied by the same `epsfcn` value (e.g., a variation of 
     10% of the period has a different effect than a variation of the same
     percentage of the argument of pericenter).    
-      
     
-*  **genetic algorithm (`GA`, we used the implementation named [`PIKAIA`][PIKAIA],
+    
+*  **genetic algorithm (`GA` or `PIK`, we used the implementation named [`PIKAIA`][PIKAIA],
     Charbonneau 1995):**    
     the `GA` mode searches for the best orbit by performing a genetic optimization
     (e.g. Holland 1975; Goldberg 1989), where the fitness parameter is set to
-    the inverse of the `$\chi^2$`.
+    the inverse of the `$\chi^2_\textrm{r}$`.
     This algorithm is inspired by natural selection which is the biological process
     of evolution. 
     Each generation is a new population of *offspring* orbital configurations,
@@ -96,7 +103,7 @@ To solve the inverse problem, `TRADES` can be run in different modes:
     the `PSO` is another optimization algorithm that searches for the global solution
     of the problem; this approach is inspired by the social behavior of
     bird flock and fish school (e.g., Kennedy & Eberhart 1995; Eberhart 2007).
-    The fitness parameter used is the same as the `GA`, the inverse of the `$\chi^2$`.
+    The fitness parameter used is the same as the `GA`, the inverse of the `$\chi^2_\textrm{r}$`.
     For each *particle*, the next step (or iteration) in the space of the
     fitted parameters is mainly given by the combination of three terms:
     random walk, best *particle* position (combination of parameters),
@@ -109,13 +116,13 @@ To solve the inverse problem, `TRADES` can be run in different modes:
     In addition, it can fully exploit a hierarchy of parameter speeds such as is found in CosmoMC and CAMB.
     It utilises slice sampling at each iteration to sample within the hard likelihood constraint of nested sampling.
     It can identify and evolve separate modes of a posterior semi-independently and is parallelised using openMPI.
-    PolyChord is available for download at [PolyChord-CCPForge] 
+    PolyChord is available for download at [PolyChord-CCPForge]    
     
     
 In each mode, `TRADES` compares observed transit times (`$T_{0,\textrm{obs}}$`) and 
 radial velocities (RV`$_\textrm{obs}$`) with the simulated ones (`$T_{0,\textrm{sim}}$` and RV`$_\textrm{sim}$`).
 From version 1.1.2 of `TRADES`, it is possible to use different set of RV, with
-different RV offset (the so-called *gamma* point);
+different RV offset (the so-called _gamma_ point);
 `TRADES` will compute a `$\gamma$` for each RV data set.    
 The *grid* search is a good approach in case that we want to explore a limited
 subset of the parameter space or if we want to analyze the behavior of the system
@@ -132,7 +139,7 @@ of confidence of the best-fit parameter set. We generate a set of `$T_0$s` and R
 from the fitted parameters, and we add a Gaussian noise having the calculated value
 (of `$T_0$s` and RVs) as the mean and the corresponding measurement error as variance,
 scaled by the `$\sqrt{\chi^{2}_\textrm{reduced}}$`.
-We fit each new set of observables with the `LM`.
+We fit each new set of observables with the `LM` with default options.
 We iterate the whole process thousands of times to analyze the distribution
 for each fitted parameter.    
 
@@ -151,19 +158,23 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
 
 ### Install and Compile
 
-**WARNING: only tested on a Unix/Linux machine (i.e., Centos Rocks 5.3, Ubuntu > 12.04 and derivatives)**
 
-1. Download the tar.bz2 or .zip file from the link `NOT AVAILABLE`    
+1. `TRADES` source is available at [github.com/lucaborsato/trades](ttps://github.com/lucaborsato/trades).    
+   Download the .zip file or clone the repository (see github help).    
     
-2. Extract the tar.bz2 (or .zip) file in your drive. 
+2. Extract the .zip file in your drive or enter the cloned repository. 
     It should contain a `README.md` file, `bin/` and `src/` folders.    
     The `src/` folder should countains the following f90 source files:    
-    - **Module source files:** `constants.f90 parameters.f90 random_trades.f90 convert_type.f90 lin_fit.f90 celestial_mechanics.f90 init_trades.f90 statistics.f90 timing.f90 rotations.f90 sort.f90 eq_motion.f90 output_files.f90 numerical_integrator.f90 radial_velocities.f90 transits.f90 ode_run.f90 derived_parameters_mod.f90 grid_search.f90 lm.f90 pikaia.f90 util_sort.f90 util_qmc.f90 opti_pso.f90 gaussian.f90 bootstrap.f90 PolyChord_driver.f90`    
+    - **Module source files:** `parameters.f90 random_trades.f90 convert_type.f90 lin_fit.f90 celestial_mechanics.f90 init_trades.f90 statistics.f90 timing.f90 rotations.f90 sort.f90 gls_module.f90 eq_motion.f90 output_files.f90 numerical_integrator.f90 radial_velocities.f90 transits.f90 ode_run.f90 derived_parameters_mod.f90 fitness_module.f90 grid_search.f90 lm.f90 pikaia.f90 util_sort.f90 util_qmc.f90 opti_pso.f90 gaussian.f90 bootstrap.f90 PolyChord_driver.f90 driver.f90`    
     - **PolyChord folder** `PolyChord/` with source files:
         `utils.f90 abort.F90 settings.f90 params.f90 array_utils.f90 priors.f90 mpi_utils.F90 calculate.f90 random_utils.F90 chordal_sampling.f90 run_time_info.f90 clustering.f90 read_write.f90 feedback.f90 generate.F90 ini.f90 nested_sampling.F90`
-    - **Main `TRADES` file:** `trades.f90`    
+    - **Old main `TRADES` file (to be converted in to a library asap):** `trades.f90`    
+    - **simple integration+`LM`+bootstrap main:** `trades_int_lm_bootstrap.f90`
+    - **simple grid main:** `trades_grid.f90`     
+    - **simple `PIK` and `PSO` main:** `trades_pik_pso.f90`     
+    - **simple `PC` main:** `trades_polychord.f90`     
     - **Makefile:** `Makefile`    
-    - **python script:** `createSimFile.py`
+    - **python script to create example simulation folder:** `createSimFile.py`
     
 3.  Edit the `Makefile` with your Fortran 90 - MPI compiler, and with the needed compiling options.
     * flag `CC` for the compiler to use. From the implementation of `PC` the `mpif90` must be used;    
@@ -173,31 +184,34 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
     * flag `COPT` for the compiler optimization    
       from the implementation of `PC` the `-ccp` preprocessor option must be used     
     * flag `CFLAGS2` for the opemMP version    
-    * flag `TARGET_SER` is relative path and executable name for the serial program   
-    * flag `TARGET_OMP` is relative path and executable name for the `openMP` parallel program    
-    * flag `TARGET_MPIOMP` is relative path and executable name for the `MPI+openMP` parallel program
-
+    * flag `TARGET_SER_X` is relative path and executable name for the serial program   
+    * flag `TARGET_OMP_X` is relative path and executable name for the `openMP` parallel program    
+    * flag `TARGET_MPIOMP` is relative path and executable name for the `MPI+openMP` parallel program (it compiles only old `trades.f90`)    
+    * flag `TARGET_PC` is relative path and executable name for the `PC` program    
+    
 4. To compile:    
     
     - serial-debug mode, type: `make serial_debug`    
-      It creates a executable file `trades_s` in the `bin/` folder.    
+      It creates a executable file `trades_s_xxx` and `trades_polychord` in the `bin/` folder.    
     - serial-release mode, type: `make serial_release`    
-      It creates a executable file `trades_s` in the `bin/` folder.    
+      It creates a executable file `trades_s_xxx` and `trades_polychord` in the `bin/` folder.    
     - openMP-debug mode, type: `make omp_debug`    
-      It creates a executable file `trades_o` in the `bin/` folder.    
+      It creates a executable file `trades_o_xxx` and `trades_polychord` in the `bin/` folder.    
     - openMP-release mode, type: `make omp_release`    
-      It creates a executable file `trades_o` in the `bin/` folder.    
+      It creates a executable file `trades_o_xxx` and `trades_polychord` in the `bin/` folder.    
     - openMP-MPI-debug mode, type: `make mpi_omp_debug`    
-      It creates a executable file `trades_mo` in the `bin/` folder.    
+      It creates a executable file `trades_mo` and `trades_polychord` in the `bin/` folder.    
     - openMP-MPI-release mode, type: `make mpi_omp_release`    
-      It creates a executable file `trades_mo` in the `bin/` folder.    
+      It creates a executable file `trades_mo` and `trades_polychord` in the `bin/` folder.    
 
   **Remember to type `make clean` to remove `*.o` and `*.mod` files before re-compiling `TRADES`.**    
   **Remember to type `make clean_libchord` to remove PolyChord files and library.**    
   **Remember to type `make cleanall` to remove `*.o`, `*.mod`, and all the executable files before re-compiling `TRADES`.**    
   **To compile in parallel mode the `openMP` libraries must be properly installed (as suggested by your Linux distribution) and the `MPI` (`Open-MPI`) libraries and compilers.**    
-  **2016-01-28 WARNING:** on K/Ubuntu 14.04.3 LTS (updated) the system `mpi.mod` fails to compile the code with `MPI` because the version this module is compiled is different from the `gfortran` system. This means that PolyChord cannot be used with `MPI` option. Sorry about that, that's not my fault ... check it if it works on your system.    
-      
+  **2016-01-28 WARNING:**    
+  If the `MPI` compiler is different from the compiler used for the module `mpi.mod`, the program will fail to compile.    
+  Please, change properly your `Fortran-MPI` in the `Makefile`.    
+    
 ---
 
 ### How to run TRADES
@@ -206,14 +220,16 @@ Different ways to launch TRADES:
 - export the path of the executable (`trades_s`, `trades_o`, and `trades_mo`) in your ~/.bahsrc o ~/.profile:    
     > export PATH=$PATH:/path/to/trades/executables    
 - it is possible to execute trades from the `bin/` folder by typing:    
-    > `./trades_s`    
-    > `./trades_o`    
+    > `./trades_s_xxx`    
+    > `./trades_o_xxx`    
+    > `./trades_polychord`    
     > `./trades_mo`    
+
 **WARNING:**    
-Before running TRADES in parallel with OPENMP (`trades_o`) remember to set the number of cpus (Ncpus) to use by exporting:    
+Before running TRADES in parallel with `open-MP` (`trades_o_xxx`) remember to set the number of cpus (`Ncpu`) to use by exporting:    
 `OMP_NUM_THREADS=Ncpu`    
 `export OMP_NUM_THREADS`    
-Put this in a script o type it in a terminal; in short way:    
+Put this in a script or type it in a terminal; in short way:    
 `export OMP_NUM_THREADS=Ncpu`    
 In order to use trades with `MPI+openMP` remember to specify the `OMP_NUM_THREADS` and the MPI processes `mpiexec -n N_mpi_process trades_mo ...`    
 
@@ -221,20 +237,112 @@ If TRADES has been launched without any arguments, it will search for the needed
 e.g.:   
 
 > `cd /home/user/Simulation/`    
-> `trades_s`    
+> `trades_s_xxx`    
 
 it is equal to type:   
 
 > `cd /home/user/Simulation/`    
-> `trades_s .`    
+> `trades_s_xxx .`    
 
 or:    
 
 > `cd /home/user/`    
-> `trades_s /home/user/Simulation/`    
+> `trades_s_xxx /home/user/Simulation/`    
 
-In any of these three cases, TRADES will write the output files in the folder `/home/user/Simulation/`    
-
+In any of these three cases, `TRADES` will write the output files in the folder `/home/user/Simulation/`    
+    
+Table 1: How to run TRADES - Integration-`LM`-bootstrap (mode 0).    
+    
+| combination | algorithm selection | `LM` on/off | Bootstrap | Perturber body ID |     
+|:-----------:|:-------------------:|:-----------:|:---------:|:-----------------:|    
+||`arg.in`: `progtype` | `arg.in`: `lmon` | `arg.in`: `nboot` | `arg.in`: `idpert` |    
+| A | 0 | 0 | `$<=0$` | NA |     
+| B | 0 | 0 | `$>0$`  | NA |     
+| C | 0 | 1 | `$>0$`  | NA |     
+    
+Table 2: output of combination of Table 1.    
+    
+| combination | fitting parameters | executable affected | run as |     
+|:-----------:|--------------------|---------------------|--------|    
+| A | `$(e,\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files). |    
+| B | `$(e,\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files) and bootstrap. |    
+| C | `$(e,\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files), `LM` and bootstrap after `LM` determines a solution. |    
+     
+    
+Table 3: How to run TRADES - Grid with integration-`LM`-bootstrap.     
+    
+| combination | algorithm selection | `LM` on/off | Bootstrap | Perturber body ID |     
+|:-----------:|:-------------------:|:-----------:|:---------:|:-----------------:|    
+||`arg.in`: `progtype` | `arg.in`: `lmon` | `arg.in`: `nboot` | `arg.in`: `idpert` |    
+| D | 1 | 0 | `$<=0$` | `idpert` |     
+| E | 1 | 0 | `$>0$`  | `idpert` |     
+| F | 1 | 1 | `$>0$`  | `idpert` |     
+    
+Table 4: output of combination of Table 3.    
+    
+| combination | fitting parameters | executable affected | run as |     
+|:-----------:|--------------------|---------------------|--------|    
+| D | `$(e,\omega)$` | `trades_s/o_grid`             | It runs integration for each grid combination (with output files). |    
+| E | `$(e,\omega)$` | `trades_s/o_grid`             | It runs integration and bootstrap for each grid combination (with output files). |    
+| F | `$(e,\omega)$` | `trades_s/o_grid`             | It runs integration, `LM` and bootstrap after `LM`for each grid combination (with output files). |    
+    
+    
+Table 5: How to run TRADES - Integration-`LM`-bootstrap (mode 2).     
+    
+| combination | algorithm selection | `LM` on/off | Bootstrap | Perturber body ID |     
+|:-----------:|:-------------------:|:-----------:|:---------:|:-----------------:|    
+||`arg.in`: `progtype` | `arg.in`: `lmon` | `arg.in`: `nboot` | `arg.in`: `idpert` |    
+| G | 2 | 0 | `$<=0$` | NA |     
+| H | 2 | 0 | `$>0$`  | NA |     
+| I | 2 | 1 | `$>0$`  | NA |     
+    
+Table 6: output of combination of Table 5.    
+    
+| combination | fitting parameters | executable affected | run as |     
+|:-----------:|--------------------|---------------------|--------|    
+| G | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files). |    
+| H | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files) and bootstrap. |    
+| I | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files), `LM` and bootstrap after `LM` determines a solution. |    
+    
+    
+Table 7: How to run TRADES - `PIK` and `PSO`.     
+    
+| combination | algorithm selection | `LM` on/off | Bootstrap | Perturber body ID |     
+|:-----------:|:-------------------:|:-----------:|:---------:|:-----------------:|    
+||`arg.in`: `progtype` | `arg.in`: `lmon` | `arg.in`: `nboot` | `arg.in`: `idpert` |    
+| J | 3 | 0 | `$<=0$` | NA |     
+| K | 3 | 0 | `$>0$`  | NA |     
+| L | 3 | 1 | `$>0$`  | NA |     
+| M | 4 | 0 | `$<=0$` | NA |     
+| N | 4 | 0 | `$>0$`  | NA |     
+| O | 4 | 1 | `$>0$`  | NA |     
+    
+Table 8: output of combination of Table 7.    
+    
+| combination | fitting parameters | executable affected | run as |     
+|:-----------:|--------------------|---------------------|--------|    
+| J | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PIK` algorithm and then it runs a simple integration (with output files). |    
+| K | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PIK` algorithm and then it runs a simple integration (with output files) and bootstrap. |    
+| L | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PIK` algorithm and then it runs a simple integration (with output files), `LM` and bootstrap. |    
+| M | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PSO` algorithm and then it runs a simple integration (with output files). |    
+| N | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PSO` algorithm and then it runs a simple integration (with output files) and bootstrap. |    
+| O | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PSO` algorithm and then it runs a simple integration (with output files), `LM` and bootstrap. |    
+    
+    
+Table 9: How to run TRADES - `PolyChord`.     
+    
+| combination | algorithm selection | `LM` on/off | Bootstrap | Perturber body ID |     
+|:-----------:|:-------------------:|:-----------:|:---------:|:-----------------:|    
+||`arg.in`: `progtype` | `arg.in`: `lmon` | `arg.in`: `nboot` | `arg.in`: `idpert` |    
+| P | 5 | NA | NA | NA |    
+    
+Table 10: output of combination of Table 9.    
+    
+| combination | fitting parameters | executable affected | run as |     
+|:-----------:|--------------------|---------------------|--------|    
+| P | `$(e\cos\omega,e\sin\omega)$` | `trades_polychord` | It runs the PolyChord algorithm (refers to the PolyChord user manual for output files). Final integration, `LM`, and bootstrap won't be run, user has to determine the best solution from the posterior file and re-run `TRADES` with one of the other program combination. |    
+    
+    
 ---
 
 ### Files needed by TRADES
@@ -303,7 +411,7 @@ List of the files with explanation:
     (1) RV observation time (JD, or time in same units of the integration time);    
     (2) observed RVs in meter per seconds;    
     (3) observed RV uncertainties in meter per seconds;    
-    (4) ID of the RV dataset, so if you have only one dataset set all column to `1`, else use increasing value untill the number of different datasets, i.e., `1`, `2` for 2 datasets (2 different facilities, or one facility before and after upgrade).    
+    (4) ID of the RV dataset, so if you have only one dataset set all column to `1`, else increas value untill the number of different datasets, i.e., `1`, `2` for 2 datasets (2 different facilities, or one facility before and after upgrade).    
     Example file [`obsRV.dat`](trades_example/obsRV.dat)     
 
 8.  `NB2_observations.dat`: list of transit times (`$T_0$s`) observed for planet in the second row of `bodies.lst`, i.e., `b.dat` is planet 2.     
@@ -318,7 +426,10 @@ List of the files with explanation:
     
 10. `derived_boundaries.dat`: this file a special file.    
     If you have some derived parameters (or other values) that can reduce your parameter space you have to create this file in your simulation folder.    
-    If the file does not exist it will not be used (no derived parameters will be checked). The file should have a line for each parameter, the name in the first column (please keep it short), the min and the max value in the 2nd and 3rd column. Keep last line empty so the code can determine the end of file.    
+    if the argument `secondary_parameters` in `arg.in` file is set to `0`, this file will not be used.    
+    If `secondary_parameters = 1`, but the file does not exist it will not be used (no derived parameters will be checked).     
+    The file should have a line for each parameter, the name in the first column (please keep it short), the min and the max value in the 2nd and 3rd column.
+    Keep last line empty so the code can determine the end of file.    
     `derived_boundaries.dat` example:    
     ```
     # name phase_min phase_max
@@ -326,10 +437,8 @@ List of the files with explanation:
     ph3 180. 270.
         
     ```
-    In order to use the derived parameters you have to modify by your own the `derived_parameters_mod.f90`.    
-    There are 2 base subroutines and 1 function, the first to read the `derived_boundaries.dat` file and that allow to set the flag to check or not the parameters.   
-    Then you have a subroutine that is used to compute the derived parameters given the fitted parameter (`fitting_parameters`) or using global variables (check the `parameters.f90` module...or ask me).   
-    The fuction at the end call the subroutine to compute the derive parameters and check if the value is within the min and max boundaries read in the file.    
+    In order to use the derived parameters you have to modify by your own the `derived_parameters_mod.f90`.
+    In fitness_module.f90 check which subroutines/fuctions will be called to 'check_derived' or 'fix_derived' parameters.    
     
     
 
@@ -341,13 +450,29 @@ Each algorithm will write different files, and depends on the flag used in the `
 Each file _should_ have an self-explaning header.    
 
 1.  **integration:** depends only on `arg.in` file    
-    `#ID_#LM_rotorbit.dat`, `#ID_#LM_constants.dat`, `#ID_#LM_NB#_elements.dat`, `#ID_#LM_NB#_tra.dat`    
+    `#ID_#LM_rotorbit.dat`, `#ID_#LM_constants.dat`, `#ID_#LM_NB#_elements.dat`, `#ID_#LM_NB#_tra.dat`, `#ID_#LM_gls_output.dat`    
     `#ID_#LM_rotorbit.dat`, if `wrtorb = 1`, where `#ID` is the simulation ID, `#LM` is the Levenberg-Marquardt flag (`lmon = 0` or `1`). Columns: 1 Time in JD; 2 Light-Time Travel Effect in days (LTE\_d); 3:3+NB\*6 {X,Y,Z,VX,VY,VZ} for each body (NB=number of bodies); last column is the radial velocity (RV) of the star due to the planets in m/s.    
-    `#ID_#LM_constants.dat`, if `wrtcon = 1`, naming convenction as previous. Columns: 1 Time in JD; 2 momentum; 3 delta between initial and current momentum; 4 Total Energy; 5 delta between initial and current Total Energy.        
+    `#ID_#LM_constants.dat`, if `wrtcon = 1`, naming convenction as previous. Columns: 1 Time in JD; 2 momentum; 3 delta between initial and current momentum; 4 Total Energy; 5 delta between initial and current Total Energy.    
+    `#ID_#LM_gls_output.dat`, it is the output of the General Lomb-Scargle [(GLS)][GLS] applied to the residuals: `$\textrm{res}=\textrm{RV}_\textrm{obs}-\textrm{RV}_\textrm{sim}$`.    
     `#ID_#LM_NB#_elements.dat`, if `wrtel = 1`, naming convenction as previous, plus the body id NB#, starting from 2 to the number of bodies used. Columns: 1 Time in JD; 2 Period in days, 3 semi-major axis in astronomical unit (au), 3 eccentricity, 4 inclination in degrees, 4 mean anomaly in degrees, 5 argument of the pericenter in degrees, 6 longitude of the node in degrees, 7 true anomaly in degrees, 8 difference between time of refence (epoch) and time of the passage of pericenter tau in days    
     `#ID_#LM_NB#_tra.dat`, if `idtra > 0`, naming convenction as previous. Columns: 1 trasit time, 2 LTE, 3 firt contact time, 4 second contact time, 5 third contact time, 6 fourth contact time, 7:7+NB*6 state vector {X,Y,Z,VX,VY,VZ} for each body (NB=number of bodies).    
     
 
 **TO BE CONTINUED**
-    
+
 ---
+
+### Changes/Log
+**sorry, I will not be able to report all the small changes...**    
+
+#### `TRADES 2.6.0`
+
+The old main `trades.f90` has been replaced (still in the sources, it compiles)
+by small easier-to-understand mains.
+As for the version `2.5.1` the user has to change the `arg.in` accordingly to the purpose.
+See [](How to run TRADES).    
+During `RV` fit, `TRADES` will run a `GLS` periodogram [(Zechmeister and Kurster, 2009)][GLS] and look for peaks close (`$\Delta P = \pm 0.5\ d`) to the periods of the planets of the simulated system.
+In case of a positive signal, it means the period has been induced (bad `RV` fit) and the fitness (`$\chi^{2}_\textrm{r}$`) will be set to max value (bad fit).    
+
+
+[GLS]: http://adsabs.harvard.edu/abs/2009A%26A...496..577Z

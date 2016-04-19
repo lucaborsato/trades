@@ -1,5 +1,5 @@
 module parameters
-  use constants,only:dp,TOLERANCE,zero,one
+  use constants,only:dp,TOLERANCE,zero,one,parameter_grid
   use settings_module,only:program_settings
   use priors_module,only:prior
   implicit none
@@ -30,6 +30,8 @@ module parameters
   integer,dimension(:),allocatable::tofit,idall,id
   character(10),dimension(:),allocatable::parid
   character(128)::paridlist,sig_paridlist
+  character(10),dimension(:),allocatable::all_names_list
+  character(1024)::all_names_str
   integer::ndata,npar,nfit,dof
   real(dp)::inv_dof
 
@@ -61,6 +63,9 @@ module parameters
   ! dynamical parameters
   real(dp)::amin,amax
 
+  ! grid
+  type (parameter_grid),dimension(10)::perturber_parameters_grid ! global grid parameter: M R P a e w mA tau i lN
+  
   ! for PIKAIA
   real(dp)::ctrl(12)
   integer::seed_pik,npop,ngen
@@ -80,14 +85,15 @@ module parameters
   
   ! for PolyChord
   type(program_settings)::settings
-!   type(prior),dimension(1)::trades_prior ! NOT NEEDED IN POLYCHORD V1.2
   
   ! other boundaries
   real(dp),dimension(:,:),allocatable::e_bounds
   
   ! derived parameters
   integer::n_derived=0
+  integer::secondary_parameters=0
   logical::check_derived=.false.
+  logical::fix_derived=.false.
   character(10),dimension(:),allocatable::derived_names
   real(dp),dimension(:,:),allocatable::derived_boundaries
 
@@ -167,4 +173,24 @@ module parameters
     return
   end subroutine norm2par_2
 
+  ! deallocate all variables in 'parameters' module
+  subroutine deallocate_all()
+  
+    if(allocated(bnames))   deallocate(bnames,bfiles)
+    if(allocated(tofit))    deallocate(tofit)
+    if(allocated(e_bounds)) deallocate(e_bounds)
+    if(allocated(jdRV))     deallocate(jdRV,RVobs,eRVobs)
+    if(allocated(epoT0obs)) deallocate(epoT0obs,T0obs,eT0obs)
+    if(allocated(id))       deallocate(id,idall,parid,all_names_list)
+    if(allocated(system_parameters)) deallocate(system_parameters)
+    if(allocated(par_min))  deallocate(par_min,par_max)
+    if(allocated(minpar))   deallocate(minpar,maxpar)
+    if(allocated(k_b))      deallocate(k_b)
+    if(allocated(population)) deallocate(population,population_fitness)
+    if(allocated(derived_names)) deallocate(derived_names,derived_boundaries)
+    if(allocated(pso_best_evolution)) deallocate(pso_best_evolution)
+  
+    return
+  end subroutine deallocate_all
+  
 end module parameters

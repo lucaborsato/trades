@@ -21,27 +21,6 @@ import numpy as np # array
 #
 # --------------------------------------------------------------------------
 
-## read command arguments: PATH SCALE%
-#def read_arg():
-  #print ""
-  #print " ---- createSimFiles.py ---- "
-  #print ""
-  #args = sys.argv
-  #del args[0]
-  #nArgs = len(args)
-  #if nArgs < 1:
-    #sys.exit('Enter  arguments: folder_full_path\n')
-  ##else:
-    ##args.append(sys.argv[1])
-  #return args
-
-## assign right arguments to named variables
-#def get_args():
-  #args = read_arg()
-  ##fpath = checkpath(args[0])
-  #fpath = os.path.abspath(args[0])
-  #return fpath
-
 def get_args():
   parser = argparse.ArgumentParser()
   parser.add_argument('-p', action='store', dest='fpath', required=True, help='Folder path')
@@ -68,61 +47,61 @@ def createARG(fpath):
   liner = "# 0=only integration, 1=grid search, 2=Levenberg-Marquardt, 3=PIKAIA (GA), 4=PSO, 5=PolyChord."
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "nboot = 0" # nboot
   liner = "# bootstrap: <=0 no bootstrap, >0 yes bootstrap (Nboot set to 100 if <100)"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
   
   linel = "bootstrap_scaling = T" # nboot
   liner = "# bootstrap_scaling = .true. or T, .false. or F, default .false."
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "tepoch = 2455088.212" # epoch
   liner = "# epoch of the elements [JD]."
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "tstart = 2454965." # time start
   liner = "# time start of the integration [JD]. Set this to a value > 9.e7 if you want to use the tepoch (next parameter) "
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "tint = 500." # integration time
   liner = "# time duration of the integration in days"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "step = 1.e-3" # initial step size
   liner = "# initial time step size in days"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "wrttime = 0.04167" # write interval time
   liner = "# time interval in days of write data in files (if < stepsize the program will write every step)"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "NB = 3" # Number of bodies
   liner = "# number of bodies to use (from 2 to N, where the max N is the number of files in bodies.lst)"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "idtra = 1" # T_0 fit, duration fit
   liner = "# number of the body to check if it transits (from 2 to N, 1 for everyone, 0 for no check)."
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "durcheck = 0" # T_0 fit, duration fit
   liner = "# 0/1=no/yes duration fit"
@@ -134,61 +113,52 @@ def createARG(fpath):
   liner = "# tolerance in the integration (stepsize selection etc)"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
-
-  #linel = "v 1" # integration type
-  #liner = "# type of step integration: v 1 = variable (no other options now ...)"
-  #line = liner + "\n" + linel
-  #ofarg.write(line + "\n")
-  #print " " + line
-
-  #linel = "a" # old coordinate type, now type of parameter fit, NOT USED
-  #liner = "# fittype: a=normal keplerian elements; b=ecosw, esinw; c=sqrt(e)cosw, sqrt(e)sinw; TO BE IMPLEMENTED"
-  #line = liner + "\n" + linel
-  #ofarg.write(line + "\n")
-  #print " " + line
+  print line
 
   linel = "wrtorb = 1" # write orbit
   liner = "# write orbit condition: 1[write], 0[do not write]"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "wrtconst = 1" # write const of motion
   liner = "# write constants condition: 1[write], 0[do not write]"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "wrtel = 1" # write orb elements
   liner = "# write orbital elements condition: 1[write], 0[do not write]"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "rvcheck = 1" # check RV
   liner = "# check of Radial Velocities condition: 1[check, read from obsRV.dat], 0[do not check]"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "idpert = 3" # grid
   liner = "# grid option: id of the perturber body [integer >1, <= tot bodies; else no perturber]"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
   linel = "lmon = 0" # lmon
   liner = "# lmon: Levenberg-Marquardt off = 0[no LM], on=1[yes LM]. Default lmon = 0"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print line
 
-  line = "# weight_chi_square: parameter needed to weight the fitness function, such that\n# fitness = Chi^2_r * weight_chi_square + Chi^2_wr * (1. - weight_chi_square),\n# where Chi^2_wr is the reduced Chi Square but weighted by the number of data for each data set (Chi2r * Ndata/Nset for all dataset).\n# Default weight_chi_square = 1.\n weight_chi_square = 1."
+  line = "# weight_chi_square: parameter needed to weight the fitness function, such that\n# fitness = Chi^2_r * weight_chi_square + Chi^2_wr * (1. - weight_chi_square),\n# where Chi^2_wr is the reduced Chi Square but weighted by the number of data for each data set (Chi2r * Ndata/Nset for all dataset).\n# Default weight_chi_square = 1.\nweight_chi_square = 1."
   ofarg.write(line + "\n")
-  print " " + line
-  ofarg.close()
+  print line
 
+  line = "# secondary_parameters: define if the program has to check only boundarie for derived parameters (1) or if it has also to fix values due to derived parameters (2) or do nothing (0) with derived parameters.\n# Default secondary_parameters = 0.\nsecondary_parameters = 0"
+  ofarg.write(line + "\n")
+  print line
+  ofarg.close()
 
 # CREATES bodies.lst file
 # star.dat 0 0               #filename Mass Radius [1=to fit, 0=fixed]
@@ -247,14 +217,15 @@ def createSTAR(fpath):
   
 # CREATES PLANETS FILES: b.dat
 # 0.136985 0. 0.01 ss          # Mmin Mmax X ss/rn/sn=StepSize/RandomNumber/StepNumber [Mjup]
-# 0.842                        #Radius of Planet [Rjup]
-# 19.238756 0. 0. rn        #Period [day] - set it > 9000000. to calculate from semi-major axis
+# 0.842 0. 0. rn               #Radius of Planet [Rjup]
+# 19.238756 0. 0. rn           #Period [day] - set it > 9000000. to calculate from semi-major axis
 # 999. 0. 0. rn                #semi major axis [AU] - set it to 999.0 if there is no value available
-# 0.058152 0. 0. rn    #eccentricity
+# 0.058152 0. 0. rn            #eccentricity
 # 356.056648 0. 0. rn          #argument of the pericenter [deg]
-# 3.771733 0. m            #value - type[t=>time of pericenter passage [JD]; m=> mean anomaly [deg]
-# 88.55 0.                   #orbit inclination [deg] #88.55 !!TASK8 88.2781373
-# 0. 0.                    #longitude of the ascending node [deg]
+# 3.771733 0. 0. rn            #mean anomaly [deg]
+# 9.e8 0. 0. rn                # time pericenter[JD]
+# 88.55 0. 0. rn               #orbit inclination [deg] #88.55 !!TASK8 88.2781373
+# 0. 0. 0. rn                  #longitude of the ascending node [deg]
   
 def createPLANETB(fpath):
   fb = os.path.join(fpath, "b.dat")
@@ -269,7 +240,7 @@ def createPLANETB(fpath):
   ofb.write(line + "\n")
   print " " + line
 
-  linel = "0.842"
+  linel = "0.842 0. 0. rn"
   liner = "# Radius of Planet [Rjup]"
   line = linel + "          " + liner
   ofb.write(line + "\n")
@@ -299,19 +270,25 @@ def createPLANETB(fpath):
   ofb.write(line + "\n")
   print " " + line
 
-  linel = "3.771733 0. m"
-  liner = "# value - type[t=>time of pericenter passage [JD]; m=> mean anomaly [deg]"
+  linel = "3.771733 0. 0. rn"
+  liner = "# mean anomaly [deg]: if set to >= 999. the time of pericenter passage (next row) will be used"
   line = linel + "          " + liner
   ofb.write(line + "\n")
   print " " + line
 
-  linel = "88.55 0."
+  linel = "9.e8 0. 0. rn"
+  liner = "# time of pericenter passage [JD]: if set to >= 9.e8 the mean anomaly (previous row) will be used"
+  line = linel + "          " + liner
+  ofb.write(line + "\n")
+  print " " + line
+
+  linel = "88.55 0. 0. rn"
   liner = "# orbit inclination [deg]"
   line = linel + "          " + liner
   ofb.write(line + "\n")
   print " " + line
   
-  linel = "0. 0."
+  linel = "0. 0. 0. rn"
   liner = "# longitude of the ascending node [deg]"
   line = linel + "          " + liner
   ofb.write(line + "\n")
@@ -321,14 +298,15 @@ def createPLANETB(fpath):
 
 # CREATES PLANETS FILES: c.dat
 # 0.094348 0.094349 0.01 ss    # Mmin Mmax X ss/rn/sn=StepSize/RandomNumber/StepNumber [Mjup]
-# 0.823                        # Radius of Planet [Rjup]
+# 0.823 0. 0. rn               # Radius of Planet [Rjup]
 # 38.986097 0. 0. rn           # Period [day] - set it > 9000000. to calculate from semi-major axis
 # 999. 0. 0. rn                # semi major axis [AU] - set it to 999.0 if there is no value available
 # 0.067645 0. 0. rn            # eccentricity
 # 167.573369 0. 0. rn          # argument of the pericenter [deg]
-# 307.432620 0. m              # value - type[t=>time pericenter[JD]; m=> mean anomaly[deg]
-# 89.12 0.                     # orbit inclination [deg]
-# 359.889907 0.                # longitude of the ascending node [deg]
+# 307.432620 0. 0. rn          # mean anomaly[deg]
+# 9.e8 0. 0. rn                # time pericenter[JD]
+# 89.12 0. rn                  # orbit inclination [deg]
+# 359.889907 0. rn             # longitude of the ascending node [deg]
 
 def createPLANETC(fpath):
   fc = os.path.join(fpath, "c.dat")
@@ -343,14 +321,14 @@ def createPLANETC(fpath):
   ofc.write(line + "\n")
   print " " + line
 
-  linel = "0.823"
+  linel = "0.823 0. 0. rn"
   liner = "# Radius of Planet [Rjup]"
   line = linel + "    " + liner
   ofc.write(line + "\n")
   print " " + line
   
   linel = "38.986097 0. 0. rn"
-  liner = "# Period [day] - set it > 9000000. to calculate from semi-major axis"
+  liner = "# Period [day] - set it > 9.e6 to calculate from semi-major axis"
   line = linel + "    " + liner
   ofc.write(line + "\n")
   print " " + line
@@ -373,19 +351,25 @@ def createPLANETC(fpath):
   ofc.write(line + "\n")
   print " " + line
 
-  linel = "307.432620 0. m"
-  liner = "# value - type[t=>time of pericenter passage [JD]; m=> mean anomaly [deg]"
+  linel = "307.432620 0. 0. rn"
+  liner = "# mean anomaly [deg]: if set to >= 999. the time of pericenter passage (next row) will be used"
   line = linel + "    " + liner
   ofc.write(line + "\n")
   print " " + line
 
-  linel = "89.12 0."
+  linel = "9.e8 0. 0. rn"
+  liner = "# time of pericenter passage [JD]: if set to >= 9.e8 the mean anomaly (previous row) will be used"
+  line = linel + "          " + liner
+  ofc.write(line + "\n")
+  print " " + line
+
+  linel = "89.12 0. 0. rn"
   liner = "# orbit inclination [deg]"
   line = linel + "    " + liner
   ofc.write(line + "\n")
   print " " + line
   
-  linel = "359.889907 0."
+  linel = "359.889907 0. 0. rn"
   liner = "# longitude of the ascending node [deg]"
   line = linel + "    " + liner
   ofc.write(line + "\n")

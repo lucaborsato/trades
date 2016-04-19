@@ -4,6 +4,7 @@ module Genetic_Algorithm
   use init_trades,only:get_unit
   use random_trades
   use convert_type,only:string
+  use fitness_module
   implicit none
 
   !     Common block to make iseed visible to rninit (and to save
@@ -27,31 +28,6 @@ module Genetic_Algorithm
 
     return
   end subroutine bestpik_init
-
-!   ! calculates the number of simulations to save/write to avoid big files
-!   ! - not used -
-!   subroutine getWrtSim(np,nit,nRows,nWp,nFiles)
-!     use parameters,only:nfit
-!     integer,intent(in)::np,nit
-!     integer,intent(out)::nRows,nWp,nFiles
-!     real(dp),parameter::dimGB=one,&
-!         &GB2Byte=dimGB*1024._dp*1024._dp*1024._dp
-!     integer,parameter::fChar=2*dp
-!     integer::oneRow
-! 
-!     nRows=np*nit
-!     oneRow=(6*2+1)+(nfit*fChar)+(3*fChar)
-!     nWp=int( ((GB2Byte/oneRow)/real(nit,dp)) + 0.5_dp )
-! 
-!     if(nWp.ge.np)then
-!       nFiles=1
-!       nWp=np
-!     else
-!       nFiles=(np/nWp)+1
-!     end if
-! 
-!     return
-!   end subroutine getWrtSim
 
   ! calculates the % of the simulations
   function getStat(i,n) result(out)
@@ -93,55 +69,93 @@ module Genetic_Algorithm
 ! 
 !     return
 !   end function fpik
-  function fpik(n,all_par,fitting_parameters) result(inv_fitness)
-    use ode_run,only:ode_lm
-    use derived_parameters_mod
+
+  ! function to compute the fitness
+  ! comment: now it uses the function in fitness_module module
+!   function fpik(n,all_par,fitting_parameters_in) result(inv_fitness)
+!     use ode_run,only:ode_lm
+!     use derived_parameters_mod
+!     real(dp)::inv_fitness
+!     integer,intent(in)::n
+!     real(dp),intent(in),dimension(:)::all_par
+!     real(dp),intent(in),dimension(n)::fitting_parameters_in
+!     real(dp),dimension(n)::fitting_parameters
+!     real(dp)::fitness
+!     logical::check
+!     real(dp),dimension(:),allocatable::run_all_par
+!     real(dp),dimension(:),allocatable::resw
+!     integer::i,iflag
+!     logical::check_status
+!     
+!     iflag=1
+!     check=.true.
+!     check_status=.true.
+!     
+!     ! needed only by PIKAIA: conversion from [0-1] to [minpar-maxpar] boundaries
+!     allocate(run_all_par(npar))
+!     run_all_par=all_par
+!     call norm2par(fitting_parameters_in,fitting_parameters,run_all_par)
+!     
+!     checkloop: do i=1,nfit
+!       if(fitting_parameters(i).lt.minpar(i))then
+!         check=.false.
+!         exit checkloop
+!       else if(fitting_parameters(i).gt.maxpar(i))then
+!         check=.false.
+!         exit checkloop
+!       end if
+!     end do checkloop
+! 
+!     if(check)then
+!     
+!       if(check_derived) check_status=check_derived_parameters(fitting_parameters)
+!       if(fix_derived) call fix_derived_parameters(fitting_parameters,run_all_par,check_status)
+! 
+!       if(check_status)then
+!         allocate(resw(ndata))
+!         resw=zero
+!         call ode_lm(run_all_par,ndata,nfit,fitting_parameters,resw,iflag)
+!         fitness=sum(resw*resw)
+!         ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
+!         deallocate(resw)
+!         if (fitness.ge.resmax)then
+! !           check=.false.
+!           fitness=resmax
+!         end if
+!         
+!       else ! check_status
+!         fitness=resmax
+!       end if
+!     else
+!       fitness=resmax
+!     end if
+! 
+!     deallocate(run_all_par)
+!     inv_fitness=one/fitness
+!     
+!     return
+!   end function fpik
+
+  ! function called by PIKAIA, based on fitness function in fitness_module
+  function fpik(n,all_par,fitting_parameters_in) result(inv_fitness)
     real(dp)::inv_fitness
     integer,intent(in)::n
     real(dp),intent(in),dimension(:)::all_par
-    real(dp),intent(in),dimension(n)::fitting_parameters
+    real(dp),intent(in),dimension(n)::fitting_parameters_in
+
+    real(dp),dimension(n)::fitting_parameters
     real(dp)::fitness
+    real(dp),dimension(:),allocatable::run_all_par
     
-    logical::check
-    real(dp),dimension(:),allocatable::resw
-    integer::i,iflag
-    logical::check_status
+    ! needed only by PIKAIA: conversion from [0-1] to [minpar-maxpar] boundaries
+    allocate(run_all_par(npar))
+    run_all_par=all_par
+    call norm2par(fitting_parameters_in,fitting_parameters,run_all_par)
     
-    iflag=1
-    check = .true.
-    check_status=.true.
-    
-    checkloop: do i=1,nfit
-      if(fitting_parameters(i).lt.minpar(i))then
-        check=.false.
-        exit checkloop
-      else if(fitting_parameters(i).gt.maxpar(i))then
-        check=.false.
-        exit checkloop
-      end if
-    end do checkloop
-
-    if(check)then
-      if(check_derived) check_status=check_derived_parameters(fitting_parameters)
-      if(check_status)then
-        allocate(resw(ndata))
-        resw=zero
-        call ode_lm(all_par,ndata,nfit,fitting_parameters,resw,iflag)
-        fitness=sum(resw*resw)
-        ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
-        deallocate(resw)
-        if (fitness.ge.resmax)then
-!           check=.false.
-          fitness=resmax
-        end if
-      else ! check_status
-        fitness=resmax
-      end if
-    else
-      fitness=resmax
-    end if
-
+    fitness=bound_fitness_function(run_all_par,fitting_parameters)
     inv_fitness=one/fitness
+    
+    deallocate(run_all_par)
     
     return
   end function fpik
@@ -476,48 +490,23 @@ module Genetic_Algorithm
     ig=0
     gen_do: do
       ig=ig+1
-      ! ======================
-      ! insert by Luca Borsato
-!       write(*,'(a)')" ------------------------------- "
-!       write(*,'(a)')" Generation number: ",ig
-!       flush(6)
-!       write(*,'("  Done pair number: ")',advance='yes')
-      ! ======================
       !        Main Population Loop
       newtot = 0
       do  ip = 1, np / 2
-          ! ======================
-          ! insert by Luca Borsato
-          !write(*,'(1x,I4)',ADVANCE='NO')ip
-          ! ======================
-
           !           1. pick two parents
           call select(np,jfit(1:np),fdif,ip1)
-          !write(*,'(" [Dad ")',ADVANCE='NO')
 30        call select(np,jfit(1:np),fdif,ip2)
           if (ip1 == ip2) GO TO 30
-          !write(*,'(" Mom ")',ADVANCE='NO')
-
           !           2. encode parent phenotypes
           call encode(n,nd,oldph(1:n,ip1),gn1)
-          !write(*,'(" phen1 ")',ADVANCE='NO')
           call encode(n,nd,oldph(1:n,ip2),gn2)
-          !write(*,'(" phen2 ")',ADVANCE='NO')
-
           !           3. breed
           call cross(n,nd,pcross,gn1,gn2)
-          !write(*,'(" cross ")',ADVANCE='NO')
           call mutate(n,nd,pmut,gn1)
-          !write(*,'(" muta1")',ADVANCE='NO')
           call mutate(n,nd,pmut,gn2)
-          !write(*,'(" muta2 ")',ADVANCE='NO')
-
           !           4. decode offspring genotypes
           call decode(n,nd,gn1,ph(1:n,1))
-          !write(*,'(" deco1 ")',ADVANCE='NO')
           call decode(n,nd,gn2,ph(1:n,2))
-          !write(*,'(" deco2 ")',ADVANCE='NO')
-
           !           5. insert into population
           if (irep == 1) then
             call genrep(nmax,n,np,ip,ph,newph)
@@ -526,12 +515,8 @@ module Genetic_Algorithm
                   &ph,oldph,fitns,ifit,jfit,new)
             newtot = newtot + new
           end if
-          !write(*,'(" setted population  ")',ADVANCE='yes')
-
           !        End of Main Population Loop
       end do
-!       write(*,'(a)')'End of Main Population Loop'
-!       flush(6)
       
       !        if running full generational replacement: swap populations
       if (irep == 1) call newpop(ff,ielite,nmax,n,np,xall,oldph,newph,ifit,&
@@ -542,10 +527,7 @@ module Genetic_Algorithm
       end if
       !        print generation report to standard output?
       !if (ivrb > 0) call report(ivrb,nmax,n,np,nd,oldph,fitns,ifit,pmut,ig,newtot)
-
       !     End of Main Generation Loop
-!       write(*,'(a)')'End of Main Generation Loop'
-!       flush(6)
       
       ! save all data
       if(uall.gt.0) call write_allpik(uall,ig,ifit(1:np),oldph,fitns)
@@ -568,17 +550,17 @@ module Genetic_Algorithm
           wrtgen=wrtgen+10
       end if
 
-      if(iwrt.eq.ig)then
-          write(*,'(a,i6)')" DONE PIKAIA GENERATION ",ig
-          write(*,'(a,i6,2(a,g25.14))')" DONE PIKAIA GENERATION ",ig,&
-            & " fitness_x_dof = ",bestpik(n+2,ig),&
-            & " fitness = ",bestpik(n+3,ig)
-          write(*,'(a)')" Parameters "
-          write(*,'(1000g20.8)')bestpik(1:n,ig)
-          write(*,'(a)')""
-          flush(6)
-          iwrt=iwrt+ivrb
-      end if
+!       if(iwrt.eq.ig)then
+!           write(*,'(a,i6)')" DONE PIKAIA GENERATION ",ig
+!           write(*,'(a,i6,2(a,g25.14))')" DONE PIKAIA GENERATION ",ig,&
+!             & " fitness_x_dof = ",bestpik(n+2,ig),&
+!             & " fitness = ",bestpik(n+3,ig)
+!           write(*,'(a)')" Parameters "
+!           write(*,'(1000g20.8)')bestpik(1:n,ig)
+!           write(*,'(a)')""
+!           flush(6)
+!           iwrt=iwrt+ivrb
+!       end if
 !       if(ig.eq.1)stop
 
 !     end do
