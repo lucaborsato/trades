@@ -695,7 +695,7 @@ module ode_run
       !call setval_2(RVobs,RV_sim,eRVobs,T0obs,T0_sim,eT0obs,resw)
       !call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
-      call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+      if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
       if(.not.gls_check)then
         resw=set_max_residuals(ndata)
       else
