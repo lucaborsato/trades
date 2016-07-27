@@ -828,6 +828,7 @@ module init_trades
           all_parameters(3+j1)=m(j) ! Mjup to Msun
           par_min(3+j1)=max(min(temp1,temp2)*Mjups,TOLERANCE) ! Mjup to Msun
           par_max(3+j1)=min(max(temp1,temp2)*Mjups,one) ! Mjup to Msun
+          if(par_max(3+j1).le.TOLERANCE) par_max(3+j1)=one ! 1 Msun
           
           ! Radius
           read(unit,*) R(j),temp1,temp2
@@ -835,6 +836,7 @@ module init_trades
           all_parameters(4+j1)=R(j)*Rjups ! Rjup to Rsun
           par_min(4+j1)=max(min(temp1,temp2)*Rjups,TOLERANCE)
           par_max(4+j1)=min(max(temp1,temp2),5._dp)*Rjups
+          if(par_max(4+j1).le.TOLERANCE) par_max(4+j1)=5._dp*Rjups
           
           ! Period & semi-major axis
           read(unit,*) P(j),temp1,temp2
@@ -850,6 +852,7 @@ module init_trades
           all_parameters(5+j1)=P(j)
           par_min(5+j1)=max(min(temp1,temp2),TOLERANCE)
           par_max(5+j1)=min(max(temp1,temp2),1000._dp*365.25_dp)
+          if(par_max(5+j1).le.TOLERANCE) par_max(5+j1)=1000._dp*365.25_dp
           
           Pvec(j-1)=par_max(5+j1)
           
@@ -858,6 +861,7 @@ module init_trades
           all_parameters(6+j1)=e(j)
           e_bounds(1,j) = max(min(temp1,temp2),zero)
           e_bounds(2,j) = min(max(temp1,temp2),one-TOLERANCE)
+          if(e_bounds(2,j).le.TOLERANCE) e_bounds(2,j)=one-TOLERANCE
           par_min(6+j1)=e_bounds(1,j)
           par_max(6+j1)=e_bounds(2,j)
           
@@ -912,6 +916,7 @@ module init_trades
           else
             par_min(9+j1)=max(min(temp1,temp2),zero)
             par_max(9+j1)=min(max(temp1,temp2),180._dp)
+            if(par_max(9+j1).le.TOLERANCE) par_max(9+j1)=180._dp
           end if
           
           ! longitude of ascending node
