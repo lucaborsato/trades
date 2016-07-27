@@ -20,6 +20,8 @@ module bootstrap
     integer,intent(in)::isim
     real(dp),dimension(:),intent(in)::allpar,parok
 
+    real(dp),dimension(:),allocatable::Ms_boot,Rs_boot
+    
     real(dp),dimension(:),allocatable::RVok,RVboot
     real(dp),dimension(:,:),allocatable::T0ok,T0boot
 
@@ -56,11 +58,22 @@ module bootstrap
 !     flush(6)
     
     call init_random_seed_clock(nboot)
+    
+    ! allocate and create nboot values of the M-R of the star with the provided errors
+    allocate(Ms_boot(nboot),Rs_boot(nboot))
+    call gaussdev(Ms_boot)
+    Ms_boot = MR_star(1,1)+Ms_boot*MR_star(1,2)
+    call gaussdev(Rs_boot)
+    Rs_boot = MR_star(2,1)+Rs_boot*MR_star(2,2)
+    call wrt_gaussian_star(isim,Ms_boot,Rs_boot)
+    
+    
     !2.  run nboot iterations
 
     !$omp parallel do default(private)&
     !$omp& shared(allpar, parok, ndata, nfit, eT0obs, eRVobs, storeboot,&
-    !$omp& scale_errorbar, nboot, RVok, T0ok, NB, nRV, nT0, nTs)
+    !$omp& scale_errorbar, nboot, RVok, T0ok, NB, nRV, nT0, nTs,&
+    !$omp& Ms_boot, Rs_boot)
     bootstrap: do iboot=1,nboot
       cpu=1
       !$ cpu = omp_get_thread_num() + 1
@@ -72,7 +85,7 @@ module bootstrap
       if(nRV.gt.0)then
           RVboot=zero
           call gaussdev(RVboot)
-          RVboot = RVok+RVboot*eRVobs
+          RVboot = RVok+RVboot*eRVobs*scale_errorbar
       end if
       if(nTs.gt.0) T0boot=zero
       do inb=2,NB
@@ -87,7 +100,12 @@ module bootstrap
       
       !2.b lm_driver (_3) to retrieve temporary parameters fitting new RVboot and T0boot
       b_allpar = allpar
+      ! use the Ms/Rs_boot star values
+      b_allpar(1) = Ms_boot(iboot)
+      b_allpar(2) = Rs_boot(iboot)
+      
       b_par = parok
+      
       resw=zero
       diag=zero
       sig=zero
@@ -99,7 +117,7 @@ module bootstrap
       storeboot(iboot,:)=b_par
 !       write(*,'(2(a,i5))')" CPU ",cpu,&
 !             &" DONE bootstrap iteration ",iboot
-      flush(6)
+!       flush(6)
 
     end do bootstrap
     !$omp end parallel do
@@ -114,6 +132,7 @@ module bootstrap
     call wrt_percentile(isim,percentile)
 
     deallocate(storeboot)
+    deallocate(Ms_boot,Rs_boot)
     if(allocated(RVok)) deallocate(RVok,RVboot)
     if(allocated(T0ok)) deallocate(T0ok,T0boot)
     deallocate(resw)
@@ -160,7 +179,7 @@ module bootstrap
 
     allocate(storevec(nfit))
     storevec=zero
-    fmt=adjustl("(i6,1x,100000"//trim(sprec)//")")
+    fmt=adjustl("(i6,1x,100000(1x,"//trim(sprec)//"))")
     flboot=trim(path)//trim(adjustl(string(isim)))//"_bootstrap_sim.dat"
     flboot=trim(adjustl(flboot))
     cpuid=1
@@ -170,16 +189,16 @@ module bootstrap
     write(uboot,'(a,a)')"# nboot "//trim(paridlist)
     do iboot = 1,nboot
       storevec=storeboot(iboot,:)
-      do ifit=1,nfit
-          if((parid(ifit)(1:1).eq.'w').or.&
-              &(parid(ifit)(1:2).eq.'mA').or.&
-              &(parid(ifit)(1:2).eq.'lN'))then
-            val(1)=storevec(ifit)-parok(ifit)
-            val(2)=storevec(ifit)-360._dp-parok(ifit) 
-            valabs=abs(val)
-            storevec(ifit)=val(minloc(valabs,dim=1))+parok(ifit)
-          end if
-      end do
+!       do ifit=1,nfit
+!           if((parid(ifit)(1:1).eq.'w').or.&
+!               &(parid(ifit)(1:2).eq.'mA').or.&
+!               &(parid(ifit)(1:2).eq.'lN'))then
+!             val(1)=storevec(ifit)-parok(ifit)
+!             val(2)=storevec(ifit)-360._dp-parok(ifit) 
+!             valabs=abs(val)
+!             storevec(ifit)=val(minloc(valabs,dim=1))+parok(ifit)
+!           end if
+!       end do
       write(uboot,trim(fmt))iboot,storevec
     end do
     close(uboot)
@@ -221,16 +240,16 @@ module bootstrap
 !     write(*,*)"ifit iper inteperc(iper) vec(intperc(iper)) perc(iper,ifit)"
     do ifit=1,nfit
       vec=store(:,ifit)
-      if((parid(ifit)(1:1).eq.'w').or.&
-            &(parid(ifit)(1:2).eq.'mA').or.&
-            &(parid(ifit)(1:2).eq.'lN'))then
-          do iboot=1,nboot
-            val(1)=vec(iboot)-parok(ifit)
-            val(2)=vec(iboot)-360._dp-parok(ifit)
-            valabs=abs(val)
-            vec(iboot)=val(minloc(valabs,dim=1))+parok(ifit)
-          end do
-      end if
+!       if((parid(ifit)(1:1).eq.'w').or.&
+!             &(parid(ifit)(1:2).eq.'mA').or.&
+!             &(parid(ifit)(1:2).eq.'lN'))then
+!           do iboot=1,nboot
+!             val(1)=vec(iboot)-parok(ifit)
+!             val(2)=vec(iboot)-360._dp-parok(ifit)
+!             valabs=abs(val)
+!             vec(iboot)=val(minloc(valabs,dim=1))+parok(ifit)
+!           end do
+!       end if
       call sort(vec)
       do iper=1,nperc
           perc(iper,ifit)=vec(intperc(iper))
@@ -254,7 +273,7 @@ module bootstrap
     integer::cpuid,uboot,ip
     character(512)::flboot,fmt
 
-    fmt=adjustl("(10000"//trim(sprec)//")")
+    fmt=adjustl("(10000(1x,"//trim(sprec)//"))")
     flboot=trim(path)//trim(adjustl(string(isim)))//"_perc_boot.dat"
     flboot=trim(adjustl(flboot))
     cpuid=1
@@ -270,6 +289,32 @@ module bootstrap
 
     return
   end subroutine wrt_percentile
+
+  subroutine wrt_gaussian_star(isim,Ms_boot,Rs_boot)
+    use init_trades,only:get_unit
+    use convert_type,only:string
+    integer,intent(in)::isim
+    real(dp),dimension(:),intent(in)::Ms_boot,Rs_boot
+    integer::cpuid,uboot,ip
+    character(512)::flboot,fmt
+
+    fmt=adjustl("(10000(1x,"//trim(sprec)//"))")
+    flboot=trim(path)//trim(adjustl(string(isim)))//"_gaussian_star_boot.dat"
+    flboot=trim(adjustl(flboot))
+    cpuid=1
+    !$ cpuid=omp_get_thread_num()+1
+    uboot=get_unit(cpuid)
+    open(uboot,file=trim(flboot))
+    
+    write(uboot,'(4(a,es23.16),a)')'# Mstar=N(',MR_star(1,1),' , ',MR_star(1,2),') Rstar=N(',MR_star(2,1),' , ',MR_star(2,2),') '
+!     write(*,*)" writing ",trim(flboot)
+    do ip=1,nboot
+      write(uboot,trim(fmt))Ms_boot(ip),Rs_boot(ip)
+    end do
+    close(uboot)
+
+    return
+  end subroutine wrt_gaussian_star
 
 
 end module bootstrap

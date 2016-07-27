@@ -2,10 +2,11 @@
 module driver
   use constants
   use parameters
+  use parameters_conversion
   use timing,only:timer
   use init_trades,only:initu,init_param
   use ode_run,only:ode_out,ode_lm
-  use output_files,only:write_parameters,write_par
+  use output_files,only:write_parameters,write_par,write_grid_summary
 !   use output_files
 !   use Levenberg_Marquardt,only:lm_driver
   use Levenberg_Marquardt
@@ -13,7 +14,7 @@ module driver
   use fitness_module
   use grid_search
   use Genetic_Algorithm,only:ga_driver,fpik
-  use opti_pso,only:pso_driver,evfpso
+  use opti_pso,only:pso_driver,evaluate_pso
 
   implicit none
   
@@ -21,9 +22,10 @@ module driver
   
   ! given the set of parameters to fit it integrates the orbits, computes the RVs and the T0s, and writes everything to screen and into files
   ! in this subroutine there will be not sigma/errors on the parameters
-  subroutine write_summary_nosigma(cpuid,sim_id,lm_flag,all_parameters,fit_parameters)
+  subroutine write_summary_nosigma(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,fitness)
     integer,intent(in)::cpuid,sim_id,lm_flag
     real(dp),dimension(:),intent(in)::all_parameters,fit_parameters
+    real(dp),intent(out)::fitness
   
     real(dp),dimension(:),allocatable::resw
     
@@ -32,7 +34,11 @@ module driver
     ! integrates and write RVs and T0s
     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw)
     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
+    fitness=sum(resw*resw)
     deallocate(resw)
+    if(fitness.ge.resmax)then
+      fitness=resmax
+    end if
     
     flush(6)
     
@@ -43,9 +49,10 @@ module driver
   ! lmon == 1
   ! given the set of parameters to fit it integrates the orbits, computes the RVs and the T0s, and writes everything to screen and into files
   ! in this subroutine there will be sigma/errors on the parameters
-  subroutine write_summary_sigma(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,sigma_parameters)
+  subroutine write_summary_sigma(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,sigma_parameters,fitness)
     integer,intent(in)::cpuid,sim_id,lm_flag
     real(dp),dimension(:),intent(in)::all_parameters
+    real(dp),intent(out)::fitness
     real(dp),dimension(:)::fit_parameters,sigma_parameters
   
     real(dp),dimension(:),allocatable::resw
@@ -55,10 +62,14 @@ module driver
     resw=zero
     ! integrates and write RVs and T0s
     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw)
-!     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
-    call write_par(cpuid,fit_parameters,sigma_parameters,resw)
-    call write_par(cpuid,sim_id,lm_flag,fit_parameters,sigma_parameters,resw)
+    call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
+!     call write_par(cpuid,fit_parameters,sigma_parameters,resw)
+!     call write_par(cpuid,sim_id,lm_flag,fit_parameters,sigma_parameters,resw)
+    fitness=sum(resw*resw)
     deallocate(resw)
+    if(fitness.ge.resmax)then
+      fitness=resmax
+    end if
     
     flush(6)
     
@@ -70,6 +81,7 @@ module driver
   ! it integrates the orbits with the best-fit configuration
   ! and write the summary files
   subroutine run_and_write_lm(cpuid,sim_id,all_parameters,fit_parameters)
+    use parameters_conversion,only:check_only_boundaries
     integer,intent(in)::cpuid,sim_id
     real(dp),dimension(:)::all_parameters,fit_parameters
     real(dp),dimension(:),allocatable::resw
@@ -77,19 +89,41 @@ module driver
     real(dp),dimension(:),allocatable::sigma_parameters
     integer::info
     integer,dimension(:),allocatable::iwa
+    real(dp)::fitness
+    
+    integer::j1
+    logical::check_lm
     
     allocate(resw(ndata),iwa(nfit),covariance_parameters(nfit),&
       &sigma_parameters(nfit))
-      
+    
+    write(*,'(a)')''
+    write(*,'(a)')' STARTING LM FIT'
+    flush(6)
+    
     call lm_driver(cpuid,sim_id,ode_lm,all_parameters,ndata,nfit,&
       &fit_parameters,resw,covariance_parameters,sigma_parameters,&
       &info,iwa) ! IT CALLS L-M
     
+    write(*,'(a,i4,a)')' ENDED LM FIT (info = ',info,' )'
+    write(*,'(a)')''
+    
+    call param_adj(fit_parameters,sigma_parameters)
+
+    write(*,'(a)')'FITTED PARAMETERS AND SIGMA (B)'
+    do j1=1,nfit
+      write(*,'(2(es23.16,1x))')fit_parameters(j1),sigma_parameters(j1)
+    end do
+    write(*,'(a)')'CHECK LM FIT_PARAMETERS:'
+    check_lm=check_only_boundaries(all_parameters,fit_parameters)
+    write(*,'(a,l2)')'FINAL check_lm = ',check_lm
+    write(*,'(a)')''
+    write(*,'(a)')'WRITE SUMMARY'
+    write(*,'(a)')''
+    flush(6)
 !     call lm_driver(cpuid,jgrid,ode_lm,allpar,ndata,nfit,par,&
 !             &resw,copar,sigpar,info,iwa)
-      
-      
-    call write_summary_sigma(cpuid,sim_id,1,all_parameters,fit_parameters,sigma_parameters)
+    call write_summary_sigma(cpuid,sim_id,1,all_parameters,fit_parameters,sigma_parameters,fitness)
     
     deallocate(resw,iwa,covariance_parameters,sigma_parameters)
     
@@ -115,13 +149,23 @@ module driver
     real(dp),dimension(:),intent(in)::fit_parameters
     real(dp),dimension(:)::all_parameters
     
+    real(dp)::ecosw,esinw
     integer::i_par,i_fit
     
     i_fit=0
     do i_par=1,npar
       if(tofit(i_par).eq.1)then
         i_fit=i_fit+1
-        all_parameters(i_par)=fit_parameters(i_fit)
+        if(id(i_fit).eq.6.and.id(i_fit+1).eq.7)then
+          ecosw = fit_parameters(i_fit)
+          esinw = fit_parameters(i_fit+1)
+          all_parameters(i_par)=sqrt(ecosw*ecosw + esinw*esinw)
+          all_parameters(i_par+1)=mod((atan2(esinw,ecosw)*rad2deg)+360._dp,360._dp)
+        else if(id(i_fit-1).eq.6.and.id(i_fit).eq.7)then
+          cycle
+        else
+          all_parameters(i_par)=fit_parameters(i_fit)
+        end if
       end if
     end do
   
@@ -129,20 +173,22 @@ module driver
   end subroutine update_parameters_fit2all
   
   ! init and run grid search
-  subroutine run_grid(Mstar,all_parameters)
+  subroutine run_grid(all_parameters)
     !$ use omp_lib
-    real(dp),intent(in)::Mstar
     real(dp),dimension(:),intent(in)::all_parameters
     
     integer::cpuid
     real(dp),dimension(:,:),allocatable::perturber_grid
     real(dp),dimension(:,:),allocatable::fitness_grid
     integer::n_grid,sim_id
-    integer::i
+!     integer::i
     
     real(dp),dimension(:),allocatable::cpu_all_parameters
     real(dp),dimension(:),allocatable::cpu_fit_parameters
     real(dp)::fitness,fitness_x_dof
+    
+    real(dp),dimension(:,:),allocatable::original_grid_summary
+    real(dp),dimension(:,:),allocatable::fitted_grid_summary ! used only if lmon==1
     
     cpuid=1 ! set initially to 1
     
@@ -163,16 +209,16 @@ module driver
 !     end do
     
     ! create/build the full grid, with all the combination of the parameters of perturber body
-    call build_grid(Mstar,perturber_parameters_grid,perturber_grid,fitness_grid,n_grid)
+    call build_grid(MR_star(1,1),perturber_parameters_grid,perturber_grid,fitness_grid,n_grid)
   
     ! print to screen to debug
-    write(*,*)
-    write(*,*)'--------------'
-    write(*,*)'perturber_grid'
-    write(*,*)'--------------'
-    do i=1,n_grid
-      write(*,'(a,I4,a,10(F26.15))')'combination',i,' = ',perturber_grid(i,:)
-    end do
+!     write(*,*)
+!     write(*,*)'--------------'
+!     write(*,*)'perturber_grid'
+!     write(*,*)'--------------'
+!     do i=1,n_grid
+!       write(*,'(a,I4,a,10(F26.15))')'combination',i,' = ',perturber_grid(i,:)
+!     end do
   
     write(*,*)
     write(*,*)'n_grid = ',n_grid
@@ -188,6 +234,9 @@ module driver
     write(*,'(a)')' RUN GRID SEARCH'
     write(*,*)
     flush(6)
+    
+    allocate(original_grid_summary(n_grid, npar+2))
+    if(lmon.eq.1) allocate(fitted_grid_summary(n_grid, npar+2))
     
     ! first initialise the openMP stuff
     
@@ -212,7 +261,7 @@ module driver
     !5. if lmon = 1 --> lm fit
     !6. new fit_parameters and update cpu_all_parameters -> for each cpu write file with cpu_all_parameters and fitness
     !7. if nboot > 0 --> bootstrap
-    !
+    !8. write full summary of full parameters and fitness
     !+++++++
     !
     
@@ -245,17 +294,37 @@ module driver
       
       ! 4. save cpu_all_parameters and fitness to file, write summary
       ! TODO save cpu_all_parameters
-      call write_summary_nosigma(cpuid,sim_id,0,cpu_all_parameters,cpu_fit_parameters)
+      call write_summary_nosigma(cpuid,sim_id,0,cpu_all_parameters,cpu_fit_parameters,fitness)
+      flush(6)
+      
+      original_grid_summary(sim_id,1:npar) = cpu_all_parameters
+      original_grid_summary(sim_id,npar+1:npar+2) = fitness_grid(sim_id,:)
+      write(*,*)
+      write(*,'(a,i4)')' FINISHED NOFIT SIM NUMBER ',sim_id
+      write(*,*)
       flush(6)
       
       ! 5. if LM yes
       if(lmon.eq.1)then
         ! run lm and write summary
         call run_and_write_lm(cpuid,sim_id,cpu_all_parameters,cpu_fit_parameters)
+        write(*,*)
+        write(*,'(a,i4)')' FINISHED FIT SIM NUMBER ',sim_id
+        write(*,*)
+        flush(6)
         ! 6. updates from cpu_fit_parameters to cpu_all_parameters and save them
         call update_parameters_fit2all(cpu_fit_parameters,cpu_all_parameters)
         ! TODO save cpu_all_parameters
+        fitness=base_fitness_function(cpu_all_parameters,cpu_fit_parameters)
+        fitness_x_dof=fitness*real(dof,dp)
+        fitted_grid_summary(sim_id,1:npar) = cpu_all_parameters
+        fitted_grid_summary(sim_id,npar+1) = fitness_x_dof
+        fitted_grid_summary(sim_id,npar+2) = fitness
         flush(6)
+        write(*,*)
+        write(*,'(a,i4,a,es23.16)')' FITNESS FOR SIM NUMBER ',sim_id,': ',fitness
+        write(*,*)
+        
       end if
       
       ! 7. if BOOTSTRAP yes
@@ -276,12 +345,17 @@ module driver
     !$omp end parallel
     ! ------------------------------------------
     
+    call write_grid_summary(1,n_grid,0,original_grid_summary)
+    if(lmon.eq.1) call write_grid_summary(1,n_grid,1,fitted_grid_summary)
+    
     write(*,*)
     write(*,'(a)')' END GRID SEARCH'
     write(*,*)
     flush(6)
     
     if(allocated(perturber_grid)) deallocate(perturber_grid,fitness_grid)
+    if(allocated(original_grid_summary)) deallocate(original_grid_summary)
+    if(allocated(fitted_grid_summary)) deallocate(fitted_grid_summary)
   
     return
   end subroutine
@@ -300,7 +374,8 @@ module driver
     inv_fitness=zero
     allocate(uniform_parameters(nfit))
     call ga_driver(sim_id,fpik,nfit,all_parameters,uniform_parameters,inv_fitness) ! GA DRIVER
-    call norm2par(uniform_parameters,fit_parameters,all_parameters) ! from [0-1] parameter values to physical values
+!     call norm2par(uniform_parameters,fit_parameters,all_parameters) ! from [0-1] parameter values to physical values
+    call norm2par(uniform_parameters,fit_parameters) ! from [0-1] parameter values to physical values
     ! norm2par in module 'parameters'
     deallocate(uniform_parameters)
     
@@ -320,8 +395,8 @@ module driver
     
     real(dp)::inv_fitness
     
-    inv_fitness=zero
-    call pso_driver(sim_id,evfpso,nfit,all_parameters,minpar,maxpar,fit_parameters,inv_fitness)
+    inv_fitness=one
+    call pso_driver(sim_id,evaluate_pso,nfit,all_parameters,minpar,maxpar,fit_parameters,inv_fitness)
     ! minpar,maxpar in module 'parameters'
   
 !     call write_summary_nosigma(1,sim_id,0,all_parameters,fit_parameters)

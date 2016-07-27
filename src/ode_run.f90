@@ -1,6 +1,7 @@
 module ode_run
   use constants
   use parameters
+  use parameters_conversion
   use celestial_mechanics
   use rotations,only:orb2obs
   use eq_motion,only:eqmastro
@@ -598,6 +599,7 @@ module ode_run
   end subroutine ode_a_o
   ! ------------------------------------------------------------------ !
 
+  
     ! ------------------------------------------------------------------ !
   ! subroutine called by the L-M to fit the parameters
   subroutine ode_lm(allpar,nm,nn,par,resw,iflag)
@@ -606,7 +608,7 @@ module ode_run
     real(dp),dimension(:),intent(out)::resw
     integer,intent(inout)::iflag
 
-    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,i,lN
+    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
     integer,dimension(:),allocatable::clN
     real(dp),dimension(:),allocatable::ra0,ra1
     real(dp)::dt1,dt2
@@ -623,23 +625,10 @@ module ode_run
     logical::checkpar,gls_check
 
     resw=zero
-    allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),i(NB),lN(NB),clN(NB))
+    allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
-    ! from the allpar and par to keplerian elements: due to the LMdif approach/code
-!     call par2kel(allpar,par,m,R,P,a,e,w,mA,i,lN)
-    if(progtype.le.1)then
-      call par2kel(allpar,par,m,R,P,a,e,w,mA,i,lN)
-      checkpar = checkbounds(par)
-    else
-      call par2kel_fit(allpar,par,m,R,P,a,e,w,mA,i,lN,checkpar)
-      if(.not.checkpar)then
-        resw=set_max_residuals(ndata)
-        return
-      end if
-      checkpar = checkbounds_fit(par)
-    end if
+    call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
     if(.not.checkpar)then
-!       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
       return
     end if
@@ -653,7 +642,7 @@ module ode_run
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
     call initial_state(P,a,e,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-    call orb2obs(ra0,-lN,-i,-w,ra1)
+    call orb2obs(ra0,-lN,-inc,-w,ra1)
 
     cntRV=0
     if(nRV.gt.0)then
@@ -706,7 +695,7 @@ module ode_run
     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
     if(allocated(gamma)) deallocate(gamma)
     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
-    if(allocated(m))   deallocate(m,R,P,a,e,w,mA,i,lN,clN)
+    if(allocated(m))   deallocate(m,R,P,a,e,w,mA,inc,lN,clN)
     if(allocated(ra0)) deallocate(ra0,ra1)
 
     return
@@ -723,7 +712,7 @@ module ode_run
     real(dp),dimension(:),intent(out)::resw
     real(dp),intent(out)::fitness
 
-    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,i,lN
+    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
     integer,dimension(:),allocatable::clN
     real(dp),dimension(:),allocatable::ra0,ra1
     real(dp)::dt1,dt2
@@ -744,30 +733,12 @@ module ode_run
     nTs=maxval(nT0)
 
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),&
-        &w(NB),mA(NB),i(NB),lN(NB),clN(NB))
+        &w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
-    ! from the allpar and par to keplerian elements: due to the LMdif approach/code
-!     call par2kel(allpar,par,m,R,P,a,e,w,mA,i,lN)
-    if(progtype.le.1)then
-      call par2kel(allpar,par,m,R,P,a,e,w,mA,i,lN)
-      checkpar = checkbounds(par)
-    else
-      call par2kel_fit(allpar,par,m,R,P,a,e,w,mA,i,lN,checkpar)
-      if(.not.checkpar)then
-        if(nRV.gt.0) RVok=zero
-        if(nTs.gt.0) T0ok=zero
-  !       resw=sqrt(resmax)/real(ndata,dp)
-        resw=set_max_residuals(ndata)
-        fitness=resmax
-        return
-      end if
-      checkpar = checkbounds_fit(par)
-    end if
-
+    call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
     if(.not.checkpar)then
       if(nRV.gt.0) RVok=zero
       if(nTs.gt.0) T0ok=zero
-!       resw=sqrt(resmax)/real(ndata,dp)
       resw=set_max_residuals(ndata)
       fitness=resmax
       return
@@ -782,7 +753,7 @@ module ode_run
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
     call initial_state(P,a,e,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-    call orb2obs(ra0,-lN,-i,-w,ra1)
+    call orb2obs(ra0,-lN,-inc,-w,ra1)
 
     cntRV=0
     if(nRV.gt.0)then
@@ -818,7 +789,6 @@ module ode_run
     if(Hc)then
       if(nRV.gt.0) RVok = zero
       if(nTs.gt.0) T0ok = zero
-!       resw=sqrt(resmax)/real(ndata,dp)
       resw=set_max_residuals(ndata)
       fitness=resmax
     else
@@ -836,7 +806,7 @@ module ode_run
     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
     if(allocated(gamma)) deallocate(gamma)
     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
-    if(allocated(m)) deallocate(m,R,P,a,e,w,mA,i,lN,clN)
+    if(allocated(m)) deallocate(m,R,P,a,e,w,mA,inc,lN,clN)
     if(allocated(ra0)) deallocate(ra0,ra1)
 
     return
@@ -850,7 +820,7 @@ module ode_run
     real(dp),dimension(:),intent(out)::resw
     integer,intent(inout)::iflag
 
-    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,i,lN
+    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
     integer,dimension(:),allocatable::clN
     real(dp),dimension(:),allocatable::ra0,ra1
     real(dp)::dt1,dt2
@@ -868,22 +838,9 @@ module ode_run
 
     resw=zero
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),&
-        &w(NB),mA(NB),i(NB),lN(NB),clN(NB))
+        &w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
-    ! from the allpar and par to keplerian elements: due to the LMdif approach/code
-!     call par2kel(allpar,par,m,R,P,a,e,w,mA,i,lN)
-    if(progtype.le.1)then
-      call par2kel(allpar,par,m,R,P,a,e,w,mA,i,lN)
-      checkpar = checkbounds(par)
-    else
-      call par2kel_fit(allpar,par,m,R,P,a,e,w,mA,i,lN,checkpar)
-      if(.not.checkpar)then
-  !       resw=sqrt(resmax)/real(ndata,dp)
-          resw=set_max_residuals(ndata)
-        return
-      end if
-      checkpar = checkbounds_fit(par)
-    end if
+    call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
     if(.not.checkpar)then
 !       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
@@ -898,7 +855,7 @@ module ode_run
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
     call initial_state(P,a,e,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-    call orb2obs(ra0,-lN,-i,-w,ra1)
+    call orb2obs(ra0,-lN,-inc,-w,ra1)
 
     cntRV=0
     if(nRV.gt.0)then
@@ -944,7 +901,7 @@ module ode_run
     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
     if(allocated(gamma)) deallocate(gamma)
     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
-    if(allocated(m)) deallocate(m,R,P,a,e,w,mA,i,lN,clN)
+    if(allocated(m)) deallocate(m,R,P,a,e,w,mA,inc,lN,clN)
     if(allocated(ra0)) deallocate(ra0,ra1)
 
     return
@@ -959,7 +916,7 @@ module ode_run
     real(dp),dimension(:),intent(in)::allpar,par
     real(dp),dimension(:),intent(out)::resw
 
-    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,i,lN
+    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
     integer,dimension(:),allocatable::clN
     real(dp),dimension(:),allocatable::ra0,ra1
     real(dp)::dt1,dt2
@@ -986,31 +943,32 @@ module ode_run
 
     integer::i_par
     
-    write(*,*)
+    write(*,'(a)')''
     write(*,'(a)')" EXECUTING SIMPLE INTEGRATION AND WRITING FINAL FILES"
     write(*,'(a,i3)')" LM on[1]/off[0] = ",wrtid
-    write(*,*)
+    write(*,'(a)')''
     
     resw=zero
     Hc = .false.
     
-    allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),i(NB),lN(NB),clN(NB))
+    allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
     ! from the allpar and par to keplerian elements: due to the LMdif approach/code
-    if(progtype.le.1)then
-      call par2kel(allpar,par,m,R,P,a,e,w,mA,i,lN)
-      checkpar = checkbounds(par)
-    else
-      call par2kel_fit(allpar,par,m,R,P,a,e,w,mA,i,lN,checkpar)
-      if(.not.checkpar)then
-        write(*,*)' checkpar is FALSE ... BAD'
-  !       resw=sqrt(resmax)/real(ndata,dp)
-        resw=set_max_residuals(ndata)
-        return
-      end if
-      checkpar = checkbounds_fit(par)
-    end if
-
+!     if(progtype.le.1)then
+!       call par2kel(allpar,par,m,R,P,a,e,w,mA,inc,lN)
+!       checkpar = checkbounds(par)
+!     else
+!       call par2kel_fit(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
+!       if(.not.checkpar)then
+!         write(*,*)' checkpar is FALSE ... BAD'
+!   !       resw=sqrt(resmax)/real(ndata,dp)
+!         resw=set_max_residuals(ndata)
+!         return
+!       end if
+!       checkpar = checkbounds_fit(par)
+!     end if
+    
+    call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
     if(.not.checkpar)then
       write(*,*)' checkpar is FALSE ... BAD'
 !       resw=sqrt(resmax)/real(ndata,dp)
@@ -1024,18 +982,18 @@ module ode_run
       write(*,'(a10,F17.12)')parid(i_par),par(i_par)
     end do
     write(*,*)
-    write(*,'(a,1000(F17.12,1x))')"  m = ",m
+    write(*,'(a,1000(F17.12,1x))')"  m = ",m(1),m(2:)*Msear
     write(*,'(a,1000(F17.12,1x))')"  P = ",P
     write(*,'(a,1000(F17.12,1x))')"  a = ",a
     write(*,'(a,1000(F17.12,1x))')"  e = ",e
     write(*,'(a,1000(F17.12,1x))')"  w = ",w
     write(*,'(a,1000(F17.12,1x))')" mA = ",mA
-    write(*,'(a,1000(F17.12,1x))')"  i = ",i
+    write(*,'(a,1000(F17.12,1x))')"  i = ",inc
     write(*,'(a,1000(F17.12,1x))')" lN = ",lN
     write(*,*)
     
     ! write orbital elements into a file
-    call outElements(isim,wrtid,m,R,P,a,e,w,mA,i,lN)
+    call outElements(isim,wrtid,m,R,P,a,e,w,mA,inc,lN)
 
     ! it is needed to define the which is the alarm coordinate for the transit detection
     call lNset(lN,clN)
@@ -1045,7 +1003,7 @@ module ode_run
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
     call initial_state(P,a,e,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-    call orb2obs(ra0,-lN,-i,-w,ra1) !OK 3T 1T 3T
+    call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
 
     cntRV=0
     if(nRV.gt.0)then
@@ -1156,7 +1114,7 @@ module ode_run
     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
     if(allocated(gamma)) deallocate(gamma)
     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
-    if(allocated(m))   deallocate(m,R,P,a,e,w,mA,i,lN,clN)
+    if(allocated(m))   deallocate(m,R,P,a,e,w,mA,inc,lN,clN)
     if(allocated(ra0)) deallocate(ra0,ra1)
 
     return

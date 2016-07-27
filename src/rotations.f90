@@ -3,7 +3,7 @@
 ! ************************* !
 
 module rotations
-  use constants,only:dp,deg2rad
+  use constants,only:dp,deg2rad,zero,one
   implicit none
 
   contains
@@ -17,13 +17,13 @@ module rotations
     ang=angle*deg2rad
     cosa=cos(ang)
     sina=sin(ang)
-    matrix(1,1)=1._dp
-    matrix(1,2)=0._dp
-    matrix(1,3)=0._dp
-    matrix(2,1)=0._dp
+    matrix(1,1)=one
+    matrix(1,2)=zero
+    matrix(1,3)=zero
+    matrix(2,1)=zero
     matrix(2,2)=cosa
     matrix(2,3)=sina
-    matrix(3,1)=0._dp
+    matrix(3,1)=zero
     matrix(3,2)=-sina
     matrix(3,3)=cosa
 
@@ -40,13 +40,13 @@ module rotations
     cosa=cos(ang)
     sina=sin(ang)
     matrix(1,1)=cosa
-    matrix(1,2)=0._dp
+    matrix(1,2)=zero
     matrix(1,3)=-sina
-    matrix(2,1)=0._dp
-    matrix(2,2)=1._dp
-    matrix(2,3)=0._dp
+    matrix(2,1)=zero
+    matrix(2,2)=one
+    matrix(2,3)=zero
     matrix(3,1)=sina
-    matrix(3,2)=0._dp
+    matrix(3,2)=zero
     matrix(3,3)=cosa
 
     return
@@ -63,18 +63,18 @@ module rotations
     sina=sin(ang)
     matrix(1,1)=cosa
     matrix(1,2)=sina
-    matrix(1,3)=0._dp
+    matrix(1,3)=zero
     matrix(2,1)=-sina
     matrix(2,2)=cosa
-    matrix(2,3)=0._dp
-    matrix(3,1)=0._dp
-    matrix(3,2)=0._dp
-    matrix(3,3)=1._dp
+    matrix(2,3)=zero
+    matrix(3,1)=zero
+    matrix(3,2)=zero
+    matrix(3,3)=one
 
     return
   end subroutine rotmat3
 
-  ! successive rotations around axis: 3(z) 1(x) 3(z) 
+  ! successive rotations around axis: 3(z) 1(x) 3(z)
   subroutine rotmat313(angle1,angle2,angle3,CBA)
     real(dp),intent(in)::angle1,angle2,angle3
     real(dp),dimension(:,:),intent(out)::CBA
@@ -99,7 +99,7 @@ module rotations
     real(dp),dimension(3,3)::CBA
     integer::j,ncj
 
-    rout=0._dp
+    rout=zero
     do j=2,NB
       ncj=(j-1)*6
       call rotmat313(ang1(j),ang2(j),ang3(j),CBA)
@@ -109,6 +109,56 @@ module rotations
 
     return
   end subroutine orb2obs
+
+! test
+!   ! successive rotations around axis: 3(z) 1(x) 3(z)
+!   subroutine rotmat313(angle1,angle2,angle3,C,B,A)
+!     real(dp),intent(in)::angle1,angle2,angle3
+!     real(dp),dimension(3,3),intent(out)::A,B,C
+! 
+!     call rotmat3(angle3,A)
+!     call rotmat1(angle2,B)
+!     call rotmat3(angle1,C)
+! 
+!     return
+!   end subroutine rotmat313
+! 
+!   ! rotate the orbital state vectors to observational state vectors
+!   ! User must pass -ang1, -ang2, -ang3 to obtain the right transformation
+!   subroutine orb2obs(rin,ang1,ang2,ang3,rout)
+!     use parameters,only:NB
+!     real(dp),dimension(:),intent(in)::rin
+!     real(dp),dimension(:),intent(out)::rout
+!     real(dp),dimension(:),intent(in)::ang1,ang2,ang3
+!     real(dp),dimension(3,3)::Crot,Brot,Arot
+! !     real(dp),dimension(3)::rtemp1,rtemp2,vtemp1,vtemp2
+!     integer::j,ncj
+! 
+!     rout=zero
+!     do j=2,NB
+!       ncj=(j-1)*6
+!       
+!       call rotmat313(ang1(j),ang2(j),ang3(j),Crot,Brot,Arot)
+!       rout(1+ncj:3+ncj)=matmul(Crot,matmul(Brot,matmul(Arot,rin(1+ncj:3+ncj))))
+!       rout(4+ncj:6+ncj)=matmul(Crot,matmul(Brot,matmul(Arot,rin(4+ncj:6+ncj))))
+! 
+! !       rtemp1=zero
+! !       rtemp2=zero
+! !       rtemp1=matmul(Arot,rin(1+ncj:3+ncj))
+! !       rtemp2=matmul(Brot,rtemp1)
+! !       rout(1+ncj:3+ncj)=matmul(Crot,rtemp2)
+! !       
+! !       vtemp1=zero
+! !       vtemp2=zero
+! !       vtemp1=matmul(Arot,rin(4+ncj:6+ncj))
+! !       vtemp2=matmul(Brot,vtemp1)
+! !       rout(4+ncj:6+ncj)=matmul(Crot,vtemp2)
+!       
+!     end do
+! 
+!     return
+!   end subroutine orb2obs
+
 
 end module rotations
 

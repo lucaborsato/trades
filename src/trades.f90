@@ -4,6 +4,7 @@
 program main_trades
   use constants
   use parameters
+  use parameters_conversion
   use init_trades
   use derived_parameters_mod
   use timing,only:timer
@@ -13,13 +14,13 @@ program main_trades
   use grid_search,only:grid_build_2,set_grid_par_2
   use Levenberg_Marquardt,only:lm_driver
   use Genetic_Algorithm,only:ga_driver,fpik
-  use opti_pso,only:pso_driver,evfpso
+  use opti_pso,only:pso_driver,evaluate_pso
   use bootstrap
   use mpi_module
   use PolyChord_driver,only:PC_driver
   !$ use omp_lib
   implicit none
-  real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,i,lN ! Keplerian orbital elements
+  real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN ! Keplerian orbital elements
   integer::cpuid ! CPU number
   real(dp),dimension(:),allocatable::allpar,par ! vectors with all the parameters and only the parameters to be fitted, needed to LM, GA, and PSO
 
@@ -89,8 +90,8 @@ program main_trades
 
   nRV=0 ! set number of RV points to zero (warning -Wunitialized ...)
   ! IT CALLS ALL THE SUBROUTINES TO READ ALL PARAMETERS AND DATA TO STORE IN COMMON MODULE PARAMETERS
-  call read_first(cpuid,m,R,P,a,e,w,mA,i,lN)
-  call set_all_param(m,R,P,e,w,mA,i,lN,system_parameters)
+  call read_first(cpuid,m,R,P,a,e,w,mA,inc,lN)
+!   call set_all_param(m,R,P,e,w,mA,i,lN,system_parameters)
   ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
   call set_ephem()
   
@@ -149,7 +150,7 @@ program main_trades
       write(*,'(a)')""
       call set_grid_par_2(jgrid,m,P,a,e,w,grid,mw,Pw,aw,ew,ww)
       ! IT SETS THE PARAMETERS LONG/SHORT VECTORs TO BE USED IN LM-dif
-      call set_par(mw,R,Pw,aw,ew,ww,mA,i,lN,allpar,par)
+      call set_par(mw,R,Pw,aw,ew,ww,mA,inc,lN,allpar,par)
       write(*,'(a)') " -----------------------------------------------------"
       if(.not.allocated(resw)) allocate(resw(ndata),iwa(nfit),copar(nfit),sigpar(nfit))
       resw=zero
@@ -261,7 +262,7 @@ program main_trades
       end if
 
       doGlobal: do jgrid=1,nGlobal
-        call set_par(m,R,P,a,e,w,mA,i,lN,allpar,par)
+        call set_par(m,R,P,a,e,w,mA,inc,lN,allpar,par)
 !         call set_par(m,R,P,a,e,w,mA,i,lN,system_parameters,par)
         cpuid = 1
         
@@ -297,7 +298,8 @@ program main_trades
             &trim(adjustl(string(dof)))," = ",fitness*real(dof,dp)
           write(*,*)""
           write(*,'(a)') " -----------------------------------------------------"
-          call norm2par(xpar,par,allpar) ! from [0-1] parameter values to physical values
+!           call norm2par(xpar,par,allpar) ! from [0-1] parameter values to physical values
+          call norm2par(xpar,par)
           deallocate(xpar)
         ! ----------------------
         ! --- END PIKAIA/GENETIC ---
@@ -315,7 +317,7 @@ program main_trades
           xpar=par
           fitness=zero
           call cpu_time(start1)
-          call pso_driver(jgrid,evfpso,nfit,allpar,minpar,maxpar,xpar,inv_fitness) ! PSO DRIVER
+          call pso_driver(jgrid,evaluate_pso,nfit,allpar,minpar,maxpar,xpar,inv_fitness) ! PSO DRIVER
           fitness=one/inv_fitness
           par=xpar
           call cpu_time(end1)
@@ -455,7 +457,7 @@ program main_trades
 
     ! PolyChord - testing
     if(progtype.eq.5)then
-      call set_par(m,R,P,a,e,w,mA,i,lN,system_parameters,par) ! set common variable system_parameters needed by loglikelihood
+      call set_par(m,R,P,a,e,w,mA,inc,lN,system_parameters,par) ! set common variable system_parameters needed by loglikelihood
       call PC_driver(PolyChord_info)
 
     end if
@@ -487,7 +489,7 @@ program main_trades
     &date_values(5),":",date_values(6),":",date_values(7)
   write(*,'(a)')""
 
-  if(allocated(m)) deallocate(m,R,P,a,e,w,mA,i,lN)
+  if(allocated(m)) deallocate(m,R,P,a,e,w,mA,inc,lN)
 !   if(allocated(fitting_parameters)) deallocate(fitting_parameters)
   if(allocated(allpar)) deallocate(allpar,par)
   call deallocate_all()

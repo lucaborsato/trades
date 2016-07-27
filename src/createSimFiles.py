@@ -43,8 +43,8 @@ def createARG(fpath):
 
   ofarg = open(farg, 'w')
 
-  linel = "progtype = 0" # progtype
-  liner = "# 0=only integration, 1=grid search, 2=Levenberg-Marquardt, 3=PIKAIA (GA), 4=PSO, 5=PolyChord."
+  linel = "progtype = 2" # progtype
+  liner = "# 1=grid search, 2=integration/Levenberg-Marquardt, 3=PIKAIA (GA), 4=PSO, 5=PolyChord."
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
   print line
@@ -201,13 +201,13 @@ def createSTAR(fpath):
 
   ofstar = open(fstar, 'w')
 
-  linel = "1.00"
+  linel = "1.00 0.01"
   liner = "# Mstar [Msun]"
   line = linel + "          " + liner
   ofstar.write(line + "\n")
   print " " + line
 
-  linel = "1.10"
+  linel = "1.10 0.01"
   liner = "# Rstar [Rsun]"
   line = linel + "          " + liner
   ofstar.write(line + "\n")
@@ -288,7 +288,7 @@ def createPLANETB(fpath):
   ofb.write(line + "\n")
   print " " + line
   
-  linel = "0. 0. 0. rn"
+  linel = "180. 0. 0. rn"
   liner = "# longitude of the ascending node [deg]"
   line = linel + "          " + liner
   ofb.write(line + "\n")

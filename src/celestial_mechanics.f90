@@ -332,7 +332,7 @@ module celestial_mechanics
 ! -----------------------
 ! mutual Hill radius
 
-  function mutual_Hill_radius(ms,mp1,sma1,mp2, sma2) result(rH)
+  function mutual_Hill_radius(ms,mp1,sma1,mp2,sma2) result(rH)
     real(dp)::rH
     real(dp),intent(in)::ms,mp1,sma1,mp2,sma2
     real(dp)::sma_mean,mass_ratio
@@ -433,101 +433,113 @@ module celestial_mechanics
   
 ! -------------------------------
   
-!   check the physical bounds of the Keplerian elements, e.g., Mass cannot be lower than 0 ...etc
-  function checkbounds(theta) result(check)
-    real(dp),dimension(:),intent(in)::theta
-    logical::check
-    integer::j,body
-
-    !all thetas must be positive
-    check = .true.
-
-    ! Mass (id=3), Radius (id=4), Period (id=5), eccentricity (id=6), arg.peric. (id=7), 
-    ! meanAnom. (id=8), inclination (id=9), long.Node (id=10)
-    do j=1,nfit
-      if(theta(j).lt.zero)then ! check if parameter is negative
-        if(id(j).eq.3)then ! mass
-          check=.false.
-          return
-        else if(id(j).eq.4)then ! radius
-          check=.false.
-          return
-        else if(id(j).eq.5)then ! period
-          check=.false.
-          return
-        else if(id(j).eq.6)then ! eccentricity
-          check=.false.
-          return
-        else if(id(j).eq.9)then ! inclination
-          check=.false.
-          return
-        end if
-      else ! parameter is zero or positive
-        ! eccentricity cannot be equal or greater than one
-        if(id(j).eq.6)then
-          body=int((idall(j)-3)/8)+2
-          if((theta(j).lt.e_bounds(1,body)).or.(theta(j).gt.e_bounds(2,body)))then
-            check=.false.
-            return
-          end if
-        end if
-        ! inclination cannot be greater than 180degrees
-        if((id(j).eq.9).and.(theta(j).ge.180._dp))then
-          check=.false.
-          return
-        end if
-      end if
-    end do
-
-    return
-  end function checkbounds
-
-!   check the physical bounds of the Keplerian elements, e.g., Mass cannot be lower than 0 ...etc
-  function checkbounds_fit(theta) result(check)
-    real(dp),dimension(:),intent(in)::theta
-    logical::check
-    integer::j,body
-    real(dp)::temp_ecc
-
-    !all thetas must be positive
-    check = .true.
-
-    ! Mass (id=3), Radius (id=4), Period (id=5), ecosw (id=6), esinw (id=7), 
-    ! meanAnom. (id=8), inclination (id=9), long.Node (id=10)
-    do j=1,nfit
-        if(id(j).eq.3)then ! mass
-          if(theta(j).lt.zero)then ! check if parameter is negative
-            check=.false.
-            return
-          end if
-        else if(id(j).eq.4)then ! radius
-          if(theta(j).lt.zero)then ! check if parameter is negative
-            check=.false.
-            return
-          end if
-        else if(id(j).eq.5)then ! period
-          if(theta(j).lt.zero)then ! check if parameter is negative
-            check=.false.
-            return
-          end if
-        else if(id(j).eq.6)then ! ecosw, esinw
-          body=int((idall(j)-3)/8)+2
-          temp_ecc = sqrt(theta(j)*theta(j) + theta(j+1)*theta(j+1)) ! ecc
-          if((temp_ecc.lt.e_bounds(1,body)).or.(temp_ecc.gt.e_bounds(2,body)))then
-            check=.false.
-            return
-          end if
-        else if(id(j).eq.9)then ! inclination
-          if((theta(j).le.TOLERANCE).or.(theta(j).ge.180._dp))then
-            check=.false.
-            return
-          end if
-        end if
-      
-      end do
-
-    return
-  end function checkbounds_fit
+! !   check the physical bounds of the Keplerian elements, e.g., Mass cannot be lower than 0 ...etc
+!   function checkbounds(theta) result(check)
+!     real(dp),dimension(:),intent(in)::theta
+!     logical::check
+!     integer::j,body
+! 
+!     !all thetas must be positive
+!     check = .true.
+! 
+!     ! Mass (id=3), Radius (id=4), Period (id=5), eccentricity (id=6), arg.peric. (id=7), 
+!     ! meanAnom. (id=8), inclination (id=9), long.Node (id=10)
+!     do j=1,nfit
+!       if(theta(j).lt.zero)then ! check if parameter is negative
+!         if(id(j).eq.3)then ! mass
+!           check=.false.
+!           return
+!         else if(id(j).eq.4)then ! radius
+!           check=.false.
+!           return
+!         else if(id(j).eq.5)then ! period
+!           check=.false.
+!           return
+!         else if(id(j).eq.6)then ! eccentricity
+!           check=.false.
+!           return
+!         else if(id(j).eq.9)then ! inclination
+!           check=.false.
+!           return
+!         end if
+!       else ! parameter is zero or positive
+!         ! eccentricity cannot be equal or greater than one
+!         if(id(j).eq.6)then
+!           body=int((idall(j)-3)/8)+2
+!           if((theta(j).lt.e_bounds(1,body)).or.(theta(j).gt.e_bounds(2,body)))then
+!             check=.false.
+!             return
+!           end if
+!         end if
+!         ! inclination cannot be greater than 180degrees
+!         if((id(j).eq.9).and.(theta(j).ge.180._dp))then
+!           check=.false.
+!           return
+!         end if
+!       end if
+!     end do
+! 
+!     return
+!   end function checkbounds
+! 
+! !   check the physical bounds of the Keplerian elements, e.g., Mass cannot be lower than 0 ...etc
+!   function checkbounds_fit(theta) result(check)
+!     real(dp),dimension(:),intent(in)::theta
+!     logical::check
+!     integer::j,body
+!     real(dp)::temp_ecc
+! 
+!     logical::corr_ew_flag
+! 
+!     corr_ew_flag=.true.
+!     if(progtype.eq.0.or.progtype.eq.1)then
+!       if(lmon.eq.0)corr_ew_flag=.false.
+!     end if
+! 
+!     
+!     !all thetas must be positive
+!     check = .true.
+! 
+!     ! Mass (id=3), Radius (id=4), Period (id=5), ecosw (id=6), esinw (id=7), 
+!     ! meanAnom. (id=8), inclination (id=9), long.Node (id=10)
+!     do j=1,nfit
+!         if(id(j).eq.3)then ! mass
+!           if(theta(j).lt.zero)then ! check if parameter is negative
+!             check=.false.
+!             return
+!           end if
+!         else if(id(j).eq.4)then ! radius
+!           if(theta(j).lt.zero)then ! check if parameter is negative
+!             check=.false.
+!             return
+!           end if
+!         else if(id(j).eq.5)then ! period
+!           if(theta(j).lt.zero)then ! check if parameter is negative
+!             check=.false.
+!             return
+!           end if
+!         else if(id(j).eq.6)then ! ecosw, esinw
+!           body=int((idall(j)-3)/8)+2
+!           if(corr_ew_flag)then
+!             temp_ecc = sqrt(theta(j)*theta(j) + theta(j+1)*theta(j+1)) ! ecc
+!           else
+!             temp_ecc = theta(j)
+!           end if
+!           if((temp_ecc.lt.e_bounds(1,body)).or.(temp_ecc.gt.e_bounds(2,body)))then
+!             check=.false.
+!             return
+!           end if
+!         else if(id(j).eq.9)then ! inclination
+!           if((theta(j).le.TOLERANCE).or.(theta(j).ge.180._dp))then
+!             check=.false.
+!             return
+!           end if
+!         end if
+!       
+!       end do
+! 
+!     return
+!   end function checkbounds_fit
 
   
       ! ------------------------------------------------------------------ !
@@ -562,123 +574,147 @@ module celestial_mechanics
     return
   end subroutine initial_state
 
-  ! from allpar and par to keplerian elements
-  subroutine par2kel(allpar,par,m,R,P,a,e,w,mA,i,lN)
-    real(dp),dimension(:),intent(in)::allpar,par
-    real(dp),dimension(:),intent(out)::m,R,P,a,e,w,mA,i,lN
-    real(dp),dimension(:),allocatable::atemp
-    integer::j1,cnt
-
-    m=zero
-    R=zero
-    P=zero
-    a=zero
-    e=zero
-    w=zero
-    mA=zero
-    i=zero
-    lN=zero
-    allocate(atemp(npar))
-    atemp=allpar
-    cnt=0
-    do j1=1,npar
-      if(tofit(j1).eq.1)then
-        cnt=cnt+1
-        atemp(j1)=par(cnt)
-      end if
-    end do
-    cnt=0
-    m(1)=atemp(1)
-    R(1)=atemp(2)
-    do j1=2,NB
-      cnt=(j1-2)*8
-      m(j1)=atemp(3+cnt)
-      R(j1)=atemp(4+cnt)
-      P(j1)=atemp(5+cnt)
-      a(j1)=semax(m(1),m(j1),P(j1))
-      e(j1)=atemp(6+cnt)
-      w(j1)=atemp(7+cnt)
-      mA(j1)=atemp(8+cnt)
-      i(j1)=atemp(9+cnt)
-      lN(j1)=atemp(10+cnt)
-      !w(j1)=mod(atemp(7+cnt),360._dp)
-      !mA(j1)=mod(atemp(8+cnt),360._dp)
-      !i(j1)=mod(atemp(9+cnt),180._dp)
-      !lN(j1)=mod(atemp(10+cnt),360._dp)
-    end do
-    deallocate(atemp)
-
-    return
-  end subroutine par2kel
-
-  ! from allpar and par to keplerian elements
-  subroutine par2kel_fit(allpar,par,m,R,P,a,e,w,mA,i,lN,checkpar)
-    real(dp),dimension(:),intent(in)::allpar,par
-    real(dp),dimension(:),intent(out)::m,R,P,a,e,w,mA,i,lN
-    real(dp),dimension(:),allocatable::atemp
-    integer::j1,cnt
-    logical,intent(out)::checkpar
-    real(dp)::temp_ecc2
-
-    checkpar=.true.
-    m=zero
-    R=zero
-    P=zero
-    a=zero
-    e=zero
-    w=zero
-    mA=zero
-    i=zero
-    lN=zero
-    allocate(atemp(npar))
-    atemp=allpar
-    cnt=0
-    do j1=1,npar
-      if(tofit(j1).eq.1)then
-        cnt=cnt+1
-        atemp(j1)=par(cnt)
-      end if
-    end do
-    cnt=0
-    m(1)=atemp(1)
-    R(1)=atemp(2)
-    do j1=2,NB
-      cnt=(j1-2)*8
-      m(j1)=atemp(3+cnt)
-      R(j1)=atemp(4+cnt)
-      P(j1)=atemp(5+cnt)
-      a(j1)=semax(m(1),m(j1),P(j1))
-      if(tofit(6+cnt).eq.1)then
-        temp_ecc2 = atemp(6+cnt)*atemp(6+cnt) + atemp(7+cnt)*atemp(7+cnt)
-        if(temp_ecc2.lt.TOLERANCE)then
-          checkpar=.false.
-          return
-        else
-          e(j1)=sqrt(temp_ecc2)
-          if((e(j1).lt.e_bounds(1,j1)).or.(e(j1).gt.e_bounds(2,j1)))then
-            checkpar=.false.
-            return
-          end if
-          w(j1)=atan2(atemp(7+cnt), atemp(6+cnt))*rad2deg
-          if(w(j1).lt.zero) w(j1)=w(j1)+360._dp
-        end if
-      else
-        e(j1)=atemp(6+cnt)
-        w(j1)=atemp(7+cnt)
-      end if
-      mA(j1)=atemp(8+cnt)
-      i(j1)=atemp(9+cnt)
-      lN(j1)=atemp(10+cnt)
-      !w(j1)=mod(atemp(7+cnt),360._dp)
-      !mA(j1)=mod(atemp(8+cnt),360._dp)
-      !i(j1)=mod(atemp(9+cnt),180._dp)
-      !lN(j1)=mod(atemp(10+cnt),360._dp)
-    end do
-    deallocate(atemp)
-
-    return
-  end subroutine par2kel_fit
-  ! ------------------------------------------------------------------ !
+!   ! from allpar and par to keplerian elements
+!   subroutine par2kel(allpar,par,m,R,P,a,e,w,mA,i,lN)
+!     real(dp),dimension(:),intent(in)::allpar,par
+!     real(dp),dimension(:),intent(out)::m,R,P,a,e,w,mA,i,lN
+!     real(dp),dimension(:),allocatable::atemp
+!     integer::j1,cnt
+! 
+!     m=zero
+!     R=zero
+!     P=zero
+!     a=zero
+!     e=zero
+!     w=zero
+!     mA=zero
+!     i=zero
+!     lN=zero
+!     allocate(atemp(npar))
+!     atemp=allpar
+!     cnt=0
+!     do j1=1,npar
+!       if(tofit(j1).eq.1)then
+!         cnt=cnt+1
+!         atemp(j1)=par(cnt)
+!       end if
+!     end do
+!     cnt=0
+!     m(1)=atemp(1)
+!     R(1)=atemp(2)
+!     do j1=2,NB
+!       cnt=(j1-2)*8
+!       m(j1)=atemp(3+cnt)
+!       R(j1)=atemp(4+cnt)
+!       P(j1)=atemp(5+cnt)
+!       a(j1)=semax(m(1),m(j1),P(j1))
+!       e(j1)=atemp(6+cnt)
+!       w(j1)=atemp(7+cnt)
+!       mA(j1)=atemp(8+cnt)
+!       i(j1)=atemp(9+cnt)
+!       lN(j1)=atemp(10+cnt)
+!       !w(j1)=mod(atemp(7+cnt),360._dp)
+!       !mA(j1)=mod(atemp(8+cnt),360._dp)
+!       !i(j1)=mod(atemp(9+cnt),180._dp)
+!       !lN(j1)=mod(atemp(10+cnt),360._dp)
+!     end do
+!     deallocate(atemp)
+! 
+!     return
+!   end subroutine par2kel
+! 
+!   ! from allpar and par to keplerian elements
+!   subroutine par2kel_fit(allpar,par,m,R,P,a,e,w,mA,i,lN,checkpar)
+!     real(dp),dimension(:),intent(in)::allpar,par
+!     real(dp),dimension(:),intent(out)::m,R,P,a,e,w,mA,i,lN
+!     real(dp),dimension(:),allocatable::atemp
+!     integer::j1,cnt
+!     logical,intent(out)::checkpar
+!     real(dp)::temp_ecc2
+!     logical::corr_ew_flag
+! 
+!     corr_ew_flag=.true.
+!     if(progtype.eq.0.or.progtype.eq.1)then
+!       if(lmon.eq.0)corr_ew_flag=.false.
+!     end if
+!     
+!     checkpar=.true.
+!     m=zero
+!     R=zero
+!     P=zero
+!     a=zero
+!     e=zero
+!     w=zero
+!     mA=zero
+!     i=zero
+!     lN=zero
+!     allocate(atemp(npar))
+!     atemp=allpar
+!     cnt=0
+!     do j1=1,npar
+!       if(tofit(j1).eq.1)then
+!         cnt=cnt+1
+!         atemp(j1)=par(cnt)
+!       end if
+!     end do
+!     cnt=0
+!     m(1)=atemp(1)
+!     R(1)=atemp(2)
+!     do j1=2,NB
+!       cnt=(j1-2)*8
+!       m(j1)=atemp(3+cnt)
+!       R(j1)=atemp(4+cnt)
+!       P(j1)=atemp(5+cnt)
+!       a(j1)=semax(m(1),m(j1),P(j1))
+! !       if(tofit(6+cnt).eq.1)then
+! !         temp_ecc2 = atemp(6+cnt)*atemp(6+cnt) + atemp(7+cnt)*atemp(7+cnt)
+! !         if(temp_ecc2.lt.TOLERANCE)then
+! !           checkpar=.false.
+! !           return
+! !         else
+! !           e(j1)=sqrt(temp_ecc2)
+! !           if((e(j1).lt.e_bounds(1,j1)).or.(e(j1).gt.e_bounds(2,j1)))then
+! !             checkpar=.false.
+! !             return
+! !           end if
+! !           w(j1)=atan2(atemp(7+cnt), atemp(6+cnt))*rad2deg
+! !           if(w(j1).lt.zero) w(j1)=w(j1)+360._dp
+! !         end if
+! !       else
+! !         e(j1)=atemp(6+cnt)
+! !         w(j1)=atemp(7+cnt)
+! !       end if
+!       if(corr_ew_flag)then
+!         temp_ecc2 = atemp(6+cnt)*atemp(6+cnt) + atemp(7+cnt)*atemp(7+cnt)
+!         if(temp_ecc2.lt.TOLERANCE)then
+!           checkpar=.false.
+!           return
+!         else
+!           e(j1)=sqrt(temp_ecc2)
+!           if((e(j1).lt.e_bounds(1,j1)).or.(e(j1).gt.e_bounds(2,j1)))then
+!             checkpar=.false.
+!             return
+!           end if
+!           w(j1)=atan2(atemp(7+cnt), atemp(6+cnt))*rad2deg
+!           if(w(j1).lt.zero) w(j1)=w(j1)+360._dp
+!         end if
+!       else
+!         e(j1)=atemp(6+cnt)
+!         w(j1)=atemp(7+cnt)
+!       end if
+!       mA(j1)=atemp(8+cnt)
+!       i(j1)=atemp(9+cnt)
+!       lN(j1)=atemp(10+cnt)
+!       !w(j1)=mod(atemp(7+cnt),360._dp)
+!       !mA(j1)=mod(atemp(8+cnt),360._dp)
+!       !i(j1)=mod(atemp(9+cnt),180._dp)
+!       !lN(j1)=mod(atemp(10+cnt),360._dp)
+!     end do
+!     deallocate(atemp)
+! 
+!     return
+!   end subroutine par2kel_fit
+!   ! ------------------------------------------------------------------ !
   
   ! ------------------------------------------------------------------ !
   ! function to determine if angle is in some predefined range
@@ -860,9 +896,9 @@ module celestial_mechanics
     real(dp),intent(out)::Lvec(3)
     real(dp)::x,y,z,vx,vy,vz
 
-    x   =rvin(1)
-    y   =rvin(2)
-    z   =rvin(3)
+    x=rvin(1)
+    y=rvin(2)
+    z=rvin(3)
     vx=rvin(4)
     vy=rvin(5)
     vz=rvin(6)
@@ -939,10 +975,10 @@ module celestial_mechanics
   ! ------------------------------------------------------------------ !
   ! from state vector (cartesian coordinates) to keplerian orbital elements
   ! for one body
-  subroutine eleMD(mu,svec,P,a,e,i,mA,w,lN,f,dt)
+  subroutine eleMD(mu,svec,P,a,e,inc,mA,w,lN,f,dt)
     real(dp),intent(in)::mu
     real(dp),intent(in),dimension(:)::svec
-    real(dp),intent(out)::P,a,e,i,mA,w,lN,f,dt
+    real(dp),intent(out)::P,a,e,inc,mA,w,lN,f,dt
     real(dp)::x,y,z,vx,vy,vz,R,R2,V,V2,rv,rd
     real(dp)::hx,hy,hz,h2,h
     real(dp)::Energy
@@ -988,16 +1024,23 @@ module celestial_mechanics
 
     mmotion=sqrt(mu/(a**3))
 
-    cosi=hz/h
-    i=acos(cosi)
-    sini=sin(i)
-
-    lN=atan2(hx,-hy)
-    if(hx.lt.zero) lN=lN+dpi
+    lN=mod((atan2(hx,-hy)+dpi),dpi)
+!     if(hx.lt.zero) lN=lN+dpi
     coslN=cos(lN)
     sinlN=sin(lN)
+    
+    cosi=hz/h
+!     inc=acos(cosi)
+!     sini=sin(inc)
+        
+    sini=sqrt( ((hx*hx)+(hy*hy)) / h2 )
+!     sini=hx/(h*sinlN)
+    
+    inc=atan2(sini,cosi)
+!     write(*,*)'cosi = ',cosi,' sini = ',sini,' inc = ',inc
+!     flush(6)
 
-    sinwf=z/(R*sini)
+!     sinwf=z/(R*sini)
     !if(sini.eq.zero)then
     if(abs(sini-zero).le.TOLERANCE)then
       e=zero
@@ -1007,6 +1050,8 @@ module celestial_mechanics
       mA=zero
       dt=zero
       return
+    else
+      sinwf=z/(R*sini)
     end if
 
     arg1=h2/(a*mu)
@@ -1092,9 +1137,9 @@ module celestial_mechanics
 
   ! from state vector (cartesian coordinates) to keplerian orbital elements
   ! for all the bodies
-  subroutine elements(m,rin,P,a,e,i,mA,w,f,lN,dttau)
+  subroutine elements(m,rin,P,a,e,inc,mA,w,f,lN,dttau)
     real(dp),dimension(:),intent(in)::m,rin
-    real(dp),dimension(:),intent(out)::P,a,e,i,mA,w,f,lN,dttau
+    real(dp),dimension(:),intent(out)::P,a,e,inc,mA,w,f,lN,dttau
     real(dp),dimension(6)::svec
     real(dp)::mu
     integer::j,ncj
@@ -1102,7 +1147,7 @@ module celestial_mechanics
     P=zero
     a=zero
     e=zero
-    i=zero
+    inc=zero
     mA=zero
     w=zero
     f=zero
@@ -1114,8 +1159,8 @@ module celestial_mechanics
       mu=Giau*(m(1)+m(j))
       ! state vector j-th body
       svec=rin(1+ncj:6+ncj)
-      call eleMD(mu,svec,P(j),a(j),e(j),i(j),mA(j),w(j),lN(j),f(j),dttau(j))
-      i(j)=i(j)*rad2deg
+      call eleMD(mu,svec,P(j),a(j),e(j),inc(j),mA(j),w(j),lN(j),f(j),dttau(j))
+      inc(j)=inc(j)*rad2deg
       mA(j)=mA(j)*rad2deg
       lN(j)=lN(j)*rad2deg
       w(j)=w(j)*rad2deg

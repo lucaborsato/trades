@@ -7,4 +7,4 @@
 3.771733 0. 0. rn          # mean anomaly [deg]: if set to >= 999. the time of pericenter passage (next row) will be used
 9.e8 0. 0. rn          # time of pericenter passage [JD]: if set to >= 9.e8 the mean anomaly (previous row) will be used
 88.55 0. 0. rn          # orbit inclination [deg]
-0. 0. 0. rn          # longitude of the ascending node [deg]
+180. 0. 0. rn          # longitude of the ascending node [deg]

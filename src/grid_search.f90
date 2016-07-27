@@ -1,6 +1,7 @@
 module grid_search
   use constants,only:dp,zero,TOLERANCE,sprec,Mjups,Rjups
   use parameters
+  use parameters_conversion
   use convert_type,only:string
   use init_trades,only:get_unit
   use random_trades

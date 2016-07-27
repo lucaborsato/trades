@@ -3,6 +3,7 @@
 module init_trades
   use constants
   use parameters
+  use parameters_conversion
   use convert_type,only:string
   implicit none
 
@@ -317,6 +318,7 @@ module init_trades
     return
   end subroutine read_list
 
+  
   ! initialize variables for Levenberg-Marquardt
   subroutine read_lm_opt(cpuid)
     !$ use omp_lib
@@ -361,23 +363,23 @@ module init_trades
     return
   end subroutine read_lm_opt
 
-  ! given the id of the parameters to fit it creates a proper string
-  subroutine set_parid_list()
-    integer::i
-
-    paridlist=""
-    sig_paridlist=""
-    do i=1,nfit
-      paridlist=trim(paridlist)//" "//trim(adjustl(parid(i)))
-      sig_paridlist=trim(sig_paridlist)//" sig_"//trim(adjustl(parid(i)))
-    end do
-    write(*,'(a)')" ID Parameters to fit:"
-    write(*,'(a)')trim(paridlist)
-    write(*,'(a)')trim(sig_paridlist)
-    write(*,*)
-
-    return
-  end subroutine set_parid_list
+!   ! given the id of the parameters to fit it creates a proper string
+!   subroutine set_parid_list()
+!     integer::i
+! 
+!     paridlist=""
+!     sig_paridlist=""
+!     do i=1,nfit
+!       paridlist=trim(paridlist)//" "//trim(adjustl(parid(i)))
+!       sig_paridlist=trim(sig_paridlist)//" sig_"//trim(adjustl(parid(i)))
+!     end do
+! !     write(*,'(a)')" ID Parameters to fit:"
+! !     write(*,'(a)')trim(paridlist)
+! !     write(*,'(a)')trim(sig_paridlist)
+! !     write(*,*)
+! 
+!     return
+!   end subroutine set_parid_list
   
   ! allocation and zero initialization of Keplerian elements
   subroutine init_zero_par(m,R,P,a,e,w,mA,inc,lN,tau)
@@ -477,16 +479,33 @@ module init_trades
     real(dp),dimension(:),allocatable::tau
     integer::unit,j
     logical::fstat
-
+    character(512)::temp_line
+!     real(dp)::temp1,temp2
+    
+    MR_star = zero ! init MR_star to zero value: in 'parameters' module
+    
     inquire(file=trim(path)//trim(bfiles(1)),exist=fstat)
     if(fstat)then
       call init_zero_par(m,R,P,a,e,w,mA,i,lN,tau)
       !read and convert star mass from Msun to Mjup
       unit=get_unit(cpuid)
       open(unit,file=trim(path)//bfiles(1),status='OLD')
-      read(unit,*) m(1) ! Msun
-      read(unit,*) R(1) ! Rsun
+!       read(unit,*) m(1) ! Msun
+!       read(unit,*) R(1) ! Rsun
+      
+      read(unit,*) MR_star(1,1),temp_line ! Msun eMsun
+      temp_line=trim(adjustl(temp_line))
+      if(temp_line(1:1).ne.'#') read(temp_line,'(es23.16)') MR_star(1,2)
+      
+      read(unit,*) MR_star(2,1),temp_line ! Rsun eRsun
+      temp_line=trim(adjustl(temp_line))
+      temp_line=trim(adjustl(temp_line))
+      if(temp_line(1:1).ne.'#') read(temp_line,'(es23.16)') MR_star(2,2)
+      
       close(unit)
+      
+      m(1)=MR_star(1,1)
+      R(1)=MR_star(2,1)
       
       do j=2,NB
         
@@ -498,6 +517,19 @@ module init_trades
         read(unit,*) a(j)
         read(unit,*) e(j)
         read(unit,*) w(j)
+!         read(unit,*) temp1
+!         read(unit,*) temp2
+!         if(progtype.ne.2)then
+!           e(j)=temp1
+!           w(j)=temp2
+!         else
+!           e(j)=sqrt(temp1*temp1+temp2*temp2)
+!           w(j)=mod((atan2(temp2,temp1)*rad2deg+360._dp),360._dp)
+! !           if(progtype.lt.2.and.lmon.eq.0)then
+! !             e(j)=temp1
+! !             w(j)=temp2
+! !           end if
+!         end if
         read(unit,*) mA(j)
         read(unit,*) tau(j)
         read(unit,*) i(j)
@@ -559,7 +591,391 @@ module init_trades
     return
   end subroutine read_par
 
+  ! it reads boundaries of the Keplerian elements for PIKAIA simulation
+  subroutine read_par_boundaries(cpuid,m,R)
+    use celestial_mechanics,only:period,semax
+    integer,intent(in)::cpuid
+    real(dp),dimension(:),intent(in)::m,R
+    real(dp)::temp1,temp2
+    real(dp),dimension(:),allocatable::Pvec
+    integer::upar,j,j1
 
+    if(.not.allocated(par_min)) allocate(par_min(npar),par_max(npar))
+
+    par_min=zero
+    par_max=zero
+
+    allocate(Pvec(NB-1))
+    par_min(1)=MR_star(1,1) ! Mstar
+    par_max(1)=MR_star(1,1) ! Mstar
+    par_min(2)=MR_star(2,1) ! Rstar
+    par_max(2)=MR_star(2,1) ! Rstar
+
+
+    do j=2,NB
+      j1=(j-2)*8
+      upar=get_unit(cpuid)
+      open(upar,file=trim(path)//trim(bfiles(j)),status='OLD')
+      
+      ! Mass min & max of the planet [0-13]Mjup
+      read(upar,*) par_min(3+j1),par_max(3+j1) !Mass
+      if((par_max(3+j1).eq.0._dp).or.(par_max(3+j1).le.par_min(3+j1)))then
+        ! Mmax =0 or Mmax <= Mmin --> Mmax = 2 * Mmin
+        par_max(3+j1)=2._dp*par_min(3+j1)
+      else if(par_min(3+j1).lt.0._dp)then
+        ! Mmin < 0 --> Mmin = 0 , Mmax = 13 Mjup
+        par_min(3+j1)=zero
+        par_max(3+j1)=13._dp
+!       else if(par_max(3+j1).gt.13._dp)then
+        ! Mmax > 13 Mjups --> only alert!
+!         write(*,'(a)')" WARNING YOU HAVE ENTERED A MASS GREATER THAN 13 MJup! "
+      end if
+      ! Mjup --> Msun
+      par_min(3+j1)=par_min(3+j1)*Mjups
+      par_max(3+j1)=par_max(3+j1)*Mjups
+
+      ! Radius mjn = max = Radius planet
+!       read(upar,*)temp !Radius
+!       par_min(4+j1)=R(j)
+!       par_max(4+j1)=R(j)
+      read(upar,*)temp1,temp2 !Radius
+      par_min(4+j1)=max(min(temp1,temp2),zero)*Rjups
+      par_max(4+j1)=min(max(temp1,temp2),5._dp)*Rjups
+      if(par_max(4+j1).lt.par_min(4+j1)) par_max(4+j1)=par_min(4+j1)
+
+      ! Read Period min & max of the planet from file
+      read(upar,*) par_min(5+j1),par_max(5+j1) !Period
+      read(upar,*) temp1,temp2 !semi-major axis
+      if(par_min(5+j1).ge.9e6_dp)then
+        par_min(5+j1)=period(m(1),m(j),temp1)
+        par_max(5+j1)=period(m(1),m(j),temp2)
+      end if
+      if((par_max(5+j1).eq.0._dp).or.(par_max(5+j1).le.par_min(5+j1)))then
+        par_max(5+j1)=2._dp*par_min(5+j1)
+!         write(*,*)" **WARNING** body ",j," has Period max not setted correctly"
+!         write(*,*)" probably it has been setted to 0. or <= Period min"
+!         write(*,*)" it will be set to 2*Pmin "
+      end if
+      Pvec(j-1)=par_max(5+j1)
+
+      ! 2015-03-11
+      ! TRADES WILL NOT FIT ANYMORE e AND w DISTINGUISHED,
+      ! NOW IT WIL FIT A COMBINATION OF e AND w:
+      ! AND THE MIN AND MAX WILL BE SET TO = [-1, 1] FOR BOTH
+      !par_min(6+j1)=-one
+      !par_max(6+j1)=one
+      !par_min(7+j1)=-one
+      !par_max(7+j1)=one
+      !! skipping rows
+      !read(upar,*)
+      !read(upar,*)
+
+      ! 2015-03-30
+      ! eccentricity and arg. pericenter lines: set upper limit
+      read(upar,*) temp1,temp2
+      
+! !       write(*,*)" e1 = ", e1," e2 = ", e2
+! !       write(*,*)" e_bounds(:,j)[0] = ",e_bounds(:,j)
+!       e_bounds(1,j) = max(min(e1,e2),TOLERANCE)
+!       e_bounds(2,j) = min(max(e1,e2),1._dp-TOLERANCE)
+!       !       write(*,*)" e_bounds(:,j)[1] = ",e_bounds(:,j)
+!       par_min(6+j1)=-e_bounds(2,j)
+!       par_max(6+j1)=e_bounds(2,j)
+!       par_min(7+j1)=par_min(6+j1)
+!       par_max(7+j1)=par_max(6+j1)
+!       if((tofit(6+j1).eq.0).and.(tofit(7+j1).eq.1))then
+!         par_min(7+j1)=zero
+!         par_max(7+j1)=360._dp
+!       end if
+!       read(upar,*) ! skip line
+      
+      ! eccentricity := [0,1] max
+      e_bounds(1,j) = max(min(temp1,temp2),zero)
+      e_bounds(2,j) = min(max(temp1,temp2),one)
+      par_min(6+j1)=e_bounds(1,j)
+      par_max(6+j1)=e_bounds(2,j)
+      ! argument of pericentre := [0,360] max
+      read(upar,*)temp1,temp2
+      par_min(7+j1)=min(temp1,temp2)
+      par_max(7+j1)=max(temp1,temp2)
+      
+      
+      ! OLD VERSION
+!       eccentricity
+!       read(upar,*) par_min(6+j1),par_max(6+j1)
+!       if(par_min(6+j1).ge.par_max(6+j1))then
+!         par_min(6+j1)=zero
+!         par_max(6+j1)=0.95_dp
+!       end if
+!       if(par_min(6+j1).lt.0._dp)then
+!         par_min(6+j1)=zero
+!         par_max(6+j1)=0.95_dp
+!       end if
+!       ! argument of the pericenter
+!       read(upar,*) par_min(7+j1),par_max(7+j1)
+!       if(par_min(7+j1).ge.par_max(7+j1)) par_max(7+j1)=par_min(7+j1)+one
+
+      ! mean anomaly
+!       read(upar,*) par_min(8+j1),par_max(8+j1)
+!       if(par_min(8+j1).ge.par_max(8+j1)) par_max(8+j1)=par_min(8+j1)+one
+      read(upar,*)temp1,temp2
+      par_min(8+j1)=min(temp1,temp2)
+      par_max(8+j1)=max(temp1,temp2)
+      
+      ! time pericenter: skip
+      read(upar,*)
+      
+      ! inclination
+!       read(upar,*) par_min(9+j1),par_max(9+j1)
+!       if(par_min(9+j1).ge.par_max(9+j1)) par_max(9+j1)=par_min(9+j1)+one
+      read(upar,*)temp1,temp2
+      par_min(9+j1)=max(min(temp1,temp2),zero)
+      par_max(9+j1)=min(max(temp1,temp2),180._dp)
+      
+      ! longitude of node
+!       read(upar,*) par_min(10+j1),par_max(10+j1)
+!       if(par_min(10+j1).ge.par_max(10+j1)) par_max(10+j1)=par_min(10+j1)+one
+      read(upar,*)temp1,temp2
+      par_min(10+j1)=min(temp1,temp2)
+      par_max(10+j1)=max(temp1,temp2)
+
+      
+      close(upar)
+    end do
+
+    amin=R(1)*RsunAU
+    amax=5._dp*semax(m(1),zero,maxval(Pvec))
+    deallocate(Pvec)
+    
+    call set_minmax() ! it modifies minpar and maxpar
+    
+    
+    return
+  end subroutine read_par_boundaries
+
+  ! subroutine that reads orbital elements from the files in bodies.lst
+  ! but always assuming:
+  ! col 1 == orbital parameters / initial guess
+  ! col 2 == minimum value of the orbital elements
+  ! col 3 == maximum value of the orbital elements
+  ! in case of grid the files will re-read in a different way
+  subroutine read_fullpar(cpuid,m,R,P,a,e,w,mA,inc,lN,all_parameters)
+    use celestial_mechanics,only:semax,period,tau2mA!,mA2tau
+    integer,intent(in)::cpuid
+    real(dp),dimension(:),allocatable,intent(out)::m,R,P,a,e,w,mA,inc,lN
+    real(dp),dimension(:),allocatable,intent(out)::all_parameters
+    
+    real(dp),dimension(:),allocatable::tau
+    real(dp),dimension(:),allocatable::Pvec
+    integer::unit,j,j1
+    logical::fstat,bstat
+    character(512)::temp_line
+    real(dp)::temp1,temp2
+    
+    MR_star = zero ! init MR_star to zero value: in 'parameters' module
+    
+    inquire(file=trim(path)//trim(bfiles(1)),exist=fstat)
+    if(fstat)then
+      call init_zero_par(m,R,P,a,e,w,mA,inc,lN,tau)
+      !read and convert star mass from Msun to Mjup
+      unit=get_unit(cpuid)
+      open(unit,file=trim(path)//bfiles(1),status='OLD')
+!       read(unit,*) m(1) ! Msun
+!       read(unit,*) R(1) ! Rsun
+      
+      read(unit,*) MR_star(1,1),temp_line ! Msun eMsun
+      temp_line=trim(adjustl(temp_line))
+      if(temp_line(1:1).ne.'#') read(temp_line,'(es23.16)') MR_star(1,2)
+      
+      read(unit,*) MR_star(2,1),temp_line ! Rsun eRsun
+      temp_line=trim(adjustl(temp_line))
+      temp_line=trim(adjustl(temp_line))
+      if(temp_line(1:1).ne.'#') read(temp_line,'(es23.16)') MR_star(2,2)
+      
+      close(unit)
+
+      allocate(Pvec(NB-1))
+      if(.not.allocated(all_parameters)) allocate(all_parameters(npar),par_min(npar),par_max(npar))
+      all_parameters=zero
+      par_min=zero
+      par_max=zero
+      
+      ! Mstar
+      m(1)=MR_star(1,1)
+      all_parameters(1)=MR_star(1,1)
+      par_min(1)=max(MR_star(1,1)-4._dp*MR_star(1,2),zero)
+      par_max(1)=MR_star(1,1)+4._dp*MR_star(1,2)
+      
+      ! Rstar
+      R(1)=MR_star(2,1)
+      all_parameters(2)=MR_star(2,1)
+      par_min(2)=max(MR_star(2,1)-4._dp*MR_star(2,2),zero)
+      par_max(2)=MR_star(2,1)+4._dp*MR_star(2,2)
+      
+      
+      readpar: do j=2,NB
+        j1=(j-2)*8
+        
+        unit=get_unit(cpuid)
+        inquire(file=trim(path)//trim(bfiles(j)),exist=bstat)
+        
+        if(bstat)then
+          open(unit,file=trim(path)//trim(bfiles(j)),status='OLD')
+          
+          ! Mass
+          read(unit,*) m(j),temp1,temp2
+          m(j)=m(j)*Mjups
+          all_parameters(3+j1)=m(j) ! Mjup to Msun
+          par_min(3+j1)=max(min(temp1,temp2)*Mjups,TOLERANCE) ! Mjup to Msun
+          par_max(3+j1)=min(max(temp1,temp2)*Mjups,one) ! Mjup to Msun
+          
+          ! Radius
+          read(unit,*) R(j),temp1,temp2
+          R(j)=R(j)*Rjups
+          all_parameters(4+j1)=R(j)*Rjups ! Rjup to Rsun
+          par_min(4+j1)=max(min(temp1,temp2)*Rjups,TOLERANCE)
+          par_max(4+j1)=min(max(temp1,temp2),5._dp)*Rjups
+          
+          ! Period & semi-major axis
+          read(unit,*) P(j),temp1,temp2
+          if(P(j).ge.9.e6_dp)then ! set high value for Period --> using semi-major axis
+            read(unit,*) a(j),temp1,temp2
+            P(j)=period(m(1),m(j),a(j))
+            temp1=period(m(1),m(j),temp1)
+            temp2=period(m(1),m(j),temp2)
+          else
+            read(unit,*) ! skip semi-major axis row
+            a(j)=semax(m(1),m(j),P(j))
+          end if
+          all_parameters(5+j1)=P(j)
+          par_min(5+j1)=max(min(temp1,temp2),TOLERANCE)
+          par_max(5+j1)=min(max(temp1,temp2),1000._dp*365.25_dp)
+          
+          Pvec(j-1)=par_max(5+j1)
+          
+          ! eccentricity
+          read(unit,*) e(j),temp1,temp2
+          all_parameters(6+j1)=e(j)
+          e_bounds(1,j) = max(min(temp1,temp2),zero)
+          e_bounds(2,j) = min(max(temp1,temp2),one-TOLERANCE)
+          par_min(6+j1)=e_bounds(1,j)
+          par_max(6+j1)=e_bounds(2,j)
+          
+          
+          ! argument of pericentre
+          read(unit,*) w(j),temp1,temp2
+          all_parameters(7+j1)=w(j)
+          if(abs(temp1-temp2).le.TOLERANCE)then ! if min and max are equals, set to default range := [0,360] deg
+            par_min(7+j1)=zero
+            par_max(7+j1)=360._dp
+          else
+            par_min(7+j1)=min(temp1,temp2)
+            par_max(7+j1)=max(temp1,temp2)
+          end if
+          
+          ! mean Anomaly & time of the passage at pericentre
+          read(unit,*) mA(j),temp1,temp2
+          if(mA(j).ge.999._dp)then
+            read(unit,*)tau(j),temp1,temp2
+            
+            if(tau(j).ge.9.e8_dp)then
+              deallocate(tau)
+              write(*,'(a,a)')' WARNING: MISSING BOTH MEAN ANOMAMLY AND TIME OF PERICENTER FOR PLANET INPUT FILE ',trim(bfiles(j))
+              stop
+            end if
+            
+            mA(j)=tau2mA(tau(j),tepoch,P(j))
+            temp1=zero
+            temp2=360._dp
+            write(*,'(a)')' WARNING: USER PROVIDED TAU SO THE MIN-MAX OF THE MEAN ANOMALY WILL BE SET TO [0-360] DEG'
+            flush(6)
+            
+          else
+            read(unit,*) ! skip tau row
+  !           tau(j)=mA2tau(mA(j),tepoch,P(j))
+          end if
+          all_parameters(8+j1)=mA(j)
+          if(abs(temp1-temp2).le.TOLERANCE)then ! if min and max are equals, set to default range := [0,360] deg
+            par_min(8+j1)=zero
+            par_max(8+j1)=360._dp
+          else
+            par_min(8+j1)=min(temp1,temp2)
+            par_max(8+j1)=max(temp1,temp2)
+          end if
+          
+          ! inclination
+          read(unit,*) inc(j),temp1,temp2
+          all_parameters(9+j1)=inc(j)
+          if(abs(temp1-temp2).le.TOLERANCE)then ! if min and max are equals, set to default range := [0,180] deg
+            par_min(9+j1)=zero
+            par_max(9+j1)=180._dp
+          else
+            par_min(9+j1)=max(min(temp1,temp2),zero)
+            par_max(9+j1)=min(max(temp1,temp2),180._dp)
+          end if
+          
+          ! longitude of ascending node
+          read(unit,*)lN(j),temp1,temp2
+          all_parameters(10+j1)=lN(j)
+          if(abs(temp1-temp2).le.TOLERANCE)then ! if min and max are equals, set to default range := [0,360] deg
+            par_min(10+j1)=zero
+            par_max(10+j1)=360._dp
+          else
+            par_min(10+j1)=min(temp1,temp2)
+            par_max(10+j1)=max(temp1,temp2)
+          end if
+
+          close(unit)
+          
+          
+        else
+        
+          deallocate(tau)
+          write(*,'(a,a,a)')" CANNOT FIND BODY FILE ",trim(path),trim(bfiles(j))
+          write(*,'(a)')""
+          stop
+      
+        end if
+        
+      end do readpar
+      
+    else
+    
+      deallocate(tau)
+      write(*,'(a,a,a)')" CANNOT FIND STAR FILE ",trim(path),trim(bfiles(1))
+      write(*,'(a)')""
+      stop
+    end if
+    
+    deallocate(tau)
+    
+    amin=R(1)*RsunAU
+    amax=5._dp*semax(m(1),zero,maxval(Pvec))
+    deallocate(Pvec)
+    
+!     call set_minmax() ! it modifies minpar and maxpar
+
+    return
+  end subroutine read_fullpar
+  
+  
+!   ! fix the system_parameters in case a parameter has been read with a value not in [par_min, par_max]
+! 
+!   subroutine fix_system_parameters()
+!     integer::i
+!     
+!     do i=1,npar
+!       if( tofit(i).eq. 1)then
+!         if( (system_parameters(i).lt.par_min(i)) .or. (system_parameters(i).gt.par_max(i)) )then
+!           system_parameters(i) = par_min(i)
+!         end if
+!       end if
+!     end do
+!   
+!     return
+!   end subroutine fix_system_parameters
+
+  
   ! read and initialize RV data
   ! FILE TYPE: JD RVobs err_RVobs
   subroutine read_RVobs(cpuid)
@@ -682,6 +1098,22 @@ module init_trades
     return
   end subroutine read_T0obs
 
+  function get_ln_err_const(eRV,eT0) result(ln_const)
+    real(dp)::ln_const
+    real(dp),dimension(:),intent(in)::eRV
+    real(dp),dimension(:,:),intent(in)::eT0
+    
+    real(dp)::ln_eRV,ln_eT0
+    
+    ln_eRV = sum(log(pack(eRV,eRV/=zero)*pack(eRV,eRV/=zero)))
+    ln_eT0 = sum(log(pack(eT0,eT0/=zero)*pack(eT0,eT0/=zero)))
+    ln_const = -(0.5_dp*real(dof,dp)*log(dpi))-(0.5_dp*(ln_eRV+ln_eT0))
+!     write(*,'(a,es23.16)')' LN_ERR_CONST (SUBROUTINE) = ',ln_err_const
+!     flush(6)
+  
+  end function get_ln_err_const
+  
+  
   ! it reads the parameters for PIKAIA simulation
   subroutine read_pik_opt(cpuid)
     integer,intent(in)::cpuid
@@ -720,143 +1152,6 @@ module init_trades
     return
   end subroutine read_pik_opt
 
-  ! it reads boundaries of the Keplerian elements for PIKAIA simulation
-  subroutine read_par_boundaries(cpuid,m,R)
-    use celestial_mechanics,only:period,semax
-    integer,intent(in)::cpuid
-    real(dp),dimension(:),intent(in)::m,R
-    real(dp)::temp,a1,a2,e1,e2
-    real(dp),dimension(:),allocatable::Pvec
-    integer::upar,j,j1
-
-    if(.not.allocated(par_min)) allocate(par_min(npar),par_max(npar))
-
-    par_min=zero
-    par_max=zero
-
-    allocate(Pvec(NB-1))
-    par_min(1)=m(1) ! Mstar
-    par_max(1)=m(1) ! Mstar
-    par_min(2)=R(1) ! Rstar
-    par_max(2)=R(1) ! Rstar
-
-
-    do j=2,NB
-      j1=(j-2)*8
-      upar=get_unit(cpuid)
-      open(upar,file=trim(path)//trim(bfiles(j)),status='OLD')
-      ! Mass min & max of the planet [0-13]Mjup
-      read(upar,*) par_min(3+j1),par_max(3+j1) !Mass
-      if((par_max(3+j1).eq.0._dp).or.(par_max(3+j1).le.par_min(3+j1)))then
-        ! Mmax =0 or Mmax <= Mmin --> Mmax = 2 * Mmin
-        par_max(3+j1)=2._dp*par_min(3+j1)
-      else if(par_min(3+j1).lt.0._dp)then
-        ! Mmin < 0 --> Mmin = 0 , Mmax = 13 Mjup
-        par_min(3+j1)=zero
-        par_max(3+j1)=13._dp
-      else if(par_max(3+j1).gt.13._dp)then
-        ! Mmax > 13 Mjups --> only alert!
-        write(*,'(a)')" WARNING YOU HAVE ENTERED A MASS GREATER THAN 13 MJup! "
-      end if
-      ! Mjup --> Msun
-      par_min(3+j1)=par_min(3+j1)*Mjups
-      par_max(3+j1)=par_max(3+j1)*Mjups
-
-      ! Radius mjn = max = Radius planet
-      par_min(4+j1)=R(j)
-      par_max(4+j1)=R(j)
-
-      read(upar,*) temp !Radius
-
-      ! Read Period min & max of the planet from file
-      read(upar,*) par_min(5+j1),par_max(5+j1) !Period
-      read(upar,*) a1,a2 !semi-major axis
-      if(par_min(5+j1).ge.9e6_dp)then
-        par_min(5+j1)=period(m(1),m(j),a1)
-        par_max(5+j1)=period(m(1),m(j),a2)
-      end if
-      if((par_max(5+j1).eq.0._dp).or.(par_max(5+j1).le.par_min(5+j1)))then
-        par_max(5+j1)=2._dp*par_min(5+j1)
-        write(*,*)" **WARNING** body ",j," has Period max not setted correctly"
-        write(*,*)" probably it has been setted to 0. or <= Period min"
-        write(*,*)" it will be set to 2*Pmin "
-      end if
-      Pvec(j-1)=par_max(5+j1)
-
-      ! 2015-03-11
-      ! TRADES WILL NOT FIT ANYMORE e AND w DISTINGUISHED,
-      ! NOW IT WIL FIT A COMBINATION OF e AND w:
-      ! AND THE MIN AND MAX WILL BE SET TO = [-1, 1] FOR BOTH
-      !par_min(6+j1)=-one
-      !par_max(6+j1)=one
-      !par_min(7+j1)=-one
-      !par_max(7+j1)=one
-      !! skipping rows
-      !read(upar,*)
-      !read(upar,*)
-
-      ! 2015-03-30
-      ! eccentricity and arg. pericenter lines: set upper limit
-      read(upar,*) e1,e2
-!       write(*,*)" e1 = ", e1," e2 = ", e2
-!       write(*,*)" e_bounds(:,j)[0] = ",e_bounds(:,j)
-      e_bounds(1,j) = max(min(e1,e2),TOLERANCE)
-      e_bounds(2,j) = min(max(e1,e2),1._dp-TOLERANCE)
-!       write(*,*)" e_bounds(:,j)[1] = ",e_bounds(:,j)
-      par_min(6+j1)=-e_bounds(2,j)
-      par_max(6+j1)=e_bounds(2,j)
-      par_min(7+j1)=par_min(6+j1)
-      par_max(7+j1)=par_max(6+j1)
-      if((tofit(6+j1).eq.0).and.(tofit(7+j1).eq.1))then
-        par_min(7+j1)=zero
-        par_max(7+j1)=360._dp
-      end if
-      read(upar,*) ! skip line
-      
-      ! OLD VERSION
-!       eccentricity
-!       read(upar,*) par_min(6+j1),par_max(6+j1)
-!       if(par_min(6+j1).ge.par_max(6+j1))then
-!         par_min(6+j1)=zero
-!         par_max(6+j1)=0.95_dp
-!       end if
-!       if(par_min(6+j1).lt.0._dp)then
-!         par_min(6+j1)=zero
-!         par_max(6+j1)=0.95_dp
-!       end if
-!       ! argument of the pericenter
-!       read(upar,*) par_min(7+j1),par_max(7+j1)
-!       if(par_min(7+j1).ge.par_max(7+j1)) par_max(7+j1)=par_min(7+j1)+one
-
-      ! mean anomaly
-      read(upar,*) par_min(8+j1),par_max(8+j1)
-      if(par_min(8+j1).ge.par_max(8+j1)) par_max(8+j1)=par_min(8+j1)+one
-
-      ! time pericenter: skip
-      read(upar,*)
-      
-      ! inclination
-      read(upar,*) par_min(9+j1),par_max(9+j1)
-      if(par_min(9+j1).ge.par_max(9+j1)) par_max(9+j1)=par_min(9+j1)+one
-
-      ! longitude of node
-      read(upar,*) par_min(10+j1),par_max(10+j1)
-      if(par_min(10+j1).ge.par_max(10+j1)) par_max(10+j1)=par_min(10+j1)+one
-
-      close(upar)
-    end do
-
-    amin=R(1)*RsunAU
-    amax=5._dp*semax(m(1),zero,maxval(Pvec))
-    deallocate(Pvec)
-    
-    call set_minmax() ! it modifies minpar and maxpar
-    
-    
-    return
-  end subroutine read_par_boundaries
-
-
   ! it reads the parameters for PSO
   subroutine read_pso_opt(cpuid)
     integer,intent(in)::cpuid
@@ -891,23 +1186,23 @@ module init_trades
     return
   end subroutine read_pso_opt
 
-  ! it sets the boundaries for the PSO simulation [not only]
-  subroutine set_minmax()
-    integer::ifit,ipar
-
-    if(.not.allocated(minpar)) allocate(minpar(nfit),maxpar(nfit))
-    ifit=0
-    do ipar=1,npar
-      if(tofit(ipar).eq.1)then
-        ifit=ifit+1
-        minpar(ifit)=par_min(ipar)
-        maxpar(ifit)=par_max(ipar)
-      end if
-    end do
-
-    return
-  end subroutine set_minmax
-  ! ------------------------------------------------------------------ !
+!   ! it sets the boundaries for the PSO simulation [not only]
+!   subroutine set_minmax()
+!     integer::ifit,ipar
+! 
+!     if(.not.allocated(minpar)) allocate(minpar(nfit),maxpar(nfit))
+!     ifit=0
+!     do ipar=1,npar
+!       if(tofit(ipar).eq.1)then
+!         ifit=ifit+1
+!         minpar(ifit)=par_min(ipar)
+!         maxpar(ifit)=par_max(ipar)
+!       end if
+!     end do
+! 
+!     return
+!   end subroutine set_minmax
+!   ! ------------------------------------------------------------------ !
 
   
   subroutine get_character_fields(line, variable)
@@ -1034,18 +1329,19 @@ module init_trades
   end subroutine read_PC_opt
 
   ! calls all the read subroutines necessary to initialize all the variables/vectors/arrays
-  subroutine read_first(cpuid,m,R,P,a,e,w,mA,i,lN)
+  subroutine read_first(cpuid,m,R,P,a,e,w,mA,inc,lN)
     integer,intent(in)::cpuid
-    real(dp),dimension(:),allocatable,intent(out)::m,R,P,a,e,w,mA,i,lN
+    real(dp),dimension(:),allocatable,intent(out)::m,R,P,a,e,w,mA,inc,lN
     integer::j
     character(80)::fmt
     integer,dimension(:),allocatable::nset
 
     ! IT DEFINES THE STRING TO WRITE THE REAL WITH RIGHT DECIMAL: PRECISION
-    sprec=trim(adjustl("g"//&
-    &trim(adjustl(string(2*prec)))//&
-    &"."//&
-    &trim(adjustl(string(prec)))))
+!     sprec=trim(adjustl("g"//&
+!     &trim(adjustl(string(2*prec)))//&
+!     &"."//&
+!     &trim(adjustl(string(prec)))))
+    sprec='es23.16'
     ! prec, sprec in module 'constants'
     write(*,'(a,a,a,a)')" SELECTED PATH: ",trim(path),&
     &" FORMAT EDIT DESCRIPTOR: ",trim(sprec)
@@ -1055,8 +1351,8 @@ module init_trades
     call read_arg(cpuid)
     write(*,'(a,a,a)')" READ ",trim(path),"arg.in"
     allocate(e_bounds(2,NB))
-    e_bounds(1,:)=TOLERANCE
-    e_bounds(2,:)=1._dp-TOLERANCE
+    e_bounds(1,:)=zero
+    e_bounds(2,:)=one-TOLERANCE
 
     ! IT READS THE FILES AND THE NAMES OF THE BODIES AND DETERMINES THE PARAMETERS TO BE FITTED
     call read_list(cpuid)
@@ -1067,39 +1363,53 @@ module init_trades
       &" FILE NAME: ",trim(path),trim(bfiles(j))
     end do
     
-!     if(progtype.le.1)then
-!       call idpar() ! IT DEFINES THE ID OF THE PARAMETERS TO BE FITTED
-!     if(progtype.le.1.and.lmon.eq.0)then
-    if(progtype.le.1)then
-      call idpar() ! IT DEFINES THE ID OF THE PARAMETERS TO BE FITTED
-    else
-      call idpar_fit()
-    end if
+     call idpar() ! IT DEFINES THE ID OF THE PARAMETERS TO BE FITTED
      
     ! IT READS THE VARIABLES FOR THE LEVENBERG-MARQUARDT ALGORITHM
     call read_lm_opt(cpuid)
     write(*,'(a,a,a)')" READ ",trim(path),"lm.opt"
 
     ! IT READS THE PARAMETERS FROM THE FILES
-    call read_par(cpuid,m,R,P,a,e,w,mA,i,lN)
-
+!     call read_par(cpuid,m,R,P,a,e,w,mA,inc,lN)
+    call read_fullpar(cpuid,m,R,P,a,e,w,mA,inc,lN,system_parameters)
+    
+    
+    write(*,*)'read_par'
+    write(*,*)"m   = ", m(1),m(2:)*Msear
+    write(*,*)"R   = ", R
+    write(*,*)"P   = ", P
+    write(*,*)"a   = ", a
+    write(*,*)"e   = ", e
+    write(*,*)"w   = ", w
+    write(*,*)"mA  = ", mA
+    write(*,*)"inc = ", inc
+    write(*,*)"lN  = ", lN
+    write(*,*)
+    
+    write(*,*)'system_parameters, par_min, par_max'
+    do j=1,npar
+      write(*,*)system_parameters(j),par_min(j),par_max(j)
+    end do
+    
     nGlobal=1
-    if(progtype.ge.3)then
-      call read_par_boundaries(cpuid,m,R)
-      if(progtype.eq.3)then
-        ! IT READS THE VARIABLES FOR THE PIKAIA (GENETIC ALGORITHM) CODE
-        call read_pik_opt(cpuid)
-        write(*,'(a,a,a)')" READ ",trim(path),"pikaia.opt"
-      else if(progtype.eq.4)then
-        ! IT READS THE VARIABLES FOR THE PARTICLE SWARM CODE
-        call read_pso_opt(cpuid)
-        write(*,'(a,a,a)')" READ ",trim(path),"pso.opt"
+!     if(progtype.ge.3)then
+    
+!       call read_par_boundaries(cpuid,m,R)
+    if(progtype.eq.3)then
+      ! IT READS THE VARIABLES FOR THE PIKAIA (GENETIC ALGORITHM) CODE
+      call read_pik_opt(cpuid)
+      write(*,'(a,a,a)')" READ ",trim(path),"pikaia.opt"
+    else if(progtype.eq.4)then
+      ! IT READS THE VARIABLES FOR THE PARTICLE SWARM CODE
+      call read_pso_opt(cpuid)
+      write(*,'(a,a,a)')" READ ",trim(path),"pso.opt"
 !         call set_minmax() ! it modifies minpar and maxpar to be used with pso
-      else if(progtype.eq.5)then
-        call read_PC_opt(cpuid)
-        write(*,'(a,a,a)')" READ ",trim(path),"PolyChord.opt"
-      end if
+    else if(progtype.eq.5)then
+      call read_PC_opt(cpuid)
+      write(*,'(a,a,a)')" READ ",trim(path),"PolyChord.opt"
     end if
+      
+!     end if
 
     ! IT READS RV DATA
     nRV=0
@@ -1112,7 +1422,7 @@ module init_trades
     call read_T0obs(cpuid)
     if(idtra.ne.0) write(*,'(a,1000(i5,1x))') " T0 DATA: nT0 = ",nT0(2:)
 
-    ! IT DETERMINS THE NDATA
+    ! IT DETERMINES THE NDATA
     ndata=nRV+sum(nT0)
     dof=(ndata-nfit)
     inv_dof = one / real(dof,dp)
@@ -1121,6 +1431,11 @@ module init_trades
     write(*,'(a,i5)')&
         &" NUMBER OF DEGREES OF FREEDOM : dof = ndata - nfit = ",dof
 
+    ! IT DETERMINES THE LN_ERR_CONST TO COMPUTE LOGLIKELIHOOD
+    ln_err_const = get_ln_err_const(eRVobs,eT0obs)
+!     write(*,'(a,es23.16)')' LN_ERR_CONST (init_trades) = ',ln_err_const
+!     flush(6)
+        
     call set_parid_list()
 
     ! set fitness parameters
@@ -1154,154 +1469,6 @@ module init_trades
   end subroutine read_first
   ! ------------------------------------------------------------------ !
   
-  ! ------------------------------------------------------------------ !
-  ! defines limits of the integration as distance from the star
-  subroutine sma_boundaries(R,a,smamin,smamax)
-    real(dp),dimension(:),intent(in)::R,a
-    real(dp),intent(out)::smamin,smamax
-
-    smamin=R(1)*RsunAU !smamin =  Rstar in AU
-    smamax=5._dp*maxval(a) !smamax = 5 times the larger semi-major axis
-
-    return
-  end subroutine sma_boundaries
-
-  ! puts the parameters in a big vector with dimension npar = 2+(NB-1)*8 (in tofinit)
-  subroutine set_all_param(m,R,P,e,w,mA,i,lN,allpar)
-    real(dp),dimension(:),intent(in)::m,R,P,e,w,mA,i,lN
-    real(dp),dimension(:),allocatable,intent(out)::allpar
-    integer::j,j1
-
-    if(.not.allocated(allpar)) allocate(allpar(npar))
-    allpar(1)=m(1)
-    allpar(2)=R(1)
-    do j=2,NB
-      j1=(j-2)*8
-      allpar(3+j1)=m(j)
-      allpar(4+j1)=R(j)
-      allpar(5+j1)=P(j)
-      allpar(6+j1)=e(j)
-      allpar(7+j1)=w(j)
-      allpar(8+j1)=mA(j)
-      allpar(9+j1)=i(j)
-      allpar(10+j1)=lN(j)
-    end do
-
-    return
-  end subroutine set_all_param
-
-  ! set the par vector with parameters to be fitted
-  subroutine init_param(allpar,par)
-    real(dp),dimension(:),intent(in)::allpar
-    real(dp),dimension(:),allocatable,intent(out)::par
-    integer::j,cnt
-
-    if(.not.allocated(par)) allocate(par(nfit))
-    cnt=0
-    do j=1,npar
-      if(tofit(j).eq.1)then
-        cnt=cnt+1
-        par(cnt)=allpar(j)
-      end if
-    end do
-
-    return
-  end subroutine init_param
-
-  subroutine set_all_parameter_names(kel_id)
-    character(5),dimension(3:10),intent(in)::kel_id
-  
-    integer::i_par,body,cnt_kel
-    allocate(all_names_list(npar)) ! all_names_list in 'parameters' module
-    
-    all_names_list(1)=trim(adjustl(kel_id(3)))//'1' ! mass of the star, id 1
-    all_names_list(2)=trim(adjustl(kel_id(4)))//'1' ! radius of the star, id 1
-    all_names_str=trim(adjustl(all_names_list(1)))//' '//trim(adjustl(all_names_list(2)))
-    cnt_kel=3
-    do i_par=3,npar
-      body=int(int(i_par-3)/8)+2
-      all_names_list(i_par)=trim(adjustl(kel_id(cnt_kel)))//trim(adjustl(string(body)))
-      all_names_str=trim(adjustl(all_names_str))//' '//trim(adjustl(all_names_list(i_par)))
-      cnt_kel=cnt_kel+1
-      if(cnt_kel.eq.11) cnt_kel=3
-    end do
-!     write(*,'(a)')trim(adjustl(all_names_str))
-  
-    return
-  end subroutine set_all_parameter_names
-  
-  ! determines the id of the parameters to be fitted ... only for helpful write
-  subroutine idpar()
-    integer::pos,cntid,j,body
-    character(5),dimension(3:10)::elid
-    data elid /"m", "R", "P", "e", "w", "mA", "i", "lN"/
-
-    if(.not.allocated(id)) allocate(id(nfit),idall(nfit),parid(nfit))
-    pos=0
-    cntid=2
-    do j=1,npar
-      if(j.gt.2) cntid=cntid+1
-      if(tofit(j).eq.1)then
-        if(cntid.eq.6)then
-          tofit(j+1)=1
-          tofit(j+2)=1
-        end if
-        pos=pos+1
-        id(pos)=cntid
-        idall(pos)=j
-        body=int(int(j-3)/8)+2
-        parid(pos)=trim(adjustl(elid(cntid)))//trim(adjustl(string(body)))
-        parid(pos)=trim(adjustl(parid(pos)))
-      end if
-      if(cntid.eq.10) cntid=2
-    end do
-
-    call set_all_parameter_names(elid)
-    
-    return
-  end subroutine idpar
-
-  subroutine idpar_fit()
-    integer::pos,cntid,j,body
-    character(5),dimension(3:10)::elid
-    data elid /"m", "R", "P", "ecosw", "esinw", "mA", "i", "lN"/
-
-    if(.not.allocated(id)) allocate(id(nfit),idall(nfit),parid(nfit))
-    pos=0
-    cntid=2
-    do j=1,npar
-      if(j.gt.2) cntid=cntid+1
-      if(tofit(j).eq.1)then
-        pos=pos+1
-        id(pos)=cntid
-        idall(pos)=j
-        body=int(int(j-3)/8)+2
-        parid(pos)=trim(adjustl(elid(cntid)))//trim(adjustl(string(body)))
-        parid(pos)=trim(adjustl(parid(pos)))
-      end if
-      if(cntid.eq.10) cntid=2
-    end do
-
-    call set_all_parameter_names(elid)
-    
-    return
-  end subroutine idpar_fit
-
-  
-  ! from keplerian orbital elements to the parameters needed by L-M
-  ! calls some previous subroutines
-  subroutine set_par(m,R,P,a,e,w,mA,i,lN,allpar,par)
-    real(dp),dimension(:),intent(in)::m,R,P,a,e,w,mA,i,lN
-    real(dp),dimension(:),allocatable,intent(out)::allpar,par
-
-    call sma_boundaries(R,a,amin,amax) ! IT SETS SEMI-MAJOR AXIS BOUNDS
-    call set_all_param(m,R,P,e,w,mA,i,lN,allpar) ! IT DEFINES THE VECTOR ALLPAR FROM ORBITAL PARAMETERS
-    call init_param(allpar,par) ! IT DEFINES THE PARAMETERS PAR TO BE FITTED
-
-    return
-  end subroutine set_par
-  ! ------------------------------------------------------------------ !
-
   ! it creates string with all the state vector names, useful as header of orbit file
   function state2string(Nbody) result(out)
     character(512)::out
@@ -1321,52 +1488,6 @@ module init_trades
 
     return
   end function state2string
-
-
-!   subroutine init_random_seed_one(nx,input_seed)
-!     integer,intent(in)::nx,input_seed
-!     integer :: i, n!, clock
-!     integer, dimension(:), allocatable :: seed
-! 
-!     n = nx
-!     call random_seed(size = n)
-!     allocate(seed(n))
-! !     call system_clock(COUNT=clock)
-! !     seed = clock + 37 * (/ (i - 1, i = 1, n) /)
-!     seed = input_seed + 37 * (/ (i - 1, i = 1, n) /)
-! !     write(*,'(10000(1x,i10))')seed
-!     call random_seed(PUT = seed)
-!     deallocate(seed)
-! !     write(*,*)
-! 
-!     return
-!   end subroutine init_random_seed_one
-! 
-!   
-!     ! it initializes the seed/s, it uses a clock based generator
-!   subroutine init_random_seed_two(nx)
-!     integer,intent(in)::nx
-!     integer :: i, n, clock
-!     integer, dimension(:), allocatable :: seed
-! 
-!     n = nx
-!     call random_seed(size = n)
-!     allocate(seed(n))
-!     call system_clock(COUNT=clock)
-!     seed = clock + 37 * (/ (i - 1, i = 1, n) /)
-! !     write(*,'(10000(1x,i10))')seed
-!     call random_seed(PUT = seed)
-!     deallocate(seed)
-!     write(*,*)
-! 
-!     return
-!   end subroutine init_random_seed_two
-! 
-!   ! random number from subroutine to function
-!   function rand1() result(xr)
-!     real(dp)::xr
-!     call random_number(xr)
-!   end function rand1
   
 end module init_trades
 

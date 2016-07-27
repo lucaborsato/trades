@@ -1,5 +1,5 @@
-# 0=only integration, 1=grid search, 2=Levenberg-Marquardt, 3=PIKAIA (GA), 4=PSO, 5=PolyChord.
-progtype = 0
+# 1=grid search, 2=integration/Levenberg-Marquardt, 3=PIKAIA (GA), 4=PSO, 5=PolyChord.
+progtype = 2
 # bootstrap: <=0 no bootstrap, >0 yes bootstrap (Nboot set to 100 if <100)
 nboot = 0
 # bootstrap_scaling = .true. or T, .false. or F, default .false.

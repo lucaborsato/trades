@@ -1,29 +1,12 @@
 module PolyChord_driver
   use constants
   use parameters
+  use parameters_conversion
   use ode_run,only:ode_lm
   use fitness_module
   implicit none
   
   contains
-
-! read settings in init_trades.f90
-
-! fix the system_parameters in case a parameter has been read with a value not in [par_min, par_max]
-
-  subroutine fix_system_parameters()
-    integer::i
-    
-    do i=1,npar
-      if( tofit(i).eq. 1)then
-        if( (system_parameters(i).lt.par_min(i)) .or. (system_parameters(i).gt.par_max(i)) )then
-          system_parameters(i) = par_min(i)
-        end if
-      end if
-    end do
-  
-    return
-  end subroutine fix_system_parameters
 
 !   function calculate_fitness(all_parameters,fitting_parameters) result(fitness)
 !     use ode_run,only:ode_lm
@@ -200,7 +183,8 @@ module PolyChord_driver
 
     ! ------- (1d) Define the parameters of the loglikelihood and the system settings -------
     ! already set loglikelihood and system settings when reading PolyChord.opt file
-    call fix_system_parameters()
+!     call fix_system_parameters()
+    call fix_all_parameters(system_parameters)
     
     
     output_info=zero ! set to zero....why not...

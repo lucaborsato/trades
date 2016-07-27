@@ -1,6 +1,7 @@
 module Genetic_Algorithm
   use constants,only:dp,sprec,TOLERANCE,zero,one
-  use parameters,only:path,wrtAll,norm2par,seed_pik,ctrl,dof,inv_dof,ndata,nfit,npar,parid,minpar,maxpar
+  use parameters,only:path,wrtAll,seed_pik,ctrl,dof,inv_dof,ndata,nfit,npar,parid,minpar,maxpar
+  use parameters_conversion
   use init_trades,only:get_unit
   use random_trades
   use convert_type,only:string
@@ -150,7 +151,8 @@ module Genetic_Algorithm
     ! needed only by PIKAIA: conversion from [0-1] to [minpar-maxpar] boundaries
     allocate(run_all_par(npar))
     run_all_par=all_par
-    call norm2par(fitting_parameters_in,fitting_parameters,run_all_par)
+!     call norm2par(fitting_parameters_in,fitting_parameters,run_all_par)
+    call norm2par(fitting_parameters_in,fitting_parameters)
     
     fitness=bound_fitness_function(run_all_par,fitting_parameters)
     inv_fitness=one/fitness
@@ -161,6 +163,39 @@ module Genetic_Algorithm
   end function fpik
 
 
+  ! 2016-07-20 Luca Borsato own method to initialize population
+  subroutine init_good_particles(nfit,npop,all_parameters,oldph)
+    integer,intent(in)::nfit,npop            ! number of particle
+    real(dp),dimension(:),intent(in)::all_parameters
+    real(dp),dimension(:,:)::oldph ! particles
+    real(dp),dimension(:),allocatable::xtemp,ptemp
+    integer::iloop
+    logical::check
+    
+    allocate(xtemp(nfit),ptemp(nfit))
+    iloop=0
+    initloop: do
+        
+        xtemp=zero
+        ptemp=zero
+        call random_number(xtemp)
+        call norm2par(xtemp,ptemp)
+        check=.true.
+        check=check_only_boundaries(all_parameters,ptemp)
+        if(check)then
+!           write(*,*)' par (True) = ',ptemp
+          iloop=iloop+1
+          oldph(1:nfit,iloop)=xtemp(1:nfit)
+          if(iloop.eq.npop)exit initloop
+        end if
+        
+    end do initloop
+    deallocate(xtemp,ptemp)
+!     flush(6)
+    
+  end subroutine init_good_particles
+
+  
   ! ------------------------------------------------------------------ !
   
   ! driver that initialize variabel, factors and calls the pikaia subroutine.
@@ -417,13 +452,6 @@ module Genetic_Algorithm
     ! standard" random number generator of Park and Miller [Comm. ACM 31, 1192-
     ! 1201, Oct 1988; Comm. ACM 36 No. 7, 105-110, July 1993]) is provided.
 
-    ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    ! 2014-04-07
-    ! TO CHANGE
-    ! +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    ! 1) 2) 3) 4) 5)
-
-
     ! ======================
     ! insert by Luca Borsato
     write(*,'(a)')" START PIKAIA SUBROUTINE "
@@ -457,13 +485,16 @@ module Genetic_Algorithm
 
     !     Compute initial (random but bounded) phenotypes
     write(*,'(a)',advance='no')" Computing initial random phenotypes..."
+    call init_good_particles(n,np,xall,oldph)
+    
     !$omp parallel do
     do  ip = 1, np
 !       do  k = 1, n
 ! !           oldph(k,ip) = urand()
 !         call random_number(oldph(k,ip))
 !       end do
-      call random_number(oldph(:,ip))
+
+!       call random_number(oldph(:,ip))
       fitns(ip) = ff(n,xall,oldph(1:n,ip))
     end do
     !$omp end parallel do

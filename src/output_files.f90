@@ -1,6 +1,7 @@
 module output_files
   use constants,only:dp,sprec,zero,AU,speedaud,s24h
   use parameters
+  use parameters_conversion
   use init_trades,only:get_unit,state2string
   use convert_type,only:string
   use celestial_mechanics,only:barycenter
@@ -20,6 +21,7 @@ module output_files
 
   contains
 
+  ! THIS IS VERY OLD....
   ! it writes to screen and into file the inital combination of the grid search and the output
   ! of the LM, in particular:
   ! simID = number that identify the simulation
@@ -52,6 +54,35 @@ module output_files
 
     return
   end subroutine write_simlst
+  
+  
+  ! GOOD GRID WRITE SUMMARY
+  subroutine write_grid_summary(cpuid,n_grid,lm_flag,grid_summary)
+    integer,intent(in)::cpuid,n_grid,lm_flag
+    real(dp),dimension(:,:),intent(in)::grid_summary
+    
+    character(512)::output_file,header
+    character(80)::fmt_wrt
+    integer::u_wrt,i_sim
+    
+    u_wrt=get_unit(cpuid)
+    
+    fmt_wrt = "(i6,1x,1000("//trim(adjustl(sprec))//",1x))"
+    output_file=trim(path)//"summary_grid_sims_"//&
+      &trim(adjustl(string(lm_flag)))//".dat"
+    header="# id_sim "//trim(adjustl(all_names_str))//" fitness_x_dof fitness"
+    
+    open(u_wrt,file=trim(output_file))
+    write(u_wrt,'(a)')trim(header)
+    do i_sim=1,n_grid
+      write(u_wrt,trim(fmt_wrt))i_sim,grid_summary(i_sim,:)
+    end do
+    close(u_wrt)
+    write(*,'(a,a)')" WRITTEN FILE:",trim(output_file)
+    flush(6)
+  
+    return
+  end subroutine write_grid_summary
 
   ! format string to write orbit file
   function fmtorbit() result(fmt)
@@ -90,7 +121,7 @@ module output_files
   end function fmtele
 
   ! ------------------------------------------------------------------ !
-  ! write to screen input parameters for LM
+  ! write to screen input parameters
   subroutine write_lm_inputpar(cpuid,par)
     integer,intent(in)::cpuid
     real(dp),dimension(:),intent(in)::par
@@ -109,10 +140,10 @@ module output_files
 
   ! subroutine to write initial parameters of planets in a file
   ! during the call ode_out(...)
-  subroutine outElements(isim,wrtid,m,R,P,a,e,w,mA,i,lN)
+  subroutine outElements(isim,wrtid,m,R,P,a,e,w,mA,inc,lN)
     !$ use omp_lib
     integer,intent(in)::isim,wrtid
-    real(dp),dimension(:),intent(in)::m,R,P,a,e,w,mA,i,lN
+    real(dp),dimension(:),intent(in)::m,R,P,a,e,w,mA,inc,lN
     integer::cpuid,uwrt,ii
     character(512)::fwrt,fmtw
 
@@ -124,13 +155,13 @@ module output_files
     !$ cpuid=omp_get_thread_num()+1
     uwrt=get_unit(cpuid)
     open(uwrt,file=trim(fwrt))
-    write(uwrt,'(a)')"# M_Msun R_Rsun P_d a_AU e w_deg mA_deg i_deg lN_deg"
+    write(uwrt,'(a)')"# M_Msun R_Rsun P_d a_AU e w_deg mA_deg inc_deg lN_deg"
     !write(*,'(a)')""
     !write(*,'(a)')" Initial orbital parameters for each planet"
-    !write(*,'(a)')"# M_Msun R_Rsun P_d a_AU e w_deg mA_deg i_deg lN_deg"
+    !write(*,'(a)')"# M_Msun R_Rsun P_d a_AU e w_deg mA_deg inc_deg lN_deg"
     do ii=2,NB
       write(uwrt,trim(fmtw))m(ii),R(ii),P(ii),a(ii),e(ii),&
-          &w(ii),mA(ii),i(ii),lN(ii)
+          &w(ii),mA(ii),inc(ii),lN(ii)
       !write(*,trim(fmtw))m(ii),R(ii),P(ii),a(ii),e(ii),&
       !     &w(ii),mA(ii),i(ii),lN(ii)
     end do
@@ -242,7 +273,7 @@ module output_files
     integer::j1,j2
     character(80)::fmt
 
-    fmt=adjustl("(1000("//trim(sprec)//",1x))") ! '(1000(g25.15,1x))'
+    fmt=adjustl("(1000("//trim(sprec)//",1x))") ! '(1000(es23.16,1x))'
     j1loop: do j1=1,pos
       j2loop: do j2=2,NB
         if(stat_tra(j2,j1).eq.1)then
@@ -448,7 +479,7 @@ module output_files
 
     allocate(RV_simwrt(nRV),gamma_wrt(nRV,2))
     call setWriteRV(RV_sim,gamma,RV_simwrt,gamma_wrt)
-!     write(*,'(2(a,g25.15))')" RV -> gamma = ",gamma(1),&
+!     write(*,'(2(a,es23.16))')" RV -> gamma = ",gamma(1),&
 !         &" +/- ",gamma(2)
     write(*,'(a)')"# JD RVobs eRVobs rv_sim RV_sim gamma e_gamma RVsetID &
     &RV_stat"
@@ -645,9 +676,10 @@ module output_files
     integer::upar,j
     character(512)::flpar
     character(80)::fmt
-    real(dp)::fitness
+    real(dp)::fitness,bic
 
     fitness = sum(resw*resw)
+    bic=fitness*real(dof,dp) + real(nfit,dp)*log(real(ndata,dp))
     upar=get_unit(cpuid)
     flpar=""
     flpar=trim(path)//trim(adjustl(string(isim)))//"_"//&
@@ -668,9 +700,12 @@ module output_files
       &fitness,&
       &" => Fitness*dof = ",(fitness*real(dof,dp)),&
       &" dof = ",dof
-      
-    write(*,'(a,F20.7)')"# LogLikelihood = - Fitness / 2 = ", -0.5_dp*fitness
-    write(upar,'(a,F20.7)')"# LogLikelihood = - Fitness / 2 = ", -0.5_dp*fitness
+    
+    write(*,'(a,es23.16)')   "# BIC = Fitness_x_dof + nfit x ln(ndata) = ",bic
+    write(upar,'(a,es23.16)')"# BIC = Fitness_x_dof + nfit x ln(ndata) = ",bic
+    
+    write(*,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2)) - Fitness_x_dof / 2 = ", ln_err_const-0.5_dp*fitness*real(dof,dp)
+    write(upar,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2)) - Fitness_x_dof / 2 = ", ln_err_const-0.5_dp*fitness*real(dof,dp)
     
     write(*,'(a,5x,a)')"# parameter "," value "
     write(upar,'(a,5x,a)')"# parameter "," value "
@@ -709,30 +744,32 @@ module output_files
     if(ndata.gt.0)then
       ! print to screen
       write(*,'(3(a,i4))')" dof = ndata - nfit = ",ndata," - ",nfit," = ",dof
-      write(*,'(100(a,g25.15))')&
+      write(*,'(100(a,es23.16))')&
         &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",fitness
-      write(*,'(a,g25.15)')" BIC = Chi2 + nfit * ln(ndata) = ",bic
-      write(*,'(a,f5.3)' )" k_chi2r   = ",k_chi2r
-      write(*,'(a,f16.4)')" Chi2r     = ",chi2r
-      write(*,'(a,f16.4)')" Chi2r_RV  = ",chi2r_RV
-      write(*,'(a,f16.4)')" Chi2r_T0  = ",chi2r_T0
-      write(*,'(a,f5.3)' )" k_chi2wr  = ",k_chi2wr
-      write(*,'(a,f16.4)')" Chi2wr    = ",chi2wr
-      write(*,'(a,f16.4)')" Chi2wr_RV = ",chi2wr_RV
-      write(*,'(a,f16.4)')" Chi2wr_T0 = ",chi2wr_T0
+      write(*,'(a,es23.16)')" BIC = Chi2 + nfit * ln(ndata) = ",bic
+      write(*,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ", ln_err_const-0.5_dp*fitness*real(dof,dp)
+      write(*,'(a,es23.16)' )" k_chi2r   = ",k_chi2r
+      write(*,'(a,es23.16)')" Chi2r     = ",chi2r
+      write(*,'(a,es23.16)')" Chi2r_RV  = ",chi2r_RV
+      write(*,'(a,es23.16)')" Chi2r_T0  = ",chi2r_T0
+      write(*,'(a,es23.16)' )" k_chi2wr  = ",k_chi2wr
+      write(*,'(a,es23.16)')" Chi2wr    = ",chi2wr
+      write(*,'(a,es23.16)')" Chi2wr_RV = ",chi2wr_RV
+      write(*,'(a,es23.16)')" Chi2wr_T0 = ",chi2wr_T0
       ! write into file
       write(uwrt,'(3(a,i4))')" dof = ndata - nfit = ",ndata," - ",nfit," = ",dof
-      write(uwrt,'(100(a,g25.15))')&
+      write(uwrt,'(100(a,es23.16))')&
         &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",fitness
-      write(uwrt,'(a,g25.15)')" BIC = Chi2 + nfit * ln(ndata) = ",bic
-      write(uwrt,'(a,f5.3)' )" k_chi2r   = ",k_chi2r
-      write(uwrt,'(a,f16.4)')" Chi2r     = ",chi2r
-      write(uwrt,'(a,f16.4)')" Chi2r_RV  = ",chi2r_RV
-      write(uwrt,'(a,f16.4)')" Chi2r_T0  = ",chi2r_T0
-      write(uwrt,'(a,f5.3)' )" k_chi2wr  = ",k_chi2wr
-      write(uwrt,'(a,f16.4)')" Chi2wr    = ",chi2wr
-      write(uwrt,'(a,f16.4)')" Chi2wr_RV = ",chi2wr_RV
-      write(uwrt,'(a,f16.4)')" Chi2wr_T0 = ",chi2wr_T0
+      write(uwrt,'(a,es23.16)')" BIC = Chi2 + nfit * ln(ndata) = ",bic
+      write(uwrt,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ", ln_err_const-0.5_dp*fitness*real(dof,dp)
+      write(uwrt,'(a,es23.16)' )" k_chi2r   = ",k_chi2r
+      write(uwrt,'(a,es23.16)')" Chi2r     = ",chi2r
+      write(uwrt,'(a,es23.16)')" Chi2r_RV  = ",chi2r_RV
+      write(uwrt,'(a,es23.16)')" Chi2r_T0  = ",chi2r_T0
+      write(uwrt,'(a,es23.16)' )" k_chi2wr  = ",k_chi2wr
+      write(uwrt,'(a,es23.16)')" Chi2wr    = ",chi2wr
+      write(uwrt,'(a,es23.16)')" Chi2wr_RV = ",chi2wr_RV
+      write(uwrt,'(a,es23.16)')" Chi2wr_T0 = ",chi2wr_T0
     else
       write(*,'(a)')" NOT ENOUGH DATA"
       write(uwrt,'(a)')" NOT ENOUGH DATA"

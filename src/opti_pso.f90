@@ -10,6 +10,7 @@
 module opti_pso
   use constants,only:dp,sprec,zero,one,TOLERANCE
   use parameters,only:path,wrtAll,seed_pso,ndata,nfit,dof,inv_dof,npar,parid,np_pso,nit_pso,wrt_pso,minpar,maxpar,population,population_fitness,pso_best_evolution
+  use parameters_conversion
   use init_trades,only:get_unit
   use random_trades
   use convert_type,only:string
@@ -24,7 +25,7 @@ module opti_pso
   public :: pso          ! primitive routine
   public :: pso_cbdummy  ! dummy callback function
   
-  public :: evfpso ! function that has to be call by other modules
+  public :: evaluate_pso ! function that has to be call by other modules
 
   !============= PUBLIC PARAMETERS =============
   !----- control flags -----
@@ -160,7 +161,7 @@ module opti_pso
   
   ! another function called by the PSO module, and now it uses the fitness function
   ! from the fitness_module module
-  function evfpso(allpar,par,inv_fitness) result(ir)
+  function evaluate_pso(allpar,par,inv_fitness) result(ir)
     integer::ir
     real(dp),dimension(:),intent(in)::allpar,par
     real(dp),intent(out)::inv_fitness
@@ -171,7 +172,7 @@ module opti_pso
     ir=0
 
     return
-  end function evfpso
+  end function evaluate_pso
 
   
   ! ------------------------------------------------------------------ !
@@ -224,9 +225,11 @@ module opti_pso
     integer,intent(in)::iGlobal,n
     real(dp),dimension(:),intent(in)::allpar,minpar,maxpar
     real(dp),intent(out)::inv_fitness
-    real(dp),dimension(:)::xpar
+!     real(dp),dimension(:)::xpar
+    real(dp),dimension(:),intent(out)::xpar
     real(dp),dimension(:),allocatable::ipar
-!     integer::ip
+    
+!     integer::ii
 
     interface
       !-------- evaluation function -------
@@ -240,17 +243,28 @@ module opti_pso
     if(.not.allocated(ipar)) allocate(ipar(n))
     if(.not.allocated(population)) allocate(population(n,np_pso,nit_pso))
     if(.not.allocated(population_fitness)) allocate(population_fitness(np_pso,nit_pso))
+    xpar=zero
     ipar=minpar
     population=zero
     population_fitness=zero
     
-!     call do_pso(n,minpar,maxpar,ipar,np_pso,nit_pso,wrt_pso,1,&
-!         &evfunc,allpar,xpar,inv_fitness,iGlobal)
+!     write(*,'(2(1x,a23))')'minpar','maxpar'
+!     do ii=1,nfit
+!       write(*,'(2(1x,es23.16))')minpar(ii),maxpar(ii)
+!     end do
+!     
     call do_pso(n,minpar,maxpar,ipar,np_pso,nit_pso,wrt_pso,1,&
         &evfunc,allpar,xpar,inv_fitness,iGlobal)
 
     deallocate(ipar)
     
+!     write(*,'(a)')'within pso_driver'
+!     write(*,'(1(1x,a23))')'par'
+!     do ii=1,nfit
+!       write(*,'(1(1x,es23.16))')xpar(ii)
+!     end do
+!     write(*,*)
+        
     return
   end subroutine pso_driver
 
@@ -315,8 +329,8 @@ module opti_pso
     integer :: ie, flag
 
     !====== Setup control parameters =======
-    !w = 0.9_dp            ! inertia parameter (0.9 is recommended) ! original
-    w = 1.2_dp            ! inertia parameter (0.9 is recommended)
+    w = 0.9_dp            ! inertia parameter (0.9 is recommended) ! original
+!     w = 1.2_dp            ! inertia parameter (0.9 is recommended)
     c1 = 2.0_dp           ! self intention parameter (2.0 is recommended)
     c2 = 2.0_dp           ! swarm intention parameter (2.0 is recommended)
     c3 = 1.e-5_dp         ! random search parameter (very small value is recommended) ! original value
@@ -484,7 +498,7 @@ module opti_pso
     !!....!call init_grand
 !     call init_random_seed(n)
 !     call init_random_seed_one(np,seed_pso)
-    call init_random_seed_input(np*n,seed_pso+iGlobal)
+    call init_random_seed_input(np*n,seed_pso+iGlobal-1)
 !     write(*,*)
 
     !===== Initialize sign of evaluation =====
@@ -496,30 +510,45 @@ module opti_pso
 
     !===== Initialize particles =====
     evcount = 0
-    call init_particles(n, xinit, np, flag, p)
+!     call init_particles(n, xinit, np, flag, p)
+    call init_good_particles(n,np,xall,p)
     gebest = void
 
+    
     ! added by Luca Borsato, stuff to save in write to a file best particles
     call check_file_pso(iGlobal,uall,ubest)
     call bestpso_init(it,idbest,pso_best_evolution)
     wrt_it=10
 !     it_c=1
+
     !***********************************************************
     !*********************** Main Loop *************************
     i = 0
     do
 
+!       write(*,'(a,i5)')'BIOMERDA aa ', i
+!       flush(6)
+    
       !===== Evaluate all particles =====
       !$omp parallel do
       do j=1, np
+!           write(*,*)' ---- '
+!           write(*,*)''
           p(j)%ev = evaluate(n, xall, p(j)%x, sign, evfunc, evcount)
           if(abs(p(j)%ev) > p(j)%evbest) then
             p(j)%evbest = p(j)%ev
             p(j)%xbest(1:n) = p(j)%x(1:n)
           end if
+!           write(*,*)''
+!           write(*,*)' ---- '
       end do
       !$omp end parallel do
 
+!       write(*,'(a,i5)')'BIOMERDA bb ', i
+!       flush(6)
+!       stop('TEMP STOP')
+
+      
       !===== Sort particles by evaluation value =====
       call psort(np, p, ip)
 
@@ -580,10 +609,10 @@ module opti_pso
           print *, 'PSO ---', i, gebest * sign, evmean(np, p) * sign, &
             & infeasible(np, p), evcount
           write(*,'(10(a,g25.15))')&
-            &" Best parameters: <-> iChi^2_r = ",gebest,&
-            &" Chi^2 = ",(real(dof,dp)/gebest),&
-            &" Chi^2_r = ",(one/gebest)
-          write(*,'(10000g25.15)') unscaling(n, gxbest)
+            &" Best parameters: <-> inv_fitness = ",gebest,&
+            &" fitness_x_dof = ",(real(dof,dp)/gebest),&
+            &" fitness = ",(one/gebest)
+          write(*,'(10000es23.16)') unscaling(n, gxbest)
           write(*,'(a)')" "
       end if
       
@@ -601,9 +630,9 @@ module opti_pso
           write(*,'(a,i4)')    ' minloc(one/p(1:np)%ev) = ',minloc((one/p(1:np)%ev),dim=1)
           write(*,'(a,i4)')    '                   best = ',best
           write(*,'(a)')' Best fitness'
-          write(*,'(a,F20.6)') ' minval(one/p(1:np)%ev) = ',minval(one/p(1:np)%ev)
-          write(*,'(a,F20.6)') '         one/p(best)%ev = ',one/p(best)%ev
-          write(*,'(a,F20.6)') '             one/gebest = ',one/gebest
+          write(*,'(a,es23.16)') ' minval(one/p(1:np)%ev) = ',minval(one/p(1:np)%ev)
+          write(*,'(a,es23.16)') '         one/p(best)%ev = ',one/p(best)%ev
+          write(*,'(a,es23.16)') '             one/gebest = ',one/gebest
           write(*,*)
 !           it_c=i
           wrt_it=wrt_it+10
@@ -925,6 +954,41 @@ module opti_pso
 
   end subroutine init_particles
 
+  ! 2016-07-20 Luca Borsato own method to initialize population
+  subroutine init_good_particles(nfit,npop,all_parameters,p)
+    integer,intent(in)::nfit,npop            ! number of particle
+    real(dp),dimension(:),intent(in)::all_parameters
+    type(type_p),dimension(:),intent(out)::p ! particles
+    real(dp),dimension(:),allocatable::xtemp
+    integer::iloop
+    logical::check
+    
+!     write(*,*)' size of p = ',size(p)
+!     flush(6)
+    allocate(xtemp(nfit))
+    iloop=0
+    initloop: do
+        
+        xtemp=zero
+        call random_number(xtemp)
+        check=.true.
+        check=check_only_boundaries(all_parameters,unscaling(nfit,xtemp))
+        if(check)then
+!           write(*,*)' par (True) = ',unscaling(nfit,xtemp)
+          iloop=iloop+1
+          p(iloop)%x(1:nfit)=xtemp(1:nfit)
+          p(iloop)%v(1:nfit)=zero
+          p(iloop)%evbest=void
+          p(iloop)%xbest(1:nfit)=p(iloop)%x(1:nfit)
+          if(iloop.eq.npop)exit initloop
+        end if
+        
+    end do initloop
+    deallocate(xtemp)
+
+  end subroutine init_good_particles
+
+  
   !----------------------------------------------------------------------
   ! Call Evaluation Function
   !----------------------------------------------------------------------
@@ -1132,7 +1196,7 @@ module opti_pso
       fmtpso=trim(adjustl(fmtpso))//&
             &" "//parid(ip)
     end do
-    fmtpso=trim(adjustl(fmtpso))//" invChi2r Chi2 Chi2r"
+    fmtpso=trim(adjustl(fmtpso))//" inv_fitness fitness_x_dof fitness"
     write(ubest,'(a)')trim(adjustl(fmtpso))
     !close(ubest)
 

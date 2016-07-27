@@ -1,6 +1,7 @@
 module derived_parameters_mod
   use constants
   use parameters
+  use parameters_conversion
   use init_trades,only:get_unit,get_rows
   implicit none
 
@@ -249,7 +250,7 @@ contains
 !! --- TTVmax by Luigi Mancini ---
 !! ---
   subroutine compute_derived_ttvmax(fitting_parameters,derived_parameters)
-    use celestial_mechanics,only:par2kel_fit
+!     use celestial_mechanics,only:par2kel_fit
     real(dp),dimension(:),intent(in)::fitting_parameters
     real(dp),dimension(:),intent(out),allocatable::derived_parameters
     real(dp),dimension(:),allocatable::mass,Rad,Per,sma,ecc,argper,meanAnom,inc,lNode

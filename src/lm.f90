@@ -107,7 +107,8 @@ module Levenberg_Marquardt
   ! subroutine to perform lm analysis but using a subroutine with more arguments
   ! (needed for bootstrap analysis)
   subroutine lm_driver_3(fcn,allpar,m,n,x,RV_obs,T0_obs,fvec,diag,sig,info,iwa)
-    use parameters,only:maxfev,nprint,lmtols,dof,param_adj
+    use parameters,only:maxfev,nprint,lmtols
+    use parameters_conversion,only:param_adj
     use init_trades,only:get_unit
     use convert_type,only:string
     !$ use omp_lib
@@ -306,8 +307,8 @@ module Levenberg_Marquardt
   ! to use in GRID Search
   subroutine lm_driver_4s(cpuid,isim,fcn,allpar,m,n,x,fvec,diag,sig,info,iwa)
     use parameters,only:path,maxfev,nprint,npar,ndata,dof,&
-        &xtol,ftol,gtol,lmtols,progtype,paridlist,sig_paridlist,&
-        &param_adj
+        &xtol,ftol,gtol,lmtols,progtype,paridlist,sig_paridlist
+    use parameters_conversion,only:param_adj
     use init_trades,only:get_unit
     use convert_type,only:string
     !$ use omp_lib
@@ -545,11 +546,11 @@ module Levenberg_Marquardt
 
   ! SUBROUTINE lm_driver_4 WITH SEMI-AUTOMATIC SELECTION OF TOLERANCES
   ! varying epsfcn
-  ! parallel versiont, to use with only LM, after PIKAIA or PSO
+  ! parallel version, to use with only LM, after PIKAIA or PSO
   subroutine lm_driver_4p(isim,fcn,allpar,m,n,x,fvec,diag,sig,info,iwa)
     use parameters,only:path,maxfev,nprint,npar,ndata,dof,&
-        &xtol,ftol,gtol,lmtols,progtype,parid,paridlist,sig_paridlist,&
-        &param_adj
+        &xtol,ftol,gtol,lmtols,progtype,paridlist,sig_paridlist
+    use parameters_conversion,only:param_adj
     use init_trades,only:get_unit
     use convert_type,only:string
     use ode_run,only:ode_lm

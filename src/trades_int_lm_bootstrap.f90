@@ -14,16 +14,19 @@
 program main_int_lm_bootstrap
   use constants
   use parameters
+  use parameters_conversion
   use init_trades
 !   use bootstrap
   use transits,only:set_ephem
   use derived_parameters_mod
   use driver
   integer::cpuid
-  real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,i,lN ! Keplerian orbital elements
+  real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN ! Keplerian orbital elements
   real(dp),dimension(:),allocatable::fitting_parameters
+  real(dp)::fitness
   integer::sim_id
   
+!   integer::j
   
   ! ------------------
   ! initialises TRADES
@@ -40,11 +43,11 @@ program main_int_lm_bootstrap
   ! path in module 'parameters'
   
   ! IT CALLS ALL THE SUBROUTINES TO READ ALL PARAMETERS AND DATA TO STORE IN COMMON MODULE PARAMETERS
-  call read_first(cpuid,m,R,P,a,e,w,mA,i,lN)
+  call read_first(cpuid,m,R,P,a,e,w,mA,inc,lN) ! new versione already set system_parameters and boundaries (physical and user-provided)
   
   ! IT SETS TWO VECTOR WITH PARAMETERS (ALL THE PARAMETERS AND ONLY THE FITTED ONES)
-  call set_par(m,R,P,a,e,w,mA,i,lN,system_parameters,fitting_parameters)
-  ! system_parameters in module 'parameters'
+!   call set_par(m,R,P,a,e,w,mA,inc,lN,system_parameters,fitting_parameters)
+  call init_param(system_parameters,fitting_parameters)
   
   ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
   call set_ephem()
@@ -52,6 +55,10 @@ program main_int_lm_bootstrap
   ! check if there are derived parameters to compute and to check
   call init_derived_parameters(cpuid,path)
   
+  write(*,'(a)')" ID Parameters to fit:"
+  write(*,'(a)')trim(paridlist)
+  write(*,'(a)')trim(sig_paridlist)
+  write(*,*)
   flush(6)
   
   
@@ -61,7 +68,7 @@ program main_int_lm_bootstrap
   sim_id=1
   
   ! IT INTEGRATES THE ORBITS AND WRITES RESULTS TO SCREEN AND FILES
-  call write_summary_nosigma(cpuid,sim_id,0,system_parameters,fitting_parameters)
+  call write_summary_nosigma(cpuid,sim_id,0,system_parameters,fitting_parameters,fitness)
   ! if lmon equal 1, it fits with LM and then it writes summary files
   ! fitting_parameters will be updated
   if(lmon.eq.1)then
@@ -78,21 +85,8 @@ program main_int_lm_bootstrap
 
 ! deallocate all the variables
 
-  if(allocated(m)) deallocate(m,R,P,a,e,w,mA,i,lN)
+  if(allocated(m)) deallocate(m,R,P,a,e,w,mA,inc,lN)
   if(allocated(fitting_parameters)) deallocate(fitting_parameters)
   call deallocate_all()
-!   if(allocated(bnames))   deallocate(bnames,bfiles)
-!   if(allocated(tofit))    deallocate(tofit)
-!   if(allocated(e_bounds)) deallocate(e_bounds)
-!   if(allocated(jdRV))     deallocate(jdRV,RVobs,eRVobs)
-!   if(allocated(epoT0obs)) deallocate(epoT0obs,T0obs,eT0obs)
-!   if(allocated(id))       deallocate(id,idall,parid)
-!   if(allocated(system_parameters)) deallocate(system_parameters)
-!   if(allocated(par_min))  deallocate(par_min,par_max)
-!   if(allocated(minpar))   deallocate(minpar,maxpar)
-!   if(allocated(k_b))      deallocate(k_b)
-!   if(allocated(population)) deallocate(population,population_fitness)
-!   if(allocated(derived_names)) deallocate(derived_names,derived_boundaries)
-!   if(allocated(pso_best_evolution)) deallocate(pso_best_evolution)
 
 end program

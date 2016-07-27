@@ -4,6 +4,7 @@
 module fitness_module
   use constants
   use parameters
+  use parameters_conversion
   use ode_run,only:ode_lm
   use derived_parameters_mod
   implicit none
@@ -24,7 +25,6 @@ contains
     ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
     deallocate(resw)
     if(fitness.ge.resmax)then
-!           check=.false.
       fitness=resmax
     end if
   
@@ -56,16 +56,19 @@ contains
     real(dp),intent(in),dimension(:)::fit_parameters
     logical::check
     real(dp),dimension(:),allocatable::run_all_parameters
-    real(dp),dimension(:),allocatable::resw
-    integer::i,iflag
+!     real(dp),dimension(:),allocatable::resw
+    integer::iflag
     logical::check_status
   
     iflag=1
     check=.true.
     check_status=.true.
+    fitness=zero
     
     check=check_fit_boundaries(fit_parameters)
 
+!     write(*,'(i2,2(L2,1x),es23.16)')0,check_status,check,fitness
+    
     if(check)then
 
       allocate(run_all_parameters(npar))
@@ -81,12 +84,14 @@ contains
       deallocate(run_all_parameters)
       
     else
-    
       fitness=resmax
-      
     end if
+  
+!     write(*,'(i2,2(L2,1x),es23.16)')1,check_status,check,fitness
+!     flush(6)
   
     return
   end function bound_fitness_function
 
+ 
 end module fitness_module

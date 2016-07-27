@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.6.0 by Luca Borsato - 2016**    
+**`TRADES` v2.7.0 by Luca Borsato - 2016**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -168,7 +168,7 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
     - **Module source files:** `parameters.f90 random_trades.f90 convert_type.f90 lin_fit.f90 celestial_mechanics.f90 init_trades.f90 statistics.f90 timing.f90 rotations.f90 sort.f90 gls_module.f90 eq_motion.f90 output_files.f90 numerical_integrator.f90 radial_velocities.f90 transits.f90 ode_run.f90 derived_parameters_mod.f90 fitness_module.f90 grid_search.f90 lm.f90 pikaia.f90 util_sort.f90 util_qmc.f90 opti_pso.f90 gaussian.f90 bootstrap.f90 PolyChord_driver.f90 driver.f90`    
     - **PolyChord folder** `PolyChord/` with source files:
         `utils.f90 abort.F90 settings.f90 params.f90 array_utils.f90 priors.f90 mpi_utils.F90 calculate.f90 random_utils.F90 chordal_sampling.f90 run_time_info.f90 clustering.f90 read_write.f90 feedback.f90 generate.F90 ini.f90 nested_sampling.F90`
-    - **Old main `TRADES` file (to be converted in to a library asap):** `trades.f90`    
+    - **Old main `TRADES` file (DO NOT USED IT, to be converted into a library asap):** `trades.f90`    
     - **simple integration+`LM`+bootstrap main:** `trades_int_lm_bootstrap.f90`
     - **simple grid main:** `trades_grid.f90`     
     - **simple `PIK` and `PSO` main:** `trades_pik_pso.f90`     
@@ -251,7 +251,18 @@ or:
 
 In any of these three cases, `TRADES` will write the output files in the folder `/home/user/Simulation/`    
     
-Table 1: How to run TRADES - Integration-`LM`-bootstrap (mode 0).    
+Provide orbital elements (and boundaries) in the bodies file.    
+Algorithm selection in `arg.in`:    
+`progtype`:
+  1.  grid    
+  2.  integration + `LM` + bootstrap    
+  3.  `PIKAIA` (+ `LM` + bootstrap)    
+  4.  `PSO` (+ `LM` + bootstrap)    
+  5.  PolyChord    
+
+  
+  
+<!--Table 1: How to run TRADES - Integration-`LM`-bootstrap (mode 0).    
     
 | combination | algorithm selection | `LM` on/off | Bootstrap | Perturber body ID |     
 |:-----------:|:-------------------:|:-----------:|:---------:|:-----------------:|    
@@ -341,7 +352,7 @@ Table 10: output of combination of Table 9.
 | combination | fitting parameters | executable affected | run as |     
 |:-----------:|--------------------|---------------------|--------|    
 | P | `$(e\cos\omega,e\sin\omega)$` | `trades_polychord` | It runs the PolyChord algorithm (refers to the PolyChord user manual for output files). Final integration, `LM`, and bootstrap won't be run, user has to determine the best solution from the posterior file and re-run `TRADES` with one of the other program combination. |    
-    
+    -->
     
 ---
 
@@ -364,21 +375,27 @@ List of the files with explanation:
     `mass radius period eccentricity argument_of_pericenter mean_anomaly inclination longitude_of_node`.    
     Remember that the number of the lines of this file has to match the `NB` parameter in the `arg.in` file.    
     Example file [`bodies.lst`](trades_example/bodies.lst)    
-    -   `star.dat`: Mass and Radius of the star in Solar units. First row the Mass, second the Radius.    
+    -   `star.dat`: Mass (and sigma) and Radius (and sigma) of the star in Solar units. First row the Mass, second the Radius.    
         In the code will be identified with the id == 1.   
         Example file [`star.dat`](trades_example/star.dat)    
     -   `b.dat`: file with parameters of the planet in the second row of the bodies.lst, that is in the code will be identified with the id == 2.    
-        Each row is a different parameter, in the order: `mass radius period* semi-major_axis* eccentricity argument_of_pericenter mean_anomaly(or time_of_pericenter_passage) inclination longitude_of_node`    
-        For the `radius` only one value in Jupiter radius has to be specified.    
-        For `mass period* eccentricity argument_of_pericenter` the first column will be used as the value for the integration and `LM` fit, or as minimum value for the `grid`, `GA`, `PSO`, and `PC`.    
-        The second column is the maximum value for `grid`, `GA`, `PSO`, and `PC`.    
-        The third and fourth columns are used only with `grid`. The fourth column is the type of grid to create based on the value of the third columns.     
+        Each row is a different parameter (3 columns + flag for `grid`), in the order:    
+        `mass min max [M_Jup]`    
+        `radius min max [R_Jup]`    
+        `period min max [days]`    
+        `semi-major_axis min max [au]`    
+        `eccentricity min max`    
+        `argument_of_pericenter min max [deg]`    
+        `mean_anomaly min max [deg]`     
+        `time_of_pericenter_passage min max [JD]`    
+        `inclination min max [deg]`    
+        `longitude_of_node min max [deg]`    
+        When not specified the `min max` values are set by default (i.e. eccentricity < 1, angles between 0 and 360 deg, inclination between 0 and 180 deg, radius < 5 `R_Jup`, and mass < 1 `M_Sun` in 'M_Jup`.    
+        In the `grid` mode the mean of the columns is: `min max step type`. The `step` is used as true step, or step number, and so on accordingly to the fourth column `type`.     
         Keywords for column 4 are: `ss` (means step size), `rn` (random number), and `sn` (step number).    
-        Units of the parameters: `mass` in Jupiter mass;     
-        `period` in days `*`(alternatively you can provide semi-major axis in au if period is set greater than `9000000.`, while setting semi-major axis equal to `999.` will let you use the period);     
-        `argument_of_pericenter`, `mean_anomaly`, `inclination`, and `longitude_of_node` in degrees.    
-        The third column of the `mean_anomaly` row is a flag that let you use alternatively:    
-        `m` the `mean_anomaly` in degrees or `t` the `time_of_pericenter_passage` in JD.    
+        Alternatives:     
+        `semi-major axis` in au instead of `period` (set `period` greater than `9000000.`, while setting semi-major axis equal to `999.` will let you use the period);     
+        `time of passage at pericentre` is used if `mean anomaly` is greater than `999.`, while set `time of passage at pericentre` greater than `9.e8` to use `mean anomaly`.
         Example file [`b.dat`](trades_example/b.dat)    
     -   `c.dat`: same as file `b.dat`, but with different parameter values for the body in the third row in `bodies.lst`, that is in the code will be identified with the id == 3.    
         Example file [`c.dat`](trades_example/c.dat)    
@@ -464,6 +481,21 @@ Each file _should_ have an self-explaning header.
 
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
+
+#### `TRADES 2.7.0`
+
+Fitting parameters examples:    
+in `bodies.lst` row `b.dat 1 0 0 0 0 0 0 0`:
+`mass_planet / mass_star`    
+in `bodies.lst` row `b.dat 0 0 0 1 0 0 0 0`:
+`eccentricity`    
+in `bodies.lst` row `b.dat 1 0 0 1 1 0 0 0`:
+`mass_planet / mass_star`, `e*cos(w)`, `e*sin(w)`    
+in `bodies.lst` row `b.dat 0 0 0 0 1 1 1 0`:
+`argument_of_pericenter`, `mean longitude (lambda)`, `inclination`    
+in `bodies.lst` row `b.dat 1 0 0 1 1 1 1 1`:
+`mass_planet / mass_star`, `e*cos(w)`, `e*sin(w)`, `lambda`, `i*cos(lN)`, `i*sin(lN)`    
+
 
 #### `TRADES 2.6.0`
 
