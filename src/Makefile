@@ -2,22 +2,22 @@
 #
 # gfortran compiler
 # needed because some 'mpi_utils' has `use mpi` w/o #ifdef MPI #endif
-# CC = mpif90
-CC = /usr/bin/mpif90
+CC = mpif90
+# CC = /usr/bin/mpif90
 # CC = /proper/path/to/mpif90/compiler
 # f2py
 F2PYCC = f2py
 # WARNING: file .f2py_f2cmap must be present (it is within the src/ folder)
 
 # compiler options
-CFLAGS=-cpp -Og -g  -Wfatal-errors -Wall -fcheck=all -ffree-line-length-none -Wsurprising -Waliasing -Wimplicit-interface -fbacktrace -ffpe-trap=invalid,zero,overflow
+CFLAGS=-cpp -Og -g  -Wfatal-errors -Wall -fcheck=all -ffree-line-length-none -Wsurprising -Waliasing -Wimplicit-interface -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow
 #CFLAGS+=-fmax-errors=1
 #CFLAGS+=-Warray-temporaries
 #CFLAGS+=-Wcharacter-truncation
 #CFLAGS+=-Wconversion-extra
 #CFLAGS+=-Wextra
 # CFLAGS+=-pg # profiling 
-COPT=-cpp -O3 -ffree-line-length-none -ffpe-trap=invalid,zero,overflow
+COPT=-cpp -O3 -ffree-line-length-none -ffpe-trap=invalid,zero,overflow,underflow
 # COPT+=-pg # profiling
 
 # with openmp

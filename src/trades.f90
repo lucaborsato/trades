@@ -35,6 +35,8 @@ program main_trades
   real(dp)::inv_fitness,fitness ! inverse Fitness and Fitness: Fitness = Chi2r*k_chi2r + Chi2wr*k_chi2wr
   integer,dimension(:),allocatable::infos ! LM convergence type for each grid search combination
 
+  real(dp)::fit_scale,gls_scale
+  
   character(80)::fmt ! write file format string
 
   real(dp)::start1,end1,sec1 ! timing serial
@@ -61,7 +63,7 @@ program main_trades
 
   write(*,'(a)')""
   write(*,'(a)')" ======================================================"
-  write(*,'(a)')" TRADES v. 2.5.1 -- Luca Borsato 2016"
+  write(*,'(a)')" TRADES v. 2.8.0 -- Luca Borsato 2016"
   write(*,'(a)')" ======================================================"
   write(*,'(a)')""
   write(*,'(a,i4,a,i0.2,a,i0.2,a,i0.2,a,i0.2,a,i0.2)')" START TIME: ",&
@@ -141,7 +143,7 @@ program main_trades
     !$ WRITE(*,'(a,i4,a)')" CPU ",cpuid," REACHED BARRIER"
     !$omp barrier
     !$omp do private(jgrid,mw,Pw,aw,ew,ww,allpar,par,resw,iwa,copar,&
-    !$omp& sigpar,info,start1,end1,hour1,minute1,sec1) &
+    !$omp& sigpar,info,start1,end1,hour1,minute1,sec1,fit_scale,gls_scale) &
     !$omp& schedule(dynamic)
 
     looppar: do jgrid=1,Ngrid
@@ -197,7 +199,7 @@ program main_trades
       if(.not.allocated(resw)) allocate(resw(ndata))
       resw=zero
       call cpu_time(start1)
-      call ode_out(cpuid,jgrid,lmon,allpar,par,resw) ! IT CALLS SUBROUTINE TO CALCULATE ORBIT, CONST. of MOTION, KEP. ELEMENTS, ALL THE TRANSITS, RV. IT WRITES THEM INTO FILES
+      call ode_out(cpuid,jgrid,lmon,allpar,par,resw,fit_scale,gls_scale) ! IT CALLS SUBROUTINE TO CALCULATE ORBIT, CONST. of MOTION, KEP. ELEMENTS, ALL THE TRANSITS, RV. IT WRITES THEM INTO FILES
 
       if(idpert.eq.0 .or. lmon.eq.0) grid(6,jgrid)=sum(resw*resw)
       call cpu_time(end1)
@@ -355,7 +357,7 @@ program main_trades
         write(*,'(a)') " -----------------------------------------------------"
         call cpu_time(start1)
 !         call ode_out(cpuid,jgrid,0,allpar,par,resw)
-        call ode_out(cpuid,jgrid,0,system_parameters,par,resw)
+        call ode_out(cpuid,jgrid,0,system_parameters,par,resw,fit_scale,gls_scale)
         call cpu_time(end1)
         call timer(start1,end1,hour1,minute1,sec1)
         write(*,'(a)') " -----------------------------------------------------"
@@ -412,7 +414,7 @@ program main_trades
           write(*,*)
           write(*,'(a)') " -----------------------------------------------------"
           call cpu_time(start1)
-          call ode_out(cpuid,jgrid,1,allpar,par,resw)
+          call ode_out(cpuid,jgrid,1,allpar,par,resw,fit_scale,gls_scale)
           call cpu_time(end1)
           call timer(start1,end1,hour1,minute1,sec1)
           write(*,'(a)') " -----------------------------------------------------"

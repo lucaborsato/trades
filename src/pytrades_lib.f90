@@ -25,7 +25,10 @@ module pytrades
   
   !f2py real(dp)::ln_err_const
   
+  !f2py real(dp),dimension(2,2)::MR_star
   !f2py real(dp),dimension(:),allocatable::system_parameters
+  !f2py real(dp),dimension(:),allocatable::par_min,par_max ! dimension: system_parameters
+  
   
   !f2py real(dp),dimension(:,:,:),allocatable::population
   !f2py real(dp),dimension(:,:),allocatable::population_fitness
@@ -47,7 +50,7 @@ module pytrades
     character*(*),intent(in)::path_in, sub_folder
 !     integer,intent(in)::n_threads_in
 !     integer::n_threads
-    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,i,lN
+    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
     integer,dimension(:),allocatable::nset
     character(80)::fmt
     
@@ -112,16 +115,19 @@ module pytrades
 !       call idpar_fit()
 !     end if
     call idpar()
+    
     ! IT READS THE PARAMETERS FROM THE FILES
     ! subroutine: read_par -> init_trades
     ! variables:  cpuid=1
     !             m,R,P,a,e,w,mA,i,lN
-    call read_par(1,m,R,P,a,e,w,mA,i,lN)
-    ! IT READS BOUNDARIES OF THE KEPLERIAN ELEMENTS
-    ! subroutine: read_par_boundaries -> init_trades
-    ! variables:  cpuid=1
-    !             m,R
-    call read_par_boundaries(1,m,R) ! it sets minpar(nfit) and maxpar(nfit)
+!     call read_par(1,m,R,P,a,e,w,mA,i,lN)
+!     ! IT READS BOUNDARIES OF THE KEPLERIAN ELEMENTS
+!     ! subroutine: read_par_boundaries -> init_trades
+!     ! variables:  cpuid=1
+!     !             m,R
+!     call read_par_boundaries(1,m,R) ! it sets minpar(nfit) and maxpar(nfit)
+    call read_fullpar(1,m,R,P,a,e,w,mA,inc,lN,system_parameters)
+    
     ! IT READS RV DATA
     ! variables:  nRV -> parameters
     nRV=0
@@ -135,12 +141,14 @@ module pytrades
 !     fmt=adjustl("(a,i4,a,i4,a,"//trim(string(nRVset))//"i4))")
 !     if(rvcheck.eq.1) write(*,trim(fmt))" RV DATA: nRV = ",nRV,&
 !       &" in ",nRVset," set of RV: ",nRVsingle
+
     ! IT READS T0 DATA
     ! subroutine: cpuid=1
     call read_T0obs(1)
     ! variables:  idtra -> parameters
     !             nT0 -> parameters
 !     if(idtra.ne.0) write(*,'(a,1000(i5,1x))') " T0 DATA: nT0 = ",nT0(2:)
+
     ! IT DETERMINS THE NDATA
     ! variables:  ndata -> parameters
     !             dof -> parametershttp://www.r-bloggers.com/wilcoxon-signed-rank-test/
@@ -148,7 +156,12 @@ module pytrades
     !             inv_dof -> parameters
     !             one -> constants
     ndata=nRV+sum(nT0)
+    
+    if(nfit.ge.ndata)then
+      stop('NUMBER OF PARAMETERS TO FIT IS GREATER/EQUAL TO TOTAL NUMBER OF DATAPOINTS')
+    end if
     dof=(ndata-nfit)
+    
     inv_dof = one / real(dof,dp)
 !     write(*,'(a,i5)')" NUMBER OF DATA AVAILABLE: ndata = ",ndata
 !     write(*,'(a,i5)')" NUMBER OF PARAMETERS TO FIT: nfit = ",nfit
@@ -192,19 +205,25 @@ module pytrades
 !       write(*,'(a,i5,a,f16.12,a,f16.12)')" nset = ",nset," k_a = ",k_a," k_b = ",k_b
 !     end if
     deallocate(nset)
+    
     ! ---
     ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
     ! subroutine: set_ephem -> transits
     call set_ephem()
     
     ! IT SETS THE VARIABLES system_parameters and par with fitting parameters
-    allocate(system_parameters(npar), fitting_parameters(nfit), parameters_minmax(nfit,2), parameter_names(nfit))
+!     allocate(system_parameters(npar), fitting_parameters(nfit), parameters_minmax(nfit,2), parameter_names(nfit))
+    allocate(parameters_minmax(nfit,2), parameter_names(nfit))
+    
     ! subroutine: set_par -> init_trades
-    call set_par(m,R,P,a,e,w,mA,i,lN,system_parameters,fitting_parameters)
-!     call set_par(m,R,P,a,e,w,mA,i,lN,mc_allpar,par)
-    ! subroutine: fix_allpar -> init_trades
-!     call fix_system_parameters()
-    call fix_all_parameters(system_parameters)
+!     call set_par(m,R,P,a,e,w,mA,i,lN,system_parameters,fitting_parameters)
+! !     call set_par(m,R,P,a,e,w,mA,i,lN,mc_allpar,par)
+!     ! subroutine: fix_allpar -> init_trades
+! !     call fix_system_parameters()
+!     call fix_all_parameters(system_parameters)
+!   
+    call init_param(system_parameters,fitting_parameters)
+
     parameters_minmax(:,1)=minpar
     parameters_minmax(:,2)=maxpar
     parameter_names = parid
@@ -213,13 +232,30 @@ module pytrades
     call init_derived_parameters(1,path)
     
     ! deallocated variables not needed anymore
-    if(allocated(m)) deallocate(m,R,P,a,e,w,mA,i,lN)
+    if(allocated(m)) deallocate(m,R,P,a,e,w,mA,inc,lN)
   
     path=trim(adjustl(path_in))//trim(adjustl(sub_folder))
 !     write(*,'(a,a)')" RUNNING IN PATH = ",trim(path)
   
     return
   end subroutine initialize_trades
+  
+  subroutine init_fit_parameters(all_parameters,n_par,fit_parameters,n_fit)
+    use parameters_conversion,only:init_param
+    integer,intent(in)::n_par
+    real(dp),dimension(n_par),intent(in)::all_parameters
+    integer,intent(in)::n_fit
+    real(dp),dimension(n_fit),intent(out)::fit_parameters
+    
+    real(dp),dimension(:),allocatable::temp_fit
+  
+    call init_param(all_parameters,temp_fit)
+    fit_parameters = temp_fit
+    if(allocated(temp_fit)) deallocate(temp_fit)
+  
+    return
+  end subroutine init_fit_parameters
+  
   
   subroutine init_pso(cpuid, path_in)
     integer,intent(in)::cpuid
@@ -257,57 +293,41 @@ module pytrades
     return
   end subroutine fortran_loglikelihood
 
-!   subroutine fortran_loglikelihood(nfit,fit_parameters,lgllhd,check)
-!     integer,intent(in)::nfit
-!     real(dp),intent(in),dimension(nfit)::fit_parameters
-!     real(dp),intent(out)::lgllhd
-!     logical,intent(out)::check
-!     
-!     real(dp)::fitness
-!     real(dp),dimension(:),allocatable::run_all_par
-!     logical::check_status
-!     
-!     check=.true.
-!     check_status=.true.
-!     fitness=zero
-!     
-!     check=check_fit_boundaries(fit_parameters)
-!     
-!     write(*,'(a)')' WITHIN fortran_loglikelihood long'
-!     write(*,'(2(a,L2),a,es23.16)')'000 check = ',check,' and check_status = ',check_status,' fitness = ',fitness
-!     
-!     if(check)then
-!       allocate(run_all_par(npar))
-!       run_all_par=system_parameters
-!       
-!       if(check_derived) check_status=check_derived_parameters(fit_parameters)
-!       if(fix_derived) call fix_derived_parameters(fit_parameters,run_all_par,check_status)
-!       
-!       if(check_status)then
-!         fitness=base_fitness_function(run_all_par,fit_parameters)
-!       else
-!         fitness=resmax ! set it to resmax
-!         check=.false.
-!       end if
-!       
-!       deallocate(run_all_par)
-!       
-!     else
-!       fitness=resmax
-!     end if
-!     lgllhd=-0.5_dp*fitness
-!     
-!     write(*,'(2(a,L2),a,es23.16)')'111 check = ',check,' and check_status = ',check_status,' fitness = ',fitness
-!     
-!     if(fitness.ge.resmax)check=.false.
-!     
-!     write(*,'(2(a,L2),a,es23.16)')'222 check = ',check,' and check_status = ',check_status,' fitness = ',fitness
-!     
-!     flush(6)
-!     
-!     return
-!   end subroutine fortran_loglikelihood
-!   
+  ! subroutine that output the fitness, check for given fit_parameters and global system_parameters
+  subroutine fortran_fitness_short(fit_parameters, fitness, check, n_fit)
+    integer,intent(in)::n_fit
+    real(dp),dimension(n_fit),intent(in)::fit_parameters
+    real(dp),intent(out)::fitness
+    logical,intent(out)::check
+    
+    check=.true.
+    fitness=zero
+    fitness=bound_fitness_function(system_parameters,fit_parameters)
+    if(fitness.ge.resmax)check=.false.
+    
+    return
+  end subroutine fortran_fitness_short
+  
+  ! subroutine that output the fitness, check for given fit_parameters and updated all_parameters (instead of system_parameters)
+!   subroutine fortran_fitness_long(fit_parameters, all_parameters, fitness, check, n_fit, n_par)
+  subroutine fortran_fitness_long(all_parameters, n_par, fit_parameters, n_fit, fitness, check)
+    integer,intent(in)::n_par
+    real(dp),dimension(n_par),intent(in)::all_parameters
+    integer,intent(in)::n_fit
+    real(dp),dimension(n_fit),intent(in)::fit_parameters
+    real(dp),intent(out)::fitness
+    logical,intent(out)::check
+    
+    check=.true.
+    fitness=zero
+    fitness=bound_fitness_function(all_parameters,fit_parameters)
+!     write(*,'(a,ES23.16)')' fitness = ',fitness
+    if(fitness.ge.resmax)check=.false.
+    
+    return
+  end subroutine fortran_fitness_long
+  
+
   subroutine write_summary_files(write_number,parameters_values,fitness,lgllhd,check,nfit)
     use driver,only:write_summary_nosigma
 !     use ode_run,only:ode_out
@@ -324,7 +344,8 @@ module pytrades
     check=.true.
     check_status=.true.
     
-    check=check_fit_boundaries(parameters_values)
+!     check=check_fit_boundaries(parameters_values)
+    check=check_only_boundaries(system_parameters,parameters_values)
     
     if(check)then
       allocate(run_all_par(npar))
@@ -347,6 +368,52 @@ module pytrades
     
     return
   end subroutine write_summary_files
+  
+  
+  subroutine write_summary_files_long(write_number,all_parameters,npar,parameters_values,nfit,fitness,lgllhd,check)
+    use driver,only:write_summary_nosigma
+!     use ode_run,only:ode_out
+!     use output_files,only:write_parameters
+    integer,intent(in)::npar
+    real(dp),dimension(npar),intent(in)::all_parameters
+    integer,intent(in)::nfit
+    integer,intent(in)::write_number
+    real(dp),dimension(nfit),intent(in)::parameters_values
+    
+    real(dp),intent(out)::fitness,lgllhd
+    logical,intent(out)::check
+    
+    real(dp),dimension(:),allocatable::run_all_par
+    logical::check_status
+    integer::i
+    
+    check=.true.
+    check_status=.true.
+    
+!     check=check_fit_boundaries(parameters_values)
+    check=check_only_boundaries(system_parameters,parameters_values)
+    
+    if(check)then
+      allocate(run_all_par(npar))
+      run_all_par=all_parameters
+      if(check_derived) check_status=check_derived_parameters(parameters_values)
+      if(fix_derived) call fix_derived_parameters(parameters_values,run_all_par,check_status)
+      if(check_status)then
+        call write_summary_nosigma(1,write_number,0,run_all_par,parameters_values,fitness)
+      else
+        fitness=resmax ! set it to resmax
+        check=.false.
+      end if
+      deallocate(run_all_par)
+      
+    else
+      fitness=resmax
+    end if
+    lgllhd=-0.5_dp*fitness*real(dof,dp)
+    if(fitness.ge.resmax)check=.false.
+    
+    return
+  end subroutine write_summary_files_long
   
   ! pso
   subroutine pyrun_pso(nfit,i_global,best_parameters,best_fitness)
@@ -398,31 +465,9 @@ module pytrades
     call init_fix_derived_parameters(n_derived_in,in_names,in_parameters)
     
     return
-  end subroutine 
+  end subroutine init_fix_parameters
 
-  ! exposed subroutine to modify the system_parameters values with a set of fitted parameters
-  subroutine update_system_parameters(npar,nfit,system_parameters_in,parameters_values,system_parameters_out)
-    integer,intent(in)::npar,nfit
-    real(dp),dimension(npar),intent(in)::system_parameters_in
-    real(dp),dimension(nfit),intent(in)::parameters_values
-    real(dp),dimension(npar),intent(out)::system_parameters_out
-    logical::check_status
-    integer::cnt,j1
     
-    system_parameters_out=system_parameters_in
-    call fix_derived_parameters(parameters_values,system_parameters_out,check_status)
-    
-    cnt=0
-    do j1=1,npar
-      if(tofit(j1).eq.1)then
-        cnt=cnt+1
-        system_parameters_out(j1)=parameters_values(cnt)
-      end if
-    end do
-    
-    return
-  end subroutine update_system_parameters
-  
   subroutine deallocate_variables()
   
     call deallocate_all() ! from 'parameters' module

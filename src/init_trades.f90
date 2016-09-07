@@ -270,49 +270,73 @@ module init_trades
     integer,intent(in)::cpuid
     character(128)::temp
     character::fitpar
-    integer::i,i1,i2,j,pos,ulst,stat
+    integer::i,i1,i2,j,pos,ulst,stat,ih,it
     logical::fstat
 
     pos=0
     call tofit_init()
     inquire(file=trim(path)//"bodies.lst",exist=fstat)
     if(fstat)then
-      if(.not.allocated(bnames)) allocate(bnames(NB),bfiles(NB))
+      if(.not.allocated(bnames)) allocate(bnames(NB),bfiles(NB),do_transit(NB))
+      do_transit(1)=.false. ! star not transiting ... ...
+      do_transit(2:NB)=.true. ! set all planet to transit by default
+      
       ulst=get_unit(cpuid)
       open(ulst,file=trim(path)//'bodies.lst',status='OLD')
 !       do i=1,NB
+      
       i=0
       readbody:do
         read(ulst,'(a128)', IOSTAT=stat) temp
         if(IS_IOSTAT_END(stat)) exit readbody
+        
         if(temp(1:1).ne."#")then
-          i=i+1
+          i=i+1 ! row
           i1=index(temp,' ')-1
           i2=i1+2
           bfiles(i)=trim(adjustl(temp(1:i1)))
           bnames(i)=trim(adjustl(temp(1:i1-4)))
-          if(i.eq.1)then
+        
+          if(i.eq.1)then ! row 1 == star
+        
             do j=1,2
               fitpar=temp(i2:i2)
               read(fitpar,*)tofit(j)
               i2=i2+2
             end do
-          else
-            do j=1,8
+        
+          else ! row from 2 to NB == planets
+        
+            do j=1,8 ! read fitting parameters: 1 fit, 0 no fit
               pos=i+j+(i-2)*7
               fitpar=temp(i2:i2)
               read(fitpar,*)tofit(pos)
               i2=i2+2
             end do
+            
+            ih = index(temp(1:len(trim(adjustl(temp)))),'#')
+            if(ih.eq.0)ih=len(trim(adjustl(temp)))
+            ! then last column: planet should transit? T = True/Yes (or omit), F = False/No. Before # character.
+            it=scan(temp(1:ih),'Ff')
+            if(it.ne.0)then
+              read(temp(it:it),*)do_transit(i)
+            end if
+        
           end if
+        
         end if
+      
       end do readbody
+      
       close(ulst)
       nfit=sum(tofit)
+    
     else
+    
       write(*,'(a,a,a)')" CANNOT FIND ARGUMENT FILE ",trim(path),"bodies.lst"
       write(*,'(a,a,a)')""
       stop
+    
     end if
 
     return
@@ -758,7 +782,7 @@ module init_trades
   ! col 1 == orbital parameters / initial guess
   ! col 2 == minimum value of the orbital elements
   ! col 3 == maximum value of the orbital elements
-  ! in case of grid the files will re-read in a different way
+  ! in case of grid the files will be re-read in a different way
   subroutine read_fullpar(cpuid,m,R,P,a,e,w,mA,inc,lN,all_parameters)
     use celestial_mechanics,only:semax,period,tau2mA!,mA2tau
     integer,intent(in)::cpuid
@@ -803,14 +827,14 @@ module init_trades
       ! Mstar
       m(1)=MR_star(1,1)
       all_parameters(1)=MR_star(1,1)
-      par_min(1)=max(MR_star(1,1)-4._dp*MR_star(1,2),zero)
-      par_max(1)=MR_star(1,1)+4._dp*MR_star(1,2)
+      par_min(1)=max(MR_star(1,1)-10._dp*MR_star(1,2),zero)
+      par_max(1)=MR_star(1,1)+10._dp*MR_star(1,2)
       
       ! Rstar
       R(1)=MR_star(2,1)
       all_parameters(2)=MR_star(2,1)
-      par_min(2)=max(MR_star(2,1)-4._dp*MR_star(2,2),zero)
-      par_max(2)=MR_star(2,1)+4._dp*MR_star(2,2)
+      par_min(2)=max(MR_star(2,1)-10._dp*MR_star(2,2),zero)
+      par_max(2)=MR_star(2,1)+10._dp*MR_star(2,2)
       
       
       readpar: do j=2,NB
@@ -958,7 +982,7 @@ module init_trades
     amax=5._dp*semax(m(1),zero,maxval(Pvec))
     deallocate(Pvec)
     
-!     call set_minmax() ! it modifies minpar and maxpar
+    call set_minmax() ! it modifies minpar and maxpar
 
     return
   end subroutine read_fullpar
@@ -1053,6 +1077,7 @@ module init_trades
     flt0=""
     if(.not.allocated(nT0)) allocate(nT0(NB))
     nT0=0
+    
     if(idtra.ne.0)then
       do j=2,NB
         flt0=trim(path)//'NB'//trim(adjustl(string(j)))//'_observations.dat'
@@ -1067,6 +1092,7 @@ module init_trades
           write(*,'(a,a)')" CANNOT FIND T_0 FILE ",trim(flt0)
         end if
       end do
+    
       nTmax=maxval(nT0)
       if(.not.allocated(T0obs))then
         allocate(T0obs(nTmax,NB),eT0obs(nTmax,NB),epoT0obs(nTmax,NB))
@@ -1110,8 +1136,16 @@ module init_trades
     
     real(dp)::ln_eRV,ln_eT0
     
-    ln_eRV = sum(log(pack(eRV,eRV/=zero)*pack(eRV,eRV/=zero)))
-    ln_eT0 = sum(log(pack(eT0,eT0/=zero)*pack(eT0,eT0/=zero)))
+    if(nRV.gt.0)then
+      ln_eRV = sum(log(pack(eRV,eRV/=zero)*pack(eRV,eRV/=zero)))
+    else
+      ln_eRV = zero
+    end if
+    if(sum(nT0).gt.0)then
+      ln_eT0 = sum(log(pack(eT0,eT0/=zero)*pack(eT0,eT0/=zero)))
+    else
+      ln_eT0 = zero
+    end if
     ln_const = -(0.5_dp*real(dof,dp)*log(dpi))-(0.5_dp*(ln_eRV+ln_eT0))
 !     write(*,'(a,es23.16)')' LN_ERR_CONST (SUBROUTINE) = ',ln_err_const
 !     flush(6)
@@ -1368,7 +1402,7 @@ module init_trades
       &" FILE NAME: ",trim(path),trim(bfiles(j))
     end do
     
-     call idpar() ! IT DEFINES THE ID OF THE PARAMETERS TO BE FITTED
+    call idpar() ! IT DEFINES THE ID OF THE PARAMETERS TO BE FITTED
      
     ! IT READS THE VARIABLES FOR THE LEVENBERG-MARQUARDT ALGORITHM
     call read_lm_opt(cpuid)
@@ -1378,22 +1412,21 @@ module init_trades
 !     call read_par(cpuid,m,R,P,a,e,w,mA,inc,lN)
     call read_fullpar(cpuid,m,R,P,a,e,w,mA,inc,lN,system_parameters)
     
+    write(*,'(a)')'Initial-input Keplerian orbital elements'
+    write(*,'(a, 1000(1x,es23.16))')"m   [Msun] = ", m(1),m(2:)
+    write(*,'(a, 1000(1x,es23.16))')"R   [Rsun] = ", R
+    write(*,'(a, 1000(1x,es23.16))')"P   [days] = ", P
+    write(*,'(a, 1000(1x,es23.16))')"a   [au]   = ", a
+    write(*,'(a, 1000(1x,es23.16))')"e          = ", e
+    write(*,'(a, 1000(1x,es23.16))')"w   [deg]  = ", w
+    write(*,'(a, 1000(1x,es23.16))')"mA  [deg]  = ", mA
+    write(*,'(a, 1000(1x,es23.16))')"inc [deg]  = ", inc
+    write(*,'(a, 1000(1x,es23.16))')"lN  [deg]  = ", lN
+    write(*,'(a)')''
     
-    write(*,*)'read_par'
-    write(*,*)"m   = ", m(1),m(2:)*Msear
-    write(*,*)"R   = ", R
-    write(*,*)"P   = ", P
-    write(*,*)"a   = ", a
-    write(*,*)"e   = ", e
-    write(*,*)"w   = ", w
-    write(*,*)"mA  = ", mA
-    write(*,*)"inc = ", inc
-    write(*,*)"lN  = ", lN
-    write(*,*)
-    
-    write(*,*)'system_parameters, par_min, par_max'
+    write(*,'(a23,2(1x,a23))')'Parameters','( par_min ,','par_max )'
     do j=1,npar
-      write(*,*)system_parameters(j),par_min(j),par_max(j)
+      write(*,'(es23.16,2(a,es23.16),a)')system_parameters(j),' ( ',par_min(j),' , ',par_max(j),' )'
     end do
     
     nGlobal=1
@@ -1426,7 +1459,8 @@ module init_trades
     ! IT READS T0 DATA
     call read_T0obs(cpuid)
     if(idtra.ne.0) write(*,'(a,1000(i5,1x))') " T0 DATA: nT0 = ",nT0(2:)
-
+    if(idtra.ne.0) write(*,'(a,1000(l2,1x))') ' DO TRANSIT FLAG: ',do_transit
+    
     ! IT DETERMINES THE NDATA
     ndata=nRV+sum(nT0)
     dof=(ndata-nfit)

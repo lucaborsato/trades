@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.7.0 by Luca Borsato - 2016**    
+**`TRADES` v2.8.0 by Luca Borsato - 2016**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -24,6 +24,7 @@ Comments are welcome!
 3.  [How to run TRADES](### How to run TRADES)    
 4.  [Files needed by TRADES](### Files needed by TRADES)    
 5.  [Output files by TRADES](### Output files by TRADES)    
+6.  [Python Library](### Python Library)    
 
 ### Introduction
 
@@ -163,7 +164,7 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
    Download the .zip file or clone the repository (see github help).    
     
 2. Extract the .zip file in your drive or enter the cloned repository. 
-    It should contain a `README.md` file, `bin/` and `src/` folders.    
+    It should contain a `README.md` file, `bin/`, `src/`, and `pytrades/` folders.    
     The `src/` folder should countains the following f90 source files:    
     - **Module source files:** `parameters.f90 random_trades.f90 convert_type.f90 lin_fit.f90 celestial_mechanics.f90 init_trades.f90 statistics.f90 timing.f90 rotations.f90 sort.f90 gls_module.f90 eq_motion.f90 output_files.f90 numerical_integrator.f90 radial_velocities.f90 transits.f90 ode_run.f90 derived_parameters_mod.f90 fitness_module.f90 grid_search.f90 lm.f90 pikaia.f90 util_sort.f90 util_qmc.f90 opti_pso.f90 gaussian.f90 bootstrap.f90 PolyChord_driver.f90 driver.f90`    
     - **PolyChord folder** `PolyChord/` with source files:
@@ -174,7 +175,8 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
     - **simple `PIK` and `PSO` main:** `trades_pik_pso.f90`     
     - **simple `PC` main:** `trades_polychord.f90`     
     - **Makefile:** `Makefile`    
-    - **python script to create example simulation folder:** `createSimFile.py`
+    - **python script to create example simulation folder:** `createSimFile.py`    
+    Look at section 6. for the `pytrades/` folder (install and execution).    
     
 3.  Edit the `Makefile` with your Fortran 90 - MPI compiler, and with the needed compiling options.
     * flag `CC` for the compiler to use. From the implementation of `PC` the `mpif90` must be used;    
@@ -260,100 +262,6 @@ Algorithm selection in `arg.in`:
   4.  `PSO` (+ `LM` + bootstrap)    
   5.  PolyChord    
 
-  
-  
-<!--Table 1: How to run TRADES - Integration-`LM`-bootstrap (mode 0).    
-    
-| combination | algorithm selection | `LM` on/off | Bootstrap | Perturber body ID |     
-|:-----------:|:-------------------:|:-----------:|:---------:|:-----------------:|    
-||`arg.in`: `progtype` | `arg.in`: `lmon` | `arg.in`: `nboot` | `arg.in`: `idpert` |    
-| A | 0 | 0 | `$<=0$` | NA |     
-| B | 0 | 0 | `$>0$`  | NA |     
-| C | 0 | 1 | `$>0$`  | NA |     
-    
-Table 2: output of combination of Table 1.    
-    
-| combination | fitting parameters | executable affected | run as |     
-|:-----------:|--------------------|---------------------|--------|    
-| A | `$(e,\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files). |    
-| B | `$(e,\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files) and bootstrap. |    
-| C | `$(e,\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files), `LM` and bootstrap after `LM` determines a solution. |    
-     
-    
-Table 3: How to run TRADES - Grid with integration-`LM`-bootstrap.     
-    
-| combination | algorithm selection | `LM` on/off | Bootstrap | Perturber body ID |     
-|:-----------:|:-------------------:|:-----------:|:---------:|:-----------------:|    
-||`arg.in`: `progtype` | `arg.in`: `lmon` | `arg.in`: `nboot` | `arg.in`: `idpert` |    
-| D | 1 | 0 | `$<=0$` | `idpert` |     
-| E | 1 | 0 | `$>0$`  | `idpert` |     
-| F | 1 | 1 | `$>0$`  | `idpert` |     
-    
-Table 4: output of combination of Table 3.    
-    
-| combination | fitting parameters | executable affected | run as |     
-|:-----------:|--------------------|---------------------|--------|    
-| D | `$(e,\omega)$` | `trades_s/o_grid`             | It runs integration for each grid combination (with output files). |    
-| E | `$(e,\omega)$` | `trades_s/o_grid`             | It runs integration and bootstrap for each grid combination (with output files). |    
-| F | `$(e,\omega)$` | `trades_s/o_grid`             | It runs integration, `LM` and bootstrap after `LM`for each grid combination (with output files). |    
-    
-    
-Table 5: How to run TRADES - Integration-`LM`-bootstrap (mode 2).     
-    
-| combination | algorithm selection | `LM` on/off | Bootstrap | Perturber body ID |     
-|:-----------:|:-------------------:|:-----------:|:---------:|:-----------------:|    
-||`arg.in`: `progtype` | `arg.in`: `lmon` | `arg.in`: `nboot` | `arg.in`: `idpert` |    
-| G | 2 | 0 | `$<=0$` | NA |     
-| H | 2 | 0 | `$>0$`  | NA |     
-| I | 2 | 1 | `$>0$`  | NA |     
-    
-Table 6: output of combination of Table 5.    
-    
-| combination | fitting parameters | executable affected | run as |     
-|:-----------:|--------------------|---------------------|--------|    
-| G | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files). |    
-| H | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files) and bootstrap. |    
-| I | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_int_lm_bootstrap` | It runs a simple integration (with output files), `LM` and bootstrap after `LM` determines a solution. |    
-    
-    
-Table 7: How to run TRADES - `PIK` and `PSO`.     
-    
-| combination | algorithm selection | `LM` on/off | Bootstrap | Perturber body ID |     
-|:-----------:|:-------------------:|:-----------:|:---------:|:-----------------:|    
-||`arg.in`: `progtype` | `arg.in`: `lmon` | `arg.in`: `nboot` | `arg.in`: `idpert` |    
-| J | 3 | 0 | `$<=0$` | NA |     
-| K | 3 | 0 | `$>0$`  | NA |     
-| L | 3 | 1 | `$>0$`  | NA |     
-| M | 4 | 0 | `$<=0$` | NA |     
-| N | 4 | 0 | `$>0$`  | NA |     
-| O | 4 | 1 | `$>0$`  | NA |     
-    
-Table 8: output of combination of Table 7.    
-    
-| combination | fitting parameters | executable affected | run as |     
-|:-----------:|--------------------|---------------------|--------|    
-| J | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PIK` algorithm and then it runs a simple integration (with output files). |    
-| K | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PIK` algorithm and then it runs a simple integration (with output files) and bootstrap. |    
-| L | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PIK` algorithm and then it runs a simple integration (with output files), `LM` and bootstrap. |    
-| M | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PSO` algorithm and then it runs a simple integration (with output files). |    
-| N | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PSO` algorithm and then it runs a simple integration (with output files) and bootstrap. |    
-| O | `$(e\cos\omega,e\sin\omega)$` | `trades_s/o_pik_pso` | It search for best quasi-global solution with the `PSO` algorithm and then it runs a simple integration (with output files), `LM` and bootstrap. |    
-    
-    
-Table 9: How to run TRADES - `PolyChord`.     
-    
-| combination | algorithm selection | `LM` on/off | Bootstrap | Perturber body ID |     
-|:-----------:|:-------------------:|:-----------:|:---------:|:-----------------:|    
-||`arg.in`: `progtype` | `arg.in`: `lmon` | `arg.in`: `nboot` | `arg.in`: `idpert` |    
-| P | 5 | NA | NA | NA |    
-    
-Table 10: output of combination of Table 9.    
-    
-| combination | fitting parameters | executable affected | run as |     
-|:-----------:|--------------------|---------------------|--------|    
-| P | `$(e\cos\omega,e\sin\omega)$` | `trades_polychord` | It runs the PolyChord algorithm (refers to the PolyChord user manual for output files). Final integration, `LM`, and bootstrap won't be run, user has to determine the best solution from the posterior file and re-run `TRADES` with one of the other program combination. |    
-    -->
-    
 ---
 
 ### Files needed by TRADES
@@ -474,13 +382,44 @@ Each file _should_ have an self-explaning header.
     `#ID_#LM_NB#_elements.dat`, if `wrtel = 1`, naming convenction as previous, plus the body id NB#, starting from 2 to the number of bodies used. Columns: 1 Time in JD; 2 Period in days, 3 semi-major axis in astronomical unit (au), 3 eccentricity, 4 inclination in degrees, 4 mean anomaly in degrees, 5 argument of the pericenter in degrees, 6 longitude of the node in degrees, 7 true anomaly in degrees, 8 difference between time of refence (epoch) and time of the passage of pericenter tau in days    
     `#ID_#LM_NB#_tra.dat`, if `idtra > 0`, naming convenction as previous. Columns: 1 trasit time, 2 LTE, 3 firt contact time, 4 second contact time, 5 third contact time, 6 fourth contact time, 7:7+NB*6 state vector {X,Y,Z,VX,VY,VZ} for each body (NB=number of bodies).    
     
+---
 
+### Python Library
+
+`TRADES` can now be used in python scripts, thanks to `f2py`.    
+In the `src/` folder there is the `pytrades_lib.f90` that is the library that interface `TRADES` to python.    
+**Compile:**    
+-   `cd src/`    
+-   debug mode: `make pyomp_debug`    
+-   release mode: `make pyomp_release`    
+    
+It creates the `pytrades_lib.so` and it copies it into the folder `../pytrades/`    
+Check if in the `src/` folder there is an hidden file `.f2py_f2cmap` that contains one row: `dict(real=dict(sp='float', dp='double'))`    
+**Run scripts:**    
+In folder `pytrades/`: `pytrades_lib.so`, `constants.py`, `ancillary.py`, `trades_pso2emcee.py`.    
+The script to run is `trades_pso2emcee.py`, that shows how to call the `pytrades_lib` and how to combine `PSO` algorithm with `emcee`.    
+Run as `python trades_pso2emcee.py -h` for instruction on the all the command line arguments to provide.    
+The `ancillary.py` file has different functions to write and read output files from `PSO` and `emcee` and other stuff helpful to manage the output of the simulations.
+    
+    
 **TO BE CONTINUED**
 
 ---
 
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
+
+#### `TRADES 2.8.0`
+
+Python library of `TRADES` has been tested and now is public.    
+    
+In `bodies.lst` file user can specify if a planet should transit or not.    
+At the end of each planet row (after 0/1 fit-flag and before the #), user adds a T (or leaves blank) if planet is allowed to transit, otherwise adds an F.    
+Example:    
+in `bodies.lst` row `b.dat 1 0 0 0 0 0 0 0 T` is equal to `b.dat 1 0 0 0 0 0 0 0`: planet b could transit.     
+in `bodies.lst` row `b.dat 0 0 0 1 0 0 0 0 F`: planet b could not transit (in case it discards the solution).    
+    
+Converted all logical values in a consistent way.    
 
 #### `TRADES 2.7.0`
 

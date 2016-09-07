@@ -8,6 +8,8 @@ module gls_module
   use celestial_mechanics,only:calculate_true_anomaly ! ready to be used with TRADES
   implicit none
 
+  real(dp),parameter::delta_per=0.5_dp
+  
 contains
 
   !     fit sine wave y=A_coeff*cosx+B_coeff*sinx+offset
@@ -100,7 +102,6 @@ contains
 !     real(dp)::mass_func
 !     
 !     real(dp),parameter::sec_dpi=s24h/dpi !in 'constants' module
-!     real(dp),parameter::onethird=one/3._dp
 !     real(dp)::ecc_2
 !     
 !     ecc_2=eccentricity*eccentricity
@@ -227,24 +228,27 @@ contains
     return
   end subroutine gls
   
-  subroutine calculates_power_max(periods_bounds,freq,power_GLS,power_max_within,power_max_outside)
+  subroutine calculates_power_max(periods_bounds,freq,power_GLS,power_max_within,power_max_outside,period_max,pl_max)
     real(dp),dimension(:,:),intent(in)::periods_bounds
     real(dp),dimension(:),intent(in)::freq,power_GLS
     real(dp),intent(out)::power_max_within,power_max_outside
+    real(dp),intent(out)::period_max
+    integer,intent(out)::pl_max
     
     logical,dimension(:),allocatable::power_stat
-    real(dp)::period
+
     integer::n_freq,i_nb,i_freq
     
     n_freq=size(freq)
     allocate(power_stat(n_freq))
     power_stat=.false.
     loopf: do i_freq=1,n_freq
-      period=one/freq(i_freq)
+      period_max=one/freq(i_freq)
       loopnb: do i_nb=2,NB
-        if(period.ge.periods_bounds(1,i_nb))then
-          if(period.le.periods_bounds(2,i_nb))then
+        if(period_max.ge.periods_bounds(1,i_nb))then
+          if(period_max.le.periods_bounds(2,i_nb))then
             power_stat(i_freq)=.true.
+            pl_max=i_nb
             exit loopnb
           end if
         end if
@@ -264,12 +268,13 @@ contains
     real(dp),dimension(:),intent(in)::periods
     logical,intent(out)::gls_check
     
-    real(dp),parameter::delta_per=0.1_dp
+
     real(dp),dimension(:,:),allocatable::periods_bounds
     real(dp),dimension(:),allocatable::freq,power_GLS,sp_window,power_LS
     
-    real(dp)::power_max_within,power_max_outside,power_threshold
-
+    real(dp)::power_max_within,power_max_outside,power_threshold,period_max
+    integer::pl_max
+    
     gls_check=.true. ! if gls_check the fit is ok, it means no induced signals close to planetary periods
     
     call gls(jd,rv,erv,freq,power_GLS,sp_window,power_LS) ! run gls
@@ -278,7 +283,7 @@ contains
     allocate(periods_bounds(2,NB))
     periods_bounds(1,2:NB)=periods(2:NB)-delta_per
     periods_bounds(2,2:NB)=periods(2:NB)+delta_per
-    call calculates_power_max(periods_bounds,freq,power_GLS,power_max_within,power_max_outside)
+    call calculates_power_max(periods_bounds,freq,power_GLS,power_max_within,power_max_outside,period_max,pl_max)
     deallocate(periods_bounds)
     deallocate(freq,power_GLS,sp_window,power_LS)
   
@@ -291,19 +296,60 @@ contains
   
     return
   end subroutine check_periodogram
+
+  subroutine check_periodogram_scale(jd,rv,erv,periods,gls_check,gls_scale)
+    real(dp),dimension(:),intent(in)::jd,rv,erv
+    real(dp),dimension(:),intent(in)::periods
+    logical,intent(out)::gls_check
+    real(dp),intent(out)::gls_scale
+    
+    real(dp),dimension(:,:),allocatable::periods_bounds
+    real(dp),dimension(:),allocatable::freq,power_GLS,sp_window,power_LS
+    
+    real(dp)::power_max_within,power_max_outside,power_threshold,period_max,delta_max
+    integer::pl_max
+
+    gls_check=.true. ! if gls_check the fit is ok, it means no induced signals close to planetary periods
+    gls_scale=zero
+    
+    call gls(jd,rv,erv,freq,power_GLS,sp_window,power_LS) ! run gls
+    
+    ! define boundaries of the periods to check, remember that the first 'element' is the star and it will not be taken into account
+    allocate(periods_bounds(2,NB))
+    periods_bounds(1,2:NB)=periods(2:NB)-delta_per
+    periods_bounds(2,2:NB)=periods(2:NB)+delta_per
+    call calculates_power_max(periods_bounds,freq,power_GLS,power_max_within,power_max_outside,period_max,pl_max)
+    deallocate(freq,power_GLS,sp_window,power_LS)
   
-  subroutine check_and_write_periodogram(cpuid,id_sim,wrt_id,jd,rv,erv,periods,gls_check)
+    power_threshold=two*power_max_outside
+    if(power_max_within.lt.power_threshold)then ! max peak with periods boudaries < 2*max peak outside --> GOOD
+      gls_check=.true.
+      gls_scale=one
+    else ! max peak with periods boudaries >= 2*max peak outside --> BAD
+      gls_check=.false.
+      delta_max=max(abs(period_max-periods_bounds(1,pl_max)),abs(periods_bounds(2,pl_max)-period_max))
+      if(delta_max.lt.TOLERANCE) delta_max=TOLERANCE
+      gls_scale=one-log10(delta_max)
+    end if
+    deallocate(periods_bounds)
+  
+    return
+  end subroutine check_periodogram_scale
+
+    
+  subroutine check_and_write_periodogram(cpuid,id_sim,wrt_id,jd,rv,erv,periods,gls_check,gls_scale)
     use convert_type,only:string
     integer,intent(in)::cpuid,id_sim,wrt_id
     real(dp),dimension(:),intent(in)::jd,rv,erv
     real(dp),dimension(:),intent(in)::periods
     logical,intent(out)::gls_check
+    real(dp),optional,intent(out)::gls_scale
     
-    real(dp),parameter::delta_per=0.5_dp
     real(dp),dimension(:,:),allocatable::periods_bounds
     real(dp),dimension(:),allocatable::freq,power_GLS,sp_window,power_LS
     
-    real(dp)::power_max_within,power_max_outside,power_threshold
+    real(dp)::power_max_within,power_max_outside,power_threshold,period_max,delta_max
+    integer::pl_max
     character(512)::gls_file
     integer::i_freq,n_freq,u_gls
     
@@ -315,8 +361,7 @@ contains
     allocate(periods_bounds(2,NB))
     periods_bounds(1,2:NB)=periods(2:NB)-delta_per
     periods_bounds(2,2:NB)=periods(2:NB)+delta_per
-    call calculates_power_max(periods_bounds,freq,power_GLS,power_max_within,power_max_outside)
-    deallocate(periods_bounds)
+    call calculates_power_max(periods_bounds,freq,power_GLS,power_max_within,power_max_outside,period_max,pl_max)
     
     ! write file gls
     n_freq=size(freq)
@@ -334,9 +379,16 @@ contains
     power_threshold=two*power_max_outside
     if(power_max_within.lt.power_threshold)then ! max peak with periods boudaries < 2*max peak outside --> GOOD
       gls_check=.true.
+      if(present(gls_scale))gls_scale=one
     else ! max peak with periods boudaries >= 2*max peak outside --> BAD
       gls_check=.false.
+      if(present(gls_scale))then
+        delta_max=max(abs(period_max-periods_bounds(1,pl_max)),abs(periods_bounds(2,pl_max)-period_max))
+        if(delta_max.lt.TOLERANCE) delta_max=TOLERANCE
+        gls_scale=one-log10(delta_max)
+      end if
     end if
+    deallocate(periods_bounds)
   
     return
   end subroutine check_and_write_periodogram

@@ -8,7 +8,7 @@ module ode_run
   use numerical_integrator,only:int_rk_a
   use transits
   use radial_velocities
-  use gls_module,only:check_periodogram,check_and_write_periodogram
+  use gls_module,only:check_periodogram,check_periodogram_scale,check_and_write_periodogram
   use output_files
   implicit none
 
@@ -279,9 +279,12 @@ module ode_run
 
     !real(dp)::tmid
 
+!     Hc=.true.
+    
 !     Hc=Hillcheck(m,rin)
-    Hc=mutual_Hill_check(m,rin)
-    if(Hc) return
+    Hc=mutual_Hill_check(m,rin) !! WARNING: CHANGE Hc WITHIN mutual_Hill_check 
+!     if(Hc) return
+    if(.not.Hc) return
 
     allocate(X(NB),Y(NB),Z(NB),cX(NB),cY(NB),cR(NB),rmean(NB))
     X=0
@@ -315,7 +318,8 @@ module ode_run
 
 !       Hc=Hillcheck(m,r2)
       Hc=mutual_Hill_check(m,r2)
-      if(Hc) return
+!       if(Hc) return
+      if(.not.Hc) return
 
       ! RV check
       if(cntRV.lt.nRV) call check_RV(m,r1,dr,itime,hok,cntRV,RV_stat,RV_sim)
@@ -333,26 +337,46 @@ module ode_run
             do j=2,NB
               if(rmean(j).le.cR(j))then
                 if(clN(j).eq.0)then
-                  if((cX(j).le.0._dp).and.(r1(Z(j)).gt.0._dp))&
-                      &call check_T0(j,m,R,r1,r2,&
-                      &itime,hok,T0_stat,T0_sim,Hc)
+                  
+                  if((cX(j).le.0._dp).and.(r1(Z(j)).gt.0._dp))then
+                    call check_T0(j,m,R,r1,r2,&
+                      &itime,hok,T0_stat,T0_sim,Hc) ! WARNING: CHANGE Hc WITHIN check_T0
+!                     if(Hc)return
+                    if(.not.Hc) return
+                  end if
+                
                 else
-                  if((cY(j).le.0._dp).and.(r1(Z(j)).gt.0._dp))&
-                      &call check_T0(j,m,R,r1,r2,&
-                      &itime,hok,T0_stat,T0_sim,Hc)
+                  
+                  if((cY(j).le.0._dp).and.(r1(Z(j)).gt.0._dp))then
+                    call check_T0(j,m,R,r1,r2,&
+                      &itime,hok,T0_stat,T0_sim,Hc) ! WARNING: CHANGE Hc WITHIN check_T0
+!                     if(Hc)return
+                    if(.not.Hc) return
+                  end if
+                
                 end if
               end if
             end do
           else
             if(rmean(idtra).le.cR(idtra))then
               if(clN(idtra).eq.0)then
-                if((cX(idtra).le.0._dp).and.(r1(Z(idtra)).gt.0._dp))&
-                    &call check_T0(idtra,m,R,r1,r2,&
+                
+                if((cX(idtra).le.0._dp).and.(r1(Z(idtra)).gt.0._dp))then
+                  call check_T0(idtra,m,R,r1,r2,&
                     &itime,hok,T0_stat,T0_sim,Hc)
+!                   if(Hc)return
+                  if(.not.Hc) return
+                end if
+                
               else
-                if((cY(idtra).le.0._dp).and.(r1(Z(idtra)).gt.0._dp))&
-                    &call check_T0(idtra,m,R,r1,r2,&
+              
+                if((cY(idtra).le.0._dp).and.(r1(Z(idtra)).gt.0._dp))then
+                  call check_T0(idtra,m,R,r1,r2,&
                     &itime,hok,T0_stat,T0_sim,Hc)
+!                   if(Hc)return
+                  if(.not.Hc) return
+                end if
+                
               end if
             end if
           end if
@@ -405,10 +429,14 @@ module ode_run
     real(dp)::ftime
     integer::iftime,compare
 
+!     Hc=.false.
+!     Hc=.true.
+    
 !     Hc=Hillcheck(m,rin)
     Hc=mutual_Hill_check(m,rin)
 !     write(*,*)' mutual_Hill_check = ',Hc
-    if(Hc) return
+!     if(Hc) return
+    if(.not.Hc) return
 
     allocate(X(NB),Y(NB),Z(NB),cX(NB),cY(NB),cR(NB),rmean(NB))
     X=0
@@ -496,7 +524,8 @@ module ode_run
 !       Hc=Hillcheck(m,r2)
       Hc=mutual_Hill_check(m,r2)
 !       if(Hc) write(*,'(a7,i6,a6,l)')'iter = ',j1,' Hc = ',Hc
-      if(Hc) return
+!       if(Hc) return
+      if(.not.Hc) return
 
       ! RV check
       if(cntRV.lt.nRV) call check_RV(m,r1,dr,itime,hok,cntRV,RV_stat,RV_sim)
@@ -513,44 +542,60 @@ module ode_run
           do j=2,NB
             if(rmean(j).le.cR(j))then
               if(clN(j).eq.0)then
+              
                 if((cX(j).le.0._dp).and.(r1(Z(j)).gt.0._dp))then
                   if(nT0(j).gt.0) call check_T0(j,m,R,r1,r2,&
-                      &itime,hok,T0_stat,T0_sim,Hc)
+                    &itime,hok,T0_stat,T0_sim,Hc)
+!                   if(Hc)return
+                  if(.not.Hc) return
                   jtra=jtra+1
                   call all_transits(jtra,j,m,R,r1,r2,&
-                      &itime,hok,stat_tra,storetra)
+                    &itime,hok,stat_tra,storetra)
                 end if
+              
               else
+              
                 if((cY(j).le.0._dp).and.(r1(Z(j)).gt.0._dp))then
                   if(nT0(j).gt.0)call check_T0(j,m,R,r1,r2,&
-                      &itime,hok,T0_stat,T0_sim,Hc)
+                    &itime,hok,T0_stat,T0_sim,Hc)
+!                   if(Hc)return
+                  if(.not.Hc) return
                   jtra=jtra+1
                   call all_transits(jtra,j,m,R,r1,r2,&
-                      &itime,hok,stat_tra,storetra)
+                    &itime,hok,stat_tra,storetra)
                 end if
+              
               end if
             end if
           end do
         else
           if(rmean(idtra).le.cR(idtra))then
             if(clN(idtra).eq.0)then
+            
               if((cX(idtra).le.0._dp).and.&
-                  &(r1(Z(idtra)).gt.0._dp))then
+                &(r1(Z(idtra)).gt.0._dp))then
                 if(nT0(idtra).gt.0)call check_T0(idtra,m,R,r1,r2,&
-                    &itime,hok,T0_stat,T0_sim,Hc)
+                  &itime,hok,T0_stat,T0_sim,Hc)
+!                 if(Hc)return
+                if(.not.Hc) return
                 jtra=jtra+1
                 call all_transits(jtra,idtra,m,R,r1,r2,&
-                    &itime,hok,stat_tra,storetra)
+                  &itime,hok,stat_tra,storetra)
               end if
+            
             else
+            
               if((cY(idtra).le.0._dp).and.&
-                  &(r1(Z(idtra)).gt.0._dp))then
+                &(r1(Z(idtra)).gt.0._dp))then
                 if(nT0(idtra).gt.0)call check_T0(idtra,m,R,r1,r2,&
-                    &itime,hok,T0_stat,T0_sim,Hc)
+                  &itime,hok,T0_stat,T0_sim,Hc)
+!                 if(Hc)return
+                if(.not.Hc) return
                 jtra=jtra+1
                 call all_transits(jtra,idtra,m,R,r1,r2,&
-                    &itime,hok,stat_tra,storetra)
+                  &itime,hok,stat_tra,storetra)
               end if
+            
             end if
           end if
         end if
@@ -623,15 +668,22 @@ module ode_run
     real(dp),dimension(:,:),allocatable::T0_sim
     integer,dimension(:,:),allocatable::T0_stat
     logical::checkpar,gls_check
+    
+!     real(dp)::fit_scale,gls_scale
 
+    Hc=.true.
     resw=zero
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
+!     fit_scale=one
+!     gls_scale=one
     call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
     if(.not.checkpar)then
         resw=set_max_residuals(ndata)
       return
     end if
+
+!     call convert_parameters_scale(allpar,par,m,R,P,a,e,w,mA,inc,lN,fit_scale)
 
     
     ! it is needed to define which is the alarm coordinate for the transit detection
@@ -662,21 +714,25 @@ module ode_run
     dt1=tstart-tepoch
     dt2=dt1+tint
     if(dt1.lt.zero)then
+    
       call ode_a(m,R,ra1,dt1,clN,cntRV,RV_stat,RV_sim,&
-          &cntT0,T0_stat,T0_sim,Hc)
-      if(.not.Hc)then
+        &cntT0,T0_stat,T0_sim,Hc)
+      if(Hc)then
         if(abs(dt1).le.tint)then
           call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
-              &cntT0,T0_stat,T0_sim,Hc)
+            &cntT0,T0_stat,T0_sim,Hc)
         end if
       end if
+    
     else
+    
       call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
-          &cntT0,T0_stat,T0_sim,Hc)
+        &cntT0,T0_stat,T0_sim,Hc)
+    
     end if
 
     gls_check=.true.
-    if(Hc)then
+    if(.not.Hc) then
 !       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
     else
@@ -685,11 +741,14 @@ module ode_run
       !call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
       if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+!       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
       if(.not.gls_check)then
         resw=set_max_residuals(ndata)
       else
         call check_max_residuals(resw,ndata)
       end if
+!       resw=resw*fit_scale*gls_scale
+      call check_max_residuals(resw,ndata)
     end if
 
     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
@@ -726,8 +785,13 @@ module ode_run
     integer::cntT0,nTs
     real(dp),dimension(:,:),allocatable::T0_sim
     integer,dimension(:,:),allocatable::T0_stat
-    logical::checkpar
-
+    logical::checkpar,gls_check
+    
+!     real(dp)::fit_scale,gls_scale
+    
+    integer::ii
+    
+    Hc=.true.
     resw=zero
     fitness=zero
     nTs=maxval(nT0)
@@ -735,6 +799,8 @@ module ode_run
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),&
         &w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
+!     fit_scale=one
+!     gls_scale=one
     call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
     if(.not.checkpar)then
       if(nRV.gt.0) RVok=zero
@@ -743,7 +809,14 @@ module ode_run
       fitness=resmax
       return
     end if
-
+!     call convert_parameters_scale(allpar,par,m,R,P,a,e,w,mA,inc,lN,fit_scale)
+    
+    do ii=1,NB
+      if(m(ii).lt.zero)then
+        write(*,'(a,i3,a,10000(1x,f22.16))')' neg mass(ii=',ii,' ) : masses = ',m
+        stop
+      end if
+    end do
     
     ! it is needed to define the which is the alarm coordinate for the transit detection
     call lNset(lN,clN)
@@ -774,7 +847,7 @@ module ode_run
     if(dt1.lt.0._dp)then
       call ode_a(m,R,ra1,dt1,clN,cntRV,RV_stat,RV_sim,&
           &cntT0,T0_stat,T0_sim,Hc)
-      if(.not.Hc)then
+      if(Hc)then
         if(abs(dt1).le.tint)then
           dt2=dt1+tint
           call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
@@ -786,7 +859,7 @@ module ode_run
       call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
           &cntT0,T0_stat,T0_sim,Hc)
     end if
-    if(Hc)then
+    if(.not.Hc) then
       if(nRV.gt.0) RVok = zero
       if(nTs.gt.0) T0ok = zero
       resw=set_max_residuals(ndata)
@@ -795,6 +868,9 @@ module ode_run
       !call setval(RVobs,RV_sim,T0obs,T0_sim,resw)
 !       call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
+      if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+!       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
+!       resw=resw*fit_scale*gls_scale
       call check_max_residuals(resw,ndata)
       if(nRV.gt.0)then
         call setRVok(RV_sim,gamma,RVok)
@@ -834,18 +910,25 @@ module ode_run
     integer::cntT0,nTs
     real(dp),dimension(:,:),allocatable::T0_sim
     integer,dimension(:,:),allocatable::T0_stat
-    logical::checkpar
-
+    logical::checkpar,gls_check
+    
+!     real(dp)::fit_scale,gls_scale
+    
+    Hc=.true.
     resw=zero
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),&
         &w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
+!     fit_scale=one
+!     gls_scale=one
     call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
     if(.not.checkpar)then
 !       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
       return
     end if
+!     call convert_parameters_scale(allpar,par,m,R,P,a,e,w,mA,inc,lN,fit_scale)
+
       
     ! it is needed to define the which is the alarm coordinate for the transit detection
     call lNset(lN,clN)
@@ -876,7 +959,7 @@ module ode_run
     if(dt1.lt.0._dp)then
       call ode_a(m,R,ra1,dt1,clN,cntRV,RV_stat,RV_sim,&
           &cntT0,T0_stat,T0_sim,Hc)
-      if(.not.Hc)then
+      if(Hc)then
         if(abs(dt1).le.tint)then
           dt2=dt1+tint
           call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
@@ -888,13 +971,16 @@ module ode_run
       call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
           &cntT0,T0_stat,T0_sim,Hc)
     end if
-    if(Hc)then
+    if(.not.Hc) then
 !       resw=sqrt(resmax)/real(ndata,dp)
       resw=set_max_residuals(ndata)
     else
       !call setval(RV_obs,RV_sim,T0_obs,T0_sim,resw)
 !       call setval_3(RV_obs,RV_sim,eRVobs,gamma,T0_obs,T0_sim,eT0obs,resw)
       call setval_4(RV_obs,RV_sim,eRVobs,gamma,T0_obs,T0_sim,eT0obs,resw)
+      if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+!       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
+!       resw=resw*fit_scale*gls_scale
       call check_max_residuals(resw,ndata)
     end if
 
@@ -911,11 +997,14 @@ module ode_run
     ! ------------------------------------------------------------------ !
   ! subroutine to write file and to screen the data ... what it writes
   ! depends on the option isim and wrtid/lmon in arg.in file
-  subroutine ode_out(cpuid,isim,wrtid,allpar,par,resw)
+  subroutine ode_out(cpuid,isim,wrtid,allpar,par,resw,fit_scale,gls_scale)
     integer,intent(in)::cpuid,isim,wrtid
     real(dp),dimension(:),intent(in)::allpar,par
     real(dp),dimension(:),intent(out)::resw
+    
+    real(dp),optional,intent(out)::fit_scale,gls_scale
 
+    
     real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
     integer,dimension(:),allocatable::clN
     real(dp),dimension(:),allocatable::ra0,ra1
@@ -942,14 +1031,14 @@ module ode_run
     character(512),dimension(:),allocatable::flele,fltra
 
     integer::i_par
-    
+        
     write(*,'(a)')''
     write(*,'(a)')" EXECUTING SIMPLE INTEGRATION AND WRITING FINAL FILES"
     write(*,'(a,i3)')" LM on[1]/off[0] = ",wrtid
     write(*,'(a)')''
     
     resw=zero
-    Hc = .false.
+    Hc=.true.
     
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
@@ -968,29 +1057,40 @@ module ode_run
 !       checkpar = checkbounds_fit(par)
 !     end if
     
-    call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
-    if(.not.checkpar)then
-      write(*,*)' checkpar is FALSE ... BAD'
-!       resw=sqrt(resmax)/real(ndata,dp)
-      resw=set_max_residuals(ndata)
-      return
+    if(present(fit_scale))then
+      fit_scale=one
+      gls_scale=one
+      call convert_parameters_scale(allpar,par,m,R,P,a,e,w,mA,inc,lN,fit_scale)
+    else
+      call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
+      if(.not.checkpar)then
+        write(*,*)' checkpar is FALSE ... BAD'
+  !       resw=sqrt(resmax)/real(ndata,dp)
+        resw=set_max_residuals(ndata)
+        return
+      end if
     end if
 
+    
     write(*,*)
-    write(*,'(a)')"parid par"
+    write(*,'(a)')"parid par (min , max) allpar(id)"
     do i_par=1,nfit
-      write(*,'(a10,F17.12)')parid(i_par),par(i_par)
+      write(*,'(a12,4(f25.15,1x))')parid(i_par),par(i_par),minpar(i_par),maxpar(i_par),allpar(idall(i_par))
     end do
     write(*,*)
-    write(*,'(a,1000(F17.12,1x))')"  m = ",m(1),m(2:)*Msear
-    write(*,'(a,1000(F17.12,1x))')"  P = ",P
-    write(*,'(a,1000(F17.12,1x))')"  a = ",a
-    write(*,'(a,1000(F17.12,1x))')"  e = ",e
-    write(*,'(a,1000(F17.12,1x))')"  w = ",w
-    write(*,'(a,1000(F17.12,1x))')" mA = ",mA
-    write(*,'(a,1000(F17.12,1x))')"  i = ",inc
-    write(*,'(a,1000(F17.12,1x))')" lN = ",lN
+    write(*,'(a12,1000(f25.15,1x))')"  m = ",m(1),m(2:)
+    write(*,'(a12,1000(f25.15,1x))')"  P = ",P
+    write(*,'(a12,1000(f25.15,1x))')"  a = ",a
+    write(*,'(a12,1000(f25.15,1x))')"  e = ",e
+    write(*,'(a12,1000(f25.15,1x))')"  w = ",w
+    write(*,'(a12,1000(f25.15,1x))')" mA = ",mA
+    write(*,'(a12,1000(f25.15,1x))')"  i = ",inc
+    write(*,'(a12,1000(f25.15,1x))')" lN = ",lN
     write(*,*)
+    write(*,'(a)')' CHECK FIT/KEP.ELEM. BOUNDARIES'
+    if(present(fit_scale)) write(*,'(a,es23.16)')' fit_scale = ',fit_scale
+    write(*,*)
+    flush(6)
     
     ! write orbital elements into a file
     call outElements(isim,wrtid,m,R,P,a,e,w,mA,inc,lN)
@@ -1036,7 +1136,7 @@ module ode_run
       call ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
           &m,R,ra1,dt1,clN,cntRV,RV_stat,RV_sim,&
           &cntT0,T0_stat,T0_sim,Hc)
-      if(.not.Hc)then
+      if(Hc)then
         if(abs(dt1).le.tint)then
 !           write(*,'(a,g25.14,a)')" dt2 =  ",dt2,&
 !               &" => forward integration"
@@ -1053,13 +1153,21 @@ module ode_run
           &cntT0,T0_stat,T0_sim,Hc)
     end if
 
-    write(*,*)' Hc = ',Hc
+    write(*,*)
+    if(.not.Hc) then
+      write(*,'(a,l2,a)')' flag Hc = ',Hc,' : BAD ==> THERE IS A PROBLEM DURING INTEGRATION'
+    else
+      write(*,'(a,l2,a)')' flag Hc = ',Hc,' : OK  ==> NO PROBLEM DURING INTEGRATION'
+    end if
+    write(*,*)
+    flush(6)
+    
     if((idtra.ge.1).and.(idtra.le.NB)) call close_tra(utra,fltra)
     if(wrtorb.eq.1) close(uorb)
     if(wrtconst.eq.1) close(ucon)
     if(wrtel.eq.1) call close_elem(uele,flele)
 
-    if(Hc)then
+    if(.not.Hc) then
 !       resw=sqrt(resmax)/real(ndata,dp)
       resw=set_max_residuals(ndata)
     else
@@ -1067,6 +1175,17 @@ module ode_run
       !call setval_2(RVobs,RV_sim,eRVobs,T0obs,T0_sim,eT0obs,resw)
 !       call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
+      if(present(fit_scale))then
+        if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
+        write(*,*)
+        write(*,'(a)')' CHECK GLS RESIDUALS-RV'
+        write(*,'(a,es23.16)')' gls_scale = ',gls_scale
+        write(*,*)
+        flush(6)
+        resw=resw*fit_scale*gls_scale
+      else
+        if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+      end if
       call check_max_residuals(resw,ndata)
     end if
 
@@ -1089,7 +1208,11 @@ module ode_run
       chi2wr_RV=chi2r_RV*w_chi2r
       deallocate(resw_temp)
       ! 2016-04-08: added gls check
-      call check_and_write_periodogram(cpuid,isim,wrtid,jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+      if(present(gls_scale))then
+        call check_and_write_periodogram(cpuid,isim,wrtid,jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
+      else
+        call check_and_write_periodogram(cpuid,isim,wrtid,jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+      end if
       if(.not.gls_check)resw=set_max_residuals(ndata)
     end if
 
@@ -1109,7 +1232,11 @@ module ode_run
     end if
 
     fitness = sum(resw*resw)
-    call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,fitness)
+    if(present(fit_scale))then
+      call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,fitness,fit_scale,gls_scale)
+    else
+      call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,fitness)
+    end if
 
     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
     if(allocated(gamma)) deallocate(gamma)

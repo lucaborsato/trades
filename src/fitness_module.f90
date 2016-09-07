@@ -31,31 +31,13 @@ contains
     return
   end function base_fitness_function
 
-  function check_fit_boundaries(fit_parameters) result(check)
-    logical::check
-    real(dp),intent(in),dimension(:)::fit_parameters
-    integer::i
-    check=.true.
-  
-    checkloop: do i=1,nfit
-      if(fit_parameters(i).lt.minpar(i))then
-        check=.false.
-        exit checkloop
-      else if(fit_parameters(i).gt.maxpar(i))then
-        check=.false.
-        exit checkloop
-      end if
-    end do checkloop
-  
-    return
-  end function check_fit_boundaries
-  
   function bound_fitness_function(all_parameters,fit_parameters) result(fitness)
     real(dp)::fitness
     real(dp),intent(in),dimension(:)::all_parameters
     real(dp),intent(in),dimension(:)::fit_parameters
     logical::check
     real(dp),dimension(:),allocatable::run_all_parameters
+!     real(dp)::fit_scale
 !     real(dp),dimension(:),allocatable::resw
     integer::iflag
     logical::check_status
@@ -65,8 +47,10 @@ contains
     check_status=.true.
     fitness=zero
     
-    check=check_fit_boundaries(fit_parameters)
-
+    check=check_only_boundaries(all_parameters,fit_parameters)
+!     fit_scale = check_only_boundaries_scale(all_parameters,fit_parameters)
+!     if(fit_scale.gt.one) check=.false.
+    
 !     write(*,'(i2,2(L2,1x),es23.16)')0,check_status,check,fitness
     
     if(check)then

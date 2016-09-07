@@ -29,11 +29,16 @@ module driver
   
     real(dp),dimension(:),allocatable::resw
     
+!     real(dp)::fit_scale,gls_scale
+    
     allocate(resw(ndata))
     resw=zero
     ! integrates and write RVs and T0s
+!     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,fit_scale,gls_scale)
+!     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,fit_scale,gls_scale)
     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw)
     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
+
     fitness=sum(resw*resw)
     deallocate(resw)
     if(fitness.ge.resmax)then
@@ -57,14 +62,20 @@ module driver
   
     real(dp),dimension(:),allocatable::resw
     
-    call param_adj(fit_parameters,sigma_parameters) ! adjust parameters and sigma (i.e., angle [0-360]deg
+!     real(dp)::fit_scale,gls_scale
+    
+!     call param_adj(fit_parameters,sigma_parameters) ! adjust parameters and sigma (i.e., angle [0-360]deg
     allocate(resw(ndata))
     resw=zero
     ! integrates and write RVs and T0s
+!     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,fit_scale,gls_scale)
+!     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,fit_scale,gls_scale)
     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw)
     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
+    
 !     call write_par(cpuid,fit_parameters,sigma_parameters,resw)
 !     call write_par(cpuid,sim_id,lm_flag,fit_parameters,sigma_parameters,resw)
+    
     fitness=sum(resw*resw)
     deallocate(resw)
     if(fitness.ge.resmax)then
@@ -108,15 +119,12 @@ module driver
     write(*,'(a,i4,a)')' ENDED LM FIT (info = ',info,' )'
     write(*,'(a)')''
     
-    call param_adj(fit_parameters,sigma_parameters)
+!     call param_adj(fit_parameters,sigma_parameters)
 
-    write(*,'(a)')'FITTED PARAMETERS AND SIGMA (B)'
+    write(*,'(a,es23.16)')' NAME FITTED PARAMETERS  ( min | max ) fitness = sum(resw*resw) = ',sum(resw*resw)
     do j1=1,nfit
-      write(*,'(2(es23.16,1x))')fit_parameters(j1),sigma_parameters(j1)
+      write(*,'(a10,1x,f25.15,2(a,f25.15),a)')parid(j1),fit_parameters(j1),' ( ',minpar(j1),' | ',maxpar(j1),' )'
     end do
-    write(*,'(a)')'CHECK LM FIT_PARAMETERS:'
-    check_lm=check_only_boundaries(all_parameters,fit_parameters)
-    write(*,'(a,l2)')'FINAL check_lm = ',check_lm
     write(*,'(a)')''
     write(*,'(a)')'WRITE SUMMARY'
     write(*,'(a)')''

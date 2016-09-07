@@ -162,8 +162,8 @@ def createARG(fpath):
 
 # CREATES bodies.lst file
 # star.dat 0 0               #filename Mass Radius [1=to fit, 0=fixed]
-# b.dat 0 0 1 1 1 1 0 0  #filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes
-# c.dat 0 0 1 1 1 1 0 1  #filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes
+# b.dat 0 0 1 1 1 1 0 0 T #filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)
+# c.dat 0 0 1 1 1 1 0 1 T #filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)
 def createBODIESLST(fpath):
   fbodies = os.path.join(fpath, "bodies.lst")
   print " CREATING: " + fbodies
@@ -177,14 +177,14 @@ def createBODIESLST(fpath):
   ofbodies.write(line + "\n")
   print " " + line
 
-  linel = "b.dat 0 0 1 1 1 1 0 0"
-  liner = "#filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes"
+  linel = "b.dat 0 0 1 1 1 1 0 0 T"
+  liner = "#filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)"
   line = linel + "          " + liner
   ofbodies.write(line + "\n")
   print " " + line
 
-  linel = "c.dat 0 0 1 1 1 1 0 1"
-  liner = "#filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes"
+  linel = "c.dat 0 0 1 1 1 1 0 1 T"
+  liner = "#filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)"
   line = linel + "          " + liner
   ofbodies.write(line + "\n")
   print " " + line
@@ -264,7 +264,7 @@ def createPLANETB(fpath):
   ofb.write(line + "\n")
   print " " + line
   
-  linel = "356.056648 0.6 0. rn"
+  linel = "356.056648 0. 0. rn"
   liner = "# argument of the pericenter [deg]"
   line = linel + "          " + liner
   ofb.write(line + "\n")

@@ -19,11 +19,11 @@ module constants
 
   !various
   real(dp),parameter::s24h=86400._dp !seconds in a day = 24h = 86400s
-  real(dp),parameter::zero=0._dp,one=1._dp,two=2._dp
+  real(dp),parameter::zero=0._dp,one=1._dp,two=2._dp,three=3._dp
   real(dp),parameter::TOLERANCE=epsilon(zero)
   real(dp),parameter::sqrt2 = sqrt(2._dp)
   real(dp),parameter::sqrt_12 = sqrt(12._dp) ! = 2*sqrt(3) needed for stability criterion with the mutual R_Hill
-  real(dp),parameter::sqrt_1_3=1._dp/3._dp
+  real(dp),parameter::onethird=one/three
   
   ! Constants from USNO 2013
   ! http://asa.usno.navy.mil/

@@ -42,7 +42,12 @@ module bootstrap
     if(nRV.gt.0) allocate(RVok(nRV),RVboot(nRV))
     nTs=maxval(nT0)
     if(nTs.gt.0) allocate(T0ok(nTs,NB),T0boot(nTs,NB))
-
+    
+    
+    write(*,'(a)')''
+    write(*,'(a,i6,a)')' BOOTSTRAP/MC ANALYSIS WITH ',nboot,' ITERATIONS'
+    flush(6)
+    
     !1. call subroutine to retrieve RVok and T0ok (ode_parok)
     call ode_parok(allpar,parok,RVok,T0ok,resw,fitness)
 
@@ -115,9 +120,9 @@ module bootstrap
             &RVboot,T0boot,resw,diag,sig,info,iwa)
 
       storeboot(iboot,:)=b_par
-!       write(*,'(2(a,i5))')" CPU ",cpu,&
-!             &" DONE bootstrap iteration ",iboot
-!       flush(6)
+      write(*,'(2(a,i5))')" CPU ",cpu,&
+            &" DONE bootstrap iteration ",iboot
+      flush(6)
 
     end do bootstrap
     !$omp end parallel do
@@ -173,8 +178,8 @@ module bootstrap
     real(dp),dimension(:),intent(in)::parok
     real(dp),dimension(:,:),intent(in)::storeboot
     real(dp),dimension(:),allocatable::storevec
-    real(dp),dimension(2)::val,valabs
-    integer::cpuid,uboot,iboot,ifit
+!     real(dp),dimension(2)::val,valabs
+    integer::cpuid,uboot,ifit,iboot
     character(512)::flboot,fmt
 
     allocate(storevec(nfit))
@@ -222,8 +227,8 @@ module bootstrap
                       &p5=84.13_dp/100._dp, p6=97.72_dp/100._dp,&
                       &p7=99.87_dp/100._dp
     integer,dimension(7)::intperc
-    real(dp),dimension(2)::val,valabs
-    integer::ifit,iper,iboot,nperc
+!     real(dp),dimension(2)::val,valabs
+    integer::ifit,iper,nperc!,iboot
     
     nperc=size(perc(:,1))
 

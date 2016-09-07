@@ -60,6 +60,7 @@ module parameters
   integer,dimension(:),allocatable::nT0
   real(dp),dimension(:,:),allocatable::T0obs,eT0obs
   integer,dimension(:,:),allocatable::epoT0obs
+  logical,dimension(:),allocatable::do_transit ! it needs to determine if a planet should transit or not
 
   ! loglikelihood constant: - 1/2 * dof * ln(2 * pi) - 1/2 sum(ln(sigma**2)
   real(dp)::ln_err_const
@@ -115,7 +116,7 @@ module parameters
     if(allocated(tofit))    deallocate(tofit)
     if(allocated(e_bounds)) deallocate(e_bounds)
     if(allocated(jdRV))     deallocate(jdRV,RVobs,eRVobs)
-    if(allocated(epoT0obs)) deallocate(epoT0obs,T0obs,eT0obs)
+    if(allocated(epoT0obs)) deallocate(epoT0obs,T0obs,eT0obs,do_transit)
     if(allocated(id))       deallocate(id,idall,parid,all_names_list)
     if(allocated(system_parameters)) deallocate(system_parameters)
     if(allocated(par_min))  deallocate(par_min,par_max)

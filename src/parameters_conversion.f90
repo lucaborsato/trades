@@ -165,69 +165,82 @@ module parameters_conversion
     ! it sets the boundaries for the PSO simulation [not only]
   subroutine set_minmax()
     integer::ifit,ipar
-
+    logical,dimension(:),allocatable::done
+    
+    allocate(done(nfit))
+    done=.false.
     if(.not.allocated(minpar)) allocate(minpar(nfit),maxpar(nfit))
     ifit=0
     do ipar=1,npar
       if(tofit(ipar).eq.1)then
         ifit=ifit+1
         
-!         ! default setting
-!         minpar(ifit)=par_min(ipar)
-!         maxpar(ifit)=par_max(ipar)
         
-        ! fit m(3)==> mp/Ms
-        if(id(ifit).eq.3)then
-          minpar(ifit)=par_min(ipar)/MR_star(1,1)
-          maxpar(ifit)=par_max(ipar)/MR_star(1,1)
+        if(.not.done(ifit))then
+  !         ! default setting
+  !         minpar(ifit)=par_min(ipar)
+  !         maxpar(ifit)=par_max(ipar)
           
-        ! fit e(6) & w(7)==>(ecosw,esinw) [-e,+e],[-e,+e]
-        else if(id(ifit).eq.6)then
-!           minpar(ifit)=par_min(ipar)
-!           maxpar(ifit)=par_max(ipar)
-          if(ifit.lt.nfit)then
-            if(id(ifit+1).eq.7)then
-              minpar(ifit)  = -par_max(ipar)
-              minpar(ifit+1)= -par_max(ipar)
-              maxpar(ifit)  = par_max(ipar)
-              maxpar(ifit+1)= par_max(ipar)
-!               write(*,*)id(ifit), id(ifit+1)
-!               write(*,*)minpar(ifit),maxpar(ifit)
-!               write(*,*)minpar(ifit+1),maxpar(ifit+1)
+          ! fit m(3)==> mp/Ms
+          if(id(ifit).eq.3)then
+            minpar(ifit)=par_min(ipar)/MR_star(1,1)
+            maxpar(ifit)=par_max(ipar)/MR_star(1,1)
+            done(ifit)=.true.
+            
+          ! fit e(6) & w(7)==>(ecosw,esinw) [-e,+e],[-e,+e]
+          else if(id(ifit).eq.6)then
+  !           minpar(ifit)=par_min(ipar)
+  !           maxpar(ifit)=par_max(ipar)
+            if(ifit.lt.nfit)then
+              if(id(ifit+1).eq.7)then
+                minpar(ifit)  = -par_max(ipar)
+                minpar(ifit+1)= -par_max(ipar)
+                maxpar(ifit)  = par_max(ipar)
+                maxpar(ifit+1)= par_max(ipar)
+  !               write(*,*)id(ifit), id(ifit+1)
+  !               write(*,*)minpar(ifit),maxpar(ifit)
+  !               write(*,*)minpar(ifit+1),maxpar(ifit+1)
+                done(ifit)=.true.
+                done(ifit+1)=.true.
+              end if
             end if
-          end if
 
-        else if(id(ifit-1).eq.6.and.id(ifit).eq.7)then
-          cycle
-        
-        ! fit mA(8) ==> lambda[0,360]
-        else if(id(ifit).eq.8)then
-          minpar(ifit)=zero
-          maxpar(ifit)=360._dp
-        
-        ! fit i(9) & lN(10)==>(icoslN,isinlN) [-180,180],[-180,180]
-        else if(id(ifit).eq.9)then
+          ! fit mA(8) ==> lambda[0,360]
+          else if(id(ifit).eq.8)then
+            minpar(ifit)=zero
+            maxpar(ifit)=360._dp
+            done(ifit)=.true.
           
-          if(ifit.lt.nfit)then
-            if(id(ifit+1).eq.10)then
-              minpar(ifit)  =-180._dp
-              minpar(ifit+1)=-180._dp
-              maxpar(ifit)  =+180._dp
-              maxpar(ifit+1)=+180._dp
+          ! fit i(9) & lN(10)==>(icoslN,isinlN) [-180,180],[-180,180]
+          else if(id(ifit).eq.9)then
+            
+            if(ifit.lt.nfit)then
+              if(id(ifit+1).eq.10)then
+                minpar(ifit)  =-180._dp
+                minpar(ifit+1)=-180._dp
+                maxpar(ifit)  =+180._dp
+                maxpar(ifit+1)=+180._dp
+              end if
+              done(ifit)=.true.
+              done(ifit+1)=.true.
             end if
+            
+!           else if(ifit.gt.1)then
+!             if((id(ifit-1).eq.6.and.id(ifit).eq.7).or.&
+!               &(id(ifit-1).eq.9.and.id(ifit).eq.10))&
+!               &cycle
+! 
+!           else
           end if
-          
-        else if(id(ifit-1).eq.9.and.id(ifit).eq.10)then
-          cycle
-        
-        else
-        
+        end if ! .not.done(ifit)
+
+        if(.not.done(ifit))then
           ! default setting
           minpar(ifit)=par_min(ipar)
           maxpar(ifit)=par_max(ipar)
-          
+          done(ifit)=.true.
         end if
-        
+      
       end if ! tofit(j)
     end do
 
@@ -278,55 +291,73 @@ module parameters_conversion
     real(dp),dimension(:),intent(in)::allpar
     real(dp),dimension(:),allocatable,intent(out)::par
     integer::j,cnt
+    logical,dimension(:),allocatable::done
     
+    allocate(done(nfit))
+    done=.false.
     if(.not.allocated(par)) allocate(par(nfit))
     cnt=0
     do j=1,npar
       if(tofit(j).eq.1)then
         cnt=cnt+1
-        
-        ! m(3) ==> mp/Ms
-        if(id(cnt).eq.3)then
-          par(cnt)=allpar(j)/MR_star(1,1)
-        
-        ! e(6),w(7)==>(ecosw,esinw)
-        else if(id(cnt).eq.6)then
-          par(cnt)=allpar(j)
-          if(cnt.lt.nfit)then
-            if(id(cnt+1).eq.7)then
-              par(cnt)=allpar(j)*cos(allpar(j+1)*deg2rad)
-              par(cnt+1)=allpar(j)*sin(allpar(j+1)*deg2rad)
-            end if
-          end if
 
-        else if(id(cnt-1).eq.6.and.id(cnt).eq.7)then
-          cycle
-        
-        ! mA(8) ==> lambda=mA(j)+w(j-1)+lN(j+2)
-        else if(id(cnt).eq.8)then
-          par(cnt)=mod(mod(allpar(j)+allpar(j-1)+allpar(j+2),360._dp)+360._dp,360._dp)
-        
-        ! i(9),lN(10)==>(icoslN,isinlN)
-        else if(id(cnt).eq.9)then
-          par(cnt)=allpar(j)
-          if(cnt.lt.nfit)then
-            if(id(cnt+1).eq.10)then
-              par(cnt)=allpar(j)*cos(allpar(j+1)*deg2rad)
-              par(cnt+1)=allpar(j)*sin(allpar(j+1)*deg2rad)
-            end if
-          end if
+        if(.not.done(cnt))then
           
-        else if(id(cnt-1).eq.9.and.id(cnt).eq.10)then
-          cycle
+          ! m(3) ==> mp/Ms
+          if(id(cnt).eq.3)then
+            par(cnt)=allpar(j)/MR_star(1,1)
+            done(cnt)=.true.
+          
+          ! e(6),w(7)==>(ecosw,esinw)
+          else if(id(cnt).eq.6)then
+            par(cnt)=allpar(j)
+            done(cnt)=.true.
+            if(cnt.lt.nfit)then
+              if(id(cnt+1).eq.7)then
+                par(cnt)=allpar(j)*cos(allpar(j+1)*deg2rad)
+                par(cnt+1)=allpar(j)*sin(allpar(j+1)*deg2rad)
+                done(cnt)=.true.
+                done(cnt+1)=.true.
+              end if
+            end if
+
+          ! mA(8) ==> lambda=mA(j)+w(j-1)+lN(j+2)
+          else if(id(cnt).eq.8)then
+            par(cnt)=mod(mod(allpar(j)+allpar(j-1)+allpar(j+2),360._dp)+360._dp,360._dp)
+            done(cnt)=.true.
+          
+          ! i(9),lN(10)==>(icoslN,isinlN)
+          else if(id(cnt).eq.9)then
+            par(cnt)=allpar(j)
+            done(cnt)=.true.
+            if(cnt.lt.nfit)then
+              if(id(cnt+1).eq.10)then
+                par(cnt)=allpar(j)*cos(allpar(j+1)*deg2rad)
+                par(cnt+1)=allpar(j)*sin(allpar(j+1)*deg2rad)
+                done(cnt)=.true.
+                done(cnt+1)=.true.
+              end if
+            end if
+          
+          end if
         
-        else
-          par(cnt)=allpar(j)
         end if
         
-      end if
+        if(.not.done(cnt))then
+          par(cnt)=allpar(j)
+          done(cnt)=.true.
+        end if
+!         write(*,'("id = ",i3," => par(cnt=",i2,") = ",f23.8," = allpar(j=",i3,") = ",f23.8)')&
+!           &id(cnt),cnt,par(cnt),j,allpar(j)
+!         flush(6)
+        
+      end if ! tofit(j)
     end do
     
-    call set_minmax()
+    deallocate(done)
+    
+    
+!     call set_minmax()
     
     return
   end subroutine init_param
@@ -381,7 +412,8 @@ module parameters_conversion
     e=zero
     w=zero
     mA=zero
-    inc=90._dp
+    inc=zero
+    inc(2:)=90._dp
     lN=zero
     allocate(atemp(npar))
     atemp=all_parameters
@@ -394,7 +426,7 @@ module parameters_conversion
     
     m(1)=atemp(1)
     R(1)=atemp(2)
-    
+    cnt=2
     do cnt=2,NB
       j1=3+((cnt-2)*8) ! first parameter id == 3 <-> Mass body 2, ..., 10 <-> lN body 2, 11 <-> Mass body 3, ...
       
@@ -407,7 +439,7 @@ module parameters_conversion
         temp2= (atemp(j1+3)*atemp(j1+3))+ (atemp(j1+4)*atemp(j1+4))
         if(temp2.lt.e_bounds(1,cnt).or.temp2.gt.e_bounds(2,cnt))then
           checkpar=.false.
-          return
+!           return
         end if
         temp_kel(4)=sqrt(temp2)
         temp_kel(5)=mod(rad2deg*atan2(atemp(j1+4),atemp(j1+3))+360._dp,360._dp)
@@ -420,7 +452,7 @@ module parameters_conversion
         end if
         if(temp_kel(7).le.zero.or.temp_kel(7).ge.180._dp)then
           checkpar=.false.
-          return
+!           return
         end if
         
       end if
@@ -436,7 +468,7 @@ module parameters_conversion
       mA(cnt)  =temp_kel(6)
       inc(cnt) =temp_kel(7)
       lN(cnt)  =temp_kel(8)
-
+      
     end do
     
     
@@ -459,6 +491,7 @@ module parameters_conversion
 
       ! check if fit_parameters are within boundaries
       if(fit_parameters(j).lt.minpar(j).or.fit_parameters(j).gt.maxpar(j))then
+        write(*,'(i3, F20.10, a, F20.10, a, F20.10)')j,fit_parameters(j),' < ',minpar(j), ' or > ',maxpar(j)
         check=.false.
         return
       end if
@@ -467,6 +500,7 @@ module parameters_conversion
     
     return
   end function checkbounds_fit
+  
 
   function checkbounds_kel(m,R,P,e,w,mA,inc,lN) result(check)
     logical::check
@@ -596,6 +630,8 @@ module parameters_conversion
   end subroutine convert_parameters
   ! ------------------------------------------------------------------ !
   
+  
+  
   ! function for pso/pik to initialize properly the first-generation population
   function check_only_boundaries(all_parameters,fit_parameters) result(check)
     logical::check
@@ -604,15 +640,15 @@ module parameters_conversion
     
     check=.true.
     check=checkbounds_fit(fit_parameters)
-    write(*,'(a,l2)')'checkbounds_fit = ',check
+!     write(*,'(a,l2)')'checkbounds_fit = ',check
     if(check)then
       allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB))
       call par2kel_fit(all_parameters,fit_parameters,m,R,P,a,e,w,mA,inc,lN,check)
-      write(*,'(a,l2)')'par2kel_fit = ',check
+!       write(*,'(a,l2)')'par2kel_fit = ',check
 !       if(check) check=checkbounds_kel(m,R,P,e,w,mA,inc,lN)
         if(check)then
           check=checkbounds_kel(m,R,P,e,w,mA,inc,lN)
-          write(*,'(a,l2)')'checkbounds_kel = ',check
+!           write(*,'(a,l2)')'checkbounds_kel = ',check
         end if
       deallocate(m,R,P,a,e,w,mA,inc,lN)
     end if
@@ -620,26 +656,184 @@ module parameters_conversion
     return
   end function check_only_boundaries
   
+  
+  ! boundaries check that output a scale parameter and not a logical .true./.false.
+  ! the scale parameter will be multiplied to the weighted residuals to worsening the fitness
+  !
+  
+  function get_fit_scale(value,minvalue,maxvalue) result(xscale)
+    real(dp)::xscale
+    real(dp),intent(in)::value,minvalue,maxvalue
+    real(dp)::delta
+    
+    xscale=zero
+    delta=abs(maxvalue-minvalue)
+    
+  ! check if fit_parameters are within boundaries
+    if(value.lt.minvalue)then
+      xscale=abs((value-minvalue)/delta)*100._dp
+    else if(value.gt.maxvalue)then
+      xscale=abs((value-maxvalue)/delta)*100._dp
+    else
+      xscale=zero
+    end if
+    
+  
+    return
+  end function get_fit_scale
+  
+  function checkbounds_fit_scale(fit_parameters) result(bound_scale)
+    real(dp)::bound_scale
+    real(dp),dimension(:),intent(in)::fit_parameters
+    integer::j
+    real(dp)::xscale
+    
+    bound_scale=zero
+    xscale=zero
+    
+    do j=1,nfit
+      ! check if fit_parameters are within boundaries
+      xscale=get_fit_scale(fit_parameters(j),minpar(j),maxpar(j))
+      bound_scale=bound_scale+xscale
+    end do
+    
+    return
+  end function checkbounds_fit_scale
+  
+    function checkbounds_kel_scale(m,R,P,e,w,mA,inc,lN) result(kel_scale)
+    real(dp)::kel_scale
+    real(dp),dimension(:),intent(in)::m,R,P,e,w,mA,inc,lN
+    
+    real(dp)::temp,xscale,xtemp1,xtemp2
+    integer::j,j1
+    
+    kel_scale=zero
+    xscale=zero
+
+!     write(*,*)'Ms'
+    xscale=get_fit_scale(m(1),par_min(1),par_max(1))
+    kel_scale=kel_scale+xscale
+    
+!     write(*,*)'Rs'
+    xscale=get_fit_scale(R(1),par_min(2),par_max(2))
+    kel_scale=kel_scale+xscale
+    
+    do j=2,NB
+      j1=(j-2)*8
+      
+      ! mass
+      xscale=get_fit_scale(m(j),par_min(j1+3),par_max(j1+3))
+      kel_scale=kel_scale+xscale
+      
+      ! radius
+      xscale=get_fit_scale(R(j),par_min(j1+4),par_max(j1+4))
+      kel_scale=kel_scale+xscale
+      
+      ! period
+      xscale=get_fit_scale(P(j),par_min(j1+5),par_max(j1+5))
+      kel_scale=kel_scale+xscale
+      
+      ! eccentricity
+      xscale=get_fit_scale(e(j),par_min(j1+6),par_max(j1+6))
+      kel_scale=kel_scale+xscale
+
+      ! argument of pericentre
+      temp=w(j)-360._dp
+      xtemp1=get_fit_scale(temp,par_min(j1+7),par_max(j1+7))
+      xtemp2=get_fit_scale(w(j),par_min(j1+7),par_max(j1+7))
+      if(xtemp1.gt.zero.and.xtemp2.gt.zero)then
+        xscale=max(xtemp1,xtemp2)
+      else
+        xscale=zero
+      end if
+      kel_scale=kel_scale+xscale
+      
+      ! mean anomaly
+      temp=mA(j)-360._dp
+      xtemp1=get_fit_scale(temp,par_min(j1+8),par_max(j1+8))
+      xtemp2=get_fit_scale(mA(j),par_min(j1+8),par_max(j1+8))
+      if(xtemp1.gt.zero.and.xtemp2.gt.zero)then
+        xscale=max(xtemp1,xtemp2)
+      else
+        xscale=zero
+      end if
+      kel_scale=kel_scale+xscale
+      
+      ! inclination
+      xscale=get_fit_scale(inc(j),par_min(j1+9),par_max(j1+9))
+      kel_scale=kel_scale+xscale
+      
+      ! longitude of node
+      temp=lN(j)-360._dp
+      xtemp1=get_fit_scale(temp,par_min(j1+10),par_max(j1+10))
+      xtemp2=get_fit_scale(lN(j),par_min(j1+10),par_max(j1+10))
+      if(xtemp1.gt.zero.and.xtemp2.gt.zero)then
+        xscale=max(xtemp1,xtemp2)
+      else
+        xscale=zero
+      end if
+      kel_scale=kel_scale+xscale
+      
+    end do
+  
+    return
+  end function checkbounds_kel_scale
+  
+  subroutine convert_parameters_scale(all_parameters,fit_parameters,m,R,P,a,e,w,mA,inc,lN,fit_scale)
+    real(dp),dimension(:),intent(in)::all_parameters,fit_parameters
+    real(dp),dimension(:),intent(out)::m,R,P,a,e,w,mA,inc,lN
+    real(dp),intent(out)::fit_scale
+    real(dp)::bound_scale,kel_scale
+    logical::checkpar
+    
+    checkpar=.true.
+    fit_scale=zero
+    bound_scale=checkbounds_fit_scale(fit_parameters)
+    call par2kel_fit(all_parameters,fit_parameters,m,R,P,a,e,w,mA,inc,lN,checkpar)
+    kel_scale=checkbounds_kel_scale(m,R,P,e,w,mA,inc,lN)
+    fit_scale=one+bound_scale+kel_scale ! min value of fit_scale has to be 1
+    
+    
+    return
+  end subroutine convert_parameters_scale
+  
+  function check_only_boundaries_scale(all_parameters,fit_parameters) result(fit_scale)
+    real(dp)::fit_scale
+    real(dp),dimension(:),intent(in)::all_parameters,fit_parameters
+    
+    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
+    real(dp)::bound_scale,kel_scale
+    logical::checkpar
+    
+    checkpar=.true.
+    bound_scale=checkbounds_fit_scale(fit_parameters)
+!     write(*,'(a,es23.16)')'checkbounds_fit = ',bound_scale
+    allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB))
+    call par2kel_fit(all_parameters,fit_parameters,m,R,P,a,e,w,mA,inc,lN,checkpar)
+!     write(*,'(a,l2)')'par2kel_fit = ',checkpar
+    kel_scale=checkbounds_kel_scale(m,R,P,e,w,mA,inc,lN)
+    deallocate(m,R,P,a,e,w,mA,inc,lN)
+!     write(*,'(a,es23.16)')'checkbounds_kel = ',kel_scale
+    fit_scale=one+bound_scale+kel_scale
+!     write(*,'(a,es23.16)')'fit_scale = ',fit_scale
+      
+    return
+  end function check_only_boundaries_scale
     ! ------------------------------------------------------------------ !
   ! given the computed parameters with the L-M it adjusts some parameters
   ! i.e. setting all the angles between 0 and 360 (no < 0 angles) etc.
   subroutine param_adj(par,sigpar)
     real(dp),dimension(:),intent(inout)::par,sigpar
-    integer::j1,j2
+    integer::j1
     real(dp),parameter::circ=360._dp,hcirc=180._dp
 
     do j1=1,nfit
-      j2=id(j1)
-!       if( (j2.eq.7) .or. (j2.eq.8) .or. (j2.eq.10) )then
-      if((j2.eq.8).or.(j2.eq.10))then ! mA and lN
+
+      if(parid(j1)(1:1).eq.'w'.or.parid(j1)(1:2).eq.'mA'.or.parid(j1)(1:2).eq.'lN'.or.parid(j1)(1:2).eq.'la')then
         par(j1)=mod(par(j1),circ)
-        if(par(j1).lt.zero) par(j1)=par(j1)+circ
         sigpar(j1)=mod(sigpar(j1),circ)
-      else if(j2.eq.9)then ! inc
-        par(j1)=mod(par(j1),hcirc)
-        if(par(j1).lt.zero) par(j1)=par(j1)+hcirc
-        sigpar(j1)=mod(sigpar(j1),hcirc)
       end if
+      
     end do
 
     return

@@ -18,11 +18,11 @@ module celestial_mechanics
     real(dp)::sma
     real(dp),intent(in)::ms,mp,P
     real(dp)::mu,P2
-    real(dp)::dpi2=dpi*dpi,athird=1._dp/3._dp
+    real(dp)::dpi2=dpi*dpi
 
     mu=Giau*(ms+mp)
     P2=P*P
-    sma=((mu*P2)/dpi2)**(athird)
+    sma=((mu*P2)/dpi2)**(onethird)
 
     return
   end function semax
@@ -47,12 +47,12 @@ module celestial_mechanics
     real(dp),dimension(:),intent(in)::mp,P
     real(dp),dimension(:),intent(out)::sma
     real(dp),dimension(:),allocatable::mu,P2
-    real(dp)::dpi2=dpi*dpi,athird=1._dp/3._dp
+    real(dp)::dpi2=dpi*dpi
 
     allocate(mu(size(mp)),P2(size(P)))
     mu=Giau*(ms+mp)
     P2=P*P
-    sma=((mu*P2)/dpi2)**(athird)
+    sma=((mu*P2)/dpi2)**(onethird)
     deallocate(mu,P2)
     
     return
@@ -237,7 +237,7 @@ module celestial_mechanics
     real(dp),intent(in)::ms,mp,sma
 !     real(dp),parameter::csqrt=1._dp/3._dp
 
-    rH=sma*(mp/(3._dp*ms))**sqrt_1_3
+    rH=sma*((onethird*(mp/ms))**onethird)
 
     return
   end function rHill_1
@@ -250,7 +250,7 @@ module celestial_mechanics
     real(dp)::e1
 
     e1=1._dp-ecc
-    rH=sma*e1*(mp/(3._dp*ms))**sqrt_1_3
+    rH=sma*e1*((onethird*(mp/ms))**onethird)
 
     return
   end function rHill_2
@@ -264,7 +264,7 @@ module celestial_mechanics
     integer::j,j1,j2
     character(72)::fmt
 
-    rH=.false.
+    rH=.true.
     ! rin -> a -> RHill -> 1=overlap,bad, 0=ok
     do j=2,(NB-1)
 
@@ -282,7 +282,7 @@ module celestial_mechanics
       if(a1.le.zero)then
         fmt=adjustl('(a,1x,'//trim(sprec)//')')
         write(*,trim(fmt),advance='no')" 1/a1 < 0 :",a1
-        rH=.true.
+        rH=.false.
         return
       end if
       a1=1._dp/a1
@@ -302,7 +302,7 @@ module celestial_mechanics
       if(a2.le.zero)then
         fmt=adjustl('(a,1x,'//trim(sprec)//')')
         write(*,trim(fmt),advance='no')" 1/a2 < 0 :",a2
-        rH=.true.
+        rH=.false.
         return
       end if
       a2=1._dp/a2
@@ -312,14 +312,14 @@ module celestial_mechanics
       e1=sqrt(ec*ec+es*es)
       if((a1.le.amin).or.(a1.ge.amax).or.(a2.le.amin).or.(a2.ge.amax))then
         !write(*,'(a)')" Bound semi-major axis limits overcome "
-        rH=.true.
+        rH=.false.
         return
       end if
       rH1=rHill(m(1),m(j),a1,e1)
       rH2=rHill(m(1),m(j+1),a2,e1)
       dr=dist(rvec1,rvec2)
       if(dr.le.(rH1+rH2))then
-        rH=.true.
+        rH=.false.
         return
       end if
     end do
@@ -337,10 +337,47 @@ module celestial_mechanics
     real(dp),intent(in)::ms,mp1,sma1,mp2,sma2
     real(dp)::sma_mean,mass_ratio
     
-    sma_mean = 0.5_dp*(sma1+sma2)
-    mass_ratio = (mp1+mp2)/(3._dp*ms)
-    rH=sma_mean*mass_ratio**sqrt_1_3
-
+    real(dp)::min_ratio
+    
+    rH=zero
+    sma_mean=0.5_dp*(sma1+sma2)
+    mass_ratio=(mp1+mp2)/ms
+    min_ratio = TOLERANCE**onethird
+    
+    
+    if(mass_ratio.le.TOLERANCE)then
+    
+      rH=sma_mean*min_ratio
+      write(*,'(2(a,es23.16),a)')'mass_ratio = ',mass_ratio,' <= ',TOLERANCE,' = TOLERANCE ==> USING TOLERANCE'
+      write(*,'(3(a,es23.16))')'Mstar [Msun] = ',ms,' Mi [Msun]= ',mp1,' Mj [Msun]= ',mp2
+      flush(6)
+    
+    else if(ms.le.TOLERANCE)then
+    
+      write(*,'(2(a,es23.16))')' Mstar = ',ms,' <= ',TOLERANCE,' = TOLERANCE'
+      write(*,'(3(a,es23.16))')'Mstar [Msun] = ',ms,' Mi [Msun]= ',mp1,' Mj [Msun]= ',mp2
+      flush(6)
+      stop
+      
+    else if(sma_mean.le.TOLERANCE)then
+    
+      write(*,'(2(a,es23.16))')' sma_mean = ',sma_mean,' <= ',TOLERANCE,' = TOLERANCE'
+      write(*,'(3(a,es23.16))')'Mstar [Msun] = ',ms,' Mi [Msun]= ',mp1,' Mj [Msun]= ',mp2
+      flush(6)
+      stop
+      
+    else if(ms.le.(mp1+mp2))then
+    
+      write(*,'(2(a,es23.16))')' Mstar [Msun] = ',ms,' <= ',mp1+mp2,' = Mi + Mj  [Msun]'
+      flush(6)
+      stop
+      
+    else
+    
+      rH=sma_mean*((onethird*mass_ratio)**onethird)
+    
+    end if
+      
     return
   end function mutual_Hill_radius
 
@@ -361,8 +398,8 @@ module celestial_mechanics
     vv=dist(vvec)
     mu=Giau*(m(1)+m(body_id))
     inv_sma=(2._dp/rr)-((vv**2)/mu) ! 1/a
-    check=.false.
-    if(inv_sma.le.zero) check=.true. ! if true is bad
+    check=.true.
+    if(inv_sma.le.zero) check=.false. ! if false is bad
 
     return
   end subroutine rrdot_to_invsma
@@ -375,21 +412,23 @@ module celestial_mechanics
     real(dp)::Hill_radius_ij,delta_ij,stability_criterion
     integer::i,j
     
+    hill_check=.true.
+    
     do i=2,(NB-1)
       call rrdot_to_invsma(i,m,rin,sma_i,hill_check)
-      if(hill_check) return
+      if(.not.hill_check) return
       sma_i=one/sma_i
       
       do j=i+1,NB
         call rrdot_to_invsma(j,m,rin,sma_j,hill_check)
-        if(hill_check) return
+        if(.not.hill_check) return
         sma_j=one/sma_j
         
         Hill_radius_ij = mutual_Hill_radius(m(1),m(i),sma_i,m(j),sma_j)
         delta_ij = abs(sma_j - sma_i)
         stability_criterion = sqrt_12 * Hill_radius_ij
         if(delta_ij.lt.stability_criterion)then
-          hill_check = .true. ! if true is bad/unstable
+          hill_check = .false. ! if false is bad/unstable
           return
         end if
       end do
@@ -406,23 +445,24 @@ module celestial_mechanics
     real(dp)::Hill_radius_ij,delta_ij,stability_criterion
     integer::i,j
     
-    hill_check=.false.
+    hill_check=.true.
+    
     if(NB.gt.2)then
       do i=2,(NB-1)
         call rrdot_to_invsma(i,m,rin,sma_i,hill_check)
-        if(hill_check) return
+        if(.not.hill_check) return
         sma_i=one/sma_i
 
         j=i+1
         call rrdot_to_invsma(j,m,rin,sma_j,hill_check)
-        if(hill_check) return
+        if(.not.hill_check) return
         sma_j=one/sma_j
 
         Hill_radius_ij = mutual_Hill_radius(m(1),m(i),sma_i,m(j),sma_j)
         delta_ij = abs(sma_j - sma_i)
         stability_criterion = sqrt_12 * Hill_radius_ij
         if(delta_ij.lt.stability_criterion)then
-          hill_check = .true. ! if true is bad/unstable
+          hill_check = .false. ! if false is bad/unstable
           return
         end if
       end do
@@ -790,7 +830,8 @@ module celestial_mechanics
   subroutine fgfunctions(mu,rout,dt,Hc)
     real(dp),intent(in)::mu,dt
     real(dp),dimension(:),intent(inout)::rout
-    logical,intent(inout)::Hc
+    logical::Hc
+    
     real(dp),dimension(3)::rtemp,vtemp
     real(dp)::r0,v0,reca,a,n,sinE,cosE,ecc
     real(dp)::Ek1,MAk1,MAk2,Ek2,dE
@@ -804,13 +845,13 @@ module celestial_mechanics
     reca=(2._dp/r0)-((v0**2)/mu)
     if(reca.lt.0._dp)then
 !       write(*,*)" In fgfunctions reca < 0"
-      Hc=.true.
+      Hc=.false.
       return
     end if
     a=1._dp/reca
     if((a.le.amin).or.(a.ge.amax))then
 !       write(*,*)" In fgfunctions a < amin or a > amax"
-      Hc=.true.
+      Hc=.false.
       return
     end if
     n=sqrt(mu/(a**3))

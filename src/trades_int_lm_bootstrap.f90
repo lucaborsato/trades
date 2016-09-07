@@ -45,9 +45,16 @@ program main_int_lm_bootstrap
   ! IT CALLS ALL THE SUBROUTINES TO READ ALL PARAMETERS AND DATA TO STORE IN COMMON MODULE PARAMETERS
   call read_first(cpuid,m,R,P,a,e,w,mA,inc,lN) ! new versione already set system_parameters and boundaries (physical and user-provided)
   
+!   write(*,'(a)')"SYSTEM PARAMETERS 1"
+!   write(*,'(1000(1x,es23.16))')system_parameters
+  
   ! IT SETS TWO VECTOR WITH PARAMETERS (ALL THE PARAMETERS AND ONLY THE FITTED ONES)
 !   call set_par(m,R,P,a,e,w,mA,inc,lN,system_parameters,fitting_parameters)
   call init_param(system_parameters,fitting_parameters)
+!   write(*,'(a)')"SYSTEM PARAMETERS 2"
+!   write(*,'(1000(1x,es23.16))')system_parameters
+!   write(*,'(a)')"FITTING PARAMETERS"
+!   write(*,'(1000(1x,es23.16))')fitting_parameters
   
   ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
   call set_ephem()

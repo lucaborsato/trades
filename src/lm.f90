@@ -35,22 +35,22 @@ module Levenberg_Marquardt
   contains
 
   ! it updates the allpar vector from parameters fitted in par
-  subroutine allpar_update(par,allpar)
-    use parameters,only:npar,tofit
-    real(dp),dimension(:),intent(in)::par
-    real(dp),dimension(:)::allpar
-    integer::j1,j2
-
-    j2=0
-    do j1=1,npar
-      if(tofit(j1).eq.1)then
-          j2=j2+1
-          allpar(j1)=par(j2)
-      end if
-    end do
-
-    return
-  end subroutine allpar_update
+!   subroutine allpar_update(par,allpar)
+!     use parameters,only:npar,tofit
+!     real(dp),dimension(:),intent(in)::par
+!     real(dp),dimension(:)::allpar
+!     integer::j1,j2
+! 
+!     j2=0
+!     do j1=1,npar
+!       if(tofit(j1).eq.1)then
+!           j2=j2+1
+!           allpar(j1)=par(j2)
+!       end if
+!     end do
+! 
+!     return
+!   end subroutine allpar_update
 
 !   ! it writes allpar vector in sequence...not used...
 !   subroutine writeallpar(allpar)
@@ -106,6 +106,8 @@ module Levenberg_Marquardt
 
   ! subroutine to perform lm analysis but using a subroutine with more arguments
   ! (needed for bootstrap analysis)
+  ! USED BY:
+  ! BOOTSTRAP
   subroutine lm_driver_3(fcn,allpar,m,n,x,RV_obs,T0_obs,fvec,diag,sig,info,iwa)
     use parameters,only:maxfev,nprint,lmtols
     use parameters_conversion,only:param_adj
@@ -146,6 +148,11 @@ module Levenberg_Marquardt
     real(dp),dimension(:),allocatable::wa
     integer::mode,cntsig,nfev
 
+!     write(*,'(a)')' **************************'
+!     write(*,'(a)')' *** CALLED lm_driver_3 ***'
+!     write(*,'(a)')' **************************'
+!     flush(6)
+    
     info = 0
     iflag = 0 ! added by Luca in order to avoid negative value
     ! check the input parameters for errors.
@@ -190,11 +197,12 @@ module Levenberg_Marquardt
     call get_covar(fjac,iwa,m,n,diag,sig,cntsig)
     !write(*,'(2g25.15,i3)')diag(1),sig(1),cntsig
 
-    ! ---
-    call param_adj(x,sig) ! adjusting parameters, i.e., angles [0, 360] deg
+!     call param_adj(x,sig) ! adjusting parameters, i.e., angles [0, 360] deg
+    
 !     write(*,'(a,1000(g25.14))')" Output parameters: ",x
 !     write(*,'(a,1000(g25.14))')"  Sigma parameters: ",sig
 !     fitness_x_dof = sum(fvec*fvec)
+    
     fitness = sum(fvec*fvec)
 !     write(*,'(a)')""
 !     write(*,'(2(a,g25.14),a,i4)')" Fitness*dof = ",fitness*real(dof,dp)," Fitness = ",&
@@ -204,7 +212,7 @@ module Levenberg_Marquardt
       info = 4
     end if
 !     write(*,'(a,i3)')" LM info = ",info
-    call allpar_update(x,wallpar)
+!     call allpar_update(x,wallpar)
 !     write(*,*)""
     deallocate(fjac,wa)
     deallocate(wallpar)
@@ -305,6 +313,8 @@ module Levenberg_Marquardt
   ! SUBROUTINE lm_driver_4 WITH SEMI-AUTOMATIC SELECTION OF TOLERANCES
   ! varying epsfcn
   ! to use in GRID Search
+  ! USED BY:
+  ! LM (not BOOTSTRAP)
   subroutine lm_driver_4s(cpuid,isim,fcn,allpar,m,n,x,fvec,diag,sig,info,iwa)
     use parameters,only:path,maxfev,nprint,npar,ndata,dof,&
         &xtol,ftol,gtol,lmtols,progtype,paridlist,sig_paridlist
@@ -363,11 +373,11 @@ module Levenberg_Marquardt
       end subroutine fcn
     end interface
 
-!     write(*,*)""
-!     write(*,'(a)')" ==================== "
-!     write(*,'(a)')" *** lm_driver_4s *** "
-!     write(*,'(a)')" ==================== "
-!     write(*,*)""
+    write(*,'(a)')' ***************************'
+    write(*,'(a)')' *** CALLED lm_driver_4s ***'
+    write(*,'(a)')' ***************************'
+    flush(6)
+
 
     info = 0
     iflag = 0 ! added by Luca, avoid negative value
@@ -385,8 +395,10 @@ module Levenberg_Marquardt
     call fcn(allpar,m,n,x,fvec,iflag)
 !     fitness_x_dof=sum(fvec*fvec)
 !     fitness=fitness_x_dof/real(dof,dp)
+
     fitness=sum(fvec*fvec)
     fitness_x_dof=fitness*real(dof,dp)
+
     ulm = get_unit(cpuid)
     fllm = trim(path)//trim(adjustl(string(isim)))//"_lmfit.log"
     open(ulm,file=trim(fllm))
@@ -422,11 +434,6 @@ module Levenberg_Marquardt
     do ieps=1,neps
       cpuid2=cpuid
       !$ cpuid2 = omp_get_thread_num() + 1
-!       write(*,'(4(a,i3),a,g25.15)')" subCPU ",cpuid2," of CPU ",&
-!             &cpuid,&
-!             &" epsfcn number ",ieps," / ",neps,&
-!             &" --> epsfcn = ",lmepsfcn(ieps)
-            
       ! initialize every time to default values [these are private!]
       wallpar=allpar
       wpar=x
@@ -458,13 +465,15 @@ module Levenberg_Marquardt
       wsig=zero
       cntsig=0
       call get_covar(fjac,iwa,m,n,wdiag,wsig,cntsig)
-      call param_adj(wpar,wsig)
+!       call param_adj(wpar,wsig)
 
       ! save LM outputs
 !       fitness_x_dof=sum(wfvec*wfvec)
 !       fitness=fitness_x_dof/real(dof,dp)
+
       fitness=sum(wfvec*wfvec)
       fitness_x_dof=fitness*real(dof,dp)
+
       lmfitness(ieps,1)=fitness_x_dof
       lmfitness(ieps,2)=fitness
       lmstat(ieps)=cntsig
@@ -480,7 +489,7 @@ module Levenberg_Marquardt
     !$omp end parallel do
 
     ! write final otuputs into a file
-    wrtfmt=adjustl("(i4,i5,i3,10000("//trim(sprec)//"))")
+    wrtfmt=adjustl("(i4,i5,i3,10000("//trim(sprec)//",1x))")
     do ieps=1,neps
       write(ulm,trim(wrtfmt))&
             &ieps,lmstat(ieps),infos(ieps),lmpar(ieps,:),lmsig(ieps,:),&
@@ -504,31 +513,8 @@ module Levenberg_Marquardt
       ! case LM, PIKAIA, and PSO
       lmtols(:,4)=lmepsfcn(best)
     end if
-    call allpar_update(x,allpar)
+!     call allpar_update(x,allpar)
 
-    ! summary
-!     write(*,'(a)')""
-!     write(*,'(a)')" /-------------------------------------------------&
-!         &------------------------------------------------------------\ "
-!     write(*,'(a,1000g25.15)')" Input parameters: ",inpar
-!     write(*,'(a)')""
-!     write(*,'(a)')" /-----------Output[it, pars, fitness*dof & fitness, xtol&
-!         &, ftol, gtol, epsfcn]----------------\ "
-!     do ieps=1,neps
-!       write(*,'(i3,1000g25.15)')ieps,lmpar(ieps,:),lmfitness(ieps,:)&
-!             &,xtol,ftol,gtol,lmepsfcn(ieps)
-!     end do
-!     write(*,'(a)')" /-------------------------------------------------&
-!         &------------------------------------------------------------\ "
-!     write(*,'(a)')""
-!     write(*,'(a,i3)')" BEST COMBINATION ",best
-!     write(*,'(a,1000g25.15)')" Best tolerances: ",xtol,ftol,gtol,lmepsfcn(best)
-!     write(*,'(2(a,g25.15))')" ==> Fitness*dof = ",lmfitness(best,1)," Fitness = ",lmfitness(best,2)
-!     write(*,'(a,1000g25.15)')" Best parameters: ",x
-!     write(*,'(a,1000g25.15)')" Best sigma     : ",sig
-!     write(*,'(a)')" /-------------------------------------------------&
-!         &------------------------------------------------------------\ "
-!     flush(6)
     
     deallocate(inpar)
     if(allocated(lmepsfcn)) deallocate(lmepsfcn)
@@ -604,11 +590,10 @@ module Levenberg_Marquardt
       end subroutine fcn
     end interface
 
-!     write(*,*)""
-!     write(*,'(a)')" ==================== "
-!     write(*,'(a)')" *** lm_driver_4p *** "
-!     write(*,'(a)')" ==================== "
-!     write(*,*)""
+    write(*,'(a)')' ***************************'
+    write(*,'(a)')' *** CALLED lm_driver_4p ***'
+    write(*,'(a)')' ***************************'
+    flush(6)
 
     info = 0
     iflag = 0 ! added by Luca, avoid negative value
@@ -628,8 +613,10 @@ module Levenberg_Marquardt
     call fcn(allpar,m,n,x,fvec,iflag)
 !     fitness_x_dof=sum(fvec*fvec)
 !     fitness=fitness_x_dof/real(dof,dp)
+
     fitness=sum(fvec*fvec)
     fitness_x_dof=fitness*real(dof,dp)
+
     cpuid = 1
     ulm = get_unit(cpuid)
     fllm = trim(path)//trim(adjustl(string(isim)))//"_lmfit.log"
@@ -672,10 +659,7 @@ module Levenberg_Marquardt
     
     do ieps=1,neps
       !$ cpuid = omp_get_thread_num() + 1
-!       write(*,'(3(a,i3),a,g25.15)')" -- CPU ",cpuid,&
-!             &" epsfcn number ",ieps," / ",neps,&
-!             &" --> epsfcn = ",lmepsfcn(ieps)
-      
+
       ! initialize every time to default values
       wallpar=allpar
       wpar=x
@@ -707,7 +691,8 @@ module Levenberg_Marquardt
       !write(*,'(a)')" GET_COVAR "
       call get_covar(fjac,iwa,m,n,wdiag,wsig,cntsig)
       !write(*,'(a)')" DONE "
-      call param_adj(wpar,wsig)
+      
+!       call param_adj(wpar,wsig)
       !write(*,'(a)')" PAR ADJUSTED "
 
       ! save all the LM outputs
@@ -715,6 +700,7 @@ module Levenberg_Marquardt
 !       fitness=fitness_x_dof/real(dof,dp)
       fitness=sum(wfvec*wfvec)
       fitness_x_dof=fitness*real(dof,dp)
+      
       lmfitness(ieps,1)=fitness_x_dof
       lmfitness(ieps,2)=fitness
       lmstat(ieps)=cntsig
@@ -725,15 +711,11 @@ module Levenberg_Marquardt
       lmsig(ieps,:)=wsig
       lmiwa(ieps,:)=iwa
 
-!       write(*,'(3(a,i3),2(a,g25.15))')" -- CPU ",cpuid," END LM ",ieps," of ",neps,&
-!             &" with fitness_x_dof = ",fitness_x_dof," -> fitness = ",fitness
-!       write(*,*)""
-!       flush(6)
     end do
     !$omp end parallel do
 
     ! write outputs of all the LM into a file
-    wrtfmt=adjustl("(i4,i5,i3,10000("//trim(sprec)//"))")
+    wrtfmt=adjustl("(i4,i5,i3,10000("//trim(sprec)//",1x))")
     do ieps=1,neps
       write(ulm,trim(wrtfmt))ieps,lmstat(ieps),infos(ieps),&
             &lmpar(ieps,:),lmsig(ieps,:),&
@@ -761,53 +743,8 @@ module Levenberg_Marquardt
       lmtols(:,4)=lmepsfcn(best)
     end if
 
-    call allpar_update(x,allpar)
+!     call allpar_update(x,allpar)
 
-    ! summary
-!     write(*,'(a)')""
-!     write(*,'(a)')""
-!     write(*,'(a)')" -------------------------------------------------- "
-!     write(*,'(3(a,g25.15))')" xtol = ",xtol," ftol = ",ftol,&
-!         &" gtol = ",gtol
-!     write(*,'(a)')" -------------------------------------------------- "
-!     write(*,'(8x,a)',advance='no')"|"
-!     do ieps=1,neps
-!       if(ieps.lt.neps)then
-!           write(*,'(i25)',advance='no')ieps
-!       else
-!           write(*,'(i25)')ieps
-!       end if
-!     end do
-!     write(*,'(a)')" -------------------------------------------------- "
-!     do ieps=1,n
-!       write(*,'(a7,1x,a,100g25.15)')trim(parid(ieps)),"|",lmpar(:,ieps)
-!     end do
-!     write(*,'(a)')" -------------------------------------------------- "
-!     write(*,'(a9,1000g25.15)')" epsfcn |",lmepsfcn(:)
-!     write(*,'(a)')" -------------------------------------------------- "
-!     write(*,'(a9,1000g25.15)')" fitness_x_dof   |",lmfitness(:,1)
-!     write(*,'(a9,1000g25.15)')" fitness  |",lmfitness(:,2)
-!     write(*,'(a)')" -------------------------------------------------- "
-    
-    !       write(*,'(i3,1000g25.15)')ieps,lmpar(ieps,:),lmfitness(ieps,:)&
-    !            &,xtol,ftol,gtol,lmepsfcn(ieps)
-
-!     write(*,'(a)')""
-!     write(*,'(a)')""
-!     write(*,'(a,i3)')" BEST COMBINATION ",best
-!     write(*,'(a,1000g25.15)')" Best tolerances: ",xtol,ftol,gtol,lmepsfcn(best)
-!     write(*,'(2(a,g25.15))')" ==> Fitness*dof = ",lmfitness(best,1),&
-!         &" Fitness = ",lmfitness(best,2)
-!     write(*,'(a)')""
-!     write(*,'(1x,a,a25,a25)')"Element","Best","Sigma"
-!     do ieps=1,n
-!       write(*,'(1x,a6,2g25.15)')trim(parid(ieps)),x(ieps),sig(ieps)
-!     end do
-!     write(*,'(a)')" /-------------------------------------------------&
-!         &------------------------------------------------------------\ "
-!     write(*,'(a)')""
-!     flush(6)
-    
     deallocate(inpar)
     if(allocated(lmepsfcn)) deallocate(lmepsfcn)
     deallocate(wallpar,wpar,wfvec)

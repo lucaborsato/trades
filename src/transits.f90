@@ -1,7 +1,7 @@
 module transits
   use constants
   use parameters
-  use celestial_mechanics,only:rsky,barycenter,fgfunctions
+  use celestial_mechanics,only:rsky,barycenter,fgfunctions,eleMD
   use lin_fit,only:linfit
   use convert_type,only:string
   implicit none
@@ -47,6 +47,36 @@ module transits
   end subroutine set_ephem
   ! ------------------------------------------------------------------ !
 
+  !
+  ! Impact parameter of the transit
+  !
+  function impact_parameter(Rs,sma_p,inc_p,ecc_p,arg_p,R_p) result(b)
+    real(dp)::b
+    real(dp),intent(in)::Rs,sma_p,inc_p
+    real(dp),optional,intent(in)::ecc_p,arg_p,R_p
+    
+    real(dp)::Rsum,aRs,rhoc
+    
+    Rsum=Rs*RsunAU
+    if(present(R_p))Rsum=(Rs+R_p)*RsunAU
+    aRs=sma_p/Rsum
+    
+    if(present(ecc_p).and.present(arg_p))then
+    
+      rhoc=(one-(ecc_p*ecc_p)) / (one+ecc_p*sin(arg_p*deg2rad))
+    
+    else
+    
+      rhoc=one
+      
+    end if
+
+    b = aRs*rhoc*cos(inc_p*deg2rad)
+    
+    return
+  end function impact_parameter
+  
+  
   ! move the complete state vectors (for all the bodies) of time = dt
   ! using fgfunctions subroutine
   subroutine advancefg(m,rw,dt,Hc)
@@ -54,6 +84,8 @@ module transits
     real(dp),dimension(:),intent(inout)::rw
     real(dp),intent(in)::dt
     logical,intent(inout)::Hc
+!     logical::Hc
+    
     integer::j1,j2,i1,i6
     real(dp)::mu
 
@@ -78,13 +110,15 @@ module transits
     real(dp),intent(inout)::A,B,dt
     real(dp),dimension(:),intent(inout)::rw
     logical,intent(inout)::Hc
+!     logical::Hc
+    
     !real(dp),dimension(:),allocatable::rin,drdt,err
     !real(dp),parameter::half=0.5_dp
     integer::i1,i2,i4,i5
     real(dp)::C
 
     call advancefg(m,rw,dt,Hc) ! let's use the integrator to get closer to the transit
-    if(Hc) return
+    if(.not.Hc) return
     !allocate(rin(size(rw)),drdt(size(rw)),err(size(rw)))
     !rin=rw
     !call rkck_a(m,rin,drdt,dt,rw,err)
@@ -190,13 +224,15 @@ module transits
     real(dp),intent(inout)::A,B,dt
     real(dp),dimension(:),intent(inout)::rw
     logical,intent(inout)::Hc
+!     logical::Hc
+    
     !real(dp),dimension(:),allocatable::rin,drdt,err
     real(dp),parameter::half=0.5_dp
     integer::i1,i2,i4,i5
     real(dp)::C
 
     call advancefg(m,rw,dt,Hc)
-    if(Hc) return
+    if(.not.Hc) return
     !allocate(rin(size(rw)),drdt(size(rw)),err(size(rw)))
     !rin=rw
     !call rkck_a(m,rin,drdt,dt,rw,err)
@@ -228,12 +264,16 @@ module transits
     real(dp),intent(out)::tmidtra,lte
     real(dp),dimension(:),intent(inout)::ro
     logical,intent(inout)::Hc
+!     logical::Hc
+    
     real(dp),dimension(:),allocatable::rw,rwbar
     real(dp),dimension(6)::bar
     real(dp)::A,B,dt1,dt2
     integer::ix,iy,ivx,ivy
     integer::loop,many_iter
 
+    if(.not.Hc)return
+    
     ix=1+(itra-1)*6
     iy=2+(itra-1)*6
     ivx=4+(itra-1)*6
@@ -265,14 +305,14 @@ module transits
         ! continue with N-R
         dt1=dt2
         call advancefg(m,rw,dt1,Hc)
-        if(Hc) return
+        if(.not.Hc) return
         tmidtra=tmidtra+dt1
       else
         ! dt2 >= dt1 so use Bisection
         dt1=dt1*0.5_dp
         tmidtra=tmidtra+dt1
         call onetra_bis(itra,m,A,B,rw,dt1,Hc)
-        if(Hc) return
+        if(.not.Hc) return
       end if
       !tmidtra=tmidtra+dt1
     end do traloop
@@ -337,7 +377,8 @@ module transits
     tcont=zero
     tt=dt1
     rw=rtra
-    Hc=.false.
+    
+    Hc=.true.
 
     A=rsky(rtra(ix:iy))**2 - Rcheck
     B=A
@@ -353,10 +394,10 @@ module transits
       if(abs(dt2).le.abs(dt1))then
         dt1=dt2
         call advancefg(m,rw,dt1,Hc)
-        if(Hc) return          
+        if(.not.Hc) return          
       else
         call onecont_bis(itra,Rcheck,m,A,B,rw,dt1,Hc)
-        if(Hc) return
+        if(.not.Hc) return
       end if
       tt=tt+dt1
     end do contloop
@@ -414,31 +455,67 @@ module transits
     integer,dimension(:,:),intent(inout)::T0_stat
     real(dp),dimension(:,:),intent(inout)::T0_sim
     logical,intent(inout)::Hc
+!     logical::Hc ! removed intent(inout) to check
+    
     real(dp)::tmidtra,lte,r_sky,Rs,Rp,Rmin,Rmax
     real(dp),dimension(:),allocatable::rtra
     real(dp),dimension(4)::tcont
     integer::nTs,jtra,ix,iy
 
+    real(dp)::mu,P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p,b_itra
+    
     allocate(rtra(NBDIM))
     rtra=one
     call find_transit(itra,m,r1,r2,itime,hok,tmidtra,lte,rtra,Hc)
-    call Rbounds(itra,R,Rs,Rp,Rmin,Rmax)
-    jtra=(itra-1)*6
-    ix=1+jtra
-    iy=2+jtra
-    r_sky=rsky(rtra(ix:iy))
-    if(r_sky.gt.Rmax)then
+    
+    if(.not.Hc)then ! get out, if Hc == .false. is bad, so stop running
       deallocate(rtra)
-      return ! it is not transiting
+      return
+    
+    else
+    
+      ! compute impact parameter from orbital elements at the transit:
+      ! rtra -> kep. elem.
+      jtra=(itra-1)*6
+      mu=Giau*(m(1)+m(itra))
+      call eleMD(mu,rtra(1+jtra:6+jtra),P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p)
+      b_itra = abs(impact_parameter(R(1),sma_p,inc_p*rad2deg,ecc_p=ecc_p,arg_p=w_p*rad2deg))
+      
+      if((b_itra.lt.one).and.(.not.do_transit(itra)))then ! planet should not transit
+!         write(*,'(a,i2,5(a,f23.10),a,l2)')' FOUND for planet ',itra,&
+!           &' : i = ',inc_p*rad2deg,' a = ',sma_p,&
+!           &' e = ',ecc_p,' w = ',w_p*rad2deg,&
+!           &' ==> b = ',b_itra,&
+!           &' < 1 && do_transit is ',do_transit(itra)
+!         flush(6)
+        Hc=.false.
+        deallocate(rtra)
+        return
+      
+      else
+      
+        call Rbounds(itra,R,Rs,Rp,Rmin,Rmax)
+        
+        ix=1+jtra
+        iy=2+jtra
+        r_sky=rsky(rtra(ix:iy))
+        if(r_sky.gt.Rmax)then
+          deallocate(rtra)
+          return ! it is not transiting
+        end if
+        nTs=nT0(itra)
+
+        if(nTs.gt.0) call assign_T0(itra,nTs,epoT0obs(1:nTs,itra),tmidtra,T0_stat,T0_sim)
+
+    !     if(icont.eq.1) call find_contacts(itra,m,R,rtra,tmidtra,tcont)
+        if(durcheck.eq.1) call find_contacts(itra,m,R,rtra,tmidtra,tcont)
+        
+        
+        deallocate(rtra)
+    
+      end if
+      
     end if
-    nTs=nT0(itra)
-
-    if(nTs.gt.0) call assign_T0(itra,nTs,epoT0obs(1:nTs,itra),tmidtra,T0_stat,T0_sim)
-
-!     if(icont.eq.1) call find_contacts(itra,m,R,rtra,tmidtra,tcont)
-    if(durcheck.eq.1) call find_contacts(itra,m,R,rtra,tmidtra,tcont)
-
-    deallocate(rtra)
 
     return
   end subroutine check_T0
@@ -518,19 +595,58 @@ module transits
     real(dp),dimension(4)::tcont
     logical::Hc
     integer::jtra
-
-    Hc=.false.
+    
+    real(dp)::mu,P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p,b_itra
+    
+    Hc=.true.
     allocate(rtra(NBDIM))
     rtra=one
     call find_transit(itra,m,r1,r2,itime,hok,ttra,lte,rtra,Hc)
-    call Rbounds(itra,R,Rs,Rp,Rmin,Rmax)
-    jtra=(itra-1)*6
-    r_sky=rsky(rtra(1+jtra:2+jtra))
-    if(r_sky.gt.Rmax) then
-      deallocate(rtra)
-      return ! it is not transiting
+    
+    if(.not.Hc)then
+      ttra=zero
+      lte=zero
+      tcont=zero
+      rtra=zero
+      
+    else
+    
+      jtra=(itra-1)*6
+      mu=Giau*(m(1)+m(itra))
+      call eleMD(mu,rtra(1+jtra:6+jtra),P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p)
+      b_itra = abs(impact_parameter(R(1),sma_p,inc_p*rad2deg,ecc_p=ecc_p,arg_p=w_p*rad2deg))
+      
+      if((b_itra.lt.one).and.(.not.do_transit(itra)))then ! planet should not transit
+        write(*,'(a,i2,5(a,f23.10),a,l2)')' FOUND for planet ',itra,&
+          &' : i = ',inc_p*rad2deg,' a = ',sma_p,&
+          &' e = ',ecc_p,' w = ',w_p*rad2deg,&
+          &' ==> b = ',b_itra,&
+          &' < 1 && do_transit is ',do_transit(itra)
+        flush(6)
+        Hc=.false.
+        deallocate(rtra)
+        return
+      
+      else
+      
+        call Rbounds(itra,R,Rs,Rp,Rmin,Rmax)
+        r_sky=rsky(rtra(1+jtra:2+jtra))
+        if(r_sky.gt.Rmax) then ! it is not transiting
+          ttra=zero
+          lte=zero
+          tcont=zero
+          rtra=zero
+        
+        else
+        
+          call find_contacts(itra,m,R,rtra,ttra,tcont)
+
+        end if
+
+      end if
+            
     end if
-    call find_contacts(itra,m,R,rtra,ttra,tcont)
+    
     stat_tra(itra,pos)=1
     storetra(1,pos)=ttra
     storetra(2,pos)=lte
