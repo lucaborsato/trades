@@ -507,6 +507,7 @@ module grid_search
       parameters_grid(2)%input_values(1:2)=parameters_grid(2)%input_values(1:2)*Rjups
       if(parameters_grid(2)%step_type.eq.'ss') parameters_grid(2)%input_values(3)=parameters_grid(2)%input_values(3)*Rjups
       
+      
     else
 
       write(*,'(a,a,a)')" ERROR in grid_read: file ",&
@@ -585,14 +586,25 @@ module grid_search
   subroutine set_parameters_grid(parameters_grid)
     type (parameter_grid),dimension(:)::parameters_grid
     
+    integer::jpar,ipar
+    
+    ipar=(idpert-2)*8
     
     ! 1 == Mass
     parameters_grid(1)%name='m'//trim(string(idpert))
     call values_to_type_grid(parameters_grid(1))
+    if(parameters_grid(1)%n_steps.gt.1)then
+      par_min(ipar+3)=parameters_grid(1)%input_values(1)
+      par_max(ipar+3)=parameters_grid(1)%input_values(2)
+    end if
     
     ! 2 == Radius
     parameters_grid(2)%name='R'//trim(string(idpert))
     call values_to_type_grid(parameters_grid(2))
+    if(parameters_grid(2)%n_steps.gt.1)then
+      par_min(ipar+4)=parameters_grid(2)%input_values(1)
+      par_max(ipar+4)=parameters_grid(2)%input_values(2)
+    end if
     
     ! 3 == Period / 4 == semi-major axis [a]
     parameters_grid(3)%name='P'//trim(string(idpert))
@@ -601,14 +613,22 @@ module grid_search
     if(parameters_grid(3)%input_values(1).lt.9.e6_dp)then
       call values_to_type_grid(parameters_grid(3))
       call zero_default_grid(parameters_grid(4))
-    
+      if(parameters_grid(3)%n_steps.gt.1)then
+        par_min(ipar+5)=parameters_grid(3)%input_values(1)
+        par_max(ipar+5)=parameters_grid(3)%input_values(2)
+      end if
+      
     ! Pmin >= 9.e6_dp --> no Period ... check semi-major axis
     else
     
-      ! sma-min < 999. --> create semi-major axis grind and then keep unset period: n_steps = 1, step_type = 'xx'
+      ! sma-min < 999. --> create semi-major axis grid and then keep unset period: n_steps = 1, step_type = 'xx'
       if(parameters_grid(4)%input_values(1).lt.999._dp)then
         call values_to_type_grid(parameters_grid(4))
         call zero_default_grid(parameters_grid(3))
+        if(parameters_grid(4)%n_steps.gt.1)then
+          par_min(ipar+5)=period(MR_star(1,1),parameters_grid(1)%input_values(2),parameters_grid(4)%input_values(1))
+          par_max(ipar+5)=period(MR_star(1,1),parameters_grid(1)%input_values(1),parameters_grid(4)%input_values(2))
+        end if
       
       ! Pmin >= 9.e6_dp & sma-min >= 999.: STOP
       else
@@ -616,14 +636,22 @@ module grid_search
         stop
       end if
     end if
-      
+    
     ! 5 = Eccentricity
     parameters_grid(5)%name='e'//trim(string(idpert))
     call values_to_type_grid(parameters_grid(5))
+    if(parameters_grid(5)%n_steps.gt.1)then
+      par_min(ipar+6)=parameters_grid(5)%input_values(1)
+      par_max(ipar+6)=parameters_grid(5)%input_values(2)
+    end if
     
     ! 6 = omega / Argument of Pericenter / w
     parameters_grid(6)%name='w'//trim(string(idpert))
     call values_to_type_grid(parameters_grid(6))
+    if(parameters_grid(6)%n_steps.gt.1)then
+      par_min(ipar+7)=parameters_grid(6)%input_values(1)
+      par_max(ipar+7)=parameters_grid(6)%input_values(2)
+    end if
     
     ! 7 = Mean Anomaly / nu / 8 = Time pericenter / tau
     parameters_grid(7)%name='mA'//trim(string(idpert))
@@ -632,6 +660,10 @@ module grid_search
     if(parameters_grid(7)%input_values(1).lt.999._dp)then
       call values_to_type_grid(parameters_grid(7))
       call zero_default_grid(parameters_grid(8))
+      if(parameters_grid(6)%n_steps.gt.1)then
+        par_min(ipar+8)=parameters_grid(7)%input_values(1)
+        par_max(ipar+8)=parameters_grid(7)%input_values(2)
+      end if
     
     ! mAmin >= 999. --> create Time Pericenter grid, unset mA: n_steps = 1
     else
@@ -639,7 +671,10 @@ module grid_search
       if(parameters_grid(8)%input_values(1).lt.9.e8_dp)then
         call values_to_type_grid(parameters_grid(8))
         call zero_default_grid(parameters_grid(7))
-      
+        if(parameters_grid(8)%n_steps.gt.1)then
+          par_min(ipar+8)=tau2mA(parameters_grid(8)%input_values(1),tepoch,par_min(ipar+5))
+          par_max(ipar+8)=tau2mA(parameters_grid(8)%input_values(2),tepoch,par_max(ipar+5))
+        end if
       ! mAmin >= 999. & taumin >= 9.e8 : STOP
       else
         write(*,'(a,i3)')' WARNING: SET MEAN ANOMALY >= 999 AND TIME PERICENTER >= 9e8 FOR PLANET WITH ID = ',idpert
@@ -651,130 +686,37 @@ module grid_search
     ! 9 = Inclination
     parameters_grid(9)%name='i'//trim(string(idpert))
     call values_to_type_grid(parameters_grid(9))
-    
+    if(parameters_grid(9)%n_steps.gt.1)then
+      par_min(ipar+9)=parameters_grid(9)%input_values(1)
+      par_max(ipar+9)=parameters_grid(9)%input_values(2)
+    end if
+      
     ! 10 = Omega / Longitude of the ascending Node
     parameters_grid(10)%name='lN'//trim(string(idpert))
     call values_to_type_grid(parameters_grid(10))
+    if(parameters_grid(10)%n_steps.gt.1)then
+      par_min(ipar+10)=parameters_grid(10)%input_values(1)
+      par_max(ipar+10)=parameters_grid(10)%input_values(2)
+    end if
       
+    call set_minmax()
+    
+    write(*,'(a)')' SET PARAMTERS GRID'
+    write(*,'(a)')' min             max'
+    do jpar=3,10
+      write(*,'(a15,es23.16,1x,es23.16)')all_names_list(ipar+jpar),par_min(ipar+jpar),par_max(ipar+jpar)
+    end do
+    
+    write(*,'(a)')' fitmin             fitmax'
+    do jpar=1,nfit
+      write(*,'(a15,2(1x,es23.16))')parid(jpar),minpar(jpar),maxpar(jpar)
+    end do
+    write(*,*)
+    flush(6)
+    
     return
   end subroutine set_parameters_grid
   
-!   ! create the whole grid for the perturber
-!   subroutine build_grid(Mstar,parameters_grid,perturber_grid,fitness_grid,n_grid)
-!     real(dp),intent(in)::Mstar
-!     type (parameter_grid),dimension(:),intent(in)::parameters_grid
-!     integer,intent(out)::n_grid
-!     real(dp),dimension(:,:),allocatable,intent(out)::perturber_grid
-!     real(dp),dimension(:,:),allocatable,intent(out)::fitness_grid
-!     
-!     integer::i_1,i_2,i_3_4,i_5,i_6,i_7_8,i_9,i_10
-!     integer::n_3_4,sel_3_4,n_7_8,sel_7_8
-!     integer::cnt_grid
-!     
-!     n_grid=product(parameters_grid(:)%n_steps)
-!     allocate(perturber_grid(n_grid,10),fitness_grid(n_grid,2))
-!     fitness_grid=resmax ! resmax in 'parameters' module
-!     
-!     if(parameters_grid(3)%step_type.eq.'xx')then
-!       ! sma to period
-!       n_3_4 = parameters_grid(4)%n_steps
-!       sel_3_4=4
-!     else
-!       ! period to sma
-!       n_3_4 = parameters_grid(3)%n_steps
-!       sel_3_4=3
-!     end if
-!     
-!     if(parameters_grid(7)%step_type.eq.'xx')then
-!       ! mA to tau
-!       n_7_8 = parameters_grid(8)%n_steps
-!       sel_7_8=8
-!     else
-!       ! tau to mA
-!       n_7_8 = parameters_grid(7)%n_steps
-!       sel_7_8=7
-!     end if
-!     
-!      
-!     cnt_grid=0
-!     M_do: do i_1=1,parameters_grid(1)%n_steps
-!       R_do: do i_2=1,parameters_grid(2)%n_steps
-!         Pa_do: do i_3_4=1,n_3_4
-!           e_do: do i_5=1,parameters_grid(5)%n_steps
-!             w_do: do i_6=1,parameters_grid(6)%n_steps
-!               mAtau_do: do i_7_8=1,n_7_8
-!                 i_do: do i_9=1,parameters_grid(9)%n_steps
-!                   lN_do: do i_10=1,parameters_grid(10)%n_steps
-!                     cnt_grid=cnt_grid+1
-!                     ! 1 = Mass perturber
-!                     perturber_grid(cnt_grid,1)=parameters_grid(1)%grid_values(i_1)
-!                     ! 2 = Radius perturber
-!                     perturber_grid(cnt_grid,2)=parameters_grid(2)%grid_values(i_2)
-!                     
-!                     ! 3 = Period grid, calculates sma
-!                     if(sel_3_4.eq.3)then
-!                       ! Period perturber
-!                       perturber_grid(cnt_grid,3)=parameters_grid(3)%grid_values(i_3_4)
-!                       ! sma perturber
-!                       perturber_grid(cnt_grid,4)=semax(Mstar,&
-!                         &parameters_grid(1)%grid_values(i_1),&  ! Mass perturber
-!                         &parameters_grid(3)%grid_values(i_3_4)) ! Period perturber
-!                     
-!                     ! 4 = sma grid, calculates Period
-!                     else if(sel_3_4.eq.4)then
-!                       ! sma perturber
-!                       perturber_grid(cnt_grid,4)=parameters_grid(4)%grid_values(i_3_4)
-!                       ! Period perturber
-!                       perturber_grid(cnt_grid,3)=period(Mstar,&
-!                         &parameters_grid(1)%grid_values(i_1),&  ! Mass perturber
-!                         &parameters_grid(4)%grid_values(i_3_4)) ! sma perturber
-!       
-!                     end if
-!                     
-!                     ! 5 = Eccentricity perturber
-!                     perturber_grid(cnt_grid,5)=parameters_grid(5)%grid_values(i_5)
-!                     
-!                     ! 6 = Arg. Pericenter perturber
-!                     perturber_grid(cnt_grid,6)=parameters_grid(6)%grid_values(i_6)
-!                     
-! !                     ! 7 = Mean Anomaly perturber
-! !                     perturber_grid(cnt_grid,7)=parameters_grid(7)%grid_values(i_7)
-! 
-!                     ! 7 = Mean Anomaly perturber, calculates time pericentre
-!                     if(sel_7_8.eq.7)then
-!                       ! mA perturber
-!                       perturber_grid(cnt_grid,7)=parameters_grid(7)%grid_values(i_7_8)
-!                       ! tau perturber
-!                       perturber_grid(cnt_grid,8)=mA2tau(parameters_grid(7)%grid_values(i_7_8),& ! mA
-!                         &tepoch,& ! ref. time
-!                         &parameters_grid(2)%grid_values(i_2)) ! period
-!                         
-!                     ! 8 = time pericentre perturber, calculates Mean Anomaly
-!                     else if(sel_7_8.eq.8)then
-!                       perturber_grid(cnt_grid,8)=parameters_grid(8)%grid_values(i_7_8)
-!                       perturber_grid(cnt_grid,7)=tau2mA(parameters_grid(8)%grid_values(i_7_8),& ! tau
-!                       &tepoch,& ! ref. time
-!                       &parameters_grid(2)%grid_values(i_2)) ! period
-!                     
-!                     end if
-!                     
-!                     ! 9 = Inclination perturber
-!                     perturber_grid(cnt_grid,9)=parameters_grid(9)%grid_values(i_9)
-!                     
-!                     ! 10 = Long. Node perturber
-!                     perturber_grid(cnt_grid,10)=parameters_grid(10)%grid_values(i_10)
-!                     
-!                   end do lN_do
-!                 end do i_do
-!               end do mAtau_do
-!             end do w_do
-!           end do e_do
-!         end do Pa_do
-!       end do R_do
-!     end do M_do
-!     
-!     return
-!   end subroutine build_grid
   
   ! create the whole grid for the perturber
   subroutine build_grid(Mstar,parameters_grid,perturber_grid,fitness_grid,n_grid)

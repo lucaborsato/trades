@@ -366,7 +366,7 @@ module driver
     if(allocated(fitted_grid_summary)) deallocate(fitted_grid_summary)
   
     return
-  end subroutine
+  end subroutine run_grid
   
   
   
