@@ -1412,22 +1412,24 @@ module init_trades
 !     call read_par(cpuid,m,R,P,a,e,w,mA,inc,lN)
     call read_fullpar(cpuid,m,R,P,a,e,w,mA,inc,lN,system_parameters)
     
-    write(*,'(a)')'Initial-input Keplerian orbital elements'
-    write(*,'(a, 1000(1x,es23.16))')"m   [Msun] = ", m(1),m(2:)
-    write(*,'(a, 1000(1x,es23.16))')"R   [Rsun] = ", R
-    write(*,'(a, 1000(1x,es23.16))')"P   [days] = ", P
-    write(*,'(a, 1000(1x,es23.16))')"a   [au]   = ", a
-    write(*,'(a, 1000(1x,es23.16))')"e          = ", e
-    write(*,'(a, 1000(1x,es23.16))')"w   [deg]  = ", w
-    write(*,'(a, 1000(1x,es23.16))')"mA  [deg]  = ", mA
-    write(*,'(a, 1000(1x,es23.16))')"inc [deg]  = ", inc
-    write(*,'(a, 1000(1x,es23.16))')"lN  [deg]  = ", lN
-    write(*,'(a)')''
-    
-    write(*,'(a23,2(1x,a23))')'Parameters','( par_min ,','par_max )'
-    do j=1,npar
-      write(*,'(es23.16,2(a,es23.16),a)')system_parameters(j),' ( ',par_min(j),' , ',par_max(j),' )'
-    end do
+    if(progtype.gt.1)then
+      write(*,'(a)')'Initial-input Keplerian orbital elements'
+      write(*,'(a, 1000(1x,es23.16))')"m   [Msun] = ", m(1),m(2:)
+      write(*,'(a, 1000(1x,es23.16))')"R   [Rsun] = ", R
+      write(*,'(a, 1000(1x,es23.16))')"P   [days] = ", P
+      write(*,'(a, 1000(1x,es23.16))')"a   [au]   = ", a
+      write(*,'(a, 1000(1x,es23.16))')"e          = ", e
+      write(*,'(a, 1000(1x,es23.16))')"w   [deg]  = ", w
+      write(*,'(a, 1000(1x,es23.16))')"mA  [deg]  = ", mA
+      write(*,'(a, 1000(1x,es23.16))')"inc [deg]  = ", inc
+      write(*,'(a, 1000(1x,es23.16))')"lN  [deg]  = ", lN
+      write(*,'(a)')''
+      
+      write(*,'(a23,2(1x,a23))')'Parameters','( par_min ,','par_max )'
+      do j=1,npar
+        write(*,'(es23.16,2(a,es23.16),a)')system_parameters(j),' ( ',par_min(j),' , ',par_max(j),' )'
+      end do
+    end if
     
     nGlobal=1
 !     if(progtype.ge.3)then

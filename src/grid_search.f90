@@ -701,13 +701,13 @@ module grid_search
       
     call set_minmax()
     
-    write(*,'(a)')' SET PARAMTERS GRID'
-    write(*,'(a)')' min             max'
+    write(*,'(a)')' SET PARAMETERS GRID'
+    write(*,'(a15,2(1x,a23))')'name','min','max'
     do jpar=3,10
-      write(*,'(a15,es23.16,1x,es23.16)')all_names_list(ipar+jpar),par_min(ipar+jpar),par_max(ipar+jpar)
+      write(*,'(a15,2(1x,es23.16))')all_names_list(ipar+jpar),par_min(ipar+jpar),par_max(ipar+jpar)
     end do
     
-    write(*,'(a)')' fitmin             fitmax'
+    write(*,'(a15,2(1x,a23))')'name','fitmin','fitmax'
     do jpar=1,nfit
       write(*,'(a15,2(1x,es23.16))')parid(jpar),minpar(jpar),maxpar(jpar)
     end do

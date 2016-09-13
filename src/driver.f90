@@ -151,35 +151,7 @@ module driver
     
     return
   end subroutine run_bootstrap
-  
-  ! subroutine needed to update the all_parameters from the fitted fit_parameters
-  subroutine update_parameters_fit2all(fit_parameters,all_parameters)
-    real(dp),dimension(:),intent(in)::fit_parameters
-    real(dp),dimension(:)::all_parameters
-    
-    real(dp)::ecosw,esinw
-    integer::i_par,i_fit
-    
-    i_fit=0
-    do i_par=1,npar
-      if(tofit(i_par).eq.1)then
-        i_fit=i_fit+1
-        if(id(i_fit).eq.6.and.id(i_fit+1).eq.7)then
-          ecosw = fit_parameters(i_fit)
-          esinw = fit_parameters(i_fit+1)
-          all_parameters(i_par)=sqrt(ecosw*ecosw + esinw*esinw)
-          all_parameters(i_par+1)=mod((atan2(esinw,ecosw)*rad2deg)+360._dp,360._dp)
-        else if(id(i_fit-1).eq.6.and.id(i_fit).eq.7)then
-          cycle
-        else
-          all_parameters(i_par)=fit_parameters(i_fit)
-        end if
-      end if
-    end do
-  
-    return
-  end subroutine update_parameters_fit2all
-  
+   
   ! init and run grid search
   subroutine run_grid(all_parameters)
     !$ use omp_lib
@@ -301,7 +273,6 @@ module driver
 !       flush(6)
       
       ! 4. save cpu_all_parameters and fitness to file, write summary
-      ! TODO save cpu_all_parameters
       call write_summary_nosigma(cpuid,sim_id,0,cpu_all_parameters,cpu_fit_parameters,fitness)
       flush(6)
       

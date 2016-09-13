@@ -361,7 +361,7 @@ module parameters_conversion
     
     return
   end subroutine init_param
-  
+   
   ! from keplerian orbital elements to the parameters needed by L-M
   ! calls some previous subroutines
   subroutine set_par(m,R,P,a,e,w,mA,inc,lN,allpar,par)
@@ -491,7 +491,8 @@ module parameters_conversion
 
       ! check if fit_parameters are within boundaries
       if(fit_parameters(j).lt.minpar(j).or.fit_parameters(j).gt.maxpar(j))then
-        write(*,'(i3, F20.10, a, F20.10, a, F20.10)')j,fit_parameters(j),' < ',minpar(j), ' or > ',maxpar(j)
+        if(fit_parameters(j).lt.minpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' < ',minpar(j)
+        if(fit_parameters(j).gt.maxpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' > ',maxpar(j)
         check=.false.
         return
       end if
@@ -630,7 +631,49 @@ module parameters_conversion
   end subroutine convert_parameters
   ! ------------------------------------------------------------------ !
   
+  ! subroutine needed to update the all_parameters from the fitted fit_parameters
+  subroutine update_parameters_fit2all(fit_parameters,all_parameters)
+    real(dp),dimension(:),intent(in)::fit_parameters
+    real(dp),dimension(:),intent(inout)::all_parameters
+    
+    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
+    real(dp),dimension(:),allocatable::all_updating
+    logical::check
+    
+    check=.true.
+    allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB))
+    call par2kel_fit(all_parameters,fit_parameters,m,R,P,a,e,w,mA,inc,lN,check)
+    call set_all_param(m,R,P,e,w,mA,inc,lN,all_updating)
+    all_parameters=all_updating
+    deallocate(all_updating,m,R,P,a,e,w,mA,inc,lN)
+    
+    
+!     real(dp)::ecosw,esinw
+!     integer::i_par,i_fit
+!     
+!     !! WARNING:
+!     !! Take into account fit of lambda and icoslN, isinlN ...
+!     i_fit=0
+!     do i_par=1,npar
+!       if(tofit(i_par).eq.1)then
+!         i_fit=i_fit+1
+!         if(id(i_fit).eq.6.and.id(i_fit+1).eq.7)then
+!           ecosw = fit_parameters(i_fit)
+!           esinw = fit_parameters(i_fit+1)
+!           all_parameters(i_par)=sqrt(ecosw*ecosw + esinw*esinw)
+!           all_parameters(i_par+1)=mod((atan2(esinw,ecosw)*rad2deg)+360._dp,360._dp)
+!         else if(id(i_fit-1).eq.6.and.id(i_fit).eq.7)then
+!           cycle
+!         else
+!           all_parameters(i_par)=fit_parameters(i_fit)
+!         end if
+!       end if
+!     end do
   
+  
+  
+    return
+  end subroutine update_parameters_fit2all
   
   ! function for pso/pik to initialize properly the first-generation population
   function check_only_boundaries(all_parameters,fit_parameters) result(check)

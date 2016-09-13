@@ -1073,12 +1073,12 @@ module ode_run
 
     
     write(*,*)
-    write(*,'(a)')"parid par (min , max) allpar(id)"
+    write(*,'(a12,4(1x,a25))')'parid','value','min','max','allpar(id)'
     do i_par=1,nfit
-      write(*,'(a12,4(f25.15,1x))')parid(i_par),par(i_par),minpar(i_par),maxpar(i_par),allpar(idall(i_par))
+      write(*,'(a12,10(1x,f25.15))')parid(i_par),par(i_par),minpar(i_par),maxpar(i_par),allpar(idall(i_par))
     end do
     write(*,*)
-    write(*,'(a12,1000(f25.15,1x))')"  m = ",m(1),m(2:)
+    write(*,'(a12,1000(f25.15,1x))')"  m = ",m
     write(*,'(a12,1000(f25.15,1x))')"  P = ",P
     write(*,'(a12,1000(f25.15,1x))')"  a = ",a
     write(*,'(a12,1000(f25.15,1x))')"  e = ",e
@@ -1155,7 +1155,7 @@ module ode_run
 
     write(*,*)
     if(.not.Hc) then
-      write(*,'(a,l2,a)')' flag Hc = ',Hc,' : BAD ==> THERE IS A PROBLEM DURING INTEGRATION'
+      write(*,'(a,l2,a)')' flag Hc = ',Hc,' : BAD ==> PROBLEM DURING INTEGRATION'
     else
       write(*,'(a,l2,a)')' flag Hc = ',Hc,' : OK  ==> NO PROBLEM DURING INTEGRATION'
     end if
