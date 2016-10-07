@@ -427,7 +427,8 @@ module Levenberg_Marquardt
     allocate(fjac(m,n))
     allocate(wdiag(n),wsig(n))
 
-    !$omp parallel do default(private) &
+    !$omp parallel do schedule(DYNAMIC,1)&
+    !$omp& default(private) &
     !$omp& shared(cpuid,allpar,m,n,x,lmepsfcn,xtol,ftol,gtol,maxfev,&
     !$omp& nprint,lmfitness,dof,lmpar,lmfvec,lmdiag,lmsig,lmiwa,lmstat,&
     !$omp& infos)
@@ -651,7 +652,8 @@ module Levenberg_Marquardt
 !     write(*,'(a)')" READY TO RUN LM FOR EACH EPSFCN VALUE"
 !     write(*,'(a)')""
 
-    !$omp parallel do default(private) &
+    !$omp parallel do schedule(DYNAMIC,1) &
+    !$omp& default(private) &
     !$omp& shared(allpar,m,n,dof,x,lmepsfcn,xtol,ftol,gtol,maxfev,&
     !$omp& nprint,lmfitness,lmpar,lmfvec,lmdiag,lmsig,lmiwa,lmstat,&
     !$omp& infos) &

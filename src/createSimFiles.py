@@ -102,6 +102,10 @@ def createARG(fpath):
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
   print line
+  
+  line = "# oc_fit: define if the program has to fit the O-C_obs(sim) = T0_obs(sim)-T0_lin,obs(sim), instead of T0_obs - T0_sim. By default it is set to .false., T0_obs - T0_sim is used.\noc_fit = F"
+  ofarg.write(line + "\n")
+  print line
 
   linel = "durcheck = 0" # T_0 fit, duration fit
   liner = "# 0/1=no/yes duration fit"
@@ -158,6 +162,11 @@ def createARG(fpath):
   line = "# secondary_parameters: define if the program has to check only boundarie for derived parameters (1) or if it has also to fix values due to derived parameters (2) or do nothing (0) with derived parameters.\n# Default secondary_parameters = 0.\nsecondary_parameters = 0"
   ofarg.write(line + "\n")
   print line
+  
+  line = "# do_hill_check: define if the program has to check the Mutual Hill Radius between consecutive pairs of planets or not. Default do_hill_check = False. Provide: y or Y or yes or Yes or True or true, otherwise set to .false.\ndo_hill_check = F"
+  ofarg.write(line + "\n")
+  print line
+  
   ofarg.close()
 
 # CREATES bodies.lst file

@@ -430,7 +430,6 @@ module parameters_conversion
     do cnt=2,NB
       j1=3+((cnt-2)*8) ! first parameter id == 3 <-> Mass body 2, ..., 10 <-> lN body 2, 11 <-> Mass body 3, ...
       
-
       temp_kel=atemp(j1:j1+7)
       
       if(tofit(j1).eq.1) temp_kel(1)=atemp(j1)*MR_star(1,1) ! mp/Ms to mp
@@ -443,6 +442,12 @@ module parameters_conversion
         end if
         temp_kel(4)=sqrt(temp2)
         temp_kel(5)=mod(rad2deg*atan2(atemp(j1+4),atemp(j1+3))+360._dp,360._dp)
+        if(temp_kel(4).le.TOLERANCE) temp_kel(5)=90._dp
+        if(abs(temp_kel(4)-atemp(j1+3)).le.TOLERANCE)then
+          if(abs(atemp(j1+4)).gt.TOLERANCE) checkpar=.false.
+        else if(abs(temp_kel(4)-atemp(j1+4)).le.TOLERANCE)then
+          if(abs(atemp(j1+3)).gt.TOLERANCE) checkpar=.false.
+        end if
       end if
       
       if(tofit(j1+6).eq.1)then !inc fit
@@ -471,8 +476,6 @@ module parameters_conversion
       
     end do
     
-    
-    
     deallocate(atemp)
 
     return
@@ -491,8 +494,8 @@ module parameters_conversion
 
       ! check if fit_parameters are within boundaries
       if(fit_parameters(j).lt.minpar(j).or.fit_parameters(j).gt.maxpar(j))then
-        if(fit_parameters(j).lt.minpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' < ',minpar(j)
-        if(fit_parameters(j).gt.maxpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' > ',maxpar(j)
+!         if(fit_parameters(j).lt.minpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' < ',minpar(j)
+!         if(fit_parameters(j).gt.maxpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' > ',maxpar(j)
         check=.false.
         return
       end if
@@ -646,32 +649,7 @@ module parameters_conversion
     call set_all_param(m,R,P,e,w,mA,inc,lN,all_updating)
     all_parameters=all_updating
     deallocate(all_updating,m,R,P,a,e,w,mA,inc,lN)
-    
-    
-!     real(dp)::ecosw,esinw
-!     integer::i_par,i_fit
-!     
-!     !! WARNING:
-!     !! Take into account fit of lambda and icoslN, isinlN ...
-!     i_fit=0
-!     do i_par=1,npar
-!       if(tofit(i_par).eq.1)then
-!         i_fit=i_fit+1
-!         if(id(i_fit).eq.6.and.id(i_fit+1).eq.7)then
-!           ecosw = fit_parameters(i_fit)
-!           esinw = fit_parameters(i_fit+1)
-!           all_parameters(i_par)=sqrt(ecosw*ecosw + esinw*esinw)
-!           all_parameters(i_par+1)=mod((atan2(esinw,ecosw)*rad2deg)+360._dp,360._dp)
-!         else if(id(i_fit-1).eq.6.and.id(i_fit).eq.7)then
-!           cycle
-!         else
-!           all_parameters(i_par)=fit_parameters(i_fit)
-!         end if
-!       end if
-!     end do
-  
-  
-  
+
     return
   end subroutine update_parameters_fit2all
   

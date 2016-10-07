@@ -139,51 +139,6 @@ module init_trades
   end subroutine tofit_init
   ! ------------------------------------------------------------------ !
 
-  ! ------------------------------------------------------------------ !
-  ! IT READS ARGUMENT/OPTION FOR THE PROGRAM FROM arg.in FILE
-!   subroutine read_arg(cpuid)
-!     integer,intent(in)::cpuid
-!     integer::uread
-!     logical::fstat
-! 
-!     inquire(file=trim(path)//"arg.in",exist=fstat)
-!     if(fstat)then
-!       uread=get_unit(cpuid)
-!       open(uread,file=trim(path)//"arg.in",status='OLD')
-!       read(uread,*) progtype, nboot !progtype=define if grid search, LM, PIKAIA, or PSO; boot = <0/>0: no/yes bootstrap
-!       read(uread,*) tstart !tstart=timestart [d]
-!       read(uread,*) tepoch !epoch=epoch [d]
-!       read(uread,*) tint !tint=duration of integration [d]
-!       read(uread,*) step_0 !step_0=provided first step guess[d]
-!       read(uread,*) wrttime !wrttime=write time [d]
-!       read(uread,*) NB !NB=number of bodies
-!       read(uread,*) idtra,icont !idtra=transiting body [d], icont=0/1:no/yes compute contact times
-!       read(uread,*) tol_int !tol=tolerance of the integration
-!       read(uread,*) odetype, idode !type of integration: fixed[f] or variable[v], 1=rkck,2=radau15,3=rkdop8(7) ! only for backward compatibility
-!       read(uread,*) fittype ! fit type: a: keplerian elements; b: k=ecosw, h=esinw; c: ks=sqrt(e)cosw, hs=sqrt(e)sinw
-!       read(uread,*) wrtorb !wrtorb=write orbit condition: 1[write], 0[do not write]
-!       read(uread,*) wrtconst !wrtconst=write constants condition: 1[write], 0[do not write]
-!       read(uread,*) wrtel !wrtel=write orbital elements condition: 1[write], 0[do not write]
-!       read(uread,*) rvcheck !rvcheck=check of Radial Velocities condition: 1[check, read from obsRV.dat], 0[do not check]
-!       read(uread,*) idpert,lmon !idpert=id of the perturber, lmon=0[no LM in grid,GA,PSO] 1[yes LM in grid,GA,PSO]
-!       close(uread)
-!     else
-!       write(*,'(a,a,a)')" CANNOT FIND ARGUMENT FILE ",trim(path),"arg.in"
-!       write(*,'(a,a,a)')""
-!       stop
-!     end if
-!     ! bootstrap: nboot <= 0 ==> no bootstrap
-!     !            nboot ]0,100] ==> yes bootstrap with 100 iterations
-!     !            nboot > 100 ==> yes bootstrap with nboot iterations
-!     if((nboot.gt.0).and.(nboot.lt.100))then
-!       nboot = 100
-!     else if(nboot.le.0)then
-!       nboot = 0
-!     end if
-! 
-!     return
-!   end subroutine read_arg
-
   
   ! ------------------------------------------------------------------ !
   ! IT READS ARGUMENT/OPTION FOR THE PROGRAM FROM arg.in FILE
@@ -192,7 +147,10 @@ module init_trades
     integer::uread
     logical::fstat
     character(512)::line
-    integer::idx,idh,istat
+    integer::idx,idh,istat,it
+    character(1)::hill_temp
+    character(1),dimension(4)::list_true=(/'y', 'Y', 't', 'T'/)
+    
     
     inquire(file=trim(path)//"arg.in",exist=fstat)
     if(fstat)then
@@ -207,6 +165,7 @@ module init_trades
             idh=index(line,"#")
             if(idh.eq.0) idh=len(trim(line))+1
             idx=index(line,"=")
+            
             if(idx.ne.0)then
               if (line(1:idx-1).eq.'progtype')then
                 read(line(idx+1:idh),*) progtype
@@ -250,8 +209,20 @@ module init_trades
                 k_chi2wr = one - k_chi2r
               else if(line(1:idx-1).eq.'secondary_parameters')then
                 read(line(idx+1:idh),*) secondary_parameters
+              else if(line(1:idx-1).eq.'do_hill_check')then
+                read(line(idx+1:idh),*) hill_temp
+                do it=1,4
+                  if(hill_temp.eq.list_true(it))then
+                    do_hill_check=.true.
+                    exit
+                  end if
+                end do
+              else if(line(1:idx-1).eq.'oc_fit')then
+                read(line(idx+1:idh),*) oc_fit
               end if
+              
             end if
+            
           end if
         end if
       end do reading
@@ -387,24 +358,6 @@ module init_trades
     return
   end subroutine read_lm_opt
 
-!   ! given the id of the parameters to fit it creates a proper string
-!   subroutine set_parid_list()
-!     integer::i
-! 
-!     paridlist=""
-!     sig_paridlist=""
-!     do i=1,nfit
-!       paridlist=trim(paridlist)//" "//trim(adjustl(parid(i)))
-!       sig_paridlist=trim(sig_paridlist)//" sig_"//trim(adjustl(parid(i)))
-!     end do
-! !     write(*,'(a)')" ID Parameters to fit:"
-! !     write(*,'(a)')trim(paridlist)
-! !     write(*,'(a)')trim(sig_paridlist)
-! !     write(*,*)
-! 
-!     return
-!   end subroutine set_parid_list
-  
   ! allocation and zero initialization of Keplerian elements
   subroutine init_zero_par(m,R,P,a,e,w,mA,inc,lN,tau)
     real(dp),dimension(:),allocatable,intent(out)::m,R,P,a,e,w,mA,inc,lN
@@ -541,19 +494,6 @@ module init_trades
         read(unit,*) a(j)
         read(unit,*) e(j)
         read(unit,*) w(j)
-!         read(unit,*) temp1
-!         read(unit,*) temp2
-!         if(progtype.ne.2)then
-!           e(j)=temp1
-!           w(j)=temp2
-!         else
-!           e(j)=sqrt(temp1*temp1+temp2*temp2)
-!           w(j)=mod((atan2(temp2,temp1)*rad2deg+360._dp),360._dp)
-! !           if(progtype.lt.2.and.lmon.eq.0)then
-! !             e(j)=temp1
-! !             w(j)=temp2
-! !           end if
-!         end if
         read(unit,*) mA(j)
         read(unit,*) tau(j)
         read(unit,*) i(j)
@@ -588,19 +528,6 @@ module init_trades
           end if
           
         end if
-        
-        
-!         write(*,*)'READ - FIXED VALUES:'
-!         write(*,*) m(j)
-!         write(*,*) R(j)
-!         write(*,*) P(j)
-!         write(*,*) a(j)
-!         write(*,*) e(j)
-!         write(*,*) w(j)
-!         write(*,*) tau(j)
-!         write(*,*) i(j)
-!         write(*,*) lN(j)
-!         write(*,*)
         
       end do
       
@@ -777,6 +704,7 @@ module init_trades
     return
   end subroutine read_par_boundaries
 
+  ! USING THIS SUBROUTINE
   ! subroutine that reads orbital elements from the files in bodies.lst
   ! but always assuming:
   ! col 1 == orbital parameters / initial guess

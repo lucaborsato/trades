@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.8.0 by Luca Borsato - 2016**    
+**`TRADES` v2.9.0 by Luca Borsato - 2016**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -408,6 +408,15 @@ The `ancillary.py` file has different functions to write and read output files f
 
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
+
+#### `TRADES 2.9.0`
+
+Introduced flag in `arg.in` file: `oc_fit`.    
+`oc_fit = F` is false, it means that the difference between the observed transit times (`T0_obs`) and the simulated (`T0_sim`) is used to compute the `$\chi^2$`;    
+`oc_fit = T` is true, it means that `$\chi^2$` is computed from the amplitude of the TTV, based on the O-C for the observed (`OC_obs`) and simulated data (`OC_sim`):    
+  `OC_obs = T0_obs - T0_lin,obs`, where `T0_lin,obs` is the linear ephemeris of the observed data and    
+  `OC_sim = T0_sim - T0_lin,sim`, where `T0_lin,sim` is the linear ephemeris of the simulated transit times.    
+
 
 #### `TRADES 2.8.0`
 

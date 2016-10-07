@@ -748,9 +748,9 @@ module output_files
   ! ---
   
   ! write Fitness/Chi2r/Chi2wr to screen and file
-  subroutine write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,fitness,fit_scale,gls_scale)
+  subroutine write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale)
     integer,intent(in)::cpuid,isim,wrtid
-    real(dp),intent(in)::chi2r_RV,chi2r_T0,chi2wr_RV,chi2wr_T0,fitness
+    real(dp),intent(in)::chi2r_RV,chi2r_T0,chi2wr_RV,chi2wr_T0,chi2r_oc,fitness
     real(dp),optional,intent(in)::fit_scale,gls_scale
     real(dp)::chi2r,chi2wr,bic
     character(512)::summary_file
@@ -787,6 +787,7 @@ module output_files
       write(*,'(a,es23.16)')" Chi2r     = ",chi2r
       write(*,'(a,es23.16)')" Chi2r_RV  = ",chi2r_RV
       write(*,'(a,es23.16)')" Chi2r_T0  = ",chi2r_T0
+      write(*,'(a,es23.16)')" Chi2r_oc  = ",chi2r_oc
       write(*,'(a,es23.16)')" k_chi2wr  = ",k_chi2wr
       write(*,'(a,es23.16)')" Chi2wr    = ",chi2wr
       write(*,'(a,es23.16)')" Chi2wr_RV = ",chi2wr_RV
@@ -810,6 +811,7 @@ module output_files
       write(uwrt,'(a,es23.16)')" Chi2r     = ",chi2r
       write(uwrt,'(a,es23.16)')" Chi2r_RV  = ",chi2r_RV
       write(uwrt,'(a,es23.16)')" Chi2r_T0  = ",chi2r_T0
+      write(uwrt,'(a,es23.16)')" Chi2r_oc  = ",chi2r_oc
       write(uwrt,'(a,es23.16)')" k_chi2wr  = ",k_chi2wr
       write(uwrt,'(a,es23.16)')" Chi2wr    = ",chi2wr
       write(uwrt,'(a,es23.16)')" Chi2wr_RV = ",chi2wr_RV

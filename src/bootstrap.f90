@@ -35,7 +35,7 @@ module bootstrap
 
     real(dp),dimension(:,:),allocatable::percentile
     integer,parameter::nperc=7
-    integer::iboot,inb,cpu
+    integer::iboot,inb,cpu,chunk
 
     allocate(resw(ndata))
     allocate(b_par(nfit),b_allpar(npar),diag(nfit),sig(nfit),iwa(nfit))
@@ -75,7 +75,11 @@ module bootstrap
     
     !2.  run nboot iterations
 
-    !$omp parallel do default(private)&
+    chunk=1
+!     !$ chunk=int(0.5_dp*(nboot/omp_get_num_threads()))
+
+    !$omp parallel do schedule(DYNAMIC,chunk)&
+    !$omp& default(private)&
     !$omp& shared(allpar, parok, ndata, nfit, eT0obs, eRVobs, storeboot,&
     !$omp& scale_errorbar, nboot, RVok, T0ok, NB, nRV, nT0, nTs,&
     !$omp& Ms_boot, Rs_boot)

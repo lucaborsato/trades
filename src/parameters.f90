@@ -15,8 +15,9 @@ module parameters
     &step_0=1.e-3_dp,wrttime=0.04167_dp,tol_int=1.e-13_dp
   ! for Bootstap
   integer::nboot=0
-  logical::bootstrap_scaling=.false.
+  logical::bootstrap_scaling=.false.,do_hill_check=.false.
   ! FITNESS PARAMETERS
+  logical::oc_fit=.false.
   real(dp)::k_chi2r = one, k_chi2wr = zero
   real(dp)::k_a
   real(dp),dimension(:),allocatable::k_b

@@ -10,6 +10,7 @@ module ode_run
   use radial_velocities
   use gls_module,only:check_periodogram,check_periodogram_scale,check_and_write_periodogram
   use output_files
+  use statistics,only:mean
   implicit none
 
   contains
@@ -118,6 +119,29 @@ module ode_run
     return
   end subroutine setval_4
 
+  ! as setval but it accepts different arguments, i.e., gamma of RV, but for multiple set of RV
+  ! and it allow to fit T0res or OCres.
+  subroutine setval_5(RV_obs,RV_sim,e_RVobs,gamma,epoT0_obs,T0_obs,eT0_obs,T0_sim,resw)
+    real(dp),dimension(:),intent(in)::RV_obs,RV_sim,e_RVobs
+    real(dp),dimension(:,:),allocatable,intent(out)::gamma
+    integer,dimension(:,:),intent(in)::epoT0_obs
+    real(dp),dimension(:,:),intent(in)::T0_obs,eT0_obs,T0_sim
+    real(dp),dimension(:),intent(out)::resw
+    real(dp),dimension(:),allocatable::val
+
+    allocate(val(ndata))
+    call set_RV_resw(RV_obs,RV_sim,e_RVobs,gamma,val(1:nRV))
+    if(oc_fit)then
+      call set_oc_resw(epoT0_obs,T0_obs,eT0_obs,T0_sim,val(nRV+1:ndata))
+    else
+      call set_T0_resw(T0_obs,T0_sim,eT0_obs,val(nRV+1:ndata))
+    end if
+    call set_fitness(val,resw)
+    deallocate(val)
+    
+    return
+  end subroutine setval_5
+
   ! set only RV to the weighted residuals
   subroutine set_RV_resw(RV_obs,RV_sim,e_RVobs,gamma,resw)
     use statistics,only:wmean
@@ -172,6 +196,54 @@ module ode_run
     
     return
   end subroutine set_T0_resw
+  
+  ! compute linear ephemeris for both obs and sim
+  ! use O-Cobs/sim to compute residuals
+  subroutine set_oc_resw(epoT0_obs,T0_obs,eT0_obs,T0_sim,resw)
+    integer,dimension(:,:),intent(in)::epoT0_obs
+    real(dp),dimension(:,:),intent(in)::T0_obs,eT0_obs,T0_sim
+    real(dp),dimension(:),intent(out)::resw
+    
+    integer,dimension(:),allocatable::x
+    real(dp),dimension(:),allocatable::y,ey
+    real(dp)::Tref_sim,eTref_sim,Pref_sim,ePref_sim
+    
+    real(dp)::obs,sim,eobs
+    
+    integer::j,j1,a
+    
+    ! NB,nT0 are common variables
+    resw=zero
+    a=0
+    do j=2,NB
+      if(nT0(j).gt.0)then
+        
+        allocate(x(nT0(j)),y(nT0(j)),ey(nT0(j)))
+        x=epoT0_obs(1:nT0(j),j)
+        y=T0_sim(1:nT0(j),j)
+        ey=mean(eT0_obs(1:nT0(j),j))
+        Pref_sim=zero
+        ePref_sim=zero
+        Tref_sim=zero
+        eTref_sim=zero
+        call linfit(x,y,ey,Pref_sim,ePref_sim,Tref_sim,eTref_sim)
+        deallocate(x,y,ey)
+        
+        do j1=1,nT0(j)
+          a=a+1
+          obs=T0_obs(j1,j) - (Tephem(j)+epoT0_obs(j1,j)*Pephem(j))
+          sim=T0_sim(j1,j) - (Tref_sim+epoT0_obs(j1,j)*Pref_sim)
+          eobs=eT0_obs(j1,j)
+          resw(a)=(obs-sim)/eobs
+        end do
+        
+      end if
+      
+    end do
+    
+    return
+  end subroutine set_oc_resw
+
   
   subroutine set_fitness(val,resw)
     real(dp),dimension(:),intent(in)::val
@@ -282,7 +354,7 @@ module ode_run
 !     Hc=.true.
     
 !     Hc=Hillcheck(m,rin)
-    Hc=mutual_Hill_check(m,rin) !! WARNING: CHANGE Hc WITHIN mutual_Hill_check 
+    if(do_hill_check) Hc=mutual_Hill_check(m,rin)
 !     if(Hc) return
     if(.not.Hc) return
 
@@ -317,7 +389,7 @@ module ode_run
       call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err)
 
 !       Hc=Hillcheck(m,r2)
-      Hc=mutual_Hill_check(m,r2)
+      if(do_hill_check) Hc=mutual_Hill_check(m,r2)
 !       if(Hc) return
       if(.not.Hc) return
 
@@ -433,7 +505,7 @@ module ode_run
 !     Hc=.true.
     
 !     Hc=Hillcheck(m,rin)
-    Hc=mutual_Hill_check(m,rin)
+    if(do_hill_check) Hc=mutual_Hill_check(m,rin)
 !     write(*,*)' mutual_Hill_check = ',Hc
 !     if(Hc) return
     if(.not.Hc) return
@@ -522,7 +594,7 @@ module ode_run
       end if
 
 !       Hc=Hillcheck(m,r2)
-      Hc=mutual_Hill_check(m,r2)
+      if(do_hill_check) Hc=mutual_Hill_check(m,r2)
 !       if(Hc) write(*,'(a7,i6,a6,l)')'iter = ',j1,' Hc = ',Hc
 !       if(Hc) return
       if(.not.Hc) return
@@ -739,7 +811,8 @@ module ode_run
       !call setval(RVobs,RV_sim,T0obs,T0_sim,resw)
       !call setval_2(RVobs,RV_sim,eRVobs,T0obs,T0_sim,eT0obs,resw)
       !call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
-      call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
+!       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
+      call setval_5(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw)
       if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
 !       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
       if(.not.gls_check)then
@@ -867,7 +940,8 @@ module ode_run
     else
       !call setval(RVobs,RV_sim,T0obs,T0_sim,resw)
 !       call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
-      call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
+!       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
+      call setval_5(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw)
       if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
 !       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
 !       resw=resw*fit_scale*gls_scale
@@ -977,7 +1051,8 @@ module ode_run
     else
       !call setval(RV_obs,RV_sim,T0_obs,T0_sim,resw)
 !       call setval_3(RV_obs,RV_sim,eRVobs,gamma,T0_obs,T0_sim,eT0obs,resw)
-      call setval_4(RV_obs,RV_sim,eRVobs,gamma,T0_obs,T0_sim,eT0obs,resw)
+!       call setval_4(RV_obs,RV_sim,eRVobs,gamma,T0_obs,T0_sim,eT0obs,resw)
+      call setval_5(RV_obs,RV_sim,eRVobs,gamma,epoT0obs,T0_obs,eT0obs,T0_sim,resw)
       if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
 !       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
 !       resw=resw*fit_scale*gls_scale
@@ -1021,7 +1096,7 @@ module ode_run
     integer,dimension(:,:),allocatable::T0_stat
     logical::checkpar,gls_check
 
-    real(dp)::chi2r_RV,chi2r_T0,chi2wr_RV,chi2wr_T0,fitness,w_chi2r
+    real(dp)::chi2r_RV,chi2r_T0,chi2wr_RV,chi2wr_T0,chi2r_oc,fitness,w_chi2r
     real(dp),dimension(:),allocatable::resw_temp
     
     ! units and file names to store and write to files
@@ -1174,7 +1249,8 @@ module ode_run
       !call setval(RVobs,RV_sim,T0obs,T0_sim,resw)
       !call setval_2(RVobs,RV_sim,eRVobs,T0obs,T0_sim,eT0obs,resw)
 !       call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
-      call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
+!       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
+      call setval_5(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw)
       if(present(fit_scale))then
         if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
         write(*,*)
@@ -1228,14 +1304,18 @@ module ode_run
       chi2r_T0=sum(resw_temp*resw_temp)*inv_dof
       w_chi2r=real(ndata,dp)/real(sum(nT0),dp)
       chi2wr_T0=chi2r_T0*w_chi2r
+      
+      resw_temp=zero
+      call set_oc_resw(epoT0obs,T0obs,eT0obs,T0_sim,resw_temp)
+      chi2r_oc=sum(resw_temp*resw_temp)*inv_dof
       deallocate(resw_temp)
     end if
 
     fitness = sum(resw*resw)
     if(present(fit_scale))then
-      call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,fitness,fit_scale,gls_scale)
+      call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale)
     else
-      call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,fitness)
+      call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,chi2r_oc,fitness)
     end if
 
     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
