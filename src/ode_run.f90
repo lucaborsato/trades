@@ -130,7 +130,7 @@ module ode_run
     real(dp),dimension(:),allocatable::val
 
     allocate(val(ndata))
-    call set_RV_resw(RV_obs,RV_sim,e_RVobs,gamma,val(1:nRV))
+    if(nRV.gt.0) call set_RV_resw(RV_obs,RV_sim,e_RVobs,gamma,val(1:nRV))
     if(oc_fit)then
       call set_oc_resw(epoT0_obs,T0_obs,eT0_obs,T0_sim,val(nRV+1:ndata))
     else
@@ -231,8 +231,8 @@ module ode_run
         
         do j1=1,nT0(j)
           a=a+1
-          obs=T0_obs(j1,j) - (Tephem(j)+epoT0_obs(j1,j)*Pephem(j))
-          sim=T0_sim(j1,j) - (Tref_sim+epoT0_obs(j1,j)*Pref_sim)
+          obs=T0_obs(j1,j) - (Tephem(j)+ epoT0_obs(j1,j)*Pephem(j))
+          sim=T0_sim(j1,j) - (Tref_sim + epoT0_obs(j1,j)*Pref_sim )
           eobs=eT0_obs(j1,j)
           resw(a)=(obs-sim)/eobs
         end do
@@ -1117,29 +1117,14 @@ module ode_run
     
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
-    ! from the allpar and par to keplerian elements: due to the LMdif approach/code
-!     if(progtype.le.1)then
-!       call par2kel(allpar,par,m,R,P,a,e,w,mA,inc,lN)
-!       checkpar = checkbounds(par)
-!     else
-!       call par2kel_fit(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
-!       if(.not.checkpar)then
-!         write(*,*)' checkpar is FALSE ... BAD'
-!   !       resw=sqrt(resmax)/real(ndata,dp)
-!         resw=set_max_residuals(ndata)
-!         return
-!       end if
-!       checkpar = checkbounds_fit(par)
-!     end if
-    
     if(present(fit_scale))then
       fit_scale=one
       gls_scale=one
       call convert_parameters_scale(allpar,par,m,R,P,a,e,w,mA,inc,lN,fit_scale)
     else
-      call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
+      call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar,.true.)
       if(.not.checkpar)then
-        write(*,*)' checkpar is FALSE ... BAD'
+        write(*,*)' checkpar after convert_parameters is FALSE ... BAD'
   !       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
         return
@@ -1162,7 +1147,7 @@ module ode_run
     write(*,'(a12,1000(f25.15,1x))')"  i = ",inc
     write(*,'(a12,1000(f25.15,1x))')" lN = ",lN
     write(*,*)
-    write(*,'(a)')' CHECK FIT/KEP.ELEM. BOUNDARIES'
+!     write(*,'(a)')' CHECK FIT/KEP.ELEM. BOUNDARIES'
     if(present(fit_scale)) write(*,'(a,es23.16)')' fit_scale = ',fit_scale
     write(*,*)
     flush(6)
@@ -1290,6 +1275,10 @@ module ode_run
         call check_and_write_periodogram(cpuid,isim,wrtid,jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
       end if
       if(.not.gls_check)resw=set_max_residuals(ndata)
+    else
+    write(*,*)
+      write(*,'(a)')' RADIAL VELOCITIES NOT FOUND'
+      write(*,*)
     end if
 
     if(cntT0.gt.0)then
@@ -1309,6 +1298,10 @@ module ode_run
       call set_oc_resw(epoT0obs,T0obs,eT0obs,T0_sim,resw_temp)
       chi2r_oc=sum(resw_temp*resw_temp)*inv_dof
       deallocate(resw_temp)
+    else
+      write(*,*)
+      write(*,'(a)')' TRANSIT TIMES NOT FOUND'
+      write(*,*)
     end if
 
     fitness = sum(resw*resw)

@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.9.0 by Luca Borsato - 2016**    
+**`TRADES` v2.9.1 by Luca Borsato - 2016**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -408,6 +408,12 @@ The `ancillary.py` file has different functions to write and read output files f
 
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
+
+#### `TRADES 2.9.1`
+
+Small bugfixes in check of the physical parameters.    
+Added optional argument for debug in the output subroutine in `ode_run`.     
+
 
 #### `TRADES 2.9.0`
 

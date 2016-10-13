@@ -263,7 +263,8 @@ module Levenberg_Marquardt
 
     b1=minloc(fitness)
     best=b1(1)
-
+    if(best.gt.size(fitness).or.best.le.0)best=1
+    
     return
   end function get_best_1
 
@@ -277,6 +278,7 @@ module Levenberg_Marquardt
     integer,dimension(:),allocatable::idx
     integer::ninfo,i
     
+    best=1
     ninfo=size(infos)
     allocate(idx(ninfo))
     call indexx(fitness,idx)
@@ -287,6 +289,7 @@ module Levenberg_Marquardt
       end if
     end do selinfo
     deallocate(idx)
+    if(best.gt.ninfo.or.best.le.0)best=1
 
     return
   end function get_best_1_b
@@ -304,6 +307,7 @@ module Levenberg_Marquardt
     allocate(fitness1(n1(1)))
     b1=minloc(fitness1)
     best=b1(1)
+    if(best.gt.n1(1).or.best.le.0)best=1
     deallocate(fitness1)
 
     return

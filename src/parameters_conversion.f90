@@ -2,6 +2,7 @@ module parameters_conversion
   use constants
   use parameters
   use convert_type
+  
 
 
   contains
@@ -220,9 +221,13 @@ module parameters_conversion
                 minpar(ifit+1)=-180._dp
                 maxpar(ifit)  =+180._dp
                 maxpar(ifit+1)=+180._dp
+                done(ifit)=.true.
+                done(ifit+1)=.true.
+              else
+                minpar(ifit) =par_min(ipar)
+                maxpar(ifit) =par_max(ipar)
+                done(ifit)=.true.
               end if
-              done(ifit)=.true.
-              done(ifit+1)=.true.
             end if
             
 !           else if(ifit.gt.1)then
@@ -394,7 +399,7 @@ module parameters_conversion
   end subroutine fix_all_parameters
 
 
-  subroutine par2kel_fit(all_parameters,fit_parameters,m,R,P,a,e,w,mA,inc,lN,checkpar)
+  subroutine par2kel_fit(all_parameters,fit_parameters,m,R,P,a,e,w,mA,inc,lN,checkpar,wrt_info)
     use celestial_mechanics, only: semax
     real(dp),dimension(:),intent(in)::all_parameters,fit_parameters
     real(dp),dimension(:),intent(out)::m,R,P,a,e,w,mA,inc,lN
@@ -402,9 +407,10 @@ module parameters_conversion
     real(dp),dimension(8)::temp_kel ! ==> m,R,P,e,w,mA,inc,lN
     integer::j1,cnt
     logical,intent(out)::checkpar
+    logical,intent(in),optional::wrt_info
     real(dp)::temp2
     
-    checkpar=.true.
+!     checkpar=.true.
     m=zero
     R=zero
     P=zero
@@ -435,12 +441,17 @@ module parameters_conversion
       if(tofit(j1).eq.1) temp_kel(1)=atemp(j1)*MR_star(1,1) ! mp/Ms to mp
       
       if(tofit(j1+3).eq.1.and.tofit(j1+4).eq.1)then ! ecosw,esinw to e,w
-        temp2= (atemp(j1+3)*atemp(j1+3))+ (atemp(j1+4)*atemp(j1+4))
+        temp2= sqrt((atemp(j1+3)*atemp(j1+3))+ (atemp(j1+4)*atemp(j1+4)))
         if(temp2.lt.e_bounds(1,cnt).or.temp2.gt.e_bounds(2,cnt))then
+          if(present(wrt_info).and.wrt_info)then
+            write(*,'(1x,a15,es23.16)')'ecc = ',temp2
+            write(*,'(1x,2(a15,es23.16))')'emin = ',e_bounds(1,cnt),' emax = ',e_bounds(2,cnt)
+            flush(6)
+          end if
           checkpar=.false.
 !           return
         end if
-        temp_kel(4)=sqrt(temp2)
+        temp_kel(4)=temp2
         temp_kel(5)=mod(rad2deg*atan2(atemp(j1+4),atemp(j1+3))+360._dp,360._dp)
         if(temp_kel(4).le.TOLERANCE) temp_kel(5)=90._dp
         if(abs(temp_kel(4)-atemp(j1+3)).le.TOLERANCE)then
@@ -456,6 +467,8 @@ module parameters_conversion
          temp_kel(8)=mod(rad2deg*atan2(atemp(j1+7),atemp(j1+6))+360._dp,360._dp)
         end if
         if(temp_kel(7).le.zero.or.temp_kel(7).ge.180._dp)then
+          if(present(wrt_info).and.wrt_info)write(*,'(1x,a15,es23.16)')'inc = ',temp2
+          flush(6)
           checkpar=.false.
 !           return
         end if
@@ -474,6 +487,20 @@ module parameters_conversion
       inc(cnt) =temp_kel(7)
       lN(cnt)  =temp_kel(8)
       
+      if(present(wrt_info).and.wrt_info)then
+        if(cnt.eq.2) write(*,'(1x,a15,3(1x,a23))')'name','min','val','max'
+        write(*,'(1x,a15,3(1x,es23.16))')'m'//string(cnt), par_min(j1),  m(cnt),  par_max(j1)
+        write(*,'(1x,a15,3(1x,es23.16))')'R'//string(cnt), par_min(j1+1),R(cnt),  par_max(j1+1)
+        write(*,'(1x,a15,3(1x,es23.16))')'P'//string(cnt), par_min(j1+2),P(cnt),  par_max(j1+2)
+!         write(*,'(1x,a15,3(1x,es23.16))')'a'//string(cnt), par_min(j1+1),a(cnt),  par_max(j1)
+        write(*,'(1x,a15,3(1x,es23.16))')'e'//string(cnt), par_min(j1+3),e(cnt),  par_max(j1+3)
+        write(*,'(1x,a15,3(1x,es23.16))')'w'//string(cnt), par_min(j1+4),w(cnt),  par_max(j1+4)
+        write(*,'(1x,a15,3(1x,es23.16))')'mA'//string(cnt),par_min(j1+5),mA(cnt), par_max(j1+5)
+        write(*,'(1x,a15,3(1x,es23.16))')'i'//string(cnt), par_min(j1+6),inc(cnt),par_max(j1+6)
+        write(*,'(1x,a15,3(1x,es23.16))')'lN'//string(cnt),par_min(j1+7),lN(cnt), par_max(j1+7)
+        flush(6)
+      end if
+      
     end do
     
     deallocate(atemp)
@@ -482,8 +509,9 @@ module parameters_conversion
   end subroutine par2kel_fit
   
 !   check the physical bounds of the fitted parameters
-  function checkbounds_fit(fit_parameters) result(check)
+  function checkbounds_fit(fit_parameters,wrt_info) result(check)
     real(dp),dimension(:),intent(in)::fit_parameters
+    logical,intent(in),optional::wrt_info
     logical::check
     integer::j
     
@@ -494,8 +522,12 @@ module parameters_conversion
 
       ! check if fit_parameters are within boundaries
       if(fit_parameters(j).lt.minpar(j).or.fit_parameters(j).gt.maxpar(j))then
-!         if(fit_parameters(j).lt.minpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' < ',minpar(j)
-!         if(fit_parameters(j).gt.maxpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' > ',maxpar(j)
+        if(present(wrt_info))then
+          if(wrt_info)then
+            if(fit_parameters(j).lt.minpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' < ',minpar(j)
+            if(fit_parameters(j).gt.maxpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' > ',maxpar(j)
+          end if
+        end if
         check=.false.
         return
       end if
@@ -613,22 +645,34 @@ module parameters_conversion
   end function checkbounds_kel
 
     ! ------------------------------------------------------------------ !
-  subroutine convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
+  subroutine convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar,wrt_info)
     real(dp),dimension(:),intent(in)::allpar,par
     real(dp),dimension(:),intent(out)::m,R,P,a,e,w,mA,inc,lN
-    logical::checkpar
+    logical,intent(inout)::checkpar
+    logical,intent(in),optional::wrt_info
     
-    checkpar=.true.
-!     if(progtype.ge.3) checkpar=checkbounds_fit(par)
-    checkpar=checkbounds_fit(par)
-!     write(*,*)'checkbounds_fit: ',checkpar
-    if(checkpar) call par2kel_fit(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
-!     write(*,*)'par2kel_fit: ',checkpar
-!     if(progtype.ge.3)then
-    if(checkpar) checkpar=checkbounds_kel(m,R,P,e,w,mA,inc,lN)
-!       write(*,*)'checkbounds_kel: ',checkpar
-!     end if
-!     flush(6)
+    
+!     checkpar=.true.
+    checkpar=checkbounds_fit(par,wrt_info)
+    if(present(wrt_info))then
+      if(wrt_info) write(*,*)' checkbounds_fit: ',checkpar
+      flush(6)
+    end if
+    if(checkpar)then
+      call par2kel_fit(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar,wrt_info)
+      if(present(wrt_info))then
+        if(wrt_info) write(*,*)' par2kel_fit: ',checkpar
+        flush(6)
+      end if
+    end if
+    if(checkpar)then
+      checkpar=checkbounds_kel(m,R,P,e,w,mA,inc,lN)
+      if(present(wrt_info))then
+        if(wrt_info) write(*,*)' checkbounds_kel: ',checkpar
+        flush(6)
+      end if
+    end if
+
     
     return
   end subroutine convert_parameters

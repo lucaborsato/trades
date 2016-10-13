@@ -784,8 +784,8 @@ module init_trades
           
           ! Radius
           read(unit,*) R(j),temp1,temp2
-          R(j)=R(j)*Rjups
-          all_parameters(4+j1)=R(j)*Rjups ! Rjup to Rsun
+          R(j)=R(j)*Rjups ! Rjup to Rsun
+          all_parameters(4+j1)=R(j)
           par_min(4+j1)=max(min(temp1,temp2)*Rjups,TOLERANCE)
           par_max(4+j1)=min(max(temp1,temp2),5._dp)*Rjups
           if(par_max(4+j1).le.TOLERANCE) par_max(4+j1)=5._dp*Rjups
@@ -1433,6 +1433,11 @@ module init_trades
       write(*,'(a,i5,a,f16.12,a,f16.12)')" nset = ",nset," k_a = ",k_a," k_b = ",k_b
     end if
     deallocate(nset)
+    
+    write(*,'(a23,2(1x,a23))')'fit_parameters','( minpar ,','maxpar )'
+    do j=1,nfit
+      write(*,'(a23,2(a,es23.16),a)')parid(j),' ( ',minpar(j),' , ',maxpar(j),' )'
+    end do
     
     return
   end subroutine read_first

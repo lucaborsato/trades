@@ -30,22 +30,33 @@ def set_bool_argument(arg):
       arg = False
   return arg
 
+def set_int_argument(arg_in):
+  try:
+    arg_out = int(arg_in)
+  except:
+    arg_out = 0
+  return arg_out
+  
 # read command line (cli) arguments
 def get_args():
   parser = argparse.ArgumentParser(description='TRADES+EMCEE PLOT')
   parser.add_argument('-p', '--path', action='store', dest='full_path', required=True, help='The path (absolute or relative) with simulation files for TRADES.')
   parser.add_argument('-nb', '--nburn', '-np', '--npost', action='store', dest='npost', required=True, help='The number of posterior/burn in steps to discard at the beginning of each chain. It has to be > 0')
   parser.add_argument('-m', '--mtype', '--mass-type', action='store', dest='m_type', default='e', help='Mass type: j = Jupiter, e = Earth, s = Sun. Default is Earth = e.')
-  parser.add_argument('-g', '--good-parameters', action='store', dest='good', default=False, help='If you want to use a previous solution, set it to True and it will search for a good_parameters.dat file with first column the name of the parameter and the value in the second. Mass parameters in Jupiter mass. Default is False')
+  #parser.add_argument('-g', '--good-parameters', action='store', dest='good', default=False, help='If you want to use a previous solution, set it to True and it will search for a good_parameters.dat file with first column the name of the parameter and the value in the second. Mass parameters in Jupiter mass. Default is False')
   parser.add_argument('-t', '--temp-file', action='store', dest='temp_status', default=False, help='If you want to read temporary emcee_temp.hdf5 file, because simulation is not finished yet. Default is False')
+  parser.add_argument('-b', '--boot-file', '--save-like-boot', action='store', dest='boot_id', default=0, help='If you want to save flatchain posterior as the bootstrap file, in order to be read by read_finalpar_v2.py. If set to 0 (default) it doesn\'t save anything. Bootstrap file output: boot_id_bootstrap_sim.dat')
+  
   
   cli = parser.parse_args()
   cli.full_path = os.path.abspath(cli.full_path)
   cli.m_type = cli.m_type.lower()
   
-  cli.good = set_bool_argument(cli.good)
+  #cli.good = set_bool_argument(cli.good)
 
   cli.temp_status = set_bool_argument(cli.temp_status)
+  
+  cli.boot_id = set_int_argument(cli.boot_id)
   
   return cli
 
@@ -293,6 +304,14 @@ def select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_f
       parameter_boundaries[ii,:] = parameter_boundaries[ii,:] * m_factor
 
   return chains_T, parameter_boundaries
+
+def posterior_back_to_msun(m_factor, parameter_names_emcee, flatchain_posterior_in):
+  nfit = flatchain_posterior_in.shape[1]
+  flatchain_posterior_out = flatchain_posterior_in.copy()
+  for ifit in range(0,nfit):
+    if(parameter_names_emcee[ifit][0] == 'm' and parameter_names_emcee[ifit][1] != 'A'):
+      flatchain_posterior_out[:,ifit] = flatchain_posterior_out[:,ifit]/m_factor
+  return flatchain_posterior_out
 
 def prepare_plot_folder(full_path):
   plot_folder = prepare_emcee_plot_folder(full_path)
@@ -569,4 +588,15 @@ def get_proper_mass(m_type, parameter_names_emcee, full_path):
   
   return m_factor
   
+def save_bootstrap_like(out_folder, boot_id, parameter_names, flatchain_posterior):
+  nfit = flatchain_posterior.shape[1]
+  nboot = flatchain_posterior.shape[0]
+  header_0000 = ' iboot %s' %(' '.join(parameter_names))
+  fmt_dp = ' '.join( [ '%s' %('%23.16e') for ii in range(0,nfit) ] )
+  fmt_full = '%s %s' %('%6d', fmt_dp)
+  iboot_fake = np.arange(1,nboot+1,1)
+  boot_fake = np.column_stack((iboot_fake, flatchain_posterior))
+  boot_file = os.path.join(out_folder, '%d_bootstrap_sim.dat' %(boot_id))
+  np.savetxt(boot_file, boot_fake, fmt=fmt_full, header=header_0000)
+  return boot_file
   
