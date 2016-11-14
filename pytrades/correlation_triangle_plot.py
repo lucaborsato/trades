@@ -93,7 +93,8 @@ slog.setFormatter(formatter)
 logger.addHandler(slog)
 
 # computes mass conversion factor
-m_factor = anc.mass_conversion_factor(cli.m_type)
+#m_factor = anc.mass_conversion_factor(cli.m_type)
+m_factor, m_unit = anc.mass_type_factor(1., cli.m_type, False)
 
 # set emcee and trades folder
 emcee_folder = cli.full_path
@@ -133,7 +134,7 @@ median_parameters, median_perc68, median_confint = anc.get_median_parameters(fla
 k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
 #if(k>11): k=11
 if(k>50): k=50
-mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters(flatchain_posterior_0, k)
+mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
 
 #fig, ax = plt.subplots(nrows = nfit-1, ncols=nfit, figsize=(12,12))
 fig = plt.figure(figsize=(12,12))
@@ -224,18 +225,31 @@ for ii in range(0, nfit, 1):
       else:
         hist_orientation='vertical'
         
-      # HISTOGRAM
-      #hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', align='mid', orientation=hist_orientation, normed=True, stacked=True)
-      
-      # CUMULATIVE HISTOGRAM: I AM BAD ... NOT PLOTTING IN GOOD WAY :(
-      hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True, cumulative=True)
       
       idx = np.argsort(x_data)
-      x_cdf = scipy_norm.cdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
-      if(ii == nfit-1):
-        ax.plot(x_cdf, x_data[idx], marker='None', color='black', ls='-', lw=1.5, alpha=0.99)
+      
+      if(not cli.cumulative):
+        # HISTOGRAM and pdf
+        hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True)
+        
+        #x_pdf = scipy_norm.pdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
+        x_pdf = scipy_norm.pdf(x_data, loc=x_data.mean(), scale=x_data.std())
+        if(ii == nfit-1):
+          ax.plot(x_pdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.5, alpha=0.99)
+        else:
+          ax.plot(x_data[idx], x_pdf[idx] , marker='None', color='black', ls='-', lw=1.5, alpha=0.99)
+      
       else:
-        ax.plot(x_data[idx], x_cdf , marker='None', color='black', ls='-', lw=1.5, alpha=0.99)
+        # CUMULATIVE HISTOGRAM and cdf
+        hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True, cumulative=True)
+        
+        
+        #x_cdf = scipy_norm.cdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
+        x_cdf = scipy_norm.cdf(x_data, loc=x_data.mean(), scale=x_data.std())
+        if(ii == nfit-1):
+          ax.plot(x_cdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.5, alpha=0.99)
+        else:
+          ax.plot(x_data[idx], x_cdf[idx] , marker='None', color='black', ls='-', lw=1.5, alpha=0.99)
       
       
       if (ii == nfit-1):

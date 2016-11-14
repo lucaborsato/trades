@@ -121,20 +121,40 @@ module ode_run
 
   ! as setval but it accepts different arguments, i.e., gamma of RV, but for multiple set of RV
   ! and it allow to fit T0res or OCres.
-  subroutine setval_5(RV_obs,RV_sim,e_RVobs,gamma,epoT0_obs,T0_obs,eT0_obs,T0_sim,resw)
+  subroutine setval_5(RV_obs,RV_sim,e_RVobs,gamma,epoT0_obs,T0_obs,eT0_obs,T0_sim,resw,ocfit)
     real(dp),dimension(:),intent(in)::RV_obs,RV_sim,e_RVobs
     real(dp),dimension(:,:),allocatable,intent(out)::gamma
     integer,dimension(:,:),intent(in)::epoT0_obs
     real(dp),dimension(:,:),intent(in)::T0_obs,eT0_obs,T0_sim
     real(dp),dimension(:),intent(out)::resw
-    real(dp),dimension(:),allocatable::val
+    integer,intent(in)::ocfit
+    
+    real(dp),dimension(:),allocatable::val,val_T0,val_oc
 
     allocate(val(ndata))
+    resw=zero
+    val=zero
     if(nRV.gt.0) call set_RV_resw(RV_obs,RV_sim,e_RVobs,gamma,val(1:nRV))
-    if(oc_fit)then
-      call set_oc_resw(epoT0_obs,T0_obs,eT0_obs,T0_sim,val(nRV+1:ndata))
+    if(ocfit.eq.1)then
+      allocate(val_oc(sum(nT0)))
+      val_oc=zero
+      call set_oc_resw(epoT0_obs,T0_obs,eT0_obs,T0_sim,val_oc)
+      val(nRV+1:ndata)=val_oc
+      deallocate(val_oc)
+    else if(ocfit.eq.2)then
+      allocate(val_T0(sum(nT0)),val_oc(sum(nT0)))
+      val_T0=zero
+      call set_T0_resw(T0_obs,T0_sim,eT0_obs,val_T0)
+      val_oc=zero
+      call set_oc_resw(epoT0_obs,T0_obs,eT0_obs,T0_sim,val_oc)
+      val(nRV+1:ndata)=sqrt_half*sqrt(val_T0*val_T0+val_oc*val_oc)
+      deallocate(val_T0,val_oc)
     else
-      call set_T0_resw(T0_obs,T0_sim,eT0_obs,val(nRV+1:ndata))
+      allocate(val_T0(sum(nT0)))
+      val_T0=zero
+      call set_T0_resw(T0_obs,T0_sim,eT0_obs,val_T0)
+      val(nRV+1:ndata)=val_T0
+      deallocate(val_T0)
     end if
     call set_fitness(val,resw)
     deallocate(val)
@@ -147,13 +167,13 @@ module ode_run
     use statistics,only:wmean
     real(dp),dimension(:),intent(in)::RV_obs,RV_sim,e_RVobs
     real(dp),dimension(:,:),allocatable,intent(out)::gamma
-    real(dp),dimension(:)::resw
+    real(dp),dimension(:),intent(inout)::resw
     real(dp),dimension(:),allocatable::dRV,wi
     integer::j,aRV,bRV
 
     if(.not.allocated(gamma)) allocate(gamma(nRVset,2))
     gamma=zero
-    resw=zero
+!     resw=zero
     if(nRV.gt.0)then
       aRV=0
       bRV=0
@@ -179,7 +199,8 @@ module ode_run
   subroutine set_T0_resw(T0_obs,T0_sim,eT0_obs,resw)
     real(dp),dimension(:,:),intent(in)::T0_obs,T0_sim,eT0_obs
     real(dp),dimension(:),intent(out)::resw
-    real(dp)::obs,sim,eobs
+    
+    real(dp)::obs,sim,eobs,weight_fit
     integer::j,j1,a
     ! NB,nT0 are common variables
     resw=zero
@@ -190,7 +211,8 @@ module ode_run
         obs=T0_obs(j1,j)
         sim=T0_sim(j1,j)
         eobs=eT0_obs(j1,j)
-        resw(a)=(obs-sim)/eobs
+!         resw(a)=resw(a)+weight_fit*((obs-sim)/eobs)
+        resw(a)=((obs-sim)/eobs)
       end do
     end do
     
@@ -233,7 +255,9 @@ module ode_run
           a=a+1
           obs=T0_obs(j1,j) - (Tephem(j)+ epoT0_obs(j1,j)*Pephem(j))
           sim=T0_sim(j1,j) - (Tref_sim + epoT0_obs(j1,j)*Pref_sim )
+!           sim=T0_sim(j1,j) - (Tephem(j)+ epoT0_obs(j1,j)*Pephem(j))
           eobs=eT0_obs(j1,j)
+!           resw(a)=resw(a)+weight_fit*((obs-sim)/eobs)
           resw(a)=(obs-sim)/eobs
         end do
         
@@ -812,7 +836,7 @@ module ode_run
       !call setval_2(RVobs,RV_sim,eRVobs,T0obs,T0_sim,eT0obs,resw)
       !call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
 !       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
-      call setval_5(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw)
+      call setval_5(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw,oc_fit)
       if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
 !       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
       if(.not.gls_check)then
@@ -941,7 +965,7 @@ module ode_run
       !call setval(RVobs,RV_sim,T0obs,T0_sim,resw)
 !       call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
 !       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
-      call setval_5(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw)
+      call setval_5(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw,oc_fit)
       if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
 !       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
 !       resw=resw*fit_scale*gls_scale
@@ -1052,7 +1076,7 @@ module ode_run
       !call setval(RV_obs,RV_sim,T0_obs,T0_sim,resw)
 !       call setval_3(RV_obs,RV_sim,eRVobs,gamma,T0_obs,T0_sim,eT0obs,resw)
 !       call setval_4(RV_obs,RV_sim,eRVobs,gamma,T0_obs,T0_sim,eT0obs,resw)
-      call setval_5(RV_obs,RV_sim,eRVobs,gamma,epoT0obs,T0_obs,eT0obs,T0_sim,resw)
+      call setval_5(RV_obs,RV_sim,eRVobs,gamma,epoT0obs,T0_obs,eT0obs,T0_sim,resw,oc_fit)
       if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
 !       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
 !       resw=resw*fit_scale*gls_scale
@@ -1109,7 +1133,7 @@ module ode_run
         
     write(*,'(a)')''
     write(*,'(a)')" EXECUTING SIMPLE INTEGRATION AND WRITING FINAL FILES"
-    write(*,'(a,i3)')" LM on[1]/off[0] = ",wrtid
+!     write(*,'(a,i3)')" LM on[1]/off[0] = ",wrtid
     write(*,'(a)')''
     
     resw=zero
@@ -1132,24 +1156,24 @@ module ode_run
     end if
 
     
-    write(*,*)
-    write(*,'(a12,4(1x,a25))')'parid','value','min','max','allpar(id)'
-    do i_par=1,nfit
-      write(*,'(a12,10(1x,f25.15))')parid(i_par),par(i_par),minpar(i_par),maxpar(i_par),allpar(idall(i_par))
-    end do
-    write(*,*)
-    write(*,'(a12,1000(f25.15,1x))')"  m = ",m
-    write(*,'(a12,1000(f25.15,1x))')"  P = ",P
-    write(*,'(a12,1000(f25.15,1x))')"  a = ",a
-    write(*,'(a12,1000(f25.15,1x))')"  e = ",e
-    write(*,'(a12,1000(f25.15,1x))')"  w = ",w
-    write(*,'(a12,1000(f25.15,1x))')" mA = ",mA
-    write(*,'(a12,1000(f25.15,1x))')"  i = ",inc
-    write(*,'(a12,1000(f25.15,1x))')" lN = ",lN
-    write(*,*)
+!     write(*,*)
+!     write(*,'(a12,4(1x,a25))')'parid','value','min','max','allpar(id)'
+!     do i_par=1,nfit
+!       write(*,'(a12,10(1x,f25.15))')parid(i_par),par(i_par),minpar(i_par),maxpar(i_par),allpar(idall(i_par))
+!     end do
+!     write(*,*)
+!     write(*,'(a12,1000(f25.15,1x))')"  m = ",m
+!     write(*,'(a12,1000(f25.15,1x))')"  P = ",P
+!     write(*,'(a12,1000(f25.15,1x))')"  a = ",a
+!     write(*,'(a12,1000(f25.15,1x))')"  e = ",e
+!     write(*,'(a12,1000(f25.15,1x))')"  w = ",w
+!     write(*,'(a12,1000(f25.15,1x))')" mA = ",mA
+!     write(*,'(a12,1000(f25.15,1x))')"  i = ",inc
+!     write(*,'(a12,1000(f25.15,1x))')" lN = ",lN
+!     write(*,*)
 !     write(*,'(a)')' CHECK FIT/KEP.ELEM. BOUNDARIES'
     if(present(fit_scale)) write(*,'(a,es23.16)')' fit_scale = ',fit_scale
-    write(*,*)
+!     write(*,*)
     flush(6)
     
     ! write orbital elements into a file
@@ -1235,7 +1259,7 @@ module ode_run
       !call setval_2(RVobs,RV_sim,eRVobs,T0obs,T0_sim,eT0obs,resw)
 !       call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
 !       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
-      call setval_5(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw)
+      call setval_5(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw,oc_fit)
       if(present(fit_scale))then
         if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
         write(*,*)
@@ -1288,12 +1312,14 @@ module ode_run
       call write_T0(T0_sim,T0_stat)
       call write_T0(cpuid,isim,wrtid,T0_sim,T0_stat)
       allocate(resw_temp(sum(nT0)))
+      resw_temp=zero
       call set_T0_resw(T0obs,T0_sim,eT0obs,resw_temp)
 !       resw_temp=(T0obs-T0_sim)/eT0obs
       chi2r_T0=sum(resw_temp*resw_temp)*inv_dof
       w_chi2r=real(ndata,dp)/real(sum(nT0),dp)
       chi2wr_T0=chi2r_T0*w_chi2r
-      
+!       deallocate(resw_temp)
+!       allocate(resw_temp(sum(nT0)))
       resw_temp=zero
       call set_oc_resw(epoT0obs,T0obs,eT0obs,T0_sim,resw_temp)
       chi2r_oc=sum(resw_temp*resw_temp)*inv_dof

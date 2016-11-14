@@ -619,12 +619,12 @@ module transits
       b_itra = abs(impact_parameter(R(1),sma_p,inc_p*rad2deg,ecc_p=ecc_p,arg_p=w_p*rad2deg))
       
       if((b_itra.lt.one).and.(.not.do_transit(itra)))then ! planet should not transit
-        write(*,'(a,i2,5(a,f23.10),a,l2)')' FOUND for planet ',itra,&
-          &' : i = ',inc_p*rad2deg,' a = ',sma_p,&
-          &' e = ',ecc_p,' w = ',w_p*rad2deg,&
-          &' ==> b = ',b_itra,&
-          &' < 1 && do_transit is ',do_transit(itra)
-        flush(6)
+!         write(*,'(a,i2,5(a,f23.10),a,l2)')' FOUND for planet ',itra,&
+!           &' : i = ',inc_p*rad2deg,' a = ',sma_p,&
+!           &' e = ',ecc_p,' w = ',w_p*rad2deg,&
+!           &' ==> b = ',b_itra,&
+!           &' < 1 && do_transit is ',do_transit(itra)
+!         flush(6)
         Hc=.false.
         deallocate(rtra)
         return

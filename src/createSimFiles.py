@@ -103,7 +103,7 @@ def createARG(fpath):
   ofarg.write(line + "\n")
   print line
   
-  line = "# oc_fit: define if the program has to fit the O-C_obs(sim) = T0_obs(sim)-T0_lin,obs(sim), instead of T0_obs - T0_sim. By default it is set to .false., T0_obs - T0_sim is used.\noc_fit = F"
+  line = "# oc_fit: define if the program has to fit: resw_T0=T0_obs-R0_sim (set to 0); resw_OC=OC_obs-OC_sim (set 1) where OC_obs(sim)=T0_obs(sim)-T0_lin,obs(sim); set to 2 to use both (resw=(resw_T0+resw_OC)/2). By default it is set to 0\noc_fit = 0"
   ofarg.write(line + "\n")
   print line
 

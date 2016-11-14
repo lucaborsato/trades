@@ -5,6 +5,7 @@ module init_trades
   use parameters
   use parameters_conversion
   use convert_type,only:string
+  use transits,only:set_ephem
   implicit none
 
 !   interface init_random_seed
@@ -1388,11 +1389,17 @@ module init_trades
 
     ! IT READS T0 DATA
     call read_T0obs(cpuid)
-    if(idtra.ne.0) write(*,'(a,1000(i5,1x))') " T0 DATA: nT0 = ",nT0(2:)
-    if(idtra.ne.0) write(*,'(a,1000(l2,1x))') ' DO TRANSIT FLAG: ',do_transit
+    if(idtra.ne.0)then
+      write(*,'(a,1000(i5,1x))') " T0 DATA: nT0 = ",nT0(2:)
+      write(*,'(a,1000(l2,1x))') ' DO TRANSIT FLAG: ',do_transit
+    end if
+    
+    ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
+    if(sum(nT0).gt.0) call set_ephem()
     
     ! IT DETERMINES THE NDATA
     ndata=nRV+sum(nT0)
+    
     dof=(ndata-nfit)
     inv_dof = one / real(dof,dp)
     write(*,'(a,i5)')" NUMBER OF DATA AVAILABLE: ndata = ",ndata

@@ -56,9 +56,6 @@ program main_int_lm_bootstrap
 !   write(*,'(a)')"FITTING PARAMETERS"
 !   write(*,'(1000(1x,es23.16))')fitting_parameters
   
-  ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
-  call set_ephem()
-  
   ! check if there are derived parameters to compute and to check
   call init_derived_parameters(cpuid,path)
   

@@ -8,7 +8,7 @@ import os
 import numpy as np # array
 import h5py
 import constants as cst # local constants module
-from ancillary import *
+import ancillary as anc
 from matplotlib import use as mpluse
 mpluse("Agg")
 #mpluse("Qt4Agg")
@@ -18,14 +18,6 @@ plt.rc('text', usetex=True)
 #from matplotlib import rcParams
 #rcParams['text.latex.unicode']=True
 
-
-# common variables needed to create labels and parameter names
-kel_id = ['$M$', '$R$', '$P$', '$e\cos\omega$', '$e\sin\omega$', '$\\nu$', '$i$', '$\Omega$']
-kel_id_2 = ['M', 'R', 'P', 'e\cos\omega', 'e\sin\omega', '\\nu', 'i', '\Omega']
-kel_units = ['$[M_{\oplus}]$', '$[R_\mathrm{Jup}]$', '[days]', '', '', '[deg]', '[deg]', '[deg]']
-kel_fmt = ['%.3f', '%.4f', '%.3f', '%.1f', '%.1f', '%.1f', '%.1f', '%.1f']
-nelem = len(kel_id)
-letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'l', 'm', 'n', 'o', 'p']
 
 # read command line (cli) arguments
 def get_args():
@@ -48,11 +40,12 @@ print
 # read cli arguments
 cli = get_args()
 # computes mass conversion factor
-m_factor = mass_conversion_factor(cli.m_type)
+#m_factor = mass_conversion_factor(cli.m_type)
+m_factor, m_unit = mass_type_factor(1., cli.mtype, False)
 
 # set pso_file
 pso_file = os.path.join(cli.full_path, 'pso_run.hdf5')
-population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution, parameters_minmax, parameter_names, pop_shape = get_pso_data(pso_file)
+population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution, parameters_minmax, parameter_names, pop_shape = anc.get_pso_data(pso_file)
 nfit = pop_shape[0]
 npop = pop_shape[1]
 niter = pop_shape[2]
@@ -62,10 +55,10 @@ if(isinstance(parameters_minmax,type(population_fitness))):
   parameters_minmax_bck = parameters_minmax.copy()
 
 # set label and legend names
-kel_legends, labels_list = keplerian_legend(parameter_names, cli.m_type)
+kel_legends, labels_list = anc.keplerian_legend(parameter_names, cli.m_type)
 
-print_memory_usage(population)
-print_memory_usage(population_fitness)
+anc.print_memory_usage(population)
+anc.print_memory_usage(population_fitness)
 
 pso_plots = os.path.join(cli.full_path,'plots')
 if (not os.path.isdir(pso_plots)):

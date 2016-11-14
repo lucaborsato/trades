@@ -94,8 +94,6 @@ program main_trades
   ! IT CALLS ALL THE SUBROUTINES TO READ ALL PARAMETERS AND DATA TO STORE IN COMMON MODULE PARAMETERS
   call read_first(cpuid,m,R,P,a,e,w,mA,inc,lN)
 !   call set_all_param(m,R,P,e,w,mA,i,lN,system_parameters)
-  ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
-  call set_ephem()
   
   ! check if there are derived parameters to compute and to check
   call init_derived_parameters(1,path)

@@ -45,9 +45,6 @@ program main_polychord
   call init_param(system_parameters,fitting_parameters)
   ! system_parameters in module 'parameters'
   
-  ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
-  call set_ephem()
-  
   ! check if there are derived parameters to compute and to check
   call init_derived_parameters(cpuid,path)
   

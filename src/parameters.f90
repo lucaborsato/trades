@@ -17,7 +17,8 @@ module parameters
   integer::nboot=0
   logical::bootstrap_scaling=.false.,do_hill_check=.false.
   ! FITNESS PARAMETERS
-  logical::oc_fit=.false.
+!   logical::oc_fit=.false.
+  integer::oc_fit=0
   real(dp)::k_chi2r = one, k_chi2wr = zero
   real(dp)::k_a
   real(dp),dimension(:),allocatable::k_b
@@ -118,6 +119,7 @@ module parameters
     if(allocated(e_bounds)) deallocate(e_bounds)
     if(allocated(jdRV))     deallocate(jdRV,RVobs,eRVobs)
     if(allocated(epoT0obs)) deallocate(epoT0obs,T0obs,eT0obs,do_transit)
+    if(allocated(nT0))      deallocate(nT0)
     if(allocated(id))       deallocate(id,idall,parid,all_names_list)
     if(allocated(system_parameters)) deallocate(system_parameters)
     if(allocated(par_min))  deallocate(par_min,par_max)

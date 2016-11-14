@@ -14,6 +14,7 @@ import shutil
 #from emcee.utils import MPIPool
 from constants import Mjups
 import ancillary as anc
+import glob
 #from pyde.de import DiffEvol as devol
 
 #from matplotlib import use as mpluse
@@ -104,12 +105,18 @@ def init_folder(working_path, sub_folder):
   working_folder = os.path.join(working_path, sub_folder)
   if (not os.path.isdir(working_folder)):
       os.makedirs(working_folder)
+  arg_file = os.path.join(working_path, 'arg.in')
+  shutil.copy(arg_file, os.path.join(working_folder,''))
   bodies_file = os.path.join(working_path, 'bodies.lst')
   shutil.copy(bodies_file, os.path.join(working_folder,''))
   obd = open(bodies_file, 'r')
   for line in obd.readlines():
     shutil.copy(os.path.join(working_path, line.strip().split()[0]), os.path.join(working_folder,''))
   obd.close()
+  t0files = glob.glob(os.path.join(working_path,'NB*_observations.dat'))
+  for t0f in t0files:
+    shutil.copy(t0f, os.path.join(working_folder,''))
+  shutil.copy(os.path.join(working_path,'obsRV.dat'), os.path.join(working_folder,''))
   run_log = os.path.join(working_folder, "trades_run.log")
   of_run = open(run_log, 'w')
   print_both("# pyTRADES LOG FILE", of_run)
@@ -121,7 +128,7 @@ def init_folder(working_path, sub_folder):
 
 
 
-def compute_ln_err_const(ndata, dof, e_RVo, e_T0o, ln_flag=False):
+def compute_ln_err_const(dof, e_RVo, e_T0o, ln_flag=False):
   if (ln_flag):
     eRV = e_RVo[e_RVo > 0.]
     eT0 = e_T0o[e_T0o > 0.]
@@ -129,7 +136,6 @@ def compute_ln_err_const(ndata, dof, e_RVo, e_T0o, ln_flag=False):
     ln_e_RVo = np.sum(np.log(eRV*eRV))
     ln_e_T0o = np.sum(np.log(eT0*eT0))
 
-    #ln_err_const = -(0.5*inv_dof) * (ndata*np.log(2.*np.pi) + ln_e_RVo + ln_e_T0o)
     ln_err_const = - 0.5 * dof * np.log(2.*np.pi) - 0.5 * ( ln_e_RVo + ln_e_T0o)
   else:
     ln_err_const = 0.
@@ -172,16 +178,31 @@ def get_emcee_arguments(cli,nfit):
   #print nwalkers, nruns, npost
   return nwalkers, nruns, nsave, npost
 
+def compute_proper_sigma(nfit, delta_sigma, parameter_names):
+  delta_sigma_out = np.ones((nfit))*delta_sigma
+  for ifit in range(0,nfit):
+    if(delta_sigma > 1.e-6):
+      if('Ms' in parameter_names[ifit]):
+        delta_sigma_out[ifit] = delta_sigma * 1.e-3
+      if(delta_sigma > 1.e-2):
+        if('P' in parameter_names[ifit]):
+          delta_sigma_out[ifit] = delta_sigma * 1.e-2
+        elif('mA' in parameter_names[ifit] or 'lambda' in parameter_names[ifit]):
+          delta_sigma_out[ifit] = 1.e-4
+  return delta_sigma_out
+      
 
-def compute_initial_walkers(nfit, nwalkers, fitting_parameters, delta_parameters, delta_sigma, of_run):
+def compute_initial_walkers(nfit, nwalkers, fitting_parameters, delta_parameters, parameter_names, delta_sigma, of_run):
   # initial walkers as input fitting_parameters + N(loc=0.,sigma=1.,size=nwalkers)*delta_sigma
   #p0 = [parameters_minmax[:,0] + np.random.random(nfit)*delta_parameters for i in range(0, nwalkers)]
   print_both(' Inititializing walkers with delta_sigma = %.16f' %(cli.delta_sigma),of_run)
   p0 = []
   i_p0 = 0
+  delta_sigma_out = compute_proper_sigma(nfit, delta_sigma, parameter_names)
   print_both(' good p0:', of_run)
   while True:
-    test_p0 = fitting_parameters + np.random.normal(loc=0., scale=1., size=nfit)*cli.delta_sigma
+    #test_p0 = fitting_parameters + np.random.normal(loc=0., scale=1., size=nfit)*delta_sigma
+    test_p0 = fitting_parameters + np.random.normal(loc=0., scale=1., size=nfit)*delta_sigma_out
     #test_p0 = fitting_parameters + fitting_parameters*np.random.normal(loc=0., scale=1., size=nfit)*cli.delta_sigma
     #test_p0 = fitting_parameters + delta_parameters*np.random.normal(loc=0., scale=1., size=nfit)*cli.delta_sigma
     test_lg = lnprob(test_p0)
@@ -190,6 +211,7 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, delta_parameters
       p0.append(test_p0)
       print i_p0,
       if(i_p0 == nwalkers): break
+  p0[0] = fitting_parameters # I want the original fitting paramameters in the initial walkers
   print
   print_both(' done initial walkers.', of_run)
   return p0
@@ -248,7 +270,7 @@ try:
   e_T0o = np.array(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
 except:
   e_T0o = np.array([0.], dtype=np.float64)
-ln_err_const = compute_ln_err_const(ndata, dof, e_RVo, e_T0o, cli.ln_flag)
+ln_err_const = compute_ln_err_const(dof, e_RVo, e_T0o, cli.ln_flag)
 
 # SET EMCEE PARAMETERS:
 nwalkers, nruns, nsave, npost = get_emcee_arguments(cli,nfit)
@@ -275,8 +297,10 @@ print_both(' %s = %.7f' %('IN FORTRAN log constant error = ', pytrades_lib.pytra
 
 # save initial_fitting parameters into array
 original_fit_parameters = fitting_parameters.copy()
+print_both(' ORIGINAL PARAMETER VALUES -> 0000', of_run)
+fitness_0000, lgllhd_0000, check_0000 = pytrades_lib.pytrades.write_summary_files(0, original_fit_parameters)
 
-p0 = compute_initial_walkers(nfit, nwalkers, fitting_parameters, delta_parameters, cli.delta_sigma, of_run)
+p0 = compute_initial_walkers(nfit, nwalkers, fitting_parameters, delta_parameters, parameter_names, cli.delta_sigma, of_run)
 
 print_both(' emcee chain: nwalkers = %d nruns = %d' %(nwalkers, nruns), of_run)
 print_both(' sampler ... ',of_run)
@@ -297,6 +321,7 @@ if (nsave != False):
   temp_dset = of_temp.create_dataset('chains', (nwalkers, nruns, nfit), dtype=np.float64)
   temp_lnprob = of_temp.create_dataset('lnprobability', (nwalkers, nruns), dtype=np.float64)
   temp_lnprob.attrs['ln_err_const'] = ln_err_const
+  
   of_temp.close()
   pos = p0
   nchains = int(nruns/nsave)
@@ -318,6 +343,7 @@ if (nsave != False):
     temp_lnprob = of_temp['lnprobability'] #[:,:]
     temp_lnprob[:, aaa:bbb] = sampler.lnprobability[:, aaa:bbb]
     shape_lnprob = sampler.lnprobability.shape
+    of_temp.create_dataset('autocor_time', data=np.array(sampler.acor, dtype=np.float64), dtype=np.float64)
     #print 'aaa = %6d bbb = %6d -> sampler.lnprobability.shape = (%6d , %6d)' %(aaa, bbb, shape_lnprob[0], shape_lnprob[1])
     of_temp.close()
     sys.stdout.flush()
@@ -350,103 +376,16 @@ f_hdf5 = h5py.File(os.path.join(working_folder, 'emcee_summary.hdf5'), 'w')
 f_hdf5.create_dataset('chains', data=sampler.chain, dtype=np.float64)
 f_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
 f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
-#f_hdf5.create_dataset('final_parameters', data=final_parameters, dtype=np.float64)
-#f_hdf5.create_dataset('max_lnprob_parameters', data=max_lnprob_parameters, dtype=np.float64)
-#f_hdf5.create_dataset('max_lnprob', data=max_lnprob, dtype=np.float64)
 f_hdf5.create_dataset('acceptance_fraction', data=acceptance_fraction, dtype=np.float64)
 f_hdf5.create_dataset('autocor_time', data=autocor_time, dtype=np.float64)
 f_hdf5.create_dataset('lnprobability', data=lnprobability, dtype=np.float64)
 f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
 f_hdf5.close()
 
-nruns_sel = nruns - npost
-# chain is transposed: needed to plot quicker chains for each walker: nruns vs value of parameter
-chains_T, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, 1., parameter_names, parameters_minmax, sampler.chain)
- 
-flatchain_posterior_0 = chains_T[:,:,:].reshape((nruns_sel*nwalkers, nfit))
-
 print_both(" Mean_acceptance_fraction should be between [0.25-0.5] = %.6f" %(mean_acceptance_fraction), of_run)
 print_both('', of_run)
 
-derived_names, derived_chains_T, derived_posterior = anc.get_derived_posterior_parameters(parameter_names, chains_T, flatchain_posterior_0)
-nder = len(derived_names)
-
-# GET MAX LNPROBABILITY AND PARAMETERS -> id 40XX
-max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(npost, nruns, lnprobability, chains_T, flatchain_posterior_0)
-max_lnprob_der, max_lnprob_parameters_der, max_lnprob_perc68_der, max_lnprob_confint_der = anc.get_maxlnprob_parameters(npost, nruns, lnprobability, derived_chains_T, derived_posterior)
-
-# MEDIAN PARAMETERS
-
-# std way: median of the posterior parameter distribution -> id 10XX
-median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
-median_parameters_der, median_perc68_der, median_confint_der = anc.get_median_parameters(derived_posterior)
-
-# parameters linked to the median of the fitness =  - 2 * (lglhd + ln_err_const) -> id 20XX
-median_fitness, medfit_parameters, medfit_perc68, medfit_confint = anc.get_parameters_median_fitness(nwalkers, npost, nruns, lnprobability, flatchain_posterior_0, ln_err_const)
-median_fitness_der, medfit_parameters_der, medfit_perc68_der, medfit_confint_der = anc.get_parameters_median_fitness(nwalkers, npost, nruns, lnprobability, derived_posterior, ln_err_const)
-
-# MODE-LIKE PARAMETERS -> id 30XX
-# take the mean of 5 bin centered to the higher bin
-k = 11
-mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters(flatchain_posterior_0, k)
-mode_bin_der, mode_parameters_der, mode_perc68_der, mode_confint_der = anc.get_mode_parameters(derived_posterior, k)
-
-
-print_both(' MAX LNPROBABILITY PARAMETER VALUES -> 4000', of_run)
-fitness_4000, lgllhd_4000, check_4000 = pytrades_lib.pytrades.write_summary_files(4000, max_lnprob_parameters)
-
-print_both(' MEDIAN PARAMETER VALUES -> 1050', of_run)
-fitness_1050, lgllhd_1050, check_1050 = pytrades_lib.pytrades.write_summary_files(1050, median_parameters)
-
-print_both(' MEDFIT PARAMETER VALUES -> 2050', of_run)
-fitness_2050, lgllhd_2050, check_2050 = pytrades_lib.pytrades.write_summary_files(2050, medfit_parameters)
-
-print_both(' MODE PARAMETER VALUES -> 3050', of_run)
-fitness_3050, lgllhd_3050, check_3050 = pytrades_lib.pytrades.write_summary_files(3050, mode_parameters)
-
-
-print_both(' MAX LNPROBABILITY PARAMETER VALUES -> 4000', of_run)
-anc.print_parameters_logtxt(of_run, parameter_names, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint, 'maxlnpr')
-anc.print_parameters_logtxt(of_run, derived_names, max_lnprob_parameters_der, max_lnprob_perc68_der, max_lnprob_confint_der, 'maxlnpr_der')
-print_both('FITNESS (4000) = %23.16f LOGLIKELIHOOD = %23.16f\n' %(fitness_4000, lgllhd_4000+ln_err_const), of_run)
-sys.stdout.flush()
-
-print_both(' MEDIAN PARAMETER VALUES -> 1050', of_run)
-anc.print_parameters_logtxt(of_run, parameter_names, median_parameters, median_perc68, median_confint, 'median')
-anc.print_parameters_logtxt(of_run, derived_names, median_parameters_der, median_perc68_der, median_confint_der, 'median_der')
-print_both('FITNESS (1050) = %23.16f LOGLIKELIHOOD = %23.16f' %(fitness_1050, lgllhd_1050+ln_err_const), of_run)
-sys.stdout.flush()
-
-print_both(' MEDFIT PARAMETER VALUES -> 2050', of_run)
-anc.print_parameters_logtxt(of_run, parameter_names, medfit_parameters, medfit_perc68, medfit_confint, 'medfit')
-anc.print_parameters_logtxt(of_run, derived_names, medfit_parameters_der, medfit_perc68_der, medfit_confint_der, 'medfit_der')
-print_both('FITNESS (2050) = %23.16f LOGLIKELIHOOD = %23.16f\n' %(fitness_2050, lgllhd_2050+ln_err_const), of_run)
-sys.stdout.flush()
-
-  
-print_both(' MODE PARAMETER VALUES -> 3050', of_run)
-anc.print_parameters_logtxt(of_run, parameter_names, mode_parameters, mode_perc68, mode_confint, 'mode')
-anc.print_parameters_logtxt(of_run, derived_names, mode_parameters_der, mode_perc68_der, mode_confint_der, 'mode_der')
-print_both('FITNESS (3050) = %23.16f LOGLIKELIHOOD = %23.16f\n' %(fitness_3050, lgllhd_3050+ln_err_const), of_run)
-sys.stdout.flush()
-
-#print_both(' COMPUTE SIGMAS FROM INITIAL FITTING PARAMETERS')
-#fit_68res, fit_confint = anc.get_sigmas(original_fit_parameters, flatchain_posterior_0)
-print_both(' ORIGINAL PARAMETER VALUES -> 0000', of_run)
-fitness_0000, lgllhd_0000, check_0000 = pytrades_lib.pytrades.write_summary_files(0, original_fit_parameters)
-# save flatchain_posterior_0 as bootstrap simulation!
-#header_0000 = ' iboot %s' %(' '.join(parameter_names))
-#fmt_dp = ' '.join( [ '%s' %('%23.16e') for ii in range(0,nfit) ] )
-#fmt_full = '%s %s' %('%6d', fmt_dp)
-#iboot_fake = np.arange(1,flatchain_posterior_0.shape[0]+1,1)
-#boot_fake = np.column_stack((iboot_fake, flatchain_posterior_0))
-#boot_file = os.path.join(working_folder, '0_bootstrap_sim.dat')
-#np.savetxt(boot_file, boot_fake, fmt=fmt_full, header=header_0000)
-boot_file = anc.save_bootstrap_like(working_folder, 0, parameter_names, flatchain_posterior_0)
-print_both(' saved fake bootstrap file: %s' %(boot_file), of_run)
-
-del chains_T
-del flatchain_posterior_0
+print_both('COMPLETED EMCEE', of_run)
 
 elapsed = time.time() - start
 elapsed_d, elapsed_h, elapsed_m, elapsed_s = anc.computation_time(elapsed)
@@ -456,7 +395,3 @@ print_both(' pyTRADES: EMCEE FINISHED in %2d day %02d hour %02d min %.2f sec - b
 print_both('', of_run)
 of_run.close()
 pytrades_lib.pytrades.deallocate_variables()
-
-
-
-

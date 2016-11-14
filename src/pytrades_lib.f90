@@ -149,6 +149,9 @@ module pytrades
     !             nT0 -> parameters
 !     if(idtra.ne.0) write(*,'(a,1000(i5,1x))') " T0 DATA: nT0 = ",nT0(2:)
 
+    ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
+    if(sum(nT0).gt.0) call set_ephem()
+
     ! IT DETERMINS THE NDATA
     ! variables:  ndata -> parameters
     !             dof -> parametershttp://www.r-bloggers.com/wilcoxon-signed-rank-test/
@@ -207,10 +210,6 @@ module pytrades
     deallocate(nset)
     
     ! ---
-    ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
-    ! subroutine: set_ephem -> transits
-    call set_ephem()
-    
     ! IT SETS THE VARIABLES system_parameters and par with fitting parameters
 !     allocate(system_parameters(npar), fitting_parameters(nfit), parameters_minmax(nfit,2), parameter_names(nfit))
     allocate(parameters_minmax(nfit,2), parameter_names(nfit))
