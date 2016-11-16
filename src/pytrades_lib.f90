@@ -10,6 +10,8 @@ module pytrades
   use derived_parameters_mod
   use transits,only:set_ephem
   use fitness_module
+  use ode_run,only:orbits_to_data
+  
   implicit none
   ! exposing variables in parameters to trades_lib
   !f2py integer,parameter::dp=selected_real_kind(8)
@@ -286,7 +288,7 @@ module pytrades
     fitness=zero
     
     fitness=bound_fitness_function(system_parameters,fit_parameters)
-    lgllhd=-0.5_dp*fitness*real(dof,dp) ! lgllh = - chi2 / 2 || fitness =~ chi2 / dof
+    lgllhd=-half*fitness*real(dof,dp) ! lgllh = - chi2 / 2 || fitness =~ chi2 / dof
     if(fitness.ge.resmax)check=.false.
 
     return
@@ -434,6 +436,7 @@ module pytrades
     return
   end subroutine pyrun_pso
   
+  
   ! subroutine useful to modify the working path fo TRADES from python
   subroutine path_change(new_path)
     character(512),intent(in)::new_path
@@ -466,7 +469,7 @@ module pytrades
     return
   end subroutine init_fix_parameters
 
-    
+  
   subroutine deallocate_variables()
   
     call deallocate_all() ! from 'parameters' module
@@ -474,5 +477,130 @@ module pytrades
     return
   end subroutine deallocate_variables
   
+  
+  
+  ! SUBROUTINE TO INITIALISE TRADES WITHOUT READING FILES
+  subroutine args_init(t_start,t_epoch,t_int,n_body,&
+    &n_t0,t0_num,t0_obs,et0_obs,&
+    &n_max_t0,n_col)
+    
+    ! INPUT
+    ! t_start      == start of the integration
+    ! t_epoch      == reference time epoch
+    ! t_int        == total integration time in days
+    ! n_body       == number of bodies (take into account the star)
+    ! n_t0         == number of transits per each body n_t0(n_body); n_t0(0) = 0
+    ! t0_num       == epochs/transit number for each body t0_num(n_max_t0,n_body); t0_num(:,0) = 0
+    ! t0_obs       == transit times for each body t0_obs(n_max_t0,n_body); t0_obs(:,0) = 0
+    ! et0_obs      == errors on the transit times in days for each body et0_obs(n_max_t0,n_body); et0_obs(:,0) = 0
+    
+    ! OUTPUT
+    ! None ==> some variables set globally
+    
+    ! DIMENSIONS: do not provide it
+    ! n_max_t0     == maxval(n_t0) == maxval of transits available
+    
+    
+    integer::n_max_t0,n_col
+    real(dp),intent(in)::t_start,t_epoch,t_int
+    integer,intent(in)::n_body
+    integer,dimension(n_col),intent(in)::n_t0
+    integer,dimension(n_max_t0,n_col),intent(in)::t0_num
+    real(dp),dimension(n_max_t0,n_col),intent(in)::t0_obs
+    real(dp),dimension(n_max_t0,n_col),intent(in)::et0_obs
+    
+!f2py integer intent(hide),depend(t0_num,t0_obs,et0_obs)::n_max_t0=shape(t0_num,0),n_col=shape(t0_num,1)
+    
+    tstart=t_start
+    tepoch=t_epoch
+    tint=t_int
+    NB=n_body
+    NBDIM=n_body*6
+    
+    allocate(e_bounds(2,n_body))
+    e_bounds(1,:)=zero
+    e_bounds(2,:)=one-TOLERANCE
+    
+    call set_ephem(n_body,n_t0,t0_num,t0_obs,et0_obs)
+    
+    rvcheck=1
+    durcheck=0
+    amin=TOLERANCE
+    amax=1.e4_dp
+    
+    return
+  end subroutine
+  
+  !!! SUBROUTINE TO RUN TRADES INTEGRATION AND RETURN RV_SIM AND T0_SIM
+  subroutine kelements_to_data(t_start,t_epoch,step_in,t_int,&
+    &m_msun,R_rsun,P_day,ecc,argp_deg,mA_deg,inc_deg,lN_deg,&
+    &t_rv,transit_flag,n_t0,t0_num,& ! input
+    &rv_sim,t0_sim,& ! output
+    &n_body,n_rv,n_max_t0) ! dimensions, try to not provide it...
+
+    ! INPUT
+    ! t_start      == start of the integration
+    ! t_epoch      == reference time epoch
+    ! step_in      == initial step size of the integration
+    ! t_int        == total integration time in days
+    
+    ! m_msun       == masses of all the bodies in Msun m_sun(n_body)
+    ! R_rsun       == radii of all the bodies in Rsun r_rsun(n_body)
+    ! P_day        == periods of all the bodies in days p_day(n_body); p_day(0) = 0
+    ! ecc          == eccentricities of all the bodies ecc(n_body); ecc(0) = 0
+    ! argp_deg     == argument of pericentre of all the bodies argp_deg(n_body); argp_deg(0) = 0
+    ! mA_deg       == mean anomaly of all the bodies mA_deg(n_body); mA_deg(0) = 0
+    ! inc_deg      == inclination of all the bodies inc_deg(n_body); inc_deg(0) = 0
+    ! lN_deg       == longitude of node of all the bodies lN_deg(n_body); lN_deg(0) = 0
+
+    ! t_rv         == time of the RV datapoints t_rv(n_rv)
+    ! transit_flag == logical/boolean vector with which bodies should transit (.true.) or not (.false) transit_flag(n_body); transit_flag(0) = False
+    ! n_t0         == number of transits per each body n_t0(n_body); n_t0(0) = 0
+    ! t0_num       == epochs/transit number for each body t0_num(n_max_t0,n_body); t0_num(:,0) = 0
+    
+    ! OUTPUT
+    ! rv_sim       == rv simulated in m/s, same dimension of t_rv
+    ! t0_sim       == t0 simulated in days, same dimension of t0_num
+    
+    ! DIMENSIONS
+    ! n_body       == number of bodies (take into account the star)
+    ! n_rv         == number of radial velocities datapoints
+    ! n_max_t0     == maxval(n_t0) == maxval of transits available
+    integer::n_body,n_rv,n_max_t0
+    
+    real(dp),intent(in)::t_start,t_epoch,step_in,t_int
+    real(dp),dimension(n_body),intent(in)::m_msun,R_rsun,P_day
+    real(dp),dimension(n_body),intent(in)::ecc,argp_deg,mA_deg,inc_deg,lN_deg
+    real(dp),dimension(n_RV),intent(in)::t_rv
+    logical,dimension(n_body),intent(in)::transit_flag
+    integer,dimension(n_body),intent(in)::n_t0
+    integer,dimension(n_max_t0,n_body),intent(in)::t0_num
+    
+    real(dp),dimension(n_RV),intent(out)::rv_sim
+    real(dp),dimension(n_max_t0,n_body),intent(out)::t0_sim
+    
+
+!f2py    integer,intent(hide),depend(t_rv)::n_rv=len(t_rv)
+!f2py    integer,intent(hide),depend(t0_num)::n_max_t0=shape(t0_num,0), n_body=shape(t0_num,1)
+
+! !f2py    integer,intent(hide),depend(n_t0)::n_body=len(m_msun)
+    
+    integer::id_transit_body=1 ! needed to be == 1
+    real(dp),dimension(:),allocatable::rv_temp
+    real(dp),dimension(:,:),allocatable::t0_temp
+    
+    call orbits_to_data(t_start,t_epoch,step_in,t_int,&
+      &m_msun,R_rsun,P_day,ecc,argp_deg,mA_deg,inc_deg,lN_deg,&
+      &t_rv,RV_temp,&
+      &id_transit_body,transit_flag,durcheck,n_t0,t0_num,t0_temp)
+    
+    rv_sim=rv_temp
+    t0_sim=t0_temp
+    if(allocated(rv_temp)) deallocate(rv_temp)
+    if(allocated(t0_temp)) deallocate(t0_temp)
+  
+    return
+  end subroutine kelements_to_data
+
   
 end module pytrades

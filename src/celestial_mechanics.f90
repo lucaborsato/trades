@@ -235,7 +235,7 @@ module celestial_mechanics
   function rHill_1(ms,mp,sma) result(rH)
     real(dp)::rH
     real(dp),intent(in)::ms,mp,sma
-!     real(dp),parameter::csqrt=1._dp/3._dp
+!     real(dp),parameter::csqrt=one/3._dp
 
     rH=sma*((onethird*(mp/ms))**onethird)
 
@@ -246,10 +246,10 @@ module celestial_mechanics
   function rHill_2(ms,mp,sma,ecc) result(rH)
     real(dp)::rH
     real(dp),intent(in)::ms,mp,sma,ecc
-!     real(dp),parameter::csqrt=1._dp/3._dp
+!     real(dp),parameter::csqrt=one/3._dp
     real(dp)::e1
 
-    e1=1._dp-ecc
+    e1=one-ecc
     rH=sma*e1*((onethird*(mp/ms))**onethird)
 
     return
@@ -278,17 +278,17 @@ module celestial_mechanics
       r1=dist(rvec1)
       v1=dist(vvec1)
       mu1=Giau*(m(1)+m(j))
-      a1=(2._dp/r1)-((v1**2)/mu1) ! 1/a
+      a1=(two/r1)-((v1**2)/mu1) ! 1/a
       if(a1.le.zero)then
         fmt=adjustl('(a,1x,'//trim(sprec)//')')
         write(*,trim(fmt),advance='no')" 1/a1 < 0 :",a1
         rH=.false.
         return
       end if
-      a1=1._dp/a1
+      a1=one/a1
       n1=sqrt(mu1/a1**3)
       es=rv1/(n1*a1*a1)
-      ec=((r1*v1*v1)/mu1)-1._dp
+      ec=((r1*v1*v1)/mu1)-one
       e1=sqrt(ec*ec+es*es)
 
       rvec2=rin(1+j2:3+j2)
@@ -298,17 +298,17 @@ module celestial_mechanics
       r2=dist(rvec2)
       v2=dist(vvec2)
       mu2=Giau*(m(1)+m(j+1))
-      a2=(2._dp/r2)-((v2**2)/mu2) ! 1/a
+      a2=(two/r2)-((v2**2)/mu2) ! 1/a
       if(a2.le.zero)then
         fmt=adjustl('(a,1x,'//trim(sprec)//')')
         write(*,trim(fmt),advance='no')" 1/a2 < 0 :",a2
         rH=.false.
         return
       end if
-      a2=1._dp/a2
+      a2=one/a2
       n1=sqrt(mu1/a2**3)
       es=rv2/(n1*a2*a2)
-      ec=((r2*v2*v2)/mu2)-1._dp
+      ec=((r2*v2*v2)/mu2)-one
       e1=sqrt(ec*ec+es*es)
       if((a1.le.amin).or.(a1.ge.amax).or.(a2.le.amin).or.(a2.ge.amax))then
         !write(*,'(a)')" Bound semi-major axis limits overcome "
@@ -397,7 +397,7 @@ module celestial_mechanics
     rr=dist(rvec)
     vv=dist(vvec)
     mu=Giau*(m(1)+m(body_id))
-    inv_sma=(2._dp/rr)-((vv**2)/mu) ! 1/a
+    inv_sma=(two/rr)-((vv**2)/mu) ! 1/a
     check=.true.
     if(inv_sma.le.zero) check=.false. ! if false is bad
 
@@ -599,10 +599,10 @@ module celestial_mechanics
       n=dpi/P(i)
       EA=EAnom(mA2,e(i))*deg2rad
       e2=e(i)*e(i)
-      rad1e2=sqrt(1._dp-e2)
+      rad1e2=sqrt(one-e2)
       cosE=cos(EA)
       sinE=sin(EA)
-      dEA=n/(1._dp-e(i)*cosE)
+      dEA=n/(one-e(i)*cosE)
       !calculation of the radius vector and velocity of the bodies
       nci=(i-1)*6
       output(1+nci)=a(i)*(cosE-e(i))  !! x
@@ -830,7 +830,7 @@ module celestial_mechanics
   subroutine fgfunctions(mu,rout,dt,Hc)
     real(dp),intent(in)::mu,dt
     real(dp),dimension(:),intent(inout)::rout
-    logical::Hc
+    logical,intent(inout)::Hc
     
     real(dp),dimension(3)::rtemp,vtemp
     real(dp)::r0,v0,reca,a,n,sinE,cosE,ecc
@@ -842,13 +842,13 @@ module celestial_mechanics
 
     r0=dist(rout(1:3))
     v0=dist(rout(4:6))
-    reca=(2._dp/r0)-((v0**2)/mu)
+    reca=(two/r0)-((v0**2)/mu)
     if(reca.lt.0._dp)then
 !       write(*,*)" In fgfunctions reca < 0"
       Hc=.false.
       return
     end if
-    a=1._dp/reca
+    a=one/reca
     if((a.le.amin).or.(a.ge.amax))then
 !       write(*,*)" In fgfunctions a < amin or a > amax"
       Hc=.false.
@@ -856,7 +856,7 @@ module celestial_mechanics
     end if
     n=sqrt(mu/(a**3))
     sinE=(sum(rout(1:3)*rout(4:6)))/(n*a**2)
-    cosE=((r0*v0**2)/mu)-1._dp
+    cosE=((r0*v0**2)/mu)-one
 
     !hx = y*vz-z*vy
     !hy = z*vx-x*vz
@@ -873,7 +873,7 @@ module celestial_mechanics
     hy = z*vx-x*vz
     hz = x*vy-y*vx
     h2=hx*hx+hy*hy+hz*hz
-    e2=1._dp-h2/(a*mu)
+    e2=one-h2/(a*mu)
     if((abs(e2).le.TOLERANCE).or.(e2.lt.zero)) e2=zero
 !     write(*,*)"e2 = ",e2
     ecc=sqrt(e2)
@@ -881,7 +881,7 @@ module celestial_mechanics
     !ecc=sqrt(sinE**2+cosE**2)
     !write(*,'(10000(a,g25.15))')" ecc = ",ecc," a=",a," P = ",dpi/n
     !write(*,'(10000(a,g25.15))')" h2 = ",h2," a*mu = ",a*mu,&
-    !     &" (1._dp - h2/(a*mu)) = ",e2
+    !     &" (one - h2/(a*mu)) = ",e2
     !read(*,*)
     Ek1=mod(atan2(sinE,cosE),dpi)
     !write(*,'(a,g25.14,a,g25.14)',advance='no')" Ek1 1 r= ",Ek1," d= ",Ek1*rad2deg
@@ -917,12 +917,12 @@ module celestial_mechanics
     end if
     !write(*,'(a,g25.14,a,g25.14)')" dE 2 r= ",dE," d= ",dE*rad2deg
     ar0=a/r0
-    Ffunc=ar0*(cos(dE)-1._dp)+1._dp
+    Ffunc=ar0*(cos(dE)-one)+one
     Gfunc=dt+(sin(dE)-dE)/n
     rtemp=Ffunc*rout(1:3)+Gfunc*rout(4:6)
     art=a/dist(rtemp)
     dFfunc=-ar0*art*n*sin(dE)
-    dGfunc=art*(cos(dE)-1._dp)+1._dp
+    dGfunc=art*(cos(dE)-one)+one
     vtemp=dFfunc*rout(1:3)+dGfunc*rout(4:6)
 
     rout(1:3)=rtemp
@@ -1096,15 +1096,15 @@ module celestial_mechanics
     end if
 
     arg1=h2/(a*mu)
-    arg2=1._dp-arg1
+    arg2=one-arg1
     if(arg2.le.TOLERANCE)then
       ! circular orbit
       e=zero
-      w=pi/2._dp
+      w=pi/two
       cpslN=coslN+sinlN
       cmslN=coslN-sinlN
       cosf=sinwf
-      sinf=(1._dp/cmslN)*( ((y-x)/R)-(cosi*cosf*cpslN))
+      sinf=(one/cmslN)*( ((y-x)/R)-(cosi*cosf*cpslN))
       f=atan2(sinf,cosf)
       if(sinf.lt.zero) f=f+dpi
       mA=f
@@ -1114,9 +1114,9 @@ module celestial_mechanics
       !if((abs(coslN).le.TOLERANCE).or.(coslN.eq.zero))then
       if((abs(coslN).le.TOLERANCE)&
           &.or.(abs(coslN-zero).le.TOLERANCE))then
-        coswf=(1._dp/sinlN)*((y/R)-coslN*cosi*sinwf)
+        coswf=(one/sinlN)*((y/R)-coslN*cosi*sinwf)
       else
-        coswf=(1._dp/coslN)*((x/R)+sinlN*cosi*sinwf)
+        coswf=(one/coslN)*((x/R)+sinlN*cosi*sinwf)
       end if
       wf=atan2(sinwf,coswf)
       if(isnan(coswf))then
@@ -1134,7 +1134,7 @@ module celestial_mechanics
       end if
       if(sinwf.lt.zero) wf=wf+dpi
 
-      arg1=a*(1._dp-e*e)
+      arg1=a*(one-e*e)
       !sinf=rd*arg1/(h*e)
       sinf=rd*arg1/h
       if(isnan(sinf))then
@@ -1147,8 +1147,8 @@ module celestial_mechanics
 !         stop
         return
       end if
-      !cosf=(1._dp/e)*((arg1/R)-1._dp)
-      cosf=(arg1/R)-1._dp
+      !cosf=(one/e)*((arg1/R)-one)
+      cosf=(arg1/R)-one
       if(isnan(cosf))then
         write(*,*)" WARNING: cosf is NaN"
         write(*,*)" a = ",a," e = ",e
@@ -1162,9 +1162,9 @@ module celestial_mechanics
       w=wf-f
       if(w.lt.zero) w=w+dpi
 
-      arg1=sqrt((1._dp-e)/(1._dp+e))
+      arg1=sqrt((one-e)/(one+e))
       arg2=tan(0.5_dp*f)
-      Ea=2._dp*atan(arg1*arg2)
+      Ea=two*atan(arg1*arg2)
       if(Ea.lt.zero) Ea=Ea+dpi
 
       mA=Ea-e*sin(Ea)

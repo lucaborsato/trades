@@ -9,7 +9,7 @@ module constants
   integer,parameter::sp=selected_real_kind(6) ! single precision
   integer,parameter::dp=selected_real_kind(8) !define the KIND, the precision of all the constants
   integer,parameter::prec=precision(0._dp)
-  character(8)::sprec
+  character(8)::sprec='es23.16'
 
   !radiants, degrees conversions etc.
   real(dp),parameter::pi=4._dp*atan(1._dp)
@@ -21,6 +21,7 @@ module constants
   real(dp),parameter::s24h=86400._dp !seconds in a day = 24h = 86400s
   real(dp),parameter::zero=0._dp,one=1._dp,two=2._dp,three=3._dp
   real(dp),parameter::TOLERANCE=epsilon(zero)
+  real(dp),parameter::half = 0.5_dp
   real(dp),parameter::sqrt_half = sqrt(0.5_dp)
   real(dp),parameter::sqrt2 = sqrt(2._dp)
   real(dp),parameter::sqrt_12 = sqrt(12._dp) ! = 2*sqrt(3) needed for stability criterion with the mutual R_Hill

@@ -61,7 +61,7 @@ if(n_acor == 0):
 print autocor_time
 thin_steps = np.rint(np.mean(np.array(autocor_time, dtype=np.float64))).astype(int)
 print 'thin_steps = ',thin_steps
-sys.exit()
+#sys.exit()
 
 
 # create a flat array of the posterior: from (nruns_sel, nwalkers, nfit) -> (nruns_sel * nwalkers, nfit)

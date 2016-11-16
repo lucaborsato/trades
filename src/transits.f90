@@ -6,16 +6,25 @@ module transits
   use convert_type,only:string
   implicit none
 
+  
+  interface set_ephem
+    module procedure set_ephem_noinput,set_ephem_winput
+  end interface set_ephem
+  
   interface assign_T0
-    module procedure assign_T0_1,assign_T0_2
+    module procedure assign_T0_byTime,assign_T0_byNumber
   end interface assign_T0
 
+  interface check_T0
+    module procedure check_T0_1,check_T0_2
+  end interface check_T0
+  
   contains
 
   ! ------------------------------------------------------------------ !
   ! given the T0 data it does a linear fit to the data and it finds the
   ! ephemeris T and P: tn = Tref + Pref*n
-  subroutine set_ephem()
+  subroutine set_ephem_noinput()
     integer,dimension(:),allocatable::x
     real(dp),dimension(:),allocatable::y,ey
     integer::j
@@ -44,7 +53,39 @@ module transits
     end do
 
     return
-  end subroutine set_ephem
+  end subroutine set_ephem_noinput
+  
+  subroutine set_ephem_winput(n_body,n_t0,t0_num,t0_obs,et0_obs)
+    integer,intent(in)::n_body
+    integer,dimension(:),intent(in)::n_t0
+    integer,dimension(:,:),intent(in)::t0_num
+    real(dp),dimension(:,:),intent(in)::t0_obs,et0_obs
+    
+    integer,dimension(:),allocatable::x
+    real(dp),dimension(:),allocatable::y,ey
+    integer::j
+
+    if(.not.allocated(Tephem))&
+        &allocate(Tephem(n_body),Pephem(n_body),eTephem(n_body),ePephem(n_body))
+    Tephem=zero
+    Pephem=zero
+    eTephem=zero
+    ePephem=zero
+    do j=2,n_body
+      if(n_T0(j).gt.0)then
+        allocate(x(n_T0(j)),y(n_T0(j)),ey(n_T0(j)))
+        x=t0_num(1:n_t0(j),j)
+        y=t0_obs(1:n_t0(j),j)
+        ey=et0_obs(1:n_t0(j),j)
+        call linfit(x,y,ey,Pephem(j),ePephem(j),Tephem(j),eTephem(j))
+        deallocate(x,y,ey)
+      end if
+    end do
+
+    return
+  end subroutine set_ephem_winput
+  
+  
   
   
   ! ------------------------------------------------------------------ !
@@ -86,12 +127,15 @@ module transits
     real(dp),dimension(:),intent(inout)::rw
     real(dp),intent(in)::dt
     logical,intent(inout)::Hc
-!     logical::Hc
     
     integer::j1,j2,i1,i6
     real(dp)::mu
+    
+    integer::n_body
+    n_body=size(m)
 
-    do j1=2,NB
+!     do j1=2,NB
+    do j1=2,n_body
       j2=(j1-1)*6
       i1=1+j2
       i6=6+j2
@@ -266,14 +310,14 @@ module transits
     real(dp),intent(out)::tmidtra,lte
     real(dp),dimension(:),intent(inout)::ro
     logical,intent(inout)::Hc
-!     logical::Hc
     
     real(dp),dimension(:),allocatable::rw,rwbar
     real(dp),dimension(6)::bar
     real(dp)::A,B,dt1,dt2
     integer::ix,iy,ivx,ivy
     integer::loop,many_iter
-
+    integer::n_body, nb_dim
+    
     if(.not.Hc)return
     
     ix=1+(itra-1)*6
@@ -287,7 +331,9 @@ module transits
     dt1=hok
     dt2=zero
     tmidtra=zero
-    allocate(rw(NBDIM),rwbar(NBDIM))
+    n_body=size(m)
+    nb_dim=n_body*6
+    allocate(rw(nb_dim),rwbar(nb_dim))
     ro=zero
     rw=r1
     loop=0
@@ -450,7 +496,7 @@ module transits
   ! of the TT comparing with the observations
   !! TO DO THE FIT OF THE DURATION OF TRANSIT, SO WE NEED TO FIND CONTACTS AND THEN
   !! DECIDE IF DURATION IS D_TOT = t4-t1, D_FULL = t3-t1 or D_HALF = t3.5-t1.5
-  subroutine check_T0(itra,m,R,r1,r2,itime,hok,T0_stat,T0_sim,Hc)
+  subroutine check_T0_1(itra,m,R,r1,r2,itime,hok,T0_stat,T0_sim,Hc)
     integer,intent(in)::itra
     real(dp),dimension(:),intent(in)::m,R,r1,r2
     real(dp),intent(in)::itime,hok
@@ -520,12 +566,82 @@ module transits
     end if
 
     return
-  end subroutine check_T0
+  end subroutine check_T0_1
 
+    subroutine check_T0_2(itra,m,R,r1,r2,itime,hok,transit_flag,dur_check,n_T0,T0_num,T0_stat,T0_sim,Hc)
+    integer,intent(in)::itra
+    real(dp),dimension(:),intent(in)::m,R,r1,r2
+    real(dp),intent(in)::itime,hok
+    logical,dimension(:),intent(in)::transit_flag
+    integer,intent(in)::dur_check
+    integer,dimension(:),intent(in)::n_T0
+    integer,dimension(:,:),intent(in)::T0_num
+    integer,dimension(:,:),intent(inout)::T0_stat
+    real(dp),dimension(:,:),intent(inout)::T0_sim
+    logical,intent(inout)::Hc
+    
+    real(dp)::tmidtra,lte,r_sky,Rs,Rp,Rmin,Rmax
+    real(dp),dimension(:),allocatable::rtra
+    real(dp),dimension(4)::tcont
+    integer::nTs,jtra,ix,iy
+    
+    integer::n_body, nb_dim
+    real(dp)::mu,P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p,b_itra
+    
+    n_body=size(m)
+    nb_dim=n_body*6
+    allocate(rtra(nb_dim))
+    rtra=one
+    call find_transit(itra,m,r1,r2,itime,hok,tmidtra,lte,rtra,Hc)
+    
+    if(.not.Hc)then ! get out, if Hc == .false. is bad, so stop running
+      deallocate(rtra)
+      return
+    
+    else
+    
+      ! compute impact parameter from orbital elements at the transit:
+      ! rtra -> kep. elem.
+      jtra=(itra-1)*6
+      mu=Giau*(m(1)+m(itra))
+      call eleMD(mu,rtra(1+jtra:6+jtra),P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p)
+      b_itra = abs(impact_parameter(R(1),sma_p,inc_p*rad2deg,ecc_p=ecc_p,arg_p=w_p*rad2deg))
+      
+      if((b_itra.lt.one).and.(.not.transit_flag(itra)))then ! planet should not transit
+        Hc=.false.
+        deallocate(rtra)
+        return
+      
+      else
+      
+        call Rbounds(itra,R,Rs,Rp,Rmin,Rmax)
+        
+        ix=1+jtra
+        iy=2+jtra
+        r_sky=rsky(rtra(ix:iy))
+        if(r_sky.gt.Rmax)then
+          deallocate(rtra)
+          return ! it is not transiting
+        end if
+        nTs=n_T0(itra)
+
+        if(nTs.gt.0) call assign_T0(itra,nTs,T0_num(1:nTs,itra),tmidtra,T0_stat,T0_sim)
+
+        if(dur_check.eq.1) call find_contacts(itra,m,R,rtra,tmidtra,tcont)
+        
+        deallocate(rtra)
+    
+      end if
+      
+    end if
+
+    return
+  end subroutine check_T0_2
+  
   ! IT DETERMINES WHICH IS THE RIGHT T_0,obs TO BE ASSOCIATED WITH
   ! THE SIMULATED T_0,sim = tmidtra
   ! v1
-  subroutine assign_T0_1(itra,nTs,Tobs,tmidtra,T0_stat,T0_sim)
+  subroutine assign_T0_byTime(itra,nTs,Tobs,tmidtra,T0_stat,T0_sim)
     integer,intent(in)::itra,nTs
     real(dp),dimension(:),intent(in)::Tobs
     real(dp),intent(in)::tmidtra
@@ -552,12 +668,12 @@ module transits
     deallocate(intdt,dttemp)
 
     return
-  end subroutine assign_T0_1
+  end subroutine assign_T0_byTime
 
   ! IT DETERMINES WHICH IS THE RIGHT T_0,obs TO BE ASSOCIATED WITH
   ! THE SIMULATED T_0,sim = tmidtra
   ! v2
-  subroutine assign_T0_2(itra,nTs,epoTobs,tmidtra,T0_stat,T0_sim)
+  subroutine assign_T0_byNumber(itra,nTs,epoTobs,tmidtra,T0_stat,T0_sim)
     integer,intent(in)::itra,nTs
     integer,dimension(:),intent(in)::epoTobs
     real(dp),intent(in)::tmidtra
@@ -582,7 +698,7 @@ module transits
     end do
 
     return
-  end subroutine assign_T0_2
+  end subroutine assign_T0_byNumber
 
   ! it finds all transits of the selected planet (body id is itra) and store them
   ! in storetra variable, ready to be write into file

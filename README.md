@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.9.1 by Luca Borsato - 2016**    
+**`TRADES` v2.10.0 by Luca Borsato - 2016**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -399,7 +399,8 @@ Check if in the `src/` folder there is an hidden file `.f2py_f2cmap` that contai
 In folder `pytrades/`: `pytrades_lib.so`, `constants.py`, `ancillary.py`, `trades_pso2emcee.py`.    
 The script to run is `trades_pso2emcee.py`, that shows how to call the `pytrades_lib` and how to combine `PSO` algorithm with `emcee`.    
 Run as `python trades_pso2emcee.py -h` for instruction on the all the command line arguments to provide.    
-The `ancillary.py` file has different functions to write and read output files from `PSO` and `emcee` and other stuff helpful to manage the output of the simulations.
+The `ancillary.py` file has different functions to write and read output files from `PSO` and `emcee` and other stuff helpful to manage the output of the simulations.    
+Check also other files in the `pytrades` folder to understand how to use the python library.
     
     
 **TO BE CONTINUED**
@@ -408,6 +409,12 @@ The `ancillary.py` file has different functions to write and read output files f
 
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
+
+#### `TRADES 2.10.0`
+
+From the python library (`pytrades_lib`) it is possible to initialise `TRADES` without read files and given a set of orbital parameters, times of radial velocities, and transit epochs (integer numbers that identify each transit w.r.t. a transit of reference) it returns the simulated radial velocities and transit times.    
+To use this feature I added in the folder `pytrades` a test file `trades_test_20161116.py`. Be aware that the radial velocities and transit times have been read from 2 files, so modify it accordingly to your file/data.    
+Added more files in `pytrades` folder and added files to plot and summarise simulation with `emcee`.    
 
 #### `TRADES 2.9.1`
 

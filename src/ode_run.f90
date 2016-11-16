@@ -391,8 +391,8 @@ module ode_run
       Y(j)=2+(j-1)*6
       Z(j)=3+(j-1)*6
     end do
-    cX=1._dp
-    cY=1._dp
+    cX=one
+    cY=one
     cR=zero
     cR(2:NB)=1.5_dp*(R(1)+R(2:NB))*RsunAU
     rmean=9.e3_dp
@@ -424,7 +424,7 @@ module ode_run
       do j=2,NB
         cX(j)=r1(X(j))*r2(X(j))
         cY(j)=r1(Y(j))*r2(Y(j))
-        rmean(j)=0.5*( rsky(r1(X(j):Y(j))) + rsky(r2(X(j):Y(j))) )
+        rmean(j)=half*( rsky(r1(X(j):Y(j))) + rsky(r2(X(j):Y(j))) )
       end do
 
       if((idtra.gt.0).and.(idtra.le.NB))then
@@ -434,7 +434,7 @@ module ode_run
               if(rmean(j).le.cR(j))then
                 if(clN(j).eq.0)then
                   
-                  if((cX(j).le.0._dp).and.(r1(Z(j)).gt.0._dp))then
+                  if((cX(j).le.zero).and.(r1(Z(j)).gt.zero))then
                     call check_T0(j,m,R,r1,r2,&
                       &itime,hok,T0_stat,T0_sim,Hc) ! WARNING: CHANGE Hc WITHIN check_T0
 !                     if(Hc)return
@@ -443,7 +443,7 @@ module ode_run
                 
                 else
                   
-                  if((cY(j).le.0._dp).and.(r1(Z(j)).gt.0._dp))then
+                  if((cY(j).le.zero).and.(r1(Z(j)).gt.zero))then
                     call check_T0(j,m,R,r1,r2,&
                       &itime,hok,T0_stat,T0_sim,Hc) ! WARNING: CHANGE Hc WITHIN check_T0
 !                     if(Hc)return
@@ -457,7 +457,7 @@ module ode_run
             if(rmean(idtra).le.cR(idtra))then
               if(clN(idtra).eq.0)then
                 
-                if((cX(idtra).le.0._dp).and.(r1(Z(idtra)).gt.0._dp))then
+                if((cX(idtra).le.zero).and.(r1(Z(idtra)).gt.zero))then
                   call check_T0(idtra,m,R,r1,r2,&
                     &itime,hok,T0_stat,T0_sim,Hc)
 !                   if(Hc)return
@@ -466,7 +466,7 @@ module ode_run
                 
               else
               
-                if((cY(idtra).le.0._dp).and.(r1(Z(idtra)).gt.0._dp))then
+                if((cY(idtra).le.zero).and.(r1(Z(idtra)).gt.zero))then
                   call check_T0(idtra,m,R,r1,r2,&
                     &itime,hok,T0_stat,T0_sim,Hc)
 !                   if(Hc)return
@@ -543,8 +543,8 @@ module ode_run
       Y(j)=2+(j-1)*6
       Z(j)=3+(j-1)*6
     end do
-    cX=1._dp
-    cY=1._dp
+    cX=one
+    cY=one
     cR=zero
     cR(2:NB)=1.5_dp*(R(1)+R(2:NB))*RsunAU
     rmean=9.e3_dp
@@ -630,7 +630,7 @@ module ode_run
       do j=2,NB
         cX(j)=r1(X(j))*r2(X(j))
         cY(j)=r1(Y(j))*r2(Y(j))
-        rmean(j)=0.5*( rsky(r1(X(j):Y(j))) + rsky(r2(X(j):Y(j))) )
+        rmean(j)=half*( rsky(r1(X(j):Y(j))) + rsky(r2(X(j):Y(j))) )
       end do
       if((idtra.gt.0).and.(idtra.le.NB))then
         !if(cntT0.lt.sum(nT0))then
@@ -639,7 +639,7 @@ module ode_run
             if(rmean(j).le.cR(j))then
               if(clN(j).eq.0)then
               
-                if((cX(j).le.0._dp).and.(r1(Z(j)).gt.0._dp))then
+                if((cX(j).le.zero).and.(r1(Z(j)).gt.zero))then
                   if(nT0(j).gt.0) call check_T0(j,m,R,r1,r2,&
                     &itime,hok,T0_stat,T0_sim,Hc)
 !                   if(Hc)return
@@ -651,7 +651,7 @@ module ode_run
               
               else
               
-                if((cY(j).le.0._dp).and.(r1(Z(j)).gt.0._dp))then
+                if((cY(j).le.zero).and.(r1(Z(j)).gt.zero))then
                   if(nT0(j).gt.0)call check_T0(j,m,R,r1,r2,&
                     &itime,hok,T0_stat,T0_sim,Hc)
 !                   if(Hc)return
@@ -668,8 +668,8 @@ module ode_run
           if(rmean(idtra).le.cR(idtra))then
             if(clN(idtra).eq.0)then
             
-              if((cX(idtra).le.0._dp).and.&
-                &(r1(Z(idtra)).gt.0._dp))then
+              if((cX(idtra).le.zero).and.&
+                &(r1(Z(idtra)).gt.zero))then
                 if(nT0(idtra).gt.0)call check_T0(idtra,m,R,r1,r2,&
                   &itime,hok,T0_stat,T0_sim,Hc)
 !                 if(Hc)return
@@ -681,8 +681,8 @@ module ode_run
             
             else
             
-              if((cY(idtra).le.0._dp).and.&
-                &(r1(Z(idtra)).gt.0._dp))then
+              if((cY(idtra).le.zero).and.&
+                &(r1(Z(idtra)).gt.zero))then
                 if(nT0(idtra).gt.0)call check_T0(idtra,m,R,r1,r2,&
                   &itime,hok,T0_stat,T0_sim,Hc)
 !                 if(Hc)return
@@ -709,7 +709,7 @@ module ode_run
       itime=itime+hok
 
       ftime=(itime/time)*100._dp
-      iftime=int(ftime+0.5_dp)
+      iftime=int(ftime+half)
       if(iftime.eq.compare)then
         write(*,'(a,i3,a)')" done the ",compare," % "
         compare=compare+10
@@ -929,19 +929,19 @@ module ode_run
     if(nRV.gt.0)then
       allocate(RV_stat(nRV),RV_sim(nRV))
       RV_stat=0
-      RV_sim=0._dp
+      RV_sim=zero
     end if
 
     cntT0=0
     if(nTs.gt.0)then
       allocate(T0_stat(nTs,NB),T0_sim(nTs,NB))
       T0_stat=0
-      T0_sim=0._dp
+      T0_sim=zero
     end if
 
     dt1=tstart-tepoch
     dt2=dt1+tint
-    if(dt1.lt.0._dp)then
+    if(dt1.lt.zero)then
       call ode_a(m,R,ra1,dt1,clN,cntRV,RV_stat,RV_sim,&
           &cntT0,T0_stat,T0_sim,Hc)
       if(Hc)then
@@ -1054,7 +1054,7 @@ module ode_run
     end if
 
     dt1=tstart-tepoch
-    if(dt1.lt.0._dp)then
+    if(dt1.lt.zero)then
       call ode_a(m,R,ra1,dt1,clN,cntRV,RV_stat,RV_sim,&
           &cntT0,T0_stat,T0_sim,Hc)
       if(Hc)then
@@ -1093,6 +1093,261 @@ module ode_run
   end subroutine ode_boot
   ! ------------------------------------------------------------------ !
 
+  
+  subroutine ode_full_args(m,R,rin,time,step_in,clN,&
+    &cntRV,tRV,RV_stat,RV_sim,id_transit_body,transit_flag,dur_check,&
+    &cntT0,n_T0,T0_num,T0_stat,T0_sim,Hc)
+    real(dp),dimension(:),intent(in)::m,R,rin
+    real(dp),intent(in)::time,step_in
+    integer,dimension(:),intent(in)::clN
+    integer,intent(inout)::cntRV
+    real(dp),dimension(:),intent(in)::tRV
+    integer,dimension(:),intent(inout)::RV_stat
+    real(dp),dimension(:),intent(inout)::RV_sim
+    integer,intent(in)::id_transit_body
+    logical,dimension(:),intent(in)::transit_flag
+    integer,intent(in)::dur_check
+    integer,intent(inout)::cntT0
+    integer,dimension(:),intent(in)::n_T0
+    integer,dimension(:,:),intent(in)::T0_num
+    integer,dimension(:,:),intent(inout)::T0_stat
+    real(dp),dimension(:,:),intent(inout)::T0_sim
+    logical,intent(inout)::Hc
+
+    integer::n_body,nb_dim
+    real(dp),dimension(:),allocatable::dr,r1,r2,err
+    integer,dimension(:),allocatable::X,Y,Z
+    real(dp),dimension(:),allocatable::cX,cY,cR,rmean
+    real(dp)::hw,hok,hnext,itime
+    integer::j,j1 !,nj
+    integer::n_rv
+
+    
+    if(do_hill_check) Hc=mutual_Hill_check(m,rin)
+    if(.not.Hc) return
+    
+    n_body=size(m)
+    allocate(X(n_body),Y(n_body),Z(n_body),cX(n_body),cY(n_body),&
+      &cR(n_body),rmean(n_body))
+    X=0
+    Y=0
+    Z=0
+    do j=2,n_body
+      X(j)=1+(j-1)*6
+      Y(j)=2+(j-1)*6
+      Z(j)=3+(j-1)*6
+    end do
+    cX=one
+    cY=one
+    cR=zero
+    cR(2:n_body)=1.5_dp*(R(1)+R(2:n_body))*RsunAU ! RsunAU from constants module
+    rmean=9.e3_dp
+
+    nb_dim=6*n_body
+    allocate(dr(nb_dim),r1(nb_dim),r2(nb_dim),err(nb_dim))
+    hw=step_in
+    if(time.lt.zero) hw=-hw
+    itime=zero
+    r1=rin
+    r2=zero
+    err=zero
+
+    n_rv=size(tRV)
+    
+    j1=0
+    integration: do
+      j1=j1+1
+      if(abs(itime+hw).gt.abs(time)) hw=time-itime
+      call eqmastro(m,r1,dr)
+      call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err)
+      
+      if(do_hill_check) Hc=mutual_Hill_check(m,r2)
+      if(.not.Hc) return
+
+      ! RV check
+      if(cntRV.lt.n_rv) call check_RV&
+        &(m,r1,dr,itime,hok,cntRV,tRV,RV_stat,RV_sim)
+      
+      ! T0 check
+      do j=2,n_body
+        cX(j)=r1(X(j))*r2(X(j))
+        cY(j)=r1(Y(j))*r2(Y(j))
+        rmean(j)=half*( rsky(r1(X(j):Y(j))) + rsky(r2(X(j):Y(j))) )
+      end do
+      
+      if((id_transit_body.gt.0).and.(id_transit_body.le.n_body))then
+        if(cntT0.lt.sum(n_T0))then
+          if(id_transit_body.eq.1)then
+            do j=2,n_body
+              if(rmean(j).le.cR(j))then
+                if(clN(j).eq.0)then
+                  
+                  if((cX(j).le.zero).and.(r1(Z(j)).gt.zero))then
+                    call check_T0(j,m,R,r1,r2,&
+                      &itime,hok,transit_flag,dur_check,n_T0,&
+                      &T0_num,T0_stat,T0_sim,Hc)
+                    if(.not.Hc) return
+                  end if
+                
+                else
+                  
+                  if((cY(j).le.zero).and.(r1(Z(j)).gt.zero))then
+                    call check_T0(j,m,R,r1,r2,&
+                      &itime,hok,transit_flag,dur_check,n_T0,&
+                      &T0_num,T0_stat,T0_sim,Hc)
+                    if(.not.Hc) return
+                  end if
+                
+                end if
+              end if
+            end do
+          else
+            if(rmean(id_transit_body).le.cR(id_transit_body))then
+              if(clN(id_transit_body).eq.0)then
+                
+                if((cX(id_transit_body).le.zero).and.&
+                  &(r1(Z(id_transit_body)).gt.zero))then
+                  call check_T0(j,m,R,r1,r2,&
+                    &itime,hok,transit_flag,dur_check,n_T0,&
+                    &T0_num,T0_stat,T0_sim,Hc)
+                  if(.not.Hc) return
+                end if
+                
+              else
+              
+                if((cY(id_transit_body).le.zero).and.&
+                  &(r1(Z(id_transit_body)).gt.zero))then
+                  call check_T0(j,m,R,r1,r2,&
+                    &itime,hok,transit_flag,dur_check,n_T0,&
+                    &T0_num,T0_stat,T0_sim,Hc)
+                  if(.not.Hc) return
+                end if
+                
+              end if
+            end if
+          end if
+          cntT0=sum(T0_stat)
+        end if
+      end if
+
+      itime=itime+hok
+      if(abs(itime).ge.abs(time)) exit integration
+      hw=hnext
+      r1=r2
+    end do integration
+    deallocate(X,Y,Z,cX,cY,cR,rmean)
+    deallocate(dr,r1,r2,err)
+
+    return
+  end subroutine ode_full_args
+  
+  
+  subroutine orbits_to_data(t_start,t_epoch,step_in,t_int,&
+    &m,R,P,ecc,argp,mA,inc,lN,&
+    &tRV,RV_sim,&
+    &id_transit_body,transit_flag,dur_check,n_T0,T0_num,T0_sim)
+    real(dp),intent(in)::t_start,t_epoch,step_in,t_int
+    real(dp),dimension(:),intent(in)::m,R,P,ecc,argp,mA,inc,lN
+    real(dp),dimension(:),intent(in)::tRV
+    real(dp),dimension(:),allocatable,intent(out)::RV_sim
+    integer,intent(in)::id_transit_body
+    logical,dimension(:),intent(in)::transit_flag
+    integer,intent(in)::dur_check
+    integer,dimension(:),intent(in)::n_T0
+    integer,dimension(:,:),intent(in)::T0_num
+    real(dp),dimension(:,:),allocatable,intent(out)::T0_sim
+    
+    integer::n_body,nb_dim
+    integer,dimension(:),allocatable::clN
+    real(dp),dimension(:),allocatable::ra0,ra1
+    real(dp),dimension(:),allocatable::sma
+    real(dp)::dt1,dt2
+    logical::Hc
+    integer::cntRV,n_rv
+    integer,dimension(:),allocatable::RV_stat
+    integer::cntT0,nTs
+    integer,dimension(:,:),allocatable::T0_stat
+    logical::checkpar,gls_check
+    
+    integer::ii
+    
+    Hc=.true.
+    
+    ! it is needed to define the which is the alarm coordinate for the transit detection
+    call lNset(lN,clN)
+    
+    n_body=size(m)
+    allocate(sma(n_body))
+    sma=zero
+    call semax_vec(m(1),m(2:n_body),P(2:n_body), sma(2:n_body))
+    
+    nb_dim=6*n_body
+    if(.not.allocated(ra0)) allocate(ra0(nb_dim),ra1(nb_dim))
+    ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
+    call initial_state(P,sma,ecc,mA,ra0)
+    ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
+    call orb2obs(ra0,-lN,-inc,-argp,ra1)
+
+    cntRV=0
+    n_rv=size(tRV)
+    if(n_rv.gt.0)then
+      allocate(RV_stat(n_rv),RV_sim(n_rv))
+      RV_stat=0
+      RV_sim=zero
+    end if
+
+    nTs=maxval(n_T0)
+    cntT0=0
+    if(nTs.gt.0)then
+      allocate(T0_stat(nTs,n_body),T0_sim(nTs,n_body))
+      T0_stat=0
+      T0_sim=zero
+    end if
+
+    dt1=t_start-t_epoch
+    dt2=dt1+t_int
+    if(dt1.lt.zero)then
+!       call ode_a(m,R,ra1,dt1,clN,cntRV,RV_stat,RV_sim,&
+!           &cntT0,T0_stat,T0_sim,Hc)
+      call ode_full_args(m,R,ra1,dt1,step_in,clN,&
+        &cntRV,tRV,RV_stat,RV_sim,id_transit_body,&
+        &transit_flag,dur_check,&
+        &cntT0,n_T0,T0_num,T0_stat,T0_sim,Hc)
+      if(Hc)then
+        if(abs(dt1).le.t_int)then
+          dt2=dt1+t_int
+!           call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
+!               &cntT0,T0_stat,T0_sim,Hc)
+          call ode_full_args(m,R,ra1,dt2,step_in,clN,&
+            &cntRV,tRV,RV_stat,RV_sim,id_transit_body,&
+            &transit_flag,dur_check,&
+            &cntT0,n_T0,T0_num,T0_stat,T0_sim,Hc)
+        end if
+      end if
+    else
+      dt2=dt1+t_int
+!       call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
+!           &cntT0,T0_stat,T0_sim,Hc)
+      call ode_full_args(m,R,ra1,dt2,step_in,clN,&
+        &cntRV,tRV,RV_stat,RV_sim,id_transit_body,&
+        &transit_flag,dur_check,&
+        &cntT0,n_T0,T0_num,T0_stat,T0_sim,Hc)
+    end if
+    
+    if(.not.Hc) then
+      if(n_rv.gt.0) RV_sim = zero
+      if(nTs.gt.0) T0_sim = zero
+    end if
+
+    if(allocated(RV_stat)) deallocate(RV_stat)
+    if(allocated(T0_stat)) deallocate(T0_stat)
+    if(allocated(ra0)) deallocate(ra0,ra1)
+
+    
+    return
+  end subroutine orbits_to_data
+  
+  
     ! ------------------------------------------------------------------ !
   ! subroutine to write file and to screen the data ... what it writes
   ! depends on the option isim and wrtid/lmon in arg.in file
@@ -1109,7 +1364,7 @@ module ode_run
     real(dp),dimension(:),allocatable::ra0,ra1
     real(dp)::dt1,dt2
     logical::Hc
-    !real(dp),parameter::resmax=huge(0._dp)
+    !real(dp),parameter::resmax=huge(zero)
     !real(dp),parameter::resmax=1.e6_dp
     integer::cntRV
     real(dp),dimension(:),allocatable::RV_sim
@@ -1214,7 +1469,7 @@ module ode_run
 
     dt1=tstart-tepoch
     dt2=dt1+tint
-    if(dt1.lt.0._dp)then
+    if(dt1.lt.zero)then
 !       write(*,'(a,g25.14,a)')" dt1 = ",dt1,&
 !           &"< 0 => backward integration"
       call ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&

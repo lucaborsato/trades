@@ -102,20 +102,26 @@ module eq_motion
     real(dp),dimension(:),intent(in)::m,r
     real(dp),dimension(:),intent(out)::drdt
     real(dp),dimension(3)::AA,BB
-    real(dp),dimension(NB,NB,3)::AB
+!     real(dp),dimension(NB,NB,3)::AB
+    real(dp),dimension(:,:,:),allocatable::AB
     real(dp),dimension(3)::ri,rj,rij
     integer::i,j,nci,ncj
     real(dp)::rimod,rjmod,rijmod
 
     AA=zero
     BB=zero
+    allocate(AB(NB,NB,3))
     AB=zero
 
     drdt=zero
 !     drdt(1:3)=r(4:6) !star velocity... zero
     
+!     write(*,*)' in eqmastro NB = ',NB
+    
     do i=2,NB,1
       nci=(i-1)*6
+!       write(*,*)' i = ',i,' nci = ',nci,1+nci,3+nci,4+nci,6+nci
+!       write(*,*)' size(drdt) = ',size(drdt)
       drdt(1+nci:3+nci)=r(4+nci:6+nci)
       ri=r(1+nci:3+nci)
       rimod=dist(ri)
@@ -123,6 +129,7 @@ module eq_motion
       drdt(4+nci:6+nci)=drdt(4+nci:6+nci)-Giau*(m(1)+m(i))*AA
       do j=i+1,NB,1
         ncj=(j-1)*6
+!         write(*,*)' j = ',j,' ncj = ',ncj
 !         drdt(1+ncj:3+ncj)=r(4+ncj:6+ncj)
         rj=r(1+ncj:3+ncj)
         rij=ri-rj
@@ -139,6 +146,7 @@ module eq_motion
     end do
     
 !     deallocate(AA, AB)
+    deallocate(AB)
     
     return
   end subroutine eqmastro
