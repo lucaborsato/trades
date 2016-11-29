@@ -1,5 +1,5 @@
 module output_files
-  use constants,only:dp,sprec,zero,AU,speedaud,s24h
+  use constants
   use parameters
   use parameters_conversion
   use init_trades,only:get_unit,state2string
@@ -728,8 +728,8 @@ module output_files
     write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')"# BIC = Chi2 + nfit x ln(ndata) = ",chi2," + ",nfit," x ln(",ndata,") = ",bic
     write(upar,'(a,es23.16,a,i4,a,i5,a,es23.16)')"# BIC = Chi2 + nfit x ln(ndata) = ",chi2," + ",nfit," x ln(",ndata,") = ",bic
     
-    write(*,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2)) - Fitness_x_dof / 2 = ", ln_err_const-0.5_dp*fitness*real(dof,dp)
-    write(upar,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2)) - Fitness_x_dof / 2 = ", ln_err_const-0.5_dp*fitness*real(dof,dp)
+    write(*,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2)) - Fitness_x_dof / 2 = ", ln_err_const-half*fitness*real(dof,dp)
+    write(upar,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2)) - Fitness_x_dof / 2 = ", ln_err_const-half*fitness*real(dof,dp)
     
     write(*,'(a,5x,a)')"# parameter "," value "
     write(upar,'(a,5x,a)')"# parameter "," value "
@@ -759,8 +759,8 @@ module output_files
     chi2wr_oc=chi2r_oc*real(ndata,dp)/real(sum(nT0),dp)
     
     if(oc_fit.eq.2)then
-      chi2r=chi2r_RV+0.5_dp*(chi2r_T0+chi2r_oc)
-      chi2wr=chi2wr_RV+0.5_dp*(chi2wr_T0+chi2wr_oc)
+      chi2r=chi2r_RV+half*(chi2r_T0+chi2r_oc)
+      chi2wr=chi2wr_RV+half*(chi2wr_T0+chi2wr_oc)
     else if(oc_fit.eq.1)then
       chi2r=chi2r_RV+chi2r_oc
       chi2wr=chi2wr_RV+chi2wr_oc
@@ -796,7 +796,7 @@ module output_files
       
       write(*,'(a,es23.16)')' Chi2 = ',chi2r*real(dof,dp)
       write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')" BIC = Chi2 + nfit x ln(ndata) = ",chi2r*real(dof,dp)," + ",nfit," x ln(",ndata,") = ",bic
-      write(*,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ", ln_err_const-0.5_dp*fitness*real(dof,dp)
+      write(*,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ", ln_err_const-half*fitness*real(dof,dp)
       write(*,'(a)')''
       write(*,'(a,es23.16)')" k_chi2r   = ",k_chi2r
       write(*,'(a,es23.16)')" Chi2r     = ",chi2r
@@ -823,7 +823,7 @@ module output_files
       end if
       
       write(uwrt,'(a,es23.16,a,i4,a,i5,a,es23.16)')" BIC = Chi2 + nfit x ln(ndata) = ",chi2r*real(dof,dp)," + ",nfit," x ln(",ndata,") = ",bic
-      write(uwrt,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ", ln_err_const-0.5_dp*fitness*real(dof,dp)
+      write(uwrt,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ", ln_err_const-half*fitness*real(dof,dp)
       write(uwrt,'(a)')''
       write(uwrt,'(a,es23.16)')" k_chi2r   = ",k_chi2r
       write(uwrt,'(a,es23.16)')" Chi2r     = ",chi2r

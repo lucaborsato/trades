@@ -14,14 +14,8 @@ import constants as cst # local constants module
 import acor
 
 # common variables needed to create labels and parameter names
-kel_id = ['$M$', '$R$', '$P$', '$e$', '$\omega$', '$\\nu$', '$i$', '$\Omega$']
-kel_units = ['$[M_{\oplus}]$', '$[R_\mathrm{Jup}]$', '[days]', '', '', '[deg]', '[deg]', '[deg]']
-
-kel_id_2 = ['$M/M_\star$', '$R$', '$P$', '$e\cos\omega$', '$e\sin\omega$', '$\lambda$', '$i\cos\Omega$', '$i\sin\Omega$']
-kel_units_2 = ['', '$[R_\mathrm{Jup}]$', '[days]', '', '', '[deg]', '', '']
-
 kel_fmt = ['%.3f', '%.4f', '%.3f', '%.1f', '%.1f', '%.1f', '%.3f', '%.3f']
-nelem = len(kel_id)
+
 letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'l', 'm', 'n', 'o', 'p']
 
 deg2rad = np.pi/180.0
@@ -76,7 +70,7 @@ def get_args():
   return cli
 
 # given the mass flag letter it computes the proper mass conversion factor
-def mass_type_factor(Ms=1, mtype='earth', mscale=True):
+def mass_type_factor(Ms=1.0, mtype='earth', mscale=True):
   if (mtype.lower() in ['s', 'su', 'sun']):
     conv_factor = np.float64(1.0)
     scale_factor = Ms
@@ -119,13 +113,29 @@ def get_proper_mass(m_type, parameter_names_emcee, full_path):
 
 # prepare the labels of the Keplerian orbital elements for the legend
 def keplerian_legend(parameter_names, m_type):
-  if (m_type in ['j', 'jup', 'jupiter']):
-    kel_units[0] = '$[M_\mathrm{Jup}]$'
-  elif (m_type in ['s', 'sun']):
-    kel_units[0] = '$[M_{\odot}]$'
+  useless, m_unit = mass_type_factor(1., m_type, mscale=False)
+  #if (m_type in ['j', 'jup', 'jupiter']):
+    #unit_mass = '$[M_\mathrm{Jup}]$'
+  #elif (m_type in ['s', 'sun']):
+    #unit_mass = '$[M_{\odot}]$'
+  if(m_unit == 'M_Jup'):
+    unit_mass = 'M_\mathrm{Jup}'
+    unit_radius = 'R_\mathrm{Jup}'
+  elif (m_unit == 'M_Earth'):
+    unit_mass = 'M_\oplus'
+    unit_radius = 'R_\oplus'
+  elif (m_unit == 'M_Sun'):
+    unit_mass = 'M_\odot'
+    unit_radius = 'R_\odot'
+  elif (m_unit == 'M_Nep'):
+    unit_mass = 'M_\mathrm{Nep}'
+    unit_radius = 'R_\mathrm{Nep}'
+  else:
+    unit_mass = ' '
+  
   nfit = parameter_names.shape[0]
   kel_legends = np.zeros((nfit), dtype='|S256')
-  labels_list = []
+  
   for i in range(0, nfit):
     #print parameter_names[i], ' ==> ',
     parameter_names[i] = parameter_names[i].strip()
@@ -133,74 +143,115 @@ def keplerian_legend(parameter_names, m_type):
     
     if ('Ms' in parameter_names[i]):
       planet_id = int(parameter_names[i].split('m')[1].split('Ms')[0]) - 1
-      kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id_2[0], letters[planet_id], kel_units_2[0])
-      labels_list.append(r'$%s_%s$' %(kel_id_2[0].strip('$'), letters[planet_id]))
+      #kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id_2[0], letters[planet_id], kel_units_2[0])
+      kel_legends[i] = r'$\displaystyle\frac{M_\mathrm{%s}}{M_\star} \left[\frac{%s}{M_\odot}\right]$' %(letters[planet_id], unit_mass)
       
     elif (parameter_names[i][0] == 'm' and parameter_names[i][-1] != 's'):
       planet_id = int(parameter_names[i][1:]) - 1
-      kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id[0], letters[planet_id], kel_units[0])
-      labels_list.append(r'$%s_%s$' %(kel_id[0].strip('$'), letters[planet_id]))
+      kel_legends[i] = r'$M_\mathrm{%s} [%s]$' %(letters[planet_id], unit_mass)
     
     elif (parameter_names[i][0] == 'R'):
       planet_id = int(parameter_names[i][1:]) - 1
-      kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id[1], letters[planet_id], kel_units[1])
-      labels_list.append(r'$%s_%s$' %(kel_id_2[1].strip('$'), letters[planet_id]))
+      kel_legends[i] = r'$R_\mathrm{%s}$ [%s]$' %(letters[planet_id], unit_radius)
     
     elif (parameter_names[i][0] == 'P'):
       planet_id = int(parameter_names[i][1:]) - 1
-      kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id[2], letters[planet_id], kel_units[2])
-      labels_list.append(r'$%s_%s$' %(kel_id_2[2].strip('$'), letters[planet_id]))
+      kel_legends[i] = r'$P_\mathrm{%s}$ [days]' %(letters[planet_id])
       
     elif ('e' in parameter_names[i]):
       if (parameter_names[i][0:4] == 'ecos'):
         planet_id = int(parameter_names[i].split('w')[1].strip()) - 1
-        kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id_2[3], letters[planet_id], kel_units_2[3])
-        labels_list.append(r'$%s_%s$' %(kel_id_2[3].strip('$'), letters[planet_id]))
+        kel_legends[i] = r'$e\cos\omega_\mathrm{%s}$' %(letters[planet_id])
       elif (parameter_names[i][0:4] == 'esin'):
         planet_id = int(parameter_names[i].split('w')[1].strip()) - 1
-        kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id_2[4], letters[planet_id], kel_units_2[4])
-        labels_list.append(r'$%s_%s$' %(kel_id_2[4].strip('$'), letters[planet_id]))
+        kel_legends[i] = r'$e\sin\omega_\mathrm{%s}$' %(letters[planet_id])
       else:
         planet_id = int(parameter_names[i].split('e')[1].strip()) - 1
-        kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id[3], letters[planet_id], kel_units[3])
-        labels_list.append(r'$%s_%s$' %(kel_id[3].strip('$'), letters[planet_id]))
+        kel_legends[i] = r'$e_\mathrm{%s}$' %(letters[planet_id])
     
     elif (parameter_names[i][0] == 'w'):
       planet_id = int(parameter_names[i].split('w')[1].strip()) - 1
-      kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id[4], letters[planet_id], kel_units[4])
-      labels_list.append(r'$%s_%s$' %(kel_id[4].strip('$'), letters[planet_id]))
+      kel_legends[i] = r'$\omega_\mathrm{%s} [^\circ]$' %(letters[planet_id])
     
     elif (parameter_names[i][0:2] == 'mA'):
       planet_id = int(parameter_names[i][2:]) - 1
-      kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id[5], letters[planet_id], kel_units[5])
-      labels_list.append(r'$%s_%s$' %(kel_id[5].strip('$'), letters[planet_id]))
+      kel_legends[i] = r'$\mathcal{M}_\mathrm{%s} [^\circ]$' %(letters[planet_id])
       
     elif ('lambda' in parameter_names[i]):
       planet_id = int(parameter_names[i].split('lambda')[1].strip()) - 1
-      kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id_2[5], letters[planet_id], kel_units_2[5])
-      labels_list.append(r'$%s_%s$' %(kel_id_2[5].strip('$'), letters[planet_id]))
+      kel_legends[i] = r'$\lambda_\mathrm{%s} [^\circ]$' %(letters[planet_id])
       
     elif (parameter_names[i][0] == 'i'):
       if('icos' in parameter_names[i]):
         planet_id = int(parameter_names[i].split('lN')[1].strip()) - 1
-        kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id_2[6], letters[planet_id], kel_units_2[6])
-        labels_list.append(r'$%s_%s$' %(kel_id_2[6].strip('$'), letters[planet_id]))
+        kel_legends[i] = r'$i\cos\Omega_\mathrm{%s}$' %(letters[planet_id])
       elif('isin' in parameter_names[i]):
         planet_id = int(parameter_names[i].split('lN')[1].strip()) - 1
-        kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id_2[7], letters[planet_id], kel_units_2[7])
-        labels_list.append(r'$%s_%s$' %(kel_id_2[7].strip('$'), letters[planet_id]))
+        kel_legends[i] = r'$\i\sin\Omega_\mathrm{%s}$' %(letters[planet_id])
       else:
         planet_id = int(parameter_names[i][1:]) - 1
-        kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id[6], letters[planet_id], kel_units[6])
-        labels_list.append(r'$%s_%s$' %(kel_id_2[6].strip('$'), letters[planet_id]))
+        kel_legends[i] = r'$i_\mathrm{%s} [^\circ]$' %(letters[planet_id])
       
     elif (parameter_names[i][0:2] == 'lN'):
       planet_id = int(parameter_names[i][2:]) - 1
-      kel_legends[i] = r'%s$_\mathrm{%s}$ %s' %(kel_id[7], letters[planet_id], kel_units[7])
-      labels_list.append(r'$%s_%s$' %(kel_id_2[7].strip('$'), letters[planet_id]))
+      kel_legends[i] = r'$\Omega_\mathrm{%s} [^\circ]$' %(letters[planet_id])
       
   kel_legends = [i.strip() for i in kel_legends]
-  return kel_legends, labels_list
+  
+  return kel_legends
+
+def derived_labels(derived_names, m_type):
+  m_factor_useless, m_unit = mass_type_factor(1., m_type, mscale=False)
+  if(m_unit == 'M_Jup'):
+    unit_mass = 'M_\mathrm{Jup}'
+  elif (m_unit == 'M_Earth'):
+    unit_mass = 'M_\oplus'
+  elif (m_unit == 'M_Sun'):
+    unit_mass = 'M_\odot'
+  elif (m_unit == 'M_Nep'):
+    unit_mass = 'M_\mathrm{Nep}'
+  else:
+    unit_mass = ' '
+    
+  labels_list = []
+  n_der = derived_names.shape[0]
+  for ider in range(0, n_der):
+    
+    # mass
+    if(derived_names[ider][0] == 'm' and derived_names[ider][1] != 'A'):
+      planet_id = int(derived_names[ider].split('m')[1]) - 1
+      labels_list.append(r'$M_\mathrm{%s} [%s]$' %(letters[planet_id], unit_mass))
+      
+    # eccentricity
+    elif(derived_names[ider][0] == 'e'):
+      planet_id = int(derived_names[ider].split('e')[1]) - 1
+      labels_list.append(r'$e_\mathrm{%s}$' %(letters[planet_id]))
+    
+    # argument of pericentre
+    elif(derived_names[ider][0] == 'w'):
+      planet_id = int(derived_names[ider].split('w')[1]) - 1
+      #labels_list.append(r'$\omega_\mathrm{%s} [\mathrm{deg}]$' %(letters[planet_id]))
+      labels_list.append(r'$\omega_\mathrm{%s} [^\circ]$' %(letters[planet_id]))
+    
+    # mean anomaly
+    elif(derived_names[ider][0:2] == 'mA'):
+      planet_id = int(derived_names[ider].split('mA')[1]) - 1
+      #labels_list.append(r'$\mathcal{M}_\mathrm{%s} [\mathrm{deg}]$' %(letters[planet_id]))
+      labels_list.append(r'$\mathcal{M}_\mathrm{%s} [^\circ]$' %(letters[planet_id]))
+      
+    # inclination
+    elif(derived_names[ider][0] == 'i'):
+      planet_id = int(derived_names[ider].split('i')[1]) - 1
+      #labels_list.append(r'$i_\mathrm{%s} [\mathrm{deg}]$' %(letters[planet_id]))
+      labels_list.append(r'$i_\mathrm{%s} [^\circ]$' %(letters[planet_id]))
+      
+    # longitude of node
+    elif(derived_names[ider][0:2] == 'lN'):
+      planet_id = int(derived_names[ider].split('lN')[1]) - 1
+      #labels_list.append(r'$\Omega_\mathrm{%s} [\mathrm{deg}]$' %(letters[planet_id]))
+      labels_list.append(r'$\Omega_\mathrm{%s} [^\circ]$' %(letters[planet_id]))
+    
+  return labels_list
 
 # only needed by check_good_parameters to convert Mjup to flagged mass
 def check_good_parameters(good_id, good_parameters_in, m_factor, nfit):
@@ -302,15 +353,24 @@ def get_data(emcee_file, temp_status):
   
   return parameter_names_emcee, parameter_boundaries, chains, acceptance_fraction, autocor_time, lnprobability, ln_err_const, completed_steps
 
-def compute_autocor_time(chains):
-  nr, nw, nfit = chains.shape
-
-  autocor_time = np.zeros((nfit), dtype=np.float64)
-  for ifit in range(0, nfit):
-    x = chains[:,:,ifit]
-    #tau, mean, sigma = acor.acor(x)
-    temp_acor = np.mean(np.array([acor.acor(x[:,iw]) for iw in range(0, nw)]), axis=0)
-    autocor_time[ifit] = temp_acor[0]
+def compute_autocor_time(chains, walkers_transposed=True):
+  if(walkers_transposed):
+    
+    nr, nw, nfit = chains.shape
+    autocor_time = np.zeros((nfit), dtype=np.float64)
+    for ifit in range(0, nfit):
+      x = chains[:,:,ifit]
+      #tau, mean, sigma = acor.acor(x)
+      temp_acor = np.mean(np.array([acor.acor(x[:,iw]) for iw in range(0, nw)]), axis=0)
+      autocor_time[ifit] = temp_acor[0]
+  
+  else:
+    nw, nr, nfit = chains.shape
+    autocor_time = np.zeros((nfit), dtype=np.float64)
+    for ifit in range(0, nfit):
+      x = chains[:,:,ifit]
+      temp_acor = np.mean(np.array([acor.acor(x[iw,:]) for iw in range(0, nw)]), axis=1)
+      autocor_time[ifit] = temp_acor[0]
     
   return autocor_time
 
@@ -1007,17 +1067,41 @@ def derived_posterior_case1(idpar_NB, id_fit_NB, i_NB, cols, kep_elem, posterior
   der_posterior = []
   
   nlist = len(id_fit_NB)
-  for i_l in range(0,nlist):
+  #for i_l in range(0,nlist):
     
-    if(id_fit_NB[i_l] == 6):
-      if(idpar_NB[i_l+2][0:2] != 'mA'):
+    #if(id_fit_NB[i_l] == 6):
+      #if(idpar_NB[i_l+2][0:2] != 'mA'):
         
-        aboot = (posterior[:,cols[i_l]] - kep_elem[5] - kep_elem[8])%360.
-        temp, aboot = get_proper_posterior_correlated(aboot)
+        #aboot = (posterior[:,cols[i_l]] - kep_elem[5] - kep_elem[8])%360.
+        #temp, aboot = get_proper_posterior_correlated(aboot)
           
-        name_der.append('%s%s' %('mA',i_NB+1))
-        der_posterior.append(aboot)
-        
+        #name_der.append('%s%s' %('mA',i_NB+1))
+        #der_posterior.append(aboot)
+  
+  for i_l in range(0, nlist):
+    if(id_fit_NB[i_l] == 6): # lambda
+      lambda_post = posterior[:,cols[i_l]]
+      if(i_l > 0):
+        if(i_l-1 == 5): # id 5 == argp
+          argp = posterior[:,cols[i_l-1]] # argp as posterior
+        else:
+          argp = kep_elem[5] # argp is fixed
+          
+        if(i_l < nlist-1 and i_l+1 == nlist-1): # id 6 is not the last --> 8 is the next (longn)
+          longn = posterior[:, cols[i_l+1]] # long node as posterior
+        else:
+        #if(i_l == nlist-1):
+          longn = kep_elem[8] # long of node is fixed
+       
+      else:
+        argp = kep_elem[5] # argp is fixed
+        longn = kep_elem[8] # longn is fixed
+
+      aboot = (lambda_post - argp - longn)%360.
+      temp, aboot = get_proper_posterior_correlated(aboot)
+      name_der.append('%s%s' %('mA',i_NB+1))
+      der_posterior.append(aboot)
+      
   return name_der, der_posterior
 
 def derived_parameters_case1(idpar_NB, id_fit_NB, i_NB, cols, kep_elem, parameters): #  fitting lambda || lambda & w || lambda & lN || lamda & w & lN
@@ -1025,15 +1109,39 @@ def derived_parameters_case1(idpar_NB, id_fit_NB, i_NB, cols, kep_elem, paramete
   der_par = []
   
   nlist = len(id_fit_NB)
-  for i_l in range(0,nlist):
+  #for i_l in range(0,nlist):
     
-    if(id_fit_NB[i_l] == 6):
-      if(idpar_NB[i_l+2][0:2] != 'mA'):
+    #if(id_fit_NB[i_l] == 6):
+      #if(idpar_NB[i_l+2][0:2] != 'mA'):
         
-        a_par = (parameters[cols[i_l]] - kep_elem[5] - kep_elem[8])%360.
-        name_der.append('%s%s' %('mA',i_NB+1))
-        der_par.append(a_par)
+        #a_par = (parameters[cols[i_l]] - kep_elem[5] - kep_elem[8])%360.
+        #name_der.append('%s%s' %('mA',i_NB+1))
+        #der_par.append(a_par)
         
+  for i_l in range(0, nlist):
+    if(id_fit_NB[i_l] == 6): # lambda
+      lambda_par = parameters[cols[i_l]]
+      if(i_l > 0):
+        
+        if(i_l-1 == 5): # id 5 == argp
+          argp = parameters[cols[i_l-1]] # argp as parameter
+        else:
+          argp = kep_elem[5] # argp is fixed
+          
+        if(i_l < nlist-1 and i_l+1 == nlist-1): # id 6 is not the last --> 8 is the next (longn)
+          longn = parameters[cols[i_l+1]] # long node as posterior
+        else:
+        #if(i_l == nlist-1):
+          longn = kep_elem[8] # long of node is fixed
+
+      else:
+        argp = kep_elem[5] # argp is fixed
+        longn = kep_elem[8] # longn is fixed
+        
+      a_par = (lambda_par - argp - longn)%360.
+      name_der.append('%s%s' %('mA',i_NB+1))
+      der_par.append(a_par)
+  
   return name_der, der_par
 
 
@@ -1241,23 +1349,27 @@ def compute_derived_posterior(idpar, kep_elem, id_fit, case_list, cols_list, pos
     names_derived = []
     
     for ii in range(0, n_xder):
-      temp_names = np.array(id_derived[ii],dtype=str)
+      #temp_names = np.array(id_derived[ii],dtype=str)
+      temp_names = id_derived[ii]
       ntemp = np.size(temp_names)
+      nls = len(np.shape(temp_names))
       n_der_single.append(ntemp)
       n_der += ntemp
-      temp_der = np.array(der_posterior[ii],dtype=np.float64)
+      #temp_der = np.array(der_posterior[ii],dtype=np.float64)
+      temp_der = der_posterior[ii]
       
       if(ntemp > 0):
         
-        if(ntemp == 1):
+        if(ntemp == 1 and nls == 0):
           derived_post.append(temp_der)
           names_derived.append(temp_names)
         else:
           for jj in range(0, ntemp):
             derived_post.append(temp_der[jj])
             names_derived.append(temp_names[jj])
-  
-  return np.array(names_derived, dtype=str), np.array(derived_post, dtype=np.float64)
+    
+    
+  return np.array(names_derived, dtype=str), np.array(derived_post, dtype=np.float64).T
 
 def compute_derived_parameters(idpar, kep_elem, id_fit, case_list, cols_list, parameters, conv_factor=1.):
   NB = len(case_list)
@@ -1317,15 +1429,18 @@ def compute_derived_parameters(idpar, kep_elem, id_fit, case_list, cols_list, pa
     names_derived = []
     
     for ii in range(0, n_xder):
-      temp_names = np.array(id_derived[ii],dtype=str)
+      #temp_names = np.array(id_derived[ii],dtype=str)
+      temp_names = id_derived[ii]
       ntemp = np.size(temp_names)
+      nls = len(np.shape(temp_names))
       n_der_single.append(ntemp)
       n_der += ntemp
-      temp_der = np.array(der_par[ii],dtype=np.float64)
+      #temp_der = np.array(der_par[ii],dtype=np.float64)
+      temp_der = der_par[ii]
             
       if(ntemp > 0):
         
-        if(ntemp == 1):
+        if(ntemp == 1 and nls == 0):
           derived_par.append(temp_der)
           names_derived.append(temp_names)
         else:

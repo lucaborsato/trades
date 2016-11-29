@@ -130,9 +130,9 @@ def status(proc):
   else:
     return proc.is_alive()
 
-# MAIN -- TRADES + GRID
-if __name__ == '__main__':
 
+def main():
+  # MAIN -- TRADES + GRID
   # READ COMMAND LINE ARGUMENTS
   cli = get_args()
 
@@ -290,3 +290,7 @@ if __name__ == '__main__':
   print_both(' THE END', of_run)
   of_run.close()
 
+  return
+
+if __name__ == "__main__":
+  main()

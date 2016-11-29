@@ -110,215 +110,218 @@ def convert_to_int(val_in):
 Mear2jup = Mears*Msjup
 Mjup2ear = Mjups*Msear
 
-# MAIN -- TRADES + pyMultiNest
+def main():
+  # MAIN -- TRADES + pyMultiNest
+  # ---
+  # initialize logger
+  logger = logging.getLogger("Main_log")
+  logger.setLevel(logging.DEBUG)
+  formatter = logging.Formatter("%(asctime)s - %(message)s")
 
-# ---
-# initialize logger
-logger = logging.getLogger("Main_log")
-logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(message)s")
+  # READ COMMAND LINE ARGUMENTS
+  cli = get_args()
 
-# READ COMMAND LINE ARGUMENTS
-cli = get_args()
+  # STARTING TIME
+  start = time.time()
 
-# STARTING TIME
-start = time.time()
+  # RENAME 
+  working_path = cli.full_path
+  #nthreads=cli.nthreads
 
-# RENAME 
-working_path = cli.full_path
-#nthreads=cli.nthreads
+  log_file = os.path.join(working_path, '%s_log.txt' %(os.path.dirname(cli.sub_folder)))
 
-log_file = os.path.join(working_path, '%s_log.txt' %(os.path.dirname(cli.sub_folder)))
-
-flog = logging.FileHandler(log_file, 'w')
-flog.setLevel(logging.DEBUG)
-flog.setFormatter(formatter)
-logger.addHandler(flog)
-# log screen
-slog = logging.StreamHandler()
-slog.setLevel(logging.DEBUG)
-slog.setFormatter(formatter)
-logger.addHandler(slog)
-
-
-fitting_priors, fitting_priors_type = read_priors(os.path.join(working_path, 'fitting_priors.dat'))
-derived_priors, derived_priors_type = read_priors(os.path.join(working_path, 'derived_priors.dat'))
-n_der_priors = len(derived_priors)
+  flog = logging.FileHandler(log_file, 'w')
+  flog.setLevel(logging.DEBUG)
+  flog.setFormatter(formatter)
+  logger.addHandler(flog)
+  # log screen
+  slog = logging.StreamHandler()
+  slog.setLevel(logging.DEBUG)
+  slog.setFormatter(formatter)
+  logger.addHandler(slog)
 
 
-# INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
-pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder)
-
-# RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
-fitting_parameters = pytrades_lib.pytrades.fitting_parameters # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
-parameters_minmax = pytrades_lib.pytrades.parameters_minmax # PARAMETER BOUNDARIES
-delta_parameters = np.abs(parameters_minmax[:,1] - parameters_minmax[:,0]) # DELTA BETWEEN MAX AND MIN OF BOUNDARIES
-
-n_bodies = pytrades_lib.pytrades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
-n_planets = n_bodies - 1 # NUMBER OF PLANETS IN THE SYSTEM
-ndata = pytrades_lib.pytrades.ndata # TOTAL NUMBER OF DATA AVAILABLE
-npar  = pytrades_lib.pytrades.npar # NUMBER OF TOTAL PARAMATERS ~n_planets X 6
-nfit  = pytrades_lib.pytrades.nfit # NUMBER OF PARAMETERS TO FIT
-dof   = pytrades_lib.pytrades.dof # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
-
-# RADIAL VELOCITIES SET
-n_rv = pytrades_lib.pytrades.nrv
-n_set_rv = pytrades_lib.pytrades.nrvset
-
-# TRANSITS SET
-n_t0 = pytrades_lib.pytrades.nt0
-n_t0_sum = np.sum(n_t0)
-n_set_t0 = 0
-for i in range(0, n_bodies):
-  if (np.sum(n_t0[i]) > 0): n_set_t0 += 1
+  fitting_priors, fitting_priors_type = read_priors(os.path.join(working_path, 'fitting_priors.dat'))
+  derived_priors, derived_priors_type = read_priors(os.path.join(working_path, 'derived_priors.dat'))
+  n_der_priors = len(derived_priors)
 
 
-# compute global constant for the loglhd
-global ln_err_const
+  # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
+  pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder)
 
-try:
-  e_RVo = np.asarray(pytrades_lib.pytrades.ervobs[:], dtype=np.float64) # fortran variable RV in python will be rv!!!
-except:
-  e_RVo = np.asarray([0.], dtype=np.float64)
-try:
-  e_T0o = np.asarray(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
-except:
-  e_T0o = np.asarray([0.], dtype=np.float64)
-ln_err_const = compute_ln_err_const(ndata, dof, e_RVo, e_T0o, cli.ln_flag)
+  # RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
+  fitting_parameters = pytrades_lib.pytrades.fitting_parameters # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
+  parameters_minmax = pytrades_lib.pytrades.parameters_minmax # PARAMETER BOUNDARIES
+  delta_parameters = np.abs(parameters_minmax[:,1] - parameters_minmax[:,0]) # DELTA BETWEEN MAX AND MIN OF BOUNDARIES
 
-# READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
-reshaped_names = pytrades_lib.pytrades.parameter_names.reshape((10,nfit), order='F').T
-parameter_names = [''.join(reshaped_names[i,:]).strip() for i in range(0,nfit)]
+  n_bodies = pytrades_lib.pytrades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
+  n_planets = n_bodies - 1 # NUMBER OF PLANETS IN THE SYSTEM
+  ndata = pytrades_lib.pytrades.ndata # TOTAL NUMBER OF DATA AVAILABLE
+  npar  = pytrades_lib.pytrades.npar # NUMBER OF TOTAL PARAMATERS ~n_planets X 6
+  nfit  = pytrades_lib.pytrades.nfit # NUMBER OF PARAMETERS TO FIT
+  dof   = pytrades_lib.pytrades.dof # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
 
-# INITIALISE SCRIPT FOLDER/LOG FILE
-working_folder, run_log, of_run = init_folder(working_path, cli.sub_folder)
+  # RADIAL VELOCITIES SET
+  n_rv = pytrades_lib.pytrades.nrv
+  n_set_rv = pytrades_lib.pytrades.nrvset
 
-logger.info('')
-logger.info('==================== ')
-logger.info('pyTRADES-pyMultiNest')
-logger.info('==================== ')
-logger.info('')
-logger.info('WORKING PATH = %s' %(working_path))
-logger.info('dof = ndata(%d) - nfit(%d) = %d' %(ndata, nfit, dof))
-logger.info('Total N_RV = %d for %d set(s)' %(n_rv, n_set_rv))
-logger.info('Total N_T0 = %d for %d out of %d planet(s)' %(n_t0_sum, n_set_t0, n_planets))
-logger.info('%s = %.7f' %('log constant error = ', ln_err_const))
+  # TRANSITS SET
+  n_t0 = pytrades_lib.pytrades.nt0
+  n_t0_sum = np.sum(n_t0)
+  n_set_t0 = 0
+  for i in range(0, n_bodies):
+    if (np.sum(n_t0[i]) > 0): n_set_t0 += 1
 
-#of_run.write(' dof = ndata(%d) - nfit(%d) = %d\n' %(ndata, nfit, dof))
-#of_run.write(' Total N_RV = %d for %d set(s)\n' %(n_rv, n_set_rv))
-#of_run.write(' Total N_T0 = %d for %d out of %d planet(s)\n' %(n_t0_sum, n_set_t0, n_planets))
-#of_run.write(' %s = %.7f\n' %('log constant error = ', ln_err_const))
 
-# save parameter_names and boundaries to be read by a script
-trades_hdf5 = h5py.File(os.path.join(working_folder, 'system_summary.hdf5'), 'w')
-trades_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
-trades_hdf5.create_dataset('parameters_minmax', data=parameters_minmax, dtype=np.float64)
-trades_hdf5.create_dataset('ln_err_const', data=np.asarray([ln_err_const], dtype=np.float64), dtype=np.float64)
-trades_hdf5.close()
+  # compute global constant for the loglhd
+  global ln_err_const
 
-# MULTINEST HERE
-#output_mnest = os.path.join(working_folder, 'trades_mnest_')
-#output_mnest = os.path.join(cli.sub_folder, 'trades_mnest_')
-output_mnest = 'trades_mnest_'
-os.chdir(working_folder)
-log_zero_value = -0.5*1.e8
-seed_value = convert_to_int(cli.seed_value)
-#seed_value = 392919
-#n_pop = nfit+int(nfit*0.5)
-n_pop = convert_to_int(cli.n_pop)
-if( n_pop < nfit): n_pop = nfit*10
-n_update = 5 # by argument
-resume_flag = cli.resume_flag
-multi_node_flag = True
-mpi_onoff = False
-logger.info('pyMultiNest parameters:')
-logger.info('folder = %s' %(output_mnest))
-logger.info('seed_value = %d , n_pop = %d , n_update = %d' %(seed_value, n_pop, n_update))
-logger.info('resume_flag = %r , multi_node_flag = %r, mpi_onoff = %r' %(resume_flag, multi_node_flag, mpi_onoff))
-#of_run.write(' pyMultiNest parameters:\n')
-#of_run.write(' folder = %s\n seed_value = %d , n_pop = %d , n_update = %d\n resume_flag = %r , multi_node_flag = %r, mpi_onoff = %r\n' %(output_mnest, seed_value, n_pop, n_update, resume_flag, multi_node_flag, mpi_onoff))
+  try:
+    e_RVo = np.asarray(pytrades_lib.pytrades.ervobs[:], dtype=np.float64) # fortran variable RV in python will be rv!!!
+  except:
+    e_RVo = np.asarray([0.], dtype=np.float64)
+  try:
+    e_T0o = np.asarray(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
+  except:
+    e_T0o = np.asarray([0.], dtype=np.float64)
+  ln_err_const = compute_ln_err_const(ndata, dof, e_RVo, e_T0o, cli.ln_flag)
 
-#
-# RESCALE PARAMETERS FUNCTION NEEDED BY LNLIKE
-#
-def trades_rescale(fitting_parameters, ndim, nparams):
-  for i in range(0,ndim):
-    fitting_parameters[i] = parameters_minmax[i,0] + fitting_parameters[i]*delta_parameters[i]
-  return fitting_parameters
+  # READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
+  reshaped_names = pytrades_lib.pytrades.parameter_names.reshape((10,nfit), order='F').T
+  parameter_names = [''.join(reshaped_names[i,:]).strip() for i in range(0,nfit)]
 
-# LNPRIOR TO BE ADDED TO LOGLHD
-# it can use all the variables defined before this point!
-def lnprior(fitting_parameters, ndim):
-  lnprior_value = 0.
-  i_der = 0
-  for i in range(0, ndim):
-    #print i,parameter_names[i], fitting_priors_type[i]
-    ln_temp = 0.
-    
-    # calculate the LogLikelihood<->prior of fitting parameter
-    if(fitting_priors_type[i][1].lower() == 'g'):
-      ln_temp = -0.5*(((fitting_parameters[i]-fitting_priors[i][0])/fitting_priors[i][1])**2)
-      lnprior_value = lnprior_value + ln_temp
-      #print '%18.12f %18.12f (%18.12f) => ln = %18.12f' %(fitting_parameters[i], fitting_priors[i][0], fitting_priors[i][1], ln_temp)
-    
-    # calculate the LogLikelihood<->prior of derived parameter
-    if('mA' in parameter_names[i]):
+  # INITIALISE SCRIPT FOLDER/LOG FILE
+  working_folder, run_log, of_run = init_folder(working_path, cli.sub_folder)
+
+  logger.info('')
+  logger.info('==================== ')
+  logger.info('pyTRADES-pyMultiNest')
+  logger.info('==================== ')
+  logger.info('')
+  logger.info('WORKING PATH = %s' %(working_path))
+  logger.info('dof = ndata(%d) - nfit(%d) = %d' %(ndata, nfit, dof))
+  logger.info('Total N_RV = %d for %d set(s)' %(n_rv, n_set_rv))
+  logger.info('Total N_T0 = %d for %d out of %d planet(s)' %(n_t0_sum, n_set_t0, n_planets))
+  logger.info('%s = %.7f' %('log constant error = ', ln_err_const))
+
+  #of_run.write(' dof = ndata(%d) - nfit(%d) = %d\n' %(ndata, nfit, dof))
+  #of_run.write(' Total N_RV = %d for %d set(s)\n' %(n_rv, n_set_rv))
+  #of_run.write(' Total N_T0 = %d for %d out of %d planet(s)\n' %(n_t0_sum, n_set_t0, n_planets))
+  #of_run.write(' %s = %.7f\n' %('log constant error = ', ln_err_const))
+
+  # save parameter_names and boundaries to be read by a script
+  trades_hdf5 = h5py.File(os.path.join(working_folder, 'system_summary.hdf5'), 'w')
+  trades_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
+  trades_hdf5.create_dataset('parameters_minmax', data=parameters_minmax, dtype=np.float64)
+  trades_hdf5.create_dataset('ln_err_const', data=np.asarray([ln_err_const], dtype=np.float64), dtype=np.float64)
+  trades_hdf5.close()
+
+  # MULTINEST HERE
+  #output_mnest = os.path.join(working_folder, 'trades_mnest_')
+  #output_mnest = os.path.join(cli.sub_folder, 'trades_mnest_')
+  output_mnest = 'trades_mnest_'
+  os.chdir(working_folder)
+  log_zero_value = -0.5*1.e8
+  seed_value = convert_to_int(cli.seed_value)
+  #seed_value = 392919
+  #n_pop = nfit+int(nfit*0.5)
+  n_pop = convert_to_int(cli.n_pop)
+  if( n_pop < nfit): n_pop = nfit*10
+  n_update = 5 # by argument
+  resume_flag = cli.resume_flag
+  multi_node_flag = True
+  mpi_onoff = False
+  logger.info('pyMultiNest parameters:')
+  logger.info('folder = %s' %(output_mnest))
+  logger.info('seed_value = %d , n_pop = %d , n_update = %d' %(seed_value, n_pop, n_update))
+  logger.info('resume_flag = %r , multi_node_flag = %r, mpi_onoff = %r' %(resume_flag, multi_node_flag, mpi_onoff))
+  #of_run.write(' pyMultiNest parameters:\n')
+  #of_run.write(' folder = %s\n seed_value = %d , n_pop = %d , n_update = %d\n resume_flag = %r , multi_node_flag = %r, mpi_onoff = %r\n' %(output_mnest, seed_value, n_pop, n_update, resume_flag, multi_node_flag, mpi_onoff))
+
+  #
+  # RESCALE PARAMETERS FUNCTION NEEDED BY LNLIKE
+  #
+  def trades_rescale(fitting_parameters, ndim, nparams):
+    for i in range(0,ndim):
+      fitting_parameters[i] = parameters_minmax[i,0] + fitting_parameters[i]*delta_parameters[i]
+    return fitting_parameters
+
+  # LNPRIOR TO BE ADDED TO LOGLHD
+  # it can use all the variables defined before this point!
+  def lnprior(fitting_parameters, ndim):
+    lnprior_value = 0.
+    i_der = 0
+    for i in range(0, ndim):
+      #print i,parameter_names[i], fitting_priors_type[i]
       ln_temp = 0.
-      ecc = np.sqrt(fitting_parameters[i-2]**2 + fitting_parameters[i-1]**2)
-      if (ecc <= 0.):
-        ecc = np.finfo(float).eps
-      elif (ecc > 1.):
-        ecc = 1.- np.finfo(float).eps
-      # ecc prior
-      if(derived_priors_type[i_der][1].lower() == 'g'):
-        ln_temp = -0.5*(((ecc-derived_priors[i_der][0])/derived_priors[i_der][1])**2)
+      
+      # calculate the LogLikelihood<->prior of fitting parameter
+      if(fitting_priors_type[i][1].lower() == 'g'):
+        ln_temp = -0.5*(((fitting_parameters[i]-fitting_priors[i][0])/fitting_priors[i][1])**2)
         lnprior_value = lnprior_value + ln_temp
-        #print derived_priors_type[i_der]
-        #print '%18.12f %18.12f (%18.12f) => ln = %18.12f' %(ecc, derived_priors[i_der][0], derived_priors[i_der][1], ln_temp)
-      # phi prior
-      if(derived_priors_type[i_der+1][1].lower() == 'g'):
-        if(ecc <= np.finfo(float).eps):
-          argp = 90.
-        else:
-          argp = ((np.arctan2(fitting_parameters[i-1], fitting_parameters[i-2])*180./np.pi)+360.)%360.
-        phi = (argp + fitting_parameters[i] + 360.)%360.
+        #print '%18.12f %18.12f (%18.12f) => ln = %18.12f' %(fitting_parameters[i], fitting_priors[i][0], fitting_priors[i][1], ln_temp)
+      
+      # calculate the LogLikelihood<->prior of derived parameter
+      if('mA' in parameter_names[i]):
         ln_temp = 0.
-        ln_temp = -0.5*(((phi-derived_priors[i_der+1][0])/derived_priors[i_der+1][1])**2)
-        lnprior_value = lnprior_value + ln_temp
-        #print derived_priors_type[i_der+1]
-        #print '%18.12f (argp[%18.12f]+mA[%18.12f]) %18.12f (%18.12f) => ln = %18.12f' %(phi, argp, fitting_parameters[i], derived_priors[i_der+1][0], derived_priors[i_der+1][1], ln_temp)
-        i_der = i_der + 2
+        ecc = np.sqrt(fitting_parameters[i-2]**2 + fitting_parameters[i-1]**2)
+        if (ecc <= 0.):
+          ecc = np.finfo(float).eps
+        elif (ecc > 1.):
+          ecc = 1.- np.finfo(float).eps
+        # ecc prior
+        if(derived_priors_type[i_der][1].lower() == 'g'):
+          ln_temp = -0.5*(((ecc-derived_priors[i_der][0])/derived_priors[i_der][1])**2)
+          lnprior_value = lnprior_value + ln_temp
+          #print derived_priors_type[i_der]
+          #print '%18.12f %18.12f (%18.12f) => ln = %18.12f' %(ecc, derived_priors[i_der][0], derived_priors[i_der][1], ln_temp)
+        # phi prior
+        if(derived_priors_type[i_der+1][1].lower() == 'g'):
+          if(ecc <= np.finfo(float).eps):
+            argp = 90.
+          else:
+            argp = ((np.arctan2(fitting_parameters[i-1], fitting_parameters[i-2])*180./np.pi)+360.)%360.
+          phi = (argp + fitting_parameters[i] + 360.)%360.
+          ln_temp = 0.
+          ln_temp = -0.5*(((phi-derived_priors[i_der+1][0])/derived_priors[i_der+1][1])**2)
+          lnprior_value = lnprior_value + ln_temp
+          #print derived_priors_type[i_der+1]
+          #print '%18.12f (argp[%18.12f]+mA[%18.12f]) %18.12f (%18.12f) => ln = %18.12f' %(phi, argp, fitting_parameters[i], derived_priors[i_der+1][0], derived_priors[i_der+1][1], ln_temp)
+          i_der = i_der + 2
+      
+    return lnprior_value
+
+  # LNLIKEHOOD FUNCTION NEEDED BY MULTINEST
+  def lnlike(fitting_parameters, ndim, nparams):
+    loglhd = 0.
+    check = 1
+    trades_parameters = np.asarray([fitting_parameters[i] for i in range(0,ndim)], dtype=np.float64)
+    loglhd, check = pytrades_lib.pytrades.fortran_loglikelihood(trades_parameters)
+    if ( check == 0 ):
+      loglhd = -0.5e10
+    else:
+      lnprior_value = lnprior(fitting_parameters, ndim)
+      #lnprior_value = 0.0
+      loglhd = loglhd + ln_err_const + lnprior_value # ln_err_const (global variable) & lnprior_value
     
-  return lnprior_value
-
-# LNLIKEHOOD FUNCTION NEEDED BY MULTINEST
-def lnlike(fitting_parameters, ndim, nparams):
-  loglhd = 0.
-  check = 1
-  trades_parameters = np.asarray([fitting_parameters[i] for i in range(0,ndim)], dtype=np.float64)
-  loglhd, check = pytrades_lib.pytrades.fortran_loglikelihood(trades_parameters)
-  if ( check == 0 ):
-    loglhd = -0.5e10
-  else:
-    lnprior_value = lnprior(fitting_parameters, ndim)
-    #lnprior_value = 0.0
-    loglhd = loglhd + ln_err_const + lnprior_value # ln_err_const (global variable) & lnprior_value
-  
-  return loglhd
+    return loglhd
 
 
-# run MultiNest
-pymultinest.run(LogLikelihood = lnlike, Prior = trades_rescale, n_dims = nfit, n_params = nfit, outputfiles_basename=output_mnest, multimodal = multi_node_flag, log_zero=log_zero_value, seed = seed_value, n_live_points = n_pop, n_iter_before_update = n_update, resume = resume_flag, verbose = True, init_MPI = mpi_onoff)
+  # run MultiNest
+  pymultinest.run(LogLikelihood = lnlike, Prior = trades_rescale, n_dims = nfit, n_params = nfit, outputfiles_basename=output_mnest, multimodal = multi_node_flag, log_zero=log_zero_value, seed = seed_value, n_live_points = n_pop, n_iter_before_update = n_update, resume = resume_flag, verbose = True, init_MPI = mpi_onoff)
 
-elapsed = time.time() - start
-elapsed_d, elapsed_h, elapsed_m, elapsed_s = computation_time(elapsed)
+  elapsed = time.time() - start
+  elapsed_d, elapsed_h, elapsed_m, elapsed_s = computation_time(elapsed)
 
-logger.info('')
-logger.info('pyTRADES: pyMultiNest FINISHED in %2d day %02d hour %02d min %.2f sec - bye bye' %(int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s))
-logger.info('')
+  logger.info('')
+  logger.info('pyTRADES: pyMultiNest FINISHED in %2d day %02d hour %02d min %.2f sec - bye bye' %(int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s))
+  logger.info('')
 
-#of_run.write(' pyTRADES: pyMultiNest FINISHED in %2d day %02d hour %02d min %.2f sec - bye bye\n' %(int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s))
-#of_run.close()
-pytrades_lib.pytrades.deallocate_variables()
+  #of_run.write(' pyTRADES: pyMultiNest FINISHED in %2d day %02d hour %02d min %.2f sec - bye bye\n' %(int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s))
+  #of_run.close()
+  pytrades_lib.pytrades.deallocate_variables()
 
+  return
 
+if __name__ == "__main__":
+  main()

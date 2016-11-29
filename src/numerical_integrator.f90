@@ -1,5 +1,5 @@
 module numerical_integrator
-  use constants,only:dp,zero,TOLERANCE
+  use constants,only:dp,zero,one,two,three,TOLERANCE
   use parameters
   use eq_motion
   implicit none
@@ -22,9 +22,9 @@ module numerical_integrator
     !coefficients A[s,s-1]
     !used in the intermediate state vector:
     !ks:=[t+Cs*h,y[t]+sum(A[s,s-1]*k[s-1])]
-    real(dp),parameter::A21=1._dp/5._dp
-    real(dp),parameter::A31=3._dp/40._dp,A32=9._dp/40._dp
-    real(dp),parameter::A41=3._dp/10._dp,A42=-9._dp/10._dp,&
+    real(dp),parameter::A21=one/5._dp
+    real(dp),parameter::A31=three/40._dp,A32=9._dp/40._dp
+    real(dp),parameter::A41=three/10._dp,A42=-9._dp/10._dp,&
         &A43=6._dp/5._dp
     real(dp),parameter::A51=-11._dp/54._dp,A52=5._dp/2._dp,&
         &A53=-70._dp/27._dp,A54=35._dp/27._dp
@@ -40,7 +40,7 @@ module numerical_integrator
     !coefficients C[s]
     !used in the intermediate state vector:
     !ks:=[t+Cs*h,y[t]+sum(A[s,s-1]*k[s-1])]
-    real(dp),parameter::C2=1._dp/5._dp,C3=3._dp/10._dp,C4=3._dp/5._dp,&
+    real(dp),parameter::C2=one/5._dp,C3=three/10._dp,C4=three/5._dp,&
         &C6=7._dp/8._dp
 
     !coefficients E[s], s=1,6 for the error
@@ -99,11 +99,11 @@ module numerical_integrator
     real(dp)::emax,hh,scale_factor
     ! safety factor = sfac ;
     real(dp),parameter::sfac=0.9_dp
-    real(dp),parameter::exp1=1._dp/5._dp
+    real(dp),parameter::exp1=one/5._dp
 
 
     hh=h !uses a temporary variable
-    scale_factor=1._dp
+    scale_factor=one
     allocate(rscal(NBDIM))
     rscal=abs(rin)+abs(hh*drdt)
     sel: do

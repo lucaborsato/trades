@@ -11,21 +11,22 @@ module constants
   integer,parameter::prec=precision(0._dp)
   character(8)::sprec='es23.16'
 
-  !radiants, degrees conversions etc.
-  real(dp),parameter::pi=4._dp*atan(1._dp)
-  real(dp),parameter::dpi=2._dp*pi
-  real(dp),parameter::deg2rad=pi/180._dp
-  real(dp),parameter::rad2deg=180._dp/pi
-
   !various
   real(dp),parameter::s24h=86400._dp !seconds in a day = 24h = 86400s
   real(dp),parameter::zero=0._dp,one=1._dp,two=2._dp,three=3._dp
   real(dp),parameter::TOLERANCE=epsilon(zero)
-  real(dp),parameter::half = 0.5_dp
-  real(dp),parameter::sqrt_half = sqrt(0.5_dp)
-  real(dp),parameter::sqrt2 = sqrt(2._dp)
-  real(dp),parameter::sqrt_12 = sqrt(12._dp) ! = 2*sqrt(3) needed for stability criterion with the mutual R_Hill
+  real(dp),parameter::half=0.5_dp
+  real(dp),parameter::sqrt_half=sqrt(half)
+  real(dp),parameter::sqrt2=sqrt(two)
+  real(dp),parameter::sqrt_12=sqrt(12._dp) ! = 2*sqrt(3) needed for stability criterion with the mutual R_Hill
   real(dp),parameter::onethird=one/three
+  
+  !radiants, degrees conversions etc.
+  real(dp),parameter::pi=4._dp*atan(one)
+  real(dp),parameter::dpi=two*pi
+  real(dp),parameter::deg2rad=pi/180._dp
+  real(dp),parameter::rad2deg=180._dp/pi
+
   
   ! Constants from USNO 2013
   ! http://asa.usno.navy.mil/
@@ -33,21 +34,21 @@ module constants
 
   !masses conversions
   real(dp),parameter::Msmer=6.0236e6_dp ! Msun to Mmer
-  real(dp),parameter::Mmers=1._dp/Msmer ! Mmer to Msun
+  real(dp),parameter::Mmers=one/Msmer ! Mmer to Msun
   real(dp),parameter::Msven=4.08523719e5_dp ! Msun to Mven
-  real(dp),parameter::Mvens=1._dp/Msven     ! Mven to Msun
+  real(dp),parameter::Mvens=one/Msven     ! Mven to Msun
   real(dp),parameter::Msear=332946.0487_dp ! Msun to Mear
-  real(dp),parameter::Mears=1._dp/Msear    ! Mear to Msun
+  real(dp),parameter::Mears=one/Msear    ! Mear to Msun
   real(dp),parameter::Msmar=3.09870359e6_dp ! Msun to Mmar
-  real(dp),parameter::Mmars=1._dp/Msmar     ! Mmar to Msun
+  real(dp),parameter::Mmars=one/Msmar     ! Mmar to Msun
   real(dp),parameter::Msunj=1.047348644e3_dp ! Msun to Mjup
-  real(dp),parameter::Mjups=1._dp/Msunj      ! Mjup to Msun
+  real(dp),parameter::Mjups=one/Msunj      ! Mjup to Msun
   real(dp),parameter::Mssat=3.4979018e3_dp ! Msun to Msat
-  real(dp),parameter::Msats=1._dp/Mssat    ! Msat to Msun
+  real(dp),parameter::Msats=one/Mssat    ! Msat to Msun
   real(dp),parameter::Msura=2.290298e4_dp ! Msun to Mura
-  real(dp),parameter::Muras=1._dp/Msura   ! Mura to Msun
+  real(dp),parameter::Muras=one/Msura   ! Mura to Msun
   real(dp),parameter::Msnep=1.941226e4_dp ! Msun to Mnep
-  real(dp),parameter::Mneps=1._dp/Msnep   ! Mnep to Msun
+  real(dp),parameter::Mneps=one/Msnep   ! Mnep to Msun
 
   !masses of Solar System objects
   real(dp),parameter::Msun=1.9884e30_dp ! Sun mass in kg

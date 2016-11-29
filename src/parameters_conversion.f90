@@ -86,7 +86,6 @@ module parameters_conversion
 !     return
 !   end subroutine idpar_fit
 
-! TODO: TO REVIEW!!
   subroutine idpar()
     integer::pos,cntid,j,body
 !     character(6),dimension(3:10)::elid_1,elid_2,elid_3,elid
@@ -489,15 +488,15 @@ module parameters_conversion
       
       if(present(wrt_info).and.wrt_info)then
         if(cnt.eq.2) write(*,'(1x,a15,3(1x,a23))')'name','min','val','max'
-        write(*,'(1x,a15,3(1x,es23.16))')'m'//string(cnt), par_min(j1),  m(cnt),  par_max(j1)
-        write(*,'(1x,a15,3(1x,es23.16))')'R'//string(cnt), par_min(j1+1),R(cnt),  par_max(j1+1)
-        write(*,'(1x,a15,3(1x,es23.16))')'P'//string(cnt), par_min(j1+2),P(cnt),  par_max(j1+2)
+        write(*,'(1x,a15,3(1x,es23.16))')'m'//trim(string(cnt)), par_min(j1),  m(cnt),  par_max(j1)
+        write(*,'(1x,a15,3(1x,es23.16))')'R'//trim(string(cnt)), par_min(j1+1),R(cnt),  par_max(j1+1)
+        write(*,'(1x,a15,3(1x,es23.16))')'P'//trim(string(cnt)), par_min(j1+2),P(cnt),  par_max(j1+2)
 !         write(*,'(1x,a15,3(1x,es23.16))')'a'//string(cnt), par_min(j1+1),a(cnt),  par_max(j1)
-        write(*,'(1x,a15,3(1x,es23.16))')'e'//string(cnt), par_min(j1+3),e(cnt),  par_max(j1+3)
-        write(*,'(1x,a15,3(1x,es23.16))')'w'//string(cnt), par_min(j1+4),w(cnt),  par_max(j1+4)
-        write(*,'(1x,a15,3(1x,es23.16))')'mA'//string(cnt),par_min(j1+5),mA(cnt), par_max(j1+5)
-        write(*,'(1x,a15,3(1x,es23.16))')'i'//string(cnt), par_min(j1+6),inc(cnt),par_max(j1+6)
-        write(*,'(1x,a15,3(1x,es23.16))')'lN'//string(cnt),par_min(j1+7),lN(cnt), par_max(j1+7)
+        write(*,'(1x,a15,3(1x,es23.16))')'e'//trim(string(cnt)), par_min(j1+3),e(cnt),  par_max(j1+3)
+        write(*,'(1x,a15,3(1x,es23.16))')'w'//trim(string(cnt)), par_min(j1+4),w(cnt),  par_max(j1+4)
+        write(*,'(1x,a15,3(1x,es23.16))')'mA'//trim(string(cnt)),par_min(j1+5),mA(cnt), par_max(j1+5)
+        write(*,'(1x,a15,3(1x,es23.16))')'i'//trim(string(cnt)), par_min(j1+6),inc(cnt),par_max(j1+6)
+        write(*,'(1x,a15,3(1x,es23.16))')'lN'//trim(string(cnt)),par_min(j1+7),lN(cnt), par_max(j1+7)
         flush(6)
       end if
       

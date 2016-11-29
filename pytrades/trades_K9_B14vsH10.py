@@ -181,8 +181,8 @@ def generate_new_parameters(nfit, system_parameters, MR_star, sol_par, ner_sol, 
   
   return all_parameters, fit_parameters
 
-# MAIN -- TRADES + GRID
-if __name__ == '__main__':
+def main():
+  # MAIN -- TRADES + GRID
 
   # READ COMMAND LINE ARGUMENTS
   cli = get_args()
@@ -337,4 +337,8 @@ if __name__ == '__main__':
   pytrades_lib.pytrades.deallocate_variables()
   print_both(' THE END', of_run)
   of_run.close()
+  
+  return
 
+if __name__ == "__main__":
+  main()

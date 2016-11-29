@@ -1235,7 +1235,7 @@ module Levenberg_Marquardt
     else
 
       if ( par == zero .or. ratio >= p75 ) then
-          delta = 2._dp * pnorm
+          delta = two * pnorm
           par = p5 * par
       end if
 
@@ -1611,7 +1611,7 @@ module Levenberg_Marquardt
     else
 
       if ( par == zero .or. ratio >= p75 ) then
-          delta = 2._dp * pnorm
+          delta = two * pnorm
           par = p5 * par
       end if
 
@@ -1833,7 +1833,7 @@ module Levenberg_Marquardt
     !     **********
     integer::maxfev,mode,nfev,njev,nprint
     real(dp)::ftol,gtol,xtol,wa(2*n)
-    real(dp),parameter::factor = 100._dp,zero = 0.0_dp
+    real(dp),parameter::factor = 100._dp
 
     info = 0
 
@@ -2909,7 +2909,7 @@ module Levenberg_Marquardt
     !     **********
     integer::i,j,jp1,k,kp1,l,nsing
     real(dp)::COS,cotan,qtbpj,SIN,sum,TAN,temp,wa(n)
-    real(dp),parameter::p5 = 0.5_dp,p25 = 0.25_dp,zero = 0.0_dp
+    real(dp),parameter::p5 = 0.5_dp,p25 = 0.25_dp
 
     !     copy r and (q transpose)*b to preserve input and initialize s.
     !     in particular,save the diagonal elements of r in x.
@@ -3563,7 +3563,7 @@ module Levenberg_Marquardt
     integer::i,ii,j,jj,k,km1,l
     logical::sing
     real(dp)::temp,tolr
-    real(dp),parameter::one=1._dp,zero=0._dp
+!     real(dp),parameter::one=1._dp,zero=0._dp
 
     !     form the inverse of r in the full upper triangle of r.
     !write(*,'(a)')" covar 1"

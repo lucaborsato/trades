@@ -8,7 +8,7 @@
 !
 !----------------------------------------------------------------------
 module opti_pso
-  use constants,only:dp,sprec,zero,one,TOLERANCE
+  use constants,only:dp,sprec,zero,half,one,two,three,TOLERANCE
   use parameters,only:path,wrtAll,seed_pso,ndata,nfit,dof,inv_dof,npar,parid,np_pso,nit_pso,wrt_pso,minpar,maxpar,population,population_fitness,pso_best_evolution
   use parameters_conversion
   use init_trades,only:get_unit
@@ -58,107 +58,6 @@ module opti_pso
 
   contains
 
-
-!   ! function to be use with PSO
-!   function fpso(allpar,par) result(fn_val)
-!     use ode_run,only:ode_lm
-!     real(dp)::fn_val
-!     real(dp),dimension(:),intent(in)::allpar,par
-! !     real(dp)::chi2
-!     real(dp),dimension(:),allocatable::wpar,wall
-!     real(dp),dimension(:),allocatable::resw,resw2
-!     integer::n,iflag
-! 
-!     n=size(par)
-!     iflag=1
-!     allocate(wpar(n),wall(npar))
-!     wall=allpar
-!     wpar=par
-!     allocate(resw(ndata),resw2(ndata))
-!     resw=zero
-!     call ode_lm(wall,ndata,n,wpar,resw,iflag)
-!     resw2=resw*resw
-! !     chi2=sum(resw2)
-! !     fn_val=1._dp/chi2
-! !     fn_val=real(dof,dp)/sum(resw2)
-!     fn_val=one/sum(resw2)
-!     deallocate(wpar,wall,resw,resw2)
-! 
-!     return
-!   end function fpso
-
-! comment: now from fitness_module
-!   function pso_fitness(all_par,fitting_parameters) result(fitness)
-!     use ode_run,only:ode_lm
-!     use derived_parameters_mod
-!     real(dp)::fitness
-!     real(dp),intent(in),dimension(:)::all_par
-!     real(dp),intent(in),dimension(:)::fitting_parameters
-!     logical::check
-!     real(dp),dimension(:),allocatable::run_all_par
-!     real(dp),dimension(:),allocatable::resw
-!     integer::i,iflag
-!     logical::check_status
-!     
-!     iflag=1
-!     check=.true.
-!     check_status=.true.
-!     
-!     checkloop: do i=1,nfit
-!       if(fitting_parameters(i).lt.minpar(i))then
-!         check=.false.
-!         exit checkloop
-!       else if(fitting_parameters(i).gt.maxpar(i))then
-!         check=.false.
-!         exit checkloop
-!       end if
-!     end do checkloop
-! 
-!     if(check)then
-! 
-!       allocate(run_all_par(npar))
-!       run_all_par=all_par
-!       if(check_derived) check_status=check_derived_parameters(fitting_parameters)
-!       if(fix_derived) call fix_derived_parameters(fitting_parameters,run_all_par,check_status)
-! 
-!       if(check_status)then
-!         allocate(resw(ndata))
-!         resw=zero
-!         call ode_lm(run_all_par,ndata,nfit,fitting_parameters,resw,iflag)
-!         fitness=sum(resw*resw)
-!         ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
-!         deallocate(resw)
-!         if (fitness.ge.resmax)then
-! !           check=.false.
-!           fitness=resmax
-!         end if
-!       else ! check_status
-!         fitness=resmax
-!       end if
-!       deallocate(run_all_par)
-!     else
-!       fitness=resmax
-!     end if
-!     
-!     return
-!   end function pso_fitness
-    
-  
-!   ! another function called by the PSO module
-!   function evfpso(allpar,par,inv_fitness) result(ir)
-!     integer::ir
-!     real(dp),dimension(:),intent(in)::allpar,par
-!     real(dp),intent(out)::inv_fitness
-!     real(dp)::fitness
-! 
-! !     inv_fitness=fpso(allpar,par)
-!     fitness=pso_fitness(allpar, par)
-!     inv_fitness=one/fitness
-!     ir=0
-! 
-!     return
-!   end function evfpso
-  
   ! another function called by the PSO module, and now it uses the fitness function
   ! from the fitness_module module
   function evaluate_pso(allpar,par,inv_fitness) result(ir)
@@ -175,52 +74,6 @@ module opti_pso
   end function evaluate_pso
 
   
-  ! ------------------------------------------------------------------ !
-
-  ! ---------------------------------------------------------------------------
-  ! PSO driver by Luca Borsato, it uses parameter read from pso.opt file
-!   subroutine pso_driver(iGlobal,evfunc,n,allpar,minpar,maxpar,xpar,inv_fitness)
-!     integer,intent(in)::iGlobal,n
-!     real(dp),dimension(:),intent(in)::allpar,minpar,maxpar
-!     real(dp),intent(out)::inv_fitness
-!     real(dp),dimension(:)::xpar
-! !     real(dp),dimension(size(xpar))::ipar
-!     real(dp),dimension(:),allocatable::ipar
-!     integer::ip
-! 
-!     interface
-!       !-------- evaluation function -------
-!       integer function evfunc(allpar, xpar, inv_fitness)  ! return number of constrained condition
-!         use constants,only:dp
-!         real(dp),dimension(:),intent(in)::allpar,xpar    ! parameter set
-!         real(dp), intent(out) :: inv_fitness       ! evaluation value
-!       end function evfunc
-!     end interface
-! 
-!     ! set initial fitting parameters to mean value of the boundaries
-! !     xpar = 0.5_dp*(minpar+maxpar) ! it avoids bad input values
-! !     xpar=minpar
-!     
-! !     call init_random_seed_input(np_pso,seed_pso+iGlobal)
-!     allocate(ipar(size(xpar)))
-! !     ipar=xpar
-!     ipar=minpar
-!     write(*,'(a)')" MIN                   MAX"
-!     do ip=1,n
-!       write(*,'(2g15.8)')minpar(ip),maxpar(ip)
-!     end do
-!     write(*,*)
-!     flush(6)
-!     
-!     call do_pso(n,minpar,maxpar,ipar,np_pso,nit_pso,wrt_pso,1,&
-!         &evfunc,allpar,xpar,inv_fitness,iGlobal)
-!     deallocate(ipar)
-!     flush(6)
-!     
-!     return
-!   end subroutine pso_driver
-
-
   subroutine pso_driver(iGlobal,evfunc,n,allpar,minpar,maxpar,xpar,inv_fitness)
     integer,intent(in)::iGlobal,n
     real(dp),dimension(:),intent(in)::allpar,minpar,maxpar
@@ -248,23 +101,11 @@ module opti_pso
     population=zero
     population_fitness=zero
     
-!     write(*,'(2(1x,a23))')'minpar','maxpar'
-!     do ii=1,nfit
-!       write(*,'(2(1x,es23.16))')minpar(ii),maxpar(ii)
-!     end do
-!     
     call do_pso(n,minpar,maxpar,ipar,np_pso,nit_pso,wrt_pso,1,&
         &evfunc,allpar,xpar,inv_fitness,iGlobal)
 
     deallocate(ipar)
     
-!     write(*,'(a)')'within pso_driver'
-!     write(*,'(1(1x,a23))')'par'
-!     do ii=1,nfit
-!       write(*,'(1(1x,es23.16))')xpar(ii)
-!     end do
-!     write(*,*)
-        
     return
   end subroutine pso_driver
 
@@ -331,11 +172,11 @@ module opti_pso
     !====== Setup control parameters =======
     w = 0.9_dp            ! inertia parameter (0.9 is recommended) ! original
 !     w = 1.2_dp            ! inertia parameter (0.9 is recommended)
-    c1 = 2.0_dp           ! self intention parameter (2.0 is recommended)
-    c2 = 2.0_dp           ! swarm intention parameter (2.0 is recommended)
+    c1 = two           ! self intention parameter (2.0 is recommended)
+    c2 = two           ! swarm intention parameter (2.0 is recommended)
     c3 = 1.e-5_dp         ! random search parameter (very small value is recommended) ! original value
     !c3 = 1.e-4_dp         ! random search parameter (very small value is recommended)
-    vmax = 0.5_dp         ! limit of vector length (0.5-1.0 is recommended)
+    vmax = half         ! limit of vector length (0.5-1.0 is recommended)
     vrand = 0.15_dp       ! velocity perturbation parameter (0.0-0.1 is recommended)
     ie = 0             ! maximum evaluation count (<=0 means unlimitted)
 
@@ -530,7 +371,7 @@ module opti_pso
 !       flush(6)
     
       !===== Evaluate all particles =====
-      !$omp parallel do
+      !$omp parallel do schedule(DYNAMIC,1)
       do j=1, np
 !           write(*,*)' ---- '
 !           write(*,*)''
@@ -707,13 +548,13 @@ module opti_pso
     !!r2 = grand()
     r1 = random_scalar()
     r2 = random_scalar()
-    r3 = 1.0_dp
-    v3= 0.0_dp
+    r3 = one
+    v3= zero
 
     !---- Velocity random expansion (optional) ----
     if(flag_on(flag, f_vrand)) then
-      !!r3 = (1.0_dp - vrand) + grand() * vrand
-      r3 = (1.0_dp - vrand) + random_scalar() * vrand
+      !!r3 = (one - vrand) + grand() * vrand
+      r3 = (one - vrand) + random_scalar() * vrand
     end if
 
     !---- Local random search (optional) ----
@@ -742,7 +583,7 @@ module opti_pso
 
     !===== perturbation =====
     vv = vabs(n, v)
-    if(vv == 0._dp) then
+    if(vv == zero) then
       !!v(1:n) = c3 * vngrand(n)
       call random_number(v)
       v = c3 * v
@@ -772,15 +613,15 @@ module opti_pso
     do while(retry)
       retry = .false.
       do i = 1, n
-          if(x(i) < 0.0_dp) then
-            x(i) = -1.0_dp * x(i)
-            !x(i) = 0.0_dp
-            v(i) = -1.0_dp * v(i)
+          if(x(i) < zero) then
+            x(i) = -one * x(i)
+            !x(i) = zero
+            v(i) = -one * v(i)
             retry = .true.
-          else if(x(i) > 1.0_dp) then
-            x(i) = 2.0_dp - 1.0_dp * x(i)
-            !x(i) = 1.0_dp
-            v(i) = -1.0_dp * v(i)
+          else if(x(i) > one) then
+            x(i) = two - one * x(i)
+            !x(i) = one
+            v(i) = -one * v(i)
             retry = .true.
           end if
       end do
@@ -795,7 +636,7 @@ module opti_pso
     real(dp),    intent(in) :: v(:)
     real(dp)                :: r
     integer :: i
-    r = 0.0_dp
+    r = zero
     do i = 1, n
       r = r + v(i) ** 2
     end do
@@ -821,23 +662,23 @@ module opti_pso
       print *, 'pso: error: np < 1', np
       err = err + 1
     end if
-    if(w < 0.0_dp) then
+    if(w < zero) then
       print *, 'pso: error: w < 0', w
       err = err + 1
     end if
-    if(c1 < 0.0_dp) then
+    if(c1 < zero) then
       print *, 'pso: error: c1 < 0', c1
       err = err + 1
     end if
-    if(c2 < 0.0_dp) then
+    if(c2 < zero) then
       print *, 'pso: error: c2 < 0', c2
       err = err + 1
     end if
-    if(c3 < 0.0_dp) then
+    if(c3 < zero) then
       print *, 'pso: error: c3 < 0', c3
       err = err + 1
     end if
-    if(vmax <= 0.0_dp) then
+    if(vmax <= zero) then
       print *, 'pso: error: Rmax <= 0', vmax
       err = err + 1
     end if
@@ -915,7 +756,7 @@ module opti_pso
 !       write(*,'(a)')' flag on --> hammersley'
       na = 0                           ! number of effective dimension
       do j=1, n
-          if(scale_a(j) > 0.0_dp) then      ! not fixed parameter
+          if(scale_a(j) > zero) then      ! not fixed parameter
             na = na + 1
             ip(j) = na
           end if
@@ -923,10 +764,10 @@ module opti_pso
       call hammersley(np, na, x)
       do i=1, np
           do j=1, n
-            if(scale_a(j) > 0.0_dp) then
+            if(scale_a(j) > zero) then
                 p(i)%x(j) = x((i-1)*na + ip(j))
             else
-                p(i)%x(j) = 0.0_dp
+                p(i)%x(j) = zero
             end if
           end do
       end do
@@ -941,13 +782,13 @@ module opti_pso
 
     if(flag_on(flag, f_initp)) then
       p(1)%x(1:n) = scaling(n, xinit)
-      p(1)%v(1:n) = 0.0_dp
+      p(1)%v(1:n) = zero
       p(1)%evbest = void
       p(1)%xbest  = p(1)%x
     end if
 
     do i = 1, np
-      p(i)%v(1:n) = 0.0_dp
+      p(i)%v(1:n) = zero
       p(i)%evbest = void
       p(i)%xbest(1:n) = p(i)%x(1:n)
     end do
@@ -1036,7 +877,7 @@ module opti_pso
     integer,      intent(in) :: ip(:)       ! index of particles
     real(dp)::x(1:n)
     integer::i
-    x(1:n)=0.0_dp
+    x(1:n)=zero
     do i = 1, np
       x(1:n) = x(1:n) + p(ip(i))%x(1:n)
     end do
@@ -1051,7 +892,7 @@ module opti_pso
     type(type_p), intent(in) :: p(1:np)
     real(dp)                     :: x, r
     integer :: i, j
-    r = 0.0_dp
+    r = zero
     j = 0
     do i = 1, np
       x = p(i)%ev
@@ -1102,8 +943,8 @@ module opti_pso
     integer, intent(in) :: n
     real(dp),    intent(in) :: x(1:n)
     real(dp)                :: px(1:n)
-    px(1:n) = 0.0_dp
-    where(scale_a(1:n) /= 0._dp) px(1:n) = (x(1:n) - scale_b(1:n)) / scale_a(1:n)
+    px(1:n) = zero
+    where(scale_a(1:n) /= zero) px(1:n) = (x(1:n) - scale_b(1:n)) / scale_a(1:n)
   end function scaling
 
   !----------------------------------------------------------------------

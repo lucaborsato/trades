@@ -6,8 +6,11 @@ import argparse
 import os
 import sys
 import numpy as np # array
+import h5py
 import ancillary as anc
+from scipy.stats import norm as scipy_norm
 
+import matplotlib.cm as cm
 from matplotlib import use as mpluse
 mpluse("Agg")
 #mpluse("Qt4Agg")
@@ -20,7 +23,8 @@ import matplotlib.colors as colors
 from matplotlib.ticker import FormatStrFormatter
 
     
-label_separation=-0.25
+#label_separation=-0.25
+label_separation=-0.50
 label_pad = 16
 label_size = 10
 ticklabel_size = 5
@@ -288,12 +292,155 @@ def derived_correlation_K19_ilN_3_4_000():
   
   return
 
+
+## PREVIOUS STUFF IS SINGLE-CASE PLOT
+
+## PLOT DERIVED POSTERIOR CORRELATION PLOT
+
+def main():
+  cli = anc.get_args()
+  # read derived posterior file
+  derived_file = os.path.join(cli.full_path, 'derived_posterior.hdf5')
+  h5f = h5py.File(derived_file, 'r')
+  derived_names = np.array(h5f['derived_names'], dtype='S10')
+  derived_posterior = np.array(h5f['derived_posterior'], dtype=np.float64)
+  h5f.close()
+
+  n_der = derived_names.shape[0]
+  n_flatchain = derived_posterior.shape[0]
+
+  labels_list = anc.derived_labels(derived_names, cli.m_type)
+
+  # median
+  median_derived, median_perc68, median_confint = anc.get_median_parameters(derived_posterior)
+  # mode
+  k = np.ceil(2. * n_flatchain**(1./3.)).astype(int)
+  if(k>50): k=50
+  mode_bin, mode_derived, mode_perc68, mode_confint = anc.get_mode_parameters_full(derived_posterior, k)
+  
+  fig = plt.figure(figsize=(12,12))
+  fig.subplots_adjust(hspace=0.05, wspace=0.05)
+  
+  for ix in range(0, n_der):
+    x_data = derived_posterior[:,ix]
+    x_med = median_derived[ix]
+    x_mode = mode_derived[ix]
+    x_min, x_max = anc.compute_limits(x_data, 0.05)
+    if(x_min == x_max):
+      x_min = x_min - 1.
+      x_max = x_max + 1.
+   
+    for iy in range(0, n_der):
+      y_data = derived_posterior[:,iy]
+      y_med = median_derived[iy]
+      y_mode = mode_derived[iy]
+      y_min, y_max = anc.compute_limits(y_data, 0.05)
+      if(y_min == y_max):
+        y_min = y_min - 1.
+        y_max = y_max + 1.
+        
+      if(iy > ix): # correlation plot
+        anc.print_both('correlation %s vs %s' %(derived_names[ix], derived_names[iy]) )
+        ax = plt.subplot2grid((n_der+1, n_der), (iy,ix))
+        
+        hist2d_counts, xedges, yedges, image2d = ax.hist2d(x_data, y_data, bins=k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], cmap=cm.gray_r, normed=True)
+        
+        new_k = int(k/3)
+        hist2d_counts_2, xedges_2, yedges_2 = np.histogram2d(x_data, y_data, bins=new_k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], normed=True)
+        
+        x_bins = [0.5*(xedges_2[i]+xedges_2[i+1]) for i in range(0, new_k)]
+        y_bins = [0.5*(yedges_2[i]+yedges_2[i+1]) for i in range(0, new_k)]
+        
+        ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
+        
+        # plot mean_mode
+        ax.axvline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
+        ax.axhline(y_mode, color='red', ls='-', lw=0.9, alpha=0.7)
+        # plot median
+        ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+        ax.axhline(y_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+        
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        if(iy == n_der-1):
+          set_xaxis(ax, label_size, label_separation, label_pad, ticklabel_size, labels_list[ix], [xedges[0], xedges[-1], 3])
+        if(ix == 0): 
+          set_yaxis(ax, label_size, label_separation, label_pad, ticklabel_size, labels_list[iy], [yedges[0], yedges[-1], 5])
+        
+        ax.set_ylim([y_min, y_max])
+        ax.set_xlim([x_min, x_max])
+        plt.draw()
+  
+      elif(iy == ix): # distribution plot
+        anc.print_both('%s histogram' %(derived_names[ix]))
+        ax = plt.subplot2grid((n_der+1, n_der), (ix,ix))
+        if (ix == n_der-1):
+          hist_orientation='horizontal'
+        else:
+          hist_orientation='vertical'
+        
+        idx = np.argsort(x_data)
+        
+        if(not cli.cumulative):
+          # HISTOGRAM and pdf
+          hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True)
+          
+          #x_pdf = scipy_norm.pdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
+          x_pdf = scipy_norm.pdf(x_data, loc=x_data.mean(), scale=x_data.std())
+          if(ix == n_der-1):
+            ax.plot(x_pdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+          else:
+            ax.plot(x_data[idx], x_pdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+        
+        else:
+          # CUMULATIVE HISTOGRAM and cdf
+          hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True, cumulative=True)
+        
+          #x_cdf = scipy_norm.cdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
+          x_cdf = scipy_norm.cdf(x_data, loc=x_data.mean(), scale=x_data.std())
+          if(ix == n_der-1):
+            ax.plot(x_cdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+          else:
+            ax.plot(x_data[idx], x_cdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+  
+        if (ix == n_der-1):
+          ax.set_ylim([y_min, y_max])
+          # plot mean_mode
+          ax.axhline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
+          # plot median
+          ax.axhline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+        else:
+          ax.set_xlim([x_min, x_max])
+          # plot mean_mode
+          ax.axvline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
+          # plot median
+          ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+        
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        ax.set_title(labels_list[ix], fontsize=label_size)
+        plt.draw()
+  
+  plot_folder = os.path.join(cli.full_path, 'plots')
+  if (not os.path.isdir(plot_folder)):
+      os.makedirs(plot_folder)
+  correlation_file = os.path.join(plot_folder, 'derived_triangle.png')
+  fig.savefig(correlation_file, bbox_inches='tight', dpi=300)
+  anc.print_both('png done')
+  correlation_file = os.path.join(plot_folder, 'derived_triangle.pdf')
+  fig.savefig(correlation_file, bbox_inches='tight', dpi=300)    
+  anc.print_both('pdf done')
+  plt.close(fig)
+      
+  return
+
 # 
 # Here run the proper function
 #
-
-#derived_correlation_K19_ilN_3_4()
-derived_correlation_K19_ilN_3_4_000()
+if __name__ == "__main__":
+  #derived_correlation_K19_ilN_3_4()
+  #derived_correlation_K19_ilN_3_4_000()
+  main()
 
   
   

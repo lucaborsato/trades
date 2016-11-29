@@ -1,5 +1,5 @@
 module lin_fit
-  use constants,only:dp
+  use constants,only:dp,one
   implicit none
 
   interface linfit
@@ -22,7 +22,7 @@ module lin_fit
     allocate(xf(n),w(n),wyx(n),wy(n),wx(n),wx2(n))
 
     xf=real(x,dp)
-    w=1._dp/(ey*ey)
+    w=one/(ey*ey)
     Sw=sum(w)
     wyx=w*y*xf
     Swyx=sum(wyx)
@@ -61,7 +61,7 @@ module lin_fit
 
     n=size(x)
     allocate(w(n),wyx(n),wy(n),wx(n),wx2(n))
-    w=1._dp/(ey*ey)
+    w=one/(ey*ey)
     Sw=sum(w)
     wyx=w*y*x
     Swyx=sum(wyx)

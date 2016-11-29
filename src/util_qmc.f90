@@ -6,7 +6,7 @@
 !
 !----------------------------------------------------------------------
 module util_qmc
-  use constants,only:dp
+  use constants,only:dp,zero,one
   private
 
   !============= PUBLIC ROUTINES =============
@@ -63,10 +63,10 @@ function van_der_corput(i, base) result(r)
   real(dp)                :: r
   real(dp)    :: f, factor
   integer :: ii
-  f = 1.0_dp / real(base,dp)
+  f = one / real(base,dp)
   factor = f
   ii = i
-  r = 0.0_dp
+  r = zero
   do while(ii > 0)
     r = r + real(mod(ii, base),dp) * factor
     ii = ii / base

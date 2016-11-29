@@ -6,7 +6,7 @@
 !
 !----------------------------------------------------------------------
 module util_sort
-  use constants,only:dp
+  use constants,only:dp,one
   implicit none
   private
 
@@ -31,15 +31,15 @@ subroutine qsort(a, ip, dir)
     ip(i) = i
   end do
   if(dir >= 0) then
-    f = 1.0_dp
+    f = one
   else
-    f = -1.0_dp
+    f = -one
   end if
   call QsortC(a, ip, f)
 end subroutine qsort
 
 !======================================================================
-!========================== dpIVATE ROUTINES ==========================
+!========================== PRIVATE ROUTINES ==========================
 recursive subroutine QsortC(A, ip, dir)
   real(dp),    intent(in)    :: A(:)
   integer, intent(inout) :: ip(:)

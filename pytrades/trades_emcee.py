@@ -195,14 +195,15 @@ def compute_proper_sigma(nfit, delta_sigma, parameter_names):
 def compute_initial_walkers(nfit, nwalkers, fitting_parameters, delta_parameters, parameter_names, delta_sigma, of_run):
   # initial walkers as input fitting_parameters + N(loc=0.,sigma=1.,size=nwalkers)*delta_sigma
   #p0 = [parameters_minmax[:,0] + np.random.random(nfit)*delta_parameters for i in range(0, nwalkers)]
-  print_both(' Inititializing walkers with delta_sigma = %.16f' %(cli.delta_sigma),of_run)
+  print_both(' Inititializing walkers with delta_sigma = %.16f' %(delta_sigma),of_run)
   p0 = []
   i_p0 = 0
   delta_sigma_out = compute_proper_sigma(nfit, delta_sigma, parameter_names)
   print_both(' good p0:', of_run)
   while True:
     #test_p0 = fitting_parameters + np.random.normal(loc=0., scale=1., size=nfit)*delta_sigma
-    test_p0 = fitting_parameters + np.random.normal(loc=0., scale=1., size=nfit)*delta_sigma_out
+    #test_p0 = fitting_parameters + np.random.normal(loc=0., scale=1., size=nfit)*delta_sigma_out
+    test_p0 = np.array([fitting_parameters[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
     #test_p0 = fitting_parameters + fitting_parameters*np.random.normal(loc=0., scale=1., size=nfit)*cli.delta_sigma
     #test_p0 = fitting_parameters + delta_parameters*np.random.normal(loc=0., scale=1., size=nfit)*cli.delta_sigma
     test_lg = lnprob(test_p0)
@@ -217,181 +218,196 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, delta_parameters
   return p0
 
 
-# MAIN -- TRADES + EMCEE
+def main():
+  # MAIN -- TRADES + EMCEE
+  # READ COMMAND LINE ARGUMENTS
+  cli = get_args()
 
-# READ COMMAND LINE ARGUMENTS
-cli = get_args()
+  # STARTING TIME
+  start = time.time()
 
-# STARTING TIME
-start = time.time()
+  # RENAME 
+  working_path = cli.full_path
+  nthreads=cli.nthreads
 
-# RENAME 
-working_path = cli.full_path
-nthreads=cli.nthreads
+  # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
+  pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder)
 
-# INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
-pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder)
-
-# RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
-fitting_parameters = pytrades_lib.pytrades.fitting_parameters # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
-parameters_minmax = pytrades_lib.pytrades.parameters_minmax # PARAMETER BOUNDARIES
-delta_parameters = np.abs(parameters_minmax[:,1] - parameters_minmax[:,0]) # DELTA BETWEEN MAX AND MIN OF BOUNDARIES
+  # RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
+  fitting_parameters = pytrades_lib.pytrades.fitting_parameters # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
+  parameters_minmax = pytrades_lib.pytrades.parameters_minmax # PARAMETER BOUNDARIES
+  delta_parameters = np.abs(parameters_minmax[:,1] - parameters_minmax[:,0]) # DELTA BETWEEN MAX AND MIN OF BOUNDARIES
 
 
-#global n_bodies, n_planets, ndata, npar, nfit, dof, inv_dof
-n_bodies = pytrades_lib.pytrades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
-n_planets = n_bodies - 1 # NUMBER OF PLANETS IN THE SYSTEM
-ndata = pytrades_lib.pytrades.ndata # TOTAL NUMBER OF DATA AVAILABLE
-npar  = pytrades_lib.pytrades.npar # NUMBER OF TOTAL PARAMATERS ~n_planets X 6
-nfit  = pytrades_lib.pytrades.nfit # NUMBER OF PARAMETERS TO FIT
-dof   = pytrades_lib.pytrades.dof # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
-global inv_dof
-inv_dof = np.float64(1.0 / dof)
+  #global n_bodies, n_planets, ndata, npar, nfit, dof, inv_dof
+  n_bodies = pytrades_lib.pytrades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
+  n_planets = n_bodies - 1 # NUMBER OF PLANETS IN THE SYSTEM
+  ndata = pytrades_lib.pytrades.ndata # TOTAL NUMBER OF DATA AVAILABLE
+  npar  = pytrades_lib.pytrades.npar # NUMBER OF TOTAL PARAMATERS ~n_planets X 6
+  nfit  = pytrades_lib.pytrades.nfit # NUMBER OF PARAMETERS TO FIT
+  dof   = pytrades_lib.pytrades.dof # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
+  global inv_dof
+  inv_dof = np.float64(1.0 / dof)
 
-# RADIAL VELOCITIES SET
-n_rv = pytrades_lib.pytrades.nrv
-n_set_rv = pytrades_lib.pytrades.nrvset
+  # RADIAL VELOCITIES SET
+  n_rv = pytrades_lib.pytrades.nrv
+  n_set_rv = pytrades_lib.pytrades.nrvset
 
-# TRANSITS SET
-n_t0 = pytrades_lib.pytrades.nt0
-n_t0_sum = np.sum(n_t0)
-n_set_t0 = 0
-for i in range(0, n_bodies):
-  if (np.sum(n_t0[i]) > 0): n_set_t0 += 1
+  # TRANSITS SET
+  n_t0 = pytrades_lib.pytrades.nt0
+  n_t0_sum = np.sum(n_t0)
+  n_set_t0 = 0
+  for i in range(0, n_bodies):
+    if (np.sum(n_t0[i]) > 0): n_set_t0 += 1
 
-# compute global constant for the loglhd
-global ln_err_const
+  # compute global constant for the loglhd
+  global ln_err_const
 
-try:
-  e_RVo = np.array(pytrades_lib.pytrades.ervobs[:], dtype=np.float64) # fortran variable RV in python will be rv!!!
-except:
-  e_RVo = np.array([0.], dtype=np.float64)
-try:
-  e_T0o = np.array(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
-except:
-  e_T0o = np.array([0.], dtype=np.float64)
-ln_err_const = compute_ln_err_const(dof, e_RVo, e_T0o, cli.ln_flag)
+  try:
+    e_RVo = np.array(pytrades_lib.pytrades.ervobs[:], dtype=np.float64) # fortran variable RV in python will be rv!!!
+  except:
+    e_RVo = np.array([0.], dtype=np.float64)
+  try:
+    e_T0o = np.array(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
+  except:
+    e_T0o = np.array([0.], dtype=np.float64)
+  ln_err_const = compute_ln_err_const(dof, e_RVo, e_T0o, cli.ln_flag)
 
-# SET EMCEE PARAMETERS:
-nwalkers, nruns, nsave, npost = get_emcee_arguments(cli,nfit)
+  # SET EMCEE PARAMETERS:
+  nwalkers, nruns, nsave, npost = get_emcee_arguments(cli,nfit)
 
-# READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
-reshaped_names = pytrades_lib.pytrades.parameter_names.reshape((10,nfit), order='F').T
-parameter_names = [''.join(reshaped_names[i,:]).strip() for i in range(0,nfit)]
+  # READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
+  reshaped_names = pytrades_lib.pytrades.parameter_names.reshape((10,nfit), order='F').T
+  parameter_names = [''.join(reshaped_names[i,:]).strip() for i in range(0,nfit)]
 
-# INITIALISE SCRIPT FOLDER/LOG FILE
-working_folder, run_log, of_run = init_folder(working_path, cli.sub_folder)
+  # INITIALISE SCRIPT FOLDER/LOG FILE
+  working_folder, run_log, of_run = init_folder(working_path, cli.sub_folder)
 
-print_both('',of_run)
-print_both(' ======== ',of_run)
-print_both(' pyTRADES' ,of_run)
-print_both(' ======== ',of_run)
-print_both('',of_run)
-print_both(' WORKING PATH = %s' %(working_path),of_run)
-print_both(' NUMBER OF THREADS = %d' %(nthreads),of_run)
-print_both(' dof = ndata(%d) - nfit(%d) = %d' %(ndata, nfit, dof),of_run)
-print_both(' Total N_RV = %d for %d set(s)' %(n_rv, n_set_rv),of_run)
-print_both(' Total N_T0 = %d for %d out of %d planet(s)' %(n_t0_sum, n_set_t0, n_planets),of_run)
-print_both(' %s = %.7f' %('log constant error = ', ln_err_const),of_run)
-print_both(' %s = %.7f' %('IN FORTRAN log constant error = ', pytrades_lib.pytrades.ln_err_const),of_run)
+  print_both('',of_run)
+  print_both(' ======== ',of_run)
+  print_both(' pyTRADES' ,of_run)
+  print_both(' ======== ',of_run)
+  print_both('',of_run)
+  print_both(' WORKING PATH = %s' %(working_path),of_run)
+  print_both(' NUMBER OF THREADS = %d' %(nthreads),of_run)
+  print_both(' dof = ndata(%d) - nfit(%d) = %d' %(ndata, nfit, dof),of_run)
+  print_both(' Total N_RV = %d for %d set(s)' %(n_rv, n_set_rv),of_run)
+  print_both(' Total N_T0 = %d for %d out of %d planet(s)' %(n_t0_sum, n_set_t0, n_planets),of_run)
+  print_both(' %s = %.7f' %('log constant error = ', ln_err_const),of_run)
+  print_both(' %s = %.7f' %('IN FORTRAN log constant error = ', pytrades_lib.pytrades.ln_err_const),of_run)
 
-# save initial_fitting parameters into array
-original_fit_parameters = fitting_parameters.copy()
-print_both(' ORIGINAL PARAMETER VALUES -> 0000', of_run)
-fitness_0000, lgllhd_0000, check_0000 = pytrades_lib.pytrades.write_summary_files(0, original_fit_parameters)
+  # save initial_fitting parameters into array
+  original_fit_parameters = fitting_parameters.copy()
+  print_both(' ORIGINAL PARAMETER VALUES -> 0000', of_run)
+  fitness_0000, lgllhd_0000, check_0000 = pytrades_lib.pytrades.write_summary_files(0, original_fit_parameters)
 
-p0 = compute_initial_walkers(nfit, nwalkers, fitting_parameters, delta_parameters, parameter_names, cli.delta_sigma, of_run)
+  p0 = compute_initial_walkers(nfit, nwalkers, fitting_parameters, delta_parameters, parameter_names, cli.delta_sigma, of_run)
 
-print_both(' emcee chain: nwalkers = %d nruns = %d' %(nwalkers, nruns), of_run)
-print_both(' sampler ... ',of_run)
-sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, threads=nthreads)
-print_both(' ready to go', of_run)
-print_both(' with nsave = %r' %(nsave), of_run)
-sys.stdout.flush()
-
-#sys.exit()
-
-if (nsave != False):
-  # save temporary sampling during emcee every nruns*10%
-  if(os.path.exists(os.path.join(working_folder, 'emcee_temp.hdf5')) and os.path.isfile(os.path.join(working_folder, 'emcee_temp.hdf5'))):
-    os.remove(os.path.join(working_folder, 'emcee_temp.hdf5'))
-  of_temp = h5py.File(os.path.join(working_folder, 'emcee_temp.hdf5'), 'a')
-  of_temp.create_dataset('parameter_names', data=parameter_names, dtype='S10')
-  of_temp.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
-  temp_dset = of_temp.create_dataset('chains', (nwalkers, nruns, nfit), dtype=np.float64)
-  temp_lnprob = of_temp.create_dataset('lnprobability', (nwalkers, nruns), dtype=np.float64)
-  temp_lnprob.attrs['ln_err_const'] = ln_err_const
-  
-  of_temp.close()
-  pos = p0
-  nchains = int(nruns/nsave)
-  state=None
-  print_both(' Running emcee with temporary saving', of_run)
+  print_both(' emcee chain: nwalkers = %d nruns = %d' %(nwalkers, nruns), of_run)
+  print_both(' sampler ... ',of_run)
+  sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, threads=nthreads)
+  print_both(' ready to go', of_run)
+  print_both(' with nsave = %r' %(nsave), of_run)
   sys.stdout.flush()
-  for i in range(0, nchains):
-    print_both('', of_run)
-    print_both(' iter: %6d ' %(i+1), of_run)
-    aaa = i*nsave
-    bbb = aaa+nsave
-    pos, prob, state = sampler.run_mcmc(pos, N=nsave, rstate0=state)
-    print_both('completed %d steps of %d' %(bbb, nruns), of_run)
+
+  #sys.exit()
+
+  if (nsave != False):
+    # save temporary sampling during emcee every nruns*10%
+    if(os.path.exists(os.path.join(working_folder, 'emcee_temp.hdf5')) and os.path.isfile(os.path.join(working_folder, 'emcee_temp.hdf5'))):
+      os.remove(os.path.join(working_folder, 'emcee_temp.hdf5'))
     of_temp = h5py.File(os.path.join(working_folder, 'emcee_temp.hdf5'), 'a')
-    temp_dset = of_temp['chains'] #[:,:,:]
-    temp_dset[:,aaa:bbb,:] = sampler.chain[:, aaa:bbb, :]
-    #of_temp['chains'].attrs['completed_steps'] = bbb
-    temp_dset.attrs['completed_steps'] = bbb
-    temp_lnprob = of_temp['lnprobability'] #[:,:]
-    temp_lnprob[:, aaa:bbb] = sampler.lnprobability[:, aaa:bbb]
-    shape_lnprob = sampler.lnprobability.shape
-    of_temp.create_dataset('autocor_time', data=np.array(sampler.acor, dtype=np.float64), dtype=np.float64)
-    #print 'aaa = %6d bbb = %6d -> sampler.lnprobability.shape = (%6d , %6d)' %(aaa, bbb, shape_lnprob[0], shape_lnprob[1])
+    of_temp.create_dataset('parameter_names', data=parameter_names, dtype='S10')
+    of_temp.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
+    temp_dset = of_temp.create_dataset('chains', (nwalkers, nruns, nfit), dtype=np.float64)
+    temp_lnprob = of_temp.create_dataset('lnprobability', (nwalkers, nruns), dtype=np.float64)
+    temp_lnprob.attrs['ln_err_const'] = ln_err_const
+    temp_acor = of_temp.create_dataset('autocor_time', data=np.zeros((nfit)), dtype=np.float64)
     of_temp.close()
+    pos = p0
+    nchains = int(nruns/nsave)
+    state=None
+    print_both(' Running emcee with temporary saving', of_run)
     sys.stdout.flush()
+    for i in range(0, nchains):
+      print_both('', of_run)
+      print_both(' iter: %6d ' %(i+1), of_run)
+      aaa = i*nsave
+      bbb = aaa+nsave
+      pos, prob, state = sampler.run_mcmc(pos, N=nsave, rstate0=state)
+      print_both('completed %d steps of %d' %(bbb, nruns), of_run)
+      of_temp = h5py.File(os.path.join(working_folder, 'emcee_temp.hdf5'), 'a')
+      temp_dset = of_temp['chains'] #[:,:,:]
+      temp_dset[:,aaa:bbb,:] = sampler.chain[:, aaa:bbb, :]
+      #of_temp['chains'].attrs['completed_steps'] = bbb
+      temp_dset.attrs['completed_steps'] = bbb
+      temp_lnprob = of_temp['lnprobability'] #[:,:]
+      temp_lnprob[:, aaa:bbb] = sampler.lnprobability[:, aaa:bbb]
+      shape_lnprob = sampler.lnprobability.shape
+      
+      temp_chains_T = np.zeros((bbb, nwalkers, nfit))
+      for ifit in range(0,nfit):
+        temp_chains_T[:,:,ifit] = sampler.chain[:, :bbb, ifit].T
+      acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
+      temp_acor = of_temp['autocor_time']
+      temp_acor[...] = acor_time
+      #of_temp.create_dataset('autocor_time', data=np.array(acor_temp, dtype=np.float64), dtype=np.float64)
+      
+      #of_temp.create_dataset('autocor_time', data=np.array(sampler.acor, dtype=np.float64), dtype=np.float64) # not working
+      
+      #print 'aaa = %6d bbb = %6d -> sampler.lnprobability.shape = (%6d , %6d)' %(aaa, bbb, shape_lnprob[0], shape_lnprob[1])
+      of_temp.close()
+      sys.stdout.flush()
+    print_both('', of_run)
+    print_both('...done with saving temporary total shape = %s' %(str(sampler.chain.shape)), of_run)
+    print_both('', of_run)
+    sys.stdout.flush()
+
+  # RUN EMCEE AND RESET AFTER REMOVE BURN-IN
+  #pos, prob, state = sampler.run_mcmc(p0, npost)
+  #sampler.reset()
+  #sampler.run_mcmc(pos, nruns, rstate0=state)
+  else:
+    # GOOD COMPLETE SINGLE RUNNING OF EMCEE, WITHOUT REMOVING THE BURN-IN
+    print_both(' Running full emcee ...', of_run)
+    sys.stdout.flush()
+    sampler.run_mcmc(p0, nruns)
+    print_both('done', of_run)
+    print_both('', of_run)
+    sys.stdout.flush()
+
+  flatchains = sampler.chain[:, :, :].reshape((nwalkers*nruns, nfit)) # full chain values
+  acceptance_fraction = sampler.acceptance_fraction
+  mean_acceptance_fraction = np.mean(acceptance_fraction)
+  autocor_time = sampler.acor
+  lnprobability = sampler.lnprobability
+
+  # save chains with original shape as hdf5 file
+  f_hdf5 = h5py.File(os.path.join(working_folder, 'emcee_summary.hdf5'), 'w')
+  f_hdf5.create_dataset('chains', data=sampler.chain, dtype=np.float64)
+  f_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
+  f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
+  f_hdf5.create_dataset('acceptance_fraction', data=acceptance_fraction, dtype=np.float64)
+  f_hdf5.create_dataset('autocor_time', data=autocor_time, dtype=np.float64)
+  f_hdf5.create_dataset('lnprobability', data=lnprobability, dtype=np.float64)
+  f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
+  f_hdf5.close()
+
+  print_both(" Mean_acceptance_fraction should be between [0.25-0.5] = %.6f" %(mean_acceptance_fraction), of_run)
   print_both('', of_run)
-  print_both('...done with saving temporary total shape = %s' %(str(sampler.chain.shape)), of_run)
+
+  print_both('COMPLETED EMCEE', of_run)
+
+  elapsed = time.time() - start
+  elapsed_d, elapsed_h, elapsed_m, elapsed_s = anc.computation_time(elapsed)
+
   print_both('', of_run)
-  sys.stdout.flush()
-
-# RUN EMCEE AND RESET AFTER REMOVE BURN-IN
-#pos, prob, state = sampler.run_mcmc(p0, npost)
-#sampler.reset()
-#sampler.run_mcmc(pos, nruns, rstate0=state)
-else:
-  # GOOD COMPLETE SINGLE RUNNING OF EMCEE, WITHOUT REMOVING THE BURN-IN
-  print_both(' Running full emcee ...', of_run)
-  sys.stdout.flush()
-  sampler.run_mcmc(p0, nruns)
-  print_both('done', of_run)
+  print_both(' pyTRADES: EMCEE FINISHED in %2d day %02d hour %02d min %.2f sec - bye bye' %(int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s), of_run)
   print_both('', of_run)
-  sys.stdout.flush()
+  of_run.close()
+  pytrades_lib.pytrades.deallocate_variables()
 
-flatchains = sampler.chain[:, :, :].reshape((nwalkers*nruns, nfit)) # full chain values
-acceptance_fraction = sampler.acceptance_fraction
-mean_acceptance_fraction = np.mean(acceptance_fraction)
-autocor_time = sampler.acor
-lnprobability = sampler.lnprobability
+  return
 
-# save chains with original shape as hdf5 file
-f_hdf5 = h5py.File(os.path.join(working_folder, 'emcee_summary.hdf5'), 'w')
-f_hdf5.create_dataset('chains', data=sampler.chain, dtype=np.float64)
-f_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
-f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
-f_hdf5.create_dataset('acceptance_fraction', data=acceptance_fraction, dtype=np.float64)
-f_hdf5.create_dataset('autocor_time', data=autocor_time, dtype=np.float64)
-f_hdf5.create_dataset('lnprobability', data=lnprobability, dtype=np.float64)
-f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
-f_hdf5.close()
-
-print_both(" Mean_acceptance_fraction should be between [0.25-0.5] = %.6f" %(mean_acceptance_fraction), of_run)
-print_both('', of_run)
-
-print_both('COMPLETED EMCEE', of_run)
-
-elapsed = time.time() - start
-elapsed_d, elapsed_h, elapsed_m, elapsed_s = anc.computation_time(elapsed)
-
-print_both('', of_run)
-print_both(' pyTRADES: EMCEE FINISHED in %2d day %02d hour %02d min %.2f sec - bye bye' %(int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s), of_run)
-print_both('', of_run)
-of_run.close()
-pytrades_lib.pytrades.deallocate_variables()
+if __name__ == "__main__":
+  main()

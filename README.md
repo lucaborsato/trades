@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.10.0 by Luca Borsato - 2016**    
+**`TRADES` v2.10.1 by Luca Borsato - 2016**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -409,6 +409,11 @@ Check also other files in the `pytrades` folder to understand how to use the pyt
 
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
+
+#### `TRADES 2.10.1`
+Constants values, such as `0._dp`, `1._dp`, and `2._dp`, have been replaced with `parameter` variables.    
+Added python scripts for the analysis of the simulations.    
+Added file `full_emcee_analysis.py` that runs all the post-`emcee` related python scripts for the analysis (it uses `subprocess` and `multiprocessing`).    
 
 #### `TRADES 2.10.0`
 

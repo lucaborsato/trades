@@ -174,7 +174,7 @@ module transits
     i4=4+(itra-1)*6
     i5=5+(itra-1)*6
     C=rw(i1)*rw(i4)+rw(i2)*rw(i5)
-    if((A*C).lt.0._dp)then
+    if((A*C).lt.zero)then
       B=C
       !dt=-half*dt
       dt=-dt
@@ -253,7 +253,7 @@ module transits
 
     xvx=rw(ix)*rw(ivx)
     yvy=rw(iy)*rw(ivy)
-    dhk=2._dp*(xvx+yvy)
+    dhk=two*(xvx+yvy)
 !     if (abs(dhk).le.TOLERANCE) write(*,*)" dhk <= TOLERANCE: ",dhk 
     if (abs(dhk).le.TOLERANCE)dhk=TOLERANCE
     dt=-(hk/dhk)
@@ -273,7 +273,7 @@ module transits
 !     logical::Hc
     
     !real(dp),dimension(:),allocatable::rin,drdt,err
-    real(dp),parameter::half=0.5_dp
+!     real(dp),parameter::half=0.5_dp
     integer::i1,i2,i4,i5
     real(dp)::C
 
@@ -287,8 +287,8 @@ module transits
     i2=2+(itra-1)*6
     i4=4+(itra-1)*6
     i5=5+(itra-1)*6
-    C=rsky(rw(i1:i2))**2-Rcheck
-    if((A*C).lt.0._dp)then
+    C=(rsky(rw(i1:i2))**2)-Rcheck
+    if((A*C).lt.zero)then
       B=C
       dt=-half*dt
     else
@@ -357,7 +357,7 @@ module transits
         tmidtra=tmidtra+dt1
       else
         ! dt2 >= dt1 so use Bisection
-        dt1=dt1*0.5_dp
+        dt1=dt1*half
         tmidtra=tmidtra+dt1
         call onetra_bis(itra,m,A,B,rw,dt1,Hc)
         if(.not.Hc) return
@@ -428,7 +428,7 @@ module transits
     
     Hc=.true.
 
-    A=rsky(rtra(ix:iy))**2 - Rcheck
+    A=(rsky(rtra(ix:iy))**2)-Rcheck
     B=A
     loop=0
     contloop: do
@@ -442,7 +442,7 @@ module transits
       if(abs(dt2).le.abs(dt1))then
         dt1=dt2
         call advancefg(m,rw,dt1,Hc)
-        if(.not.Hc) return          
+        if(.not.Hc) return
       else
         call onecont_bis(itra,Rcheck,m,A,B,rw,dt1,Hc)
         if(.not.Hc) return
@@ -651,14 +651,14 @@ module transits
     real(dp),dimension(:),allocatable::dttemp
     integer,dimension(1)::pos
     real(dp)::dtsel,Pchk
-    real(dp),parameter::limP=1._dp/3._dp
+!     real(dp),parameter::limP=1._dp/3._dp
 
     allocate(intdt(nTs),dttemp(nTs))
     dttemp=Tobs-tmidtra
     intdt=abs(int(dttemp))
     pos=minloc(intdt)
     dtsel=abs(dttemp(pos(1)))
-    Pchk=Pephem(itra)*limP
+    Pchk=Pephem(itra)*onethird
     if(dtsel.le.Pchk)then
       if(T0_stat(pos(1),itra).eq.0)then
         T0_sim(pos(1),itra)=tmidtra
@@ -684,10 +684,10 @@ module transits
 
     dT=tmidtra-Tephem(itra)
     dTP=dT/Pephem(itra)
-    if(dT.ge.0._dp)then
-      dTP=dTP+0.5_dp
+    if(dT.ge.zero)then
+      dTP=dTP+half
     else
-      dTP=dTP-0.5_dp
+      dTP=dTP-half
     end if
     ntmid=int(dTP)
     do in=1,nTs

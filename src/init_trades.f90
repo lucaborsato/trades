@@ -571,10 +571,10 @@ module init_trades
       
       ! Mass min & max of the planet [0-13]Mjup
       read(upar,*) par_min(3+j1),par_max(3+j1) !Mass
-      if((par_max(3+j1).eq.0._dp).or.(par_max(3+j1).le.par_min(3+j1)))then
+      if((par_max(3+j1).eq.zero).or.(par_max(3+j1).le.par_min(3+j1)))then
         ! Mmax =0 or Mmax <= Mmin --> Mmax = 2 * Mmin
         par_max(3+j1)=2._dp*par_min(3+j1)
-      else if(par_min(3+j1).lt.0._dp)then
+      else if(par_min(3+j1).lt.zero)then
         ! Mmin < 0 --> Mmin = 0 , Mmax = 13 Mjup
         par_min(3+j1)=zero
         par_max(3+j1)=13._dp
@@ -602,8 +602,8 @@ module init_trades
         par_min(5+j1)=period(m(1),m(j),temp1)
         par_max(5+j1)=period(m(1),m(j),temp2)
       end if
-      if((par_max(5+j1).eq.0._dp).or.(par_max(5+j1).le.par_min(5+j1)))then
-        par_max(5+j1)=2._dp*par_min(5+j1)
+      if((par_max(5+j1).eq.zero).or.(par_max(5+j1).le.par_min(5+j1)))then
+        par_max(5+j1)=two*par_min(5+j1)
 !         write(*,*)" **WARNING** body ",j," has Period max not setted correctly"
 !         write(*,*)" probably it has been setted to 0. or <= Period min"
 !         write(*,*)" it will be set to 2*Pmin "
@@ -1075,7 +1075,7 @@ module init_trades
     else
       ln_eT0 = zero
     end if
-    ln_const = -(0.5_dp*real(dof,dp)*log(dpi))-(0.5_dp*(ln_eRV+ln_eT0))
+    ln_const = -(half*real(dof,dp)*log(dpi))-(half*(ln_eRV+ln_eT0))
 !     write(*,'(a,es23.16)')' LN_ERR_CONST (SUBROUTINE) = ',ln_err_const
 !     flush(6)
   

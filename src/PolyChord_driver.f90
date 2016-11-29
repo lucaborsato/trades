@@ -72,7 +72,7 @@ module PolyChord_driver
 
 !     fitness=calculate_fitness(system_parameters,theta)
     fitness=bound_fitness_function(system_parameters,theta)
-    loglikelihood=-0.5_dp*fitness
+    loglikelihood=-half*fitness
     
     ! Use up these parameters to stop irritating warnings
     if(size(phi).gt.0)phi=zero

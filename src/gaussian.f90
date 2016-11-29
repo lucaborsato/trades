@@ -1,5 +1,5 @@
 module gaussian
-  use constants,only:dp
+  use constants,only:dp,zero,one,two
   implicit none
 
   interface gaussdev
@@ -17,13 +17,13 @@ module gaussian
 
     do
       call random_number(v1)
-      v1 = 2._dp * v1 - 1._dp
+      v1 = two * v1 - one
       rsq = v1(1)**2 + v1(2)**2
-      if( (rsq.gt.0._dp).and.(rsq.lt.1._dp) ) exit
+      if( (rsq.gt.zero).and.(rsq.lt.one) ) exit
     end do
     lrsq = log(rsq)
     lrsq2 = lrsq/rsq
-    slrsq2 = sqrt( -2._dp * lrsq2 )
+    slrsq2 = sqrt( -two * lrsq2 )
     gauss = v1(1) * slrsq2
 
     return
@@ -43,10 +43,10 @@ module gaussian
       if(ng.gt.n) exit
       call random_number(v1(ng:n))
       call random_number(v2(ng:n))
-      v1(ng:n) = 2._dp * v1(ng:n) - 1._dp
-      v2(ng:n) = 2._dp * v2(ng:n) - 1._dp
+      v1(ng:n) = two * v1(ng:n) - one
+      v2(ng:n) = two * v2(ng:n) - one
       rsq(ng:n) = v1(ng:n)**2 + v2(ng:n)**2
-      mask(ng:n) = ( (rsq(ng:n).gt.0._dp) .and. (rsq(ng:n).lt.1._dp) )
+      mask(ng:n) = ( (rsq(ng:n).gt.zero) .and. (rsq(ng:n).lt.one) )
       call array_copy(pack(v1(ng:n),mask(ng:n)),v1(ng:),nn,m)
       v2(ng:ng+nn-1) = pack(v2(ng:n),mask(ng:n))
       rsq(ng:ng+nn-1) = pack(rsq(ng:n),mask(ng:n))
@@ -54,7 +54,7 @@ module gaussian
     end do
     lrsq = log(rsq)
     lrsq2 = lrsq/rsq
-    slrsq2 = sqrt(-2._dp * lrsq2)
+    slrsq2 = sqrt(-two * lrsq2)
     gauss = v1 * slrsq2
 
     return

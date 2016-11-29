@@ -110,55 +110,6 @@ module rotations
     return
   end subroutine orb2obs
 
-! test
-!   ! successive rotations around axis: 3(z) 1(x) 3(z)
-!   subroutine rotmat313(angle1,angle2,angle3,C,B,A)
-!     real(dp),intent(in)::angle1,angle2,angle3
-!     real(dp),dimension(3,3),intent(out)::A,B,C
-! 
-!     call rotmat3(angle3,A)
-!     call rotmat1(angle2,B)
-!     call rotmat3(angle1,C)
-! 
-!     return
-!   end subroutine rotmat313
-! 
-!   ! rotate the orbital state vectors to observational state vectors
-!   ! User must pass -ang1, -ang2, -ang3 to obtain the right transformation
-!   subroutine orb2obs(rin,ang1,ang2,ang3,rout)
-!     use parameters,only:NB
-!     real(dp),dimension(:),intent(in)::rin
-!     real(dp),dimension(:),intent(out)::rout
-!     real(dp),dimension(:),intent(in)::ang1,ang2,ang3
-!     real(dp),dimension(3,3)::Crot,Brot,Arot
-! !     real(dp),dimension(3)::rtemp1,rtemp2,vtemp1,vtemp2
-!     integer::j,ncj
-! 
-!     rout=zero
-!     do j=2,NB
-!       ncj=(j-1)*6
-!       
-!       call rotmat313(ang1(j),ang2(j),ang3(j),Crot,Brot,Arot)
-!       rout(1+ncj:3+ncj)=matmul(Crot,matmul(Brot,matmul(Arot,rin(1+ncj:3+ncj))))
-!       rout(4+ncj:6+ncj)=matmul(Crot,matmul(Brot,matmul(Arot,rin(4+ncj:6+ncj))))
-! 
-! !       rtemp1=zero
-! !       rtemp2=zero
-! !       rtemp1=matmul(Arot,rin(1+ncj:3+ncj))
-! !       rtemp2=matmul(Brot,rtemp1)
-! !       rout(1+ncj:3+ncj)=matmul(Crot,rtemp2)
-! !       
-! !       vtemp1=zero
-! !       vtemp2=zero
-! !       vtemp1=matmul(Arot,rin(4+ncj:6+ncj))
-! !       vtemp2=matmul(Brot,vtemp1)
-! !       rout(4+ncj:6+ncj)=matmul(Crot,vtemp2)
-!       
-!     end do
-! 
-!     return
-!   end subroutine orb2obs
-
 
 end module rotations
 

@@ -63,7 +63,7 @@ program main_trades
 
   write(*,'(a)')""
   write(*,'(a)')" ======================================================"
-  write(*,'(a)')" TRADES v. 2.8.0 -- Luca Borsato 2016"
+  write(*,'(a)')" TRADES "
   write(*,'(a)')" ======================================================"
   write(*,'(a)')""
   write(*,'(a,i4,a,i0.2,a,i0.2,a,i0.2,a,i0.2,a,i0.2)')" START TIME: ",&

@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import division # no more "zero" integer division bugs!:P
-import argparse,os, time, glob, sys, datetime # os: operating system | time: execution time | glob: globbing file...loading multiple files as *.pippa | sys: system...boh | datetime: day and so...
 import numpy as np # array
 
 
@@ -13,7 +12,7 @@ deg2rad = pi/180.
 rad2deg = 180./pi
 
 # various
-TOLERANCE = 1.e-15
+TOLERANCE = np.finfo(np.float64(1.0)).eps
 d2s = 86400. # seconds in a day  =  24h  =  86400 s
 d2m = 1440.  # min in a day  =  1440. min
 
@@ -34,6 +33,9 @@ Msura = 2.290298e4 # Msun to Mura
 Muras = 1./Msura #  Mura to Msun
 Msnep = 1.941226e4 # Msun to Mnep
 Mneps = 1./Msnep #  Mnep to Msun
+
+Mejup = Mears * Msjup # Mear to Mjup
+Mjear = Mjups * Msear # Mjup to Mear
 
 # masses of Solar System objects
 Msun = 1.9884e30 # Sun mass in kg

@@ -120,8 +120,6 @@ module eq_motion
     
     do i=2,NB,1
       nci=(i-1)*6
-!       write(*,*)' i = ',i,' nci = ',nci,1+nci,3+nci,4+nci,6+nci
-!       write(*,*)' size(drdt) = ',size(drdt)
       drdt(1+nci:3+nci)=r(4+nci:6+nci)
       ri=r(1+nci:3+nci)
       rimod=dist(ri)
@@ -129,7 +127,6 @@ module eq_motion
       drdt(4+nci:6+nci)=drdt(4+nci:6+nci)-Giau*(m(1)+m(i))*AA
       do j=i+1,NB,1
         ncj=(j-1)*6
-!         write(*,*)' j = ',j,' ncj = ',ncj
 !         drdt(1+ncj:3+ncj)=r(4+ncj:6+ncj)
         rj=r(1+ncj:3+ncj)
         rij=ri-rj

@@ -76,10 +76,9 @@ def generate_inc_delta_inc(d_ic, d_id, all_min, all_max):
   n_grid = n_ic * n_id
   return inc_c, inc_d, n_ic, n_id, n_grid
 
-# MAIN -- TRADES + GRID
-
-# READ COMMAND LINE ARGUMENTS
-if __name__ == '__main__':
+def main():
+  # MAIN -- TRADES + GRID
+  # READ COMMAND LINE ARGUMENTS
   cli = get_args()
 
   
@@ -198,4 +197,8 @@ if __name__ == '__main__':
   pytrades_lib.pytrades.deallocate_variables()
   print_both(' THE END', of_run)
   of_run.close()
+  
+  return
 
+if __name__ == "__main__":
+  main()

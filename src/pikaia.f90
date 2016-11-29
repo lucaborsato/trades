@@ -1,5 +1,5 @@
 module Genetic_Algorithm
-  use constants,only:dp,sprec,TOLERANCE,zero,one
+  use constants
   use parameters,only:path,wrtAll,seed_pik,ctrl,dof,inv_dof,ndata,nfit,npar,parid,minpar,maxpar
   use parameters_conversion
   use init_trades,only:get_unit
@@ -42,100 +42,6 @@ module Genetic_Algorithm
 
     return
   end function getStat
-
-    ! function to be use with PIKAIA genetic algorithm
-!   function fpik(n,allpar,par) result(fn_val)
-!     use ode_run,only:ode_lm
-!     real(dp)::fn_val
-!     integer,intent(in)::n
-!     real(dp),dimension(:),intent(in)::allpar,par
-!     real(dp),dimension(:),allocatable::wpar,wall
-!     real(dp),dimension(:),allocatable::resw,resw2
-! !     real(dp)::chi2
-!     integer::iflag
-! 
-!     iflag=1
-!     allocate(wpar(n),wall(npar))
-!     wall=allpar
-!     call norm2par(par,wpar,wall)
-!     allocate(resw(ndata),resw2(ndata))
-!     resw=0._dp
-!     call ode_lm(wall,ndata,n,wpar,resw,iflag)
-!     resw2=resw*resw
-! !     chi2=sum(resw2)
-! !     fn_val=1._dp/chi2
-! !     fn_val=real(dof,dp)/sum(resw2)
-!     fn_val=one/sum(resw2)
-!     deallocate(wpar,wall,resw,resw2)
-! 
-!     return
-!   end function fpik
-
-  ! function to compute the fitness
-  ! comment: now it uses the function in fitness_module module
-!   function fpik(n,all_par,fitting_parameters_in) result(inv_fitness)
-!     use ode_run,only:ode_lm
-!     use derived_parameters_mod
-!     real(dp)::inv_fitness
-!     integer,intent(in)::n
-!     real(dp),intent(in),dimension(:)::all_par
-!     real(dp),intent(in),dimension(n)::fitting_parameters_in
-!     real(dp),dimension(n)::fitting_parameters
-!     real(dp)::fitness
-!     logical::check
-!     real(dp),dimension(:),allocatable::run_all_par
-!     real(dp),dimension(:),allocatable::resw
-!     integer::i,iflag
-!     logical::check_status
-!     
-!     iflag=1
-!     check=.true.
-!     check_status=.true.
-!     
-!     ! needed only by PIKAIA: conversion from [0-1] to [minpar-maxpar] boundaries
-!     allocate(run_all_par(npar))
-!     run_all_par=all_par
-!     call norm2par(fitting_parameters_in,fitting_parameters,run_all_par)
-!     
-!     checkloop: do i=1,nfit
-!       if(fitting_parameters(i).lt.minpar(i))then
-!         check=.false.
-!         exit checkloop
-!       else if(fitting_parameters(i).gt.maxpar(i))then
-!         check=.false.
-!         exit checkloop
-!       end if
-!     end do checkloop
-! 
-!     if(check)then
-!     
-!       if(check_derived) check_status=check_derived_parameters(fitting_parameters)
-!       if(fix_derived) call fix_derived_parameters(fitting_parameters,run_all_par,check_status)
-! 
-!       if(check_status)then
-!         allocate(resw(ndata))
-!         resw=zero
-!         call ode_lm(run_all_par,ndata,nfit,fitting_parameters,resw,iflag)
-!         fitness=sum(resw*resw)
-!         ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
-!         deallocate(resw)
-!         if (fitness.ge.resmax)then
-! !           check=.false.
-!           fitness=resmax
-!         end if
-!         
-!       else ! check_status
-!         fitness=resmax
-!       end if
-!     else
-!       fitness=resmax
-!     end if
-! 
-!     deallocate(run_all_par)
-!     inv_fitness=one/fitness
-!     
-!     return
-!   end function fpik
 
   ! function called by PIKAIA, based on fitness function in fitness_module
   function fpik(n,all_par,fitting_parameters_in) result(inv_fitness)
@@ -746,15 +652,15 @@ module Genetic_Algorithm
       STATUS = 11
     end if
 
-    if (irep == 1 .and. imut == 1 .and. pmut > 0.5 .and. ielite == 0) then
+    if (irep == 1 .and. imut == 1 .and. pmut > half .and. ielite == 0) then
       write (*,5800)
     end if
 
-    if (irep == 1 .and. imut == 2 .and. pmutmx > 0.5 .and. ielite == 0) then
+    if (irep == 1 .and. imut == 2 .and. pmutmx > half .and. ielite == 0) then
       write (*,5900)
     end if
 
-    if (fdif < 0.33 .and. irep /= 3) then
+    if (fdif < 0.33_dp .and. irep /= 3) then
       write (*,6000)
     end if
 
@@ -813,7 +719,7 @@ module Genetic_Algorithm
     !     Output: none
 
     !     Local
-    real(dp), save  :: bestft = 0.0_dp, pmutpv = 0.0_dp
+    real(dp), save  :: bestft = zero, pmutpv = zero
     integer  :: ndpwr, k
     logical  :: rpt
 
@@ -1471,7 +1377,7 @@ module Genetic_Algorithm
 
     integer, parameter  :: a = 48271, m = 2147483647, q = 44488, r = 3399
 
-    real(dp), parameter :: scale = 1._dp/m, eps = 1.2E-7_dp, rnmx = 1._dp - eps
+    real(dp), parameter :: scale = one/m, eps = 1.2E-7_dp, rnmx = one-eps
 
     !     Local:
     integer  :: j

@@ -1,14 +1,15 @@
-! LUca conversion of the GLS (Zechmeister & Kuerster, 2009, A&A, 496, 577).
+! Luca conversion of the GLS (Zechmeister & Kuerster, 2009, A&A, 496, 577).
 !
 module gls_module
-  use constants ! ready to be used with TRADES
+  use constants
   use parameters,only:NB,path
   use init_trades,only:get_unit
-  use statistics ! ready to be used with TRADES
+  use statistics
   use celestial_mechanics,only:calculate_true_anomaly ! ready to be used with TRADES
   implicit none
 
-  real(dp),parameter::delta_per=0.5_dp
+!   real(dp),parameter::delta_per=0.5_dp
+  real(dp),parameter::delta_per=half
   
 contains
 
@@ -160,7 +161,7 @@ contains
     do i_jd=2,n_jd
       djd(i_jd-1)=abs(jd(i_jd)-jd(i_jd-1))
     end do
-    p_min=djd(nint(0.5_dp*(n_jd-1)))
+    p_min=djd(nint(half*(n_jd-1)))
     deallocate(djd)
   
     return
