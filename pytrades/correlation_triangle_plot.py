@@ -114,9 +114,9 @@ def main():
   # set label and legend names
   kel_plot_labels = anc.keplerian_legend(parameter_names_emcee, cli.m_type)
 
-  chains_T, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
+  chains_T_full, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
 
-  flatchain_posterior_0 = chains_T[:,:,:].reshape((-1, nfit))
+  chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=True)
 
   if(cli.boot_id > 0):
     flatchain_posterior_msun = anc.posterior_back_to_msun(m_factor,parameter_names_emcee,flatchain_posterior_0)
@@ -125,7 +125,7 @@ def main():
     del flatchain_posterior_msun
 
   # GET MAX LNPROBABILITY AND PARAMETERS -> id 40XX
-  max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(npost, nruns, lnprobability, chains_T, flatchain_posterior_0)
+  max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
 
   # std way: median of the posterior parameter distribution -> id 10XX
   median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
@@ -136,6 +136,9 @@ def main():
   #if(k>11): k=11
   if(k>50): k=50
   mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
+
+  name_par, name_excluded = anc.get_sample_list(cli.sample_str, parameter_names_emcee)
+  sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0, parameter_names_emcee, name_par = name_par, name_excluded = name_excluded)
 
   #fig, ax = plt.subplots(nrows = nfit-1, ncols=nfit, figsize=(12,12))
   fig = plt.figure(figsize=(12,12))
@@ -183,19 +186,6 @@ def main():
         new_k = int(k/3)
         hist2d_counts_2, xedges_2, yedges_2 = np.histogram2d(x_data, y_data, bins=new_k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], normed=True)
         
-        #hist2d_counts_2, xedges_2, yedges_2 = np.histogram2d(x_data, y_data, bins=new_k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]])
-        
-        ## test gaussian_kde scatter plot !!VERY VERY SLOw!!
-        #print 'applying gaussian kde ...',
-        #sys.stdout.flush()
-        #xy = np.vstack([x_data,y_data])
-        #z = gaussian_kde(xy)(xy)
-        #idx = np.argsort(z)
-        #ax.scatter(x_data[idx], y_data[idx], c=z[idx], s=2, edgecolor='', cmap=plt.get_cmap('Greys'))
-        #print 'done'
-        #sys.stdout.flush()
-        #ax.scatter(x_data, y_data, color='black', s=2, edgecolor='', alpha=0.33) # SLOW!!
-        
         x_bins = [0.5*(xedges_2[i]+xedges_2[i+1]) for i in range(0, new_k)]
         y_bins = [0.5*(yedges_2[i]+yedges_2[i+1]) for i in range(0, new_k)]
         #ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, colors=('forestgreen', 'royalblue', 'red'), linestyle='solid', linewidths=(0.5, 0.5, 0.5))
@@ -208,6 +198,11 @@ def main():
         # plot median
         ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
         ax.axhline(y_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+        
+        if(sample_parameters is not None):
+          # plot of sample_parameters
+          ax.axvline(sample_parameters[ii], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[ii]))
+          ax.axhline(sample_parameters[jj], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[jj]))
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -248,7 +243,6 @@ def main():
           # CUMULATIVE HISTOGRAM and cdf
           hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True, cumulative=True)
           
-          
           #x_cdf = scipy_norm.cdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
           x_cdf = scipy_norm.cdf(x_data, loc=x_data.mean(), scale=x_data.std())
           if(ii == nfit-1):
@@ -256,19 +250,24 @@ def main():
           else:
             ax.plot(x_data[idx], x_cdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
         
-        
         if (ii == nfit-1):
           ax.set_ylim([y_min, y_max])
           # plot mean_mode
           ax.axhline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
           # plot median
           ax.axhline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+          if(sample_parameters is not None):
+            # plot of sample_parameters
+            ax.axhline(sample_parameters[ii], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[ii]))
         else:
           ax.set_xlim([x_min, x_max])
           # plot mean_mode
           ax.axvline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
           # plot median
           ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+          if(sample_parameters is not None):
+            # plot of sample_parameters
+            ax.axvline(sample_parameters[jj], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[jj]))
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)

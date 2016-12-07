@@ -756,17 +756,23 @@ module output_files
     character(512)::summary_file
     integer::uwrt
     
-    chi2wr_oc=chi2r_oc*real(ndata,dp)/real(sum(nT0),dp)
-    
-    if(oc_fit.eq.2)then
-      chi2r=chi2r_RV+half*(chi2r_T0+chi2r_oc)
-      chi2wr=chi2wr_RV+half*(chi2wr_T0+chi2wr_oc)
-    else if(oc_fit.eq.1)then
-      chi2r=chi2r_RV+chi2r_oc
-      chi2wr=chi2wr_RV+chi2wr_oc
+    if(sum(nT0).gt.0)then
+      chi2wr_oc=chi2r_oc*real(ndata,dp)/real(sum(nT0),dp)
+      
+      if(oc_fit.eq.2)then
+        chi2r=chi2r_RV+half*(chi2r_T0+chi2r_oc)
+        chi2wr=chi2wr_RV+half*(chi2wr_T0+chi2wr_oc)
+      else if(oc_fit.eq.1)then
+        chi2r=chi2r_RV+chi2r_oc
+        chi2wr=chi2wr_RV+chi2wr_oc
+      else
+        chi2r=chi2r_RV+chi2r_T0
+        chi2wr=chi2wr_RV+chi2wr_T0
+      end if
     else
-      chi2r=chi2r_RV+chi2r_T0
-      chi2wr=chi2wr_RV+chi2wr_T0
+      chi2wr_oc=zero
+      chi2r=chi2r_RV
+      chi2wr=chi2wr_RV
     end if
     
     bic=chi2r*real(dof,dp) + real(nfit,dp)*log(real(ndata,dp))

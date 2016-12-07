@@ -35,7 +35,7 @@ def chains(cli):
   
   print 'RUN chains_summary_plot.py'
   pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'chains_summary_plot.py')
-  run = sp.Popen(['python', pyscript, '-p',cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p',cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--sample', str(cli.sample_str) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED chains_summary_plot.py'
   
@@ -45,7 +45,7 @@ def correlation(cli):
   
   print 'RUN correlation_triangle_plot.py'
   pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'correlation_triangle_plot.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-c', str(cli.cumulative)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '-c', str(cli.cumulative), '--sample', str(cli.sample_str) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED correlation_triangle_plot.py'
   
@@ -56,13 +56,13 @@ def ci_and_derived(cli):
   
   print 'RUN confidence_intervals.py'
   pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'confidence_intervals.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--sample', str(cli.sample_str), '--seed', str(cli.seed) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED confidence_intervals.py'
   
   print 'RUN derived_correlation_plot.py'
   pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'derived_correlation_plot.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED derived_correlation_plot.py'
   

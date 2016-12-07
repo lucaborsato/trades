@@ -40,6 +40,8 @@ def get_args():
   parser.add_argument('-oc', '--oc-fit', action='store', dest='oc_fit', default='False', help='Fit obs and sim linear ephem (set to False) or only the obs ephemem (set to True)')
   cli = parser.parse_args()
   full_path = os.path.abspath(cli.full_path)
+  cli.idsim = int(cli.idsim)
+  cli.lmflag = int(cli.lmflag)
   cli.nbI = int(cli.nbI)
   cli.nbF = int(cli.nbF)
   cli.oc_fit = get_bool(cli.oc_fit)

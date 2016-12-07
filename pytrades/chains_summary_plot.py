@@ -51,23 +51,13 @@ def main():
 
   anc.print_memory_usage(chains)
 
-  chains_T, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
+  chains_T_full, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
 
-  try:
-    n_acor = autocor_time.shape[0]
-  except:
-    n_acor = len(autocor_time)
-  if(n_acor == 0):
-    #autocor_time = anc.compute_autocor_time(flatchain_posterior_0)
-    autocor_time = anc.compute_autocor_time(chains_T)
-  print autocor_time
-  thin_steps = np.rint(np.mean(np.array(autocor_time, dtype=np.float64))).astype(int)
-  print 'thin_steps = ',thin_steps
-  #sys.exit()
+  chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=True)
+  
+  name_par, name_excluded = anc.get_sample_list(cli.sample_str, parameter_names_emcee)
+  sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0, parameter_names_emcee, name_par = name_par, name_excluded = name_excluded)
 
-
-  # create a flat array of the posterior: from (nruns_sel, nwalkers, nfit) -> (nruns_sel * nwalkers, nfit)
-  flatchain_posterior_0 = chains_T[:,:,:].reshape((-1, nfit))
   flatchain_posterior_1 = flatchain_posterior_0
 
   if(cli.boot_id > 0):
@@ -76,15 +66,18 @@ def main():
     logger.info('saved bootstrap like file: %s' %(boot_file))
     del flatchain_posterior_msun
 
-  nburnin=npost
-
   median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
 
   k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
   #if(k>11): k=11
   if(k>50): k=50
   mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
+  
+  # max lnprob
+  max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
   print 
+  
+  
 
   emcee_plots = os.path.join(cli.full_path,'plots')
   if (not os.path.isdir(emcee_plots)):
@@ -122,9 +115,18 @@ def main():
     axChain.axhline(lower, marker='None', c='blue',ls='-.', lw=1.1, alpha=0.5, label='lower median')
     axChain.axhline(upper, marker='None', c='blue',ls='--', lw=1.1, alpha=0.5, label='upper median')
     
+    # plot of max_lnprob
+    axChain.axhline(max_lnprob_parameters[i], marker='None', c='black',ls='-', lw=2.1, alpha=1.0, label='max lnprob')
+    
+    if(sample_parameters is not None):
+      # plot of sample_parameters
+      axChain.axhline(sample_parameters[i], marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]))
     
     axChain.ticklabel_format(useOffset=False)
-    axChain.set_xlabel('$N_\mathrm{steps}$')
+    xlabel = '$N_\mathrm{steps}$'
+    if(cli.use_thin):
+      xlabel = '$N_\mathrm{steps} \\times %d$' %(thin_steps)
+    axChain.set_xlabel(xlabel)
     axChain.set_ylabel(kel_labels[i])
     
     y_min, y_max = anc.compute_limits(flatchain_posterior_1[:,i], 0.05)
@@ -150,22 +152,26 @@ def main():
     # plot CI
     axHist.axhline(post_15th, marker='None', color='lightgreen', ls='-', lw=1.5, alpha=0.4, label='posterior[15.86th]')
     axHist.axhline(post_84th, marker='None', color='darkgreen', ls='-', lw=1.5, alpha=0.4, label='posterior[84.14th]')
+    # plot of max_lnprob
+    axHist.axhline(max_lnprob_parameters[i], marker='None', c='black',ls='-', lw=2.1, alpha=1.0, label='max lnprob')
     
+    if(sample_parameters is not None):
+      # plot of sample_parameters
+      axHist.axhline(sample_parameters[i], marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]))
+      
     axHist.set_title('Distribution of posterior chain')
     axHist.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5))
     plt.draw()
 
     fig.savefig(emcee_fig_file, bbox_inches='tight', dpi=150)
-    print 'saved'
+    print ' saved'
     print '   median = ', median,             ' lower = ', lower,                                ' upper = ', upper
     print '     mode = ', mode_parameters[i], ' lower = ', mode_parameters[i]+mode_confint[0,i], ' upper = ', mode_parameters[i]+mode_confint[3,i]
+    if(sample_parameters is not None):
+      print '   picked = ', sample_parameters[i]
     print 'post 15th = ', post_15th,          '  84th = ', post_84th
     print
 
-  if(cli.temp_status):
-    lnprob_burnin = lnprobability[:,nburnin:completed_steps]
-  else:
-    lnprob_burnin = lnprobability[:,nburnin:]
   fig = plt.figure(figsize=(12,12))
   plt.plot(lnprob_burnin.T, '-', alpha=0.8)
   plt.xlabel('$N_\mathrm{steps}$')

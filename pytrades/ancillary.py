@@ -42,6 +42,14 @@ def set_int_argument(arg_in):
     arg_out = 0
   return arg_out
   
+def set_int_or_none(arg_in):
+  try:
+    arg_out = int(arg_in)
+  except:
+    arg_out = None
+  return arg_out
+  
+  
 # read command line (cli) arguments
 def get_args():
   parser = argparse.ArgumentParser(description='TRADES+EMCEE PLOT')
@@ -59,6 +67,13 @@ def get_args():
   
   parser.add_argument('-s', '--steps', '--gelmanrubin-steps', action='store', dest='sel_steps', default=0, help='Set to positive integer. It will allow to compute GelmanRubin/Geweke statistics of only sel_steps, and not for each step. Just to debug and overall view of the chains. Default is 0.')
   
+  parser.add_argument('-u', '--thin', '--use-thin', action='store', dest='use_thin', default=False, help='Set if you want to use or not the thinning parameter computed from the autocorrelation time. Default False')
+  
+  parser.add_argument('--sample', action='store', dest='sample_str', default='None', help='Set a list of parameter names to select a parameter sample within the Credible Intervals, first will be the "pivoting" parameters, then the parameters to not take into account. Default = None, it means first parameters fitted as "pivot", all other have to be within the Credible Intervals.')
+  
+  parser.add_argument('--seed', action='store', dest='seed', default='None', help='Set the seed for random number generator. Default is None.')
+  
+  
   cli = parser.parse_args()
 
   cli.full_path = os.path.abspath(cli.full_path)
@@ -66,6 +81,8 @@ def get_args():
   cli.temp_status = set_bool_argument(cli.temp_status)
   cli.cumulative = set_bool_argument(cli.cumulative)
   cli.boot_id = set_int_argument(cli.boot_id)
+  cli.use_thin = set_bool_argument(cli.use_thin)
+  cli.seed = set_int_or_none(cli.seed)
   
   return cli
 
@@ -304,6 +321,8 @@ def get_emcee_file_and_best(emcee_folder,temp_status):
   if (temp_status):
     folder_best = 'best_temp'
     emcee_file = os.path.join(emcee_folder, 'emcee_temp.hdf5')
+    if(not os.path.exists(emcee_file)):
+      emcee_file = os.path.join(emcee_folder, 'emcee_summary.hdf5')
     emcee_best = os.path.join(emcee_folder, folder_best)
   else:
     folder_best = 'best'
@@ -394,7 +413,7 @@ def get_emcee_parameters(chains, temp_status, npost_input, completed_steps):
 def print_memory_usage(array_values):
   print ' MEMORY USAGE: array_values = %d bytes = %.2d MBytes = %.4f GBytes' %(array_values.nbytes, array_values.nbytes/(1024.**2), array_values.nbytes/(1024.**3))
   
-def select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries_in, chains, m_star=1.0):
+def select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries_in, chains):
   # chain is transposed: needed to plot quicker chains for each walker: nruns vs value of parameter
   parameter_boundaries = parameter_boundaries_in.copy()
   chains_T = np.zeros((nruns_sel, nwalkers, nfit))
@@ -402,7 +421,7 @@ def select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_f
     chains_T[:,:,ii] = chains[:,npost:nruns,ii].T # transpose after removing the burnin steps
     if (parameter_names_emcee[ii][0] == 'm' and parameter_names_emcee[ii][1] != 'A'):
       if('Ms' in parameter_names_emcee[ii]):
-        m_conv = m_factor * m_star
+        m_conv = m_factor
       else:
         m_conv = np.float64(1.)
       chains_T[:,:,ii] = chains_T[:,:,ii] * m_conv
@@ -467,6 +486,54 @@ def compute_limits(vec_a, delta=0.05):
   return lim_min, lim_max
   
 
+def thin_the_chains(use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=True):
+  
+  nr, nw, nfit = np.shape(chains_T_full)
+  print ' npost = ',npost
+  print ' nruns = ',nruns
+  print ' nruns_sel = ',nruns_sel
+  
+  if(use_thin):
+    try:
+      n_acor = autocor_time.shape[0]
+    except:
+      n_acor = len(autocor_time)
+    if(n_acor == 0):
+      #autocor_time = anc.compute_autocor_time(flatchain_posterior_0)
+      autocor_time = anc.compute_autocor_time(chains_T_full)
+    thin_steps = np.rint(np.mean(np.array(autocor_time, dtype=np.float64))).astype(int)
+    print ' computed thin_steps = ',thin_steps
+    if (thin_steps > 200):
+      thin_steps = 200
+      print ' set thin_steps = 200'
+  
+    sel_thin_steps = np.arange(0, nruns_sel+thin_steps, thin_steps)
+    if(sel_thin_steps[-1] >= nruns_sel):
+      sel_thin_steps[-1] = nruns_sel-1
+    n_thin = np.shape(sel_thin_steps)[0]
+    
+    print ' n_thin = ', n_thin
+    print ' sel_thin_steps = ', sel_thin_steps
+    chains_T = chains_T_full[sel_thin_steps,:,:]
+    # create a flat array of the posterior: from (nruns_sel, nwalkers, nfit) -> (nruns_sel * nwalkers, nfit)
+    flatchain_posterior_0 = chains_T[:,:,:].reshape((-1, nfit))
+    print ' posterior thinned shape = ', np.shape(flatchain_posterior_0)
+    lnprob_burnin = lnprobability[:,npost+sel_thin_steps]
+    print ' lnprob_burnin thinned shape = ', np.shape(lnprob_burnin)
+  else:
+    chains_T = chains_T_full
+    # create a flat array of the posterior: from (nruns_sel, nwalkers, nfit) -> (nruns_sel * nwalkers, nfit)
+    #flatchain_posterior_0 = chains_T[npost:nruns,:,:].reshape((-1, nfit))
+    if(burnin_done):
+      flatchain_posterior_0 = chains_T[:,:,:].reshape((-1, nfit))
+    else:
+      flatchain_posterior_0 = chains_T[npost:nruns,:,:].reshape((-1, nfit))
+    print ' posterior not thinned shape = ', np.shape(flatchain_posterior_0)
+    lnprob_burnin = lnprobability[:,npost:nruns]
+    print ' lnprob_burnin not thinned shape = ', np.shape(lnprob_burnin)
+    thin_steps = 0
+
+  return chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps
 
 def get_sigmas(best_parameters, flatchain_posterior):
   sigmas_percentiles = [15.87, 2.28, 0.13, 84.13, 97.72, 99.87]
@@ -476,9 +543,8 @@ def get_sigmas(best_parameters, flatchain_posterior):
   
   return sigma_perc68, sigma_confint
 
-def get_maxlnprob_parameters(npost, nruns, lnprobability, chains_T, flatchain_posterior):
+def get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior):
   
-  lnprob_burnin = lnprobability[:,npost:nruns]
   maxlnprob_row, maxlnprob_col = get_max_indices(lnprob_burnin)
   maxlnprob = lnprob_burnin[maxlnprob_row, maxlnprob_col]
   # retrieve best parameters <-> best lnprobability
@@ -554,6 +620,102 @@ def get_mode_parameters(flatchain_posterior, k):
   
   return mode_bin, mode_parameters
 
+
+def get_sample_list(sample_str, parameter_names):
+  nfit = np.shape(parameter_names)[0]
+  print ' input sample to select = ',sample_str
+  str_list = sample_str.strip().split()
+  
+  name_par = parameter_names[0]
+  name_excluded = None
+  if(len(str_list) == 1):
+    if(str_list[0].lower() == 'none'):
+      name_par = parameter_names[0]
+      name_excluded = None
+    else:
+      for ifit in range(0, nfit):
+        if(str_list[0].lower() == parameter_names[ifit].lower()):
+          name_par = parameter_names[ifit]
+          name_excluded = None
+  else:
+    name_excluded = []
+    for ilist in range(0,len(str_list)):
+      for ifit in range(0, nfit):
+        if(str_list[ilist].lower() == parameter_names[ifit].lower()):
+          if(ilist == 0):
+            name_par = parameter_names[ifit]
+          else:
+            name_excluded.append(parameter_names[ifit])
+   
+  return name_par, name_excluded
+  
+
+def check_sample_parameters(parameter_names, sample_parameters, post_ci, name_excluded = None):
+  
+  nfit = np.shape(sample_parameters)[0]
+  
+  check_sample = True
+  for ifit in range(0, nfit):
+    if(name_excluded is None):
+      if(sample_parameters[ifit] < post_ci[0,ifit]):
+        check_sample = False
+        break
+      elif(sample_parameters[ifit] > post_ci[1,ifit]):
+        check_sample = False
+        break
+    else:
+      if(parameter_names[ifit] not in name_excluded):
+        if(sample_parameters[ifit] < post_ci[0,ifit]):
+          check_sample = False
+          break
+        elif(sample_parameters[ifit] > post_ci[1,ifit]):
+          check_sample = False
+          break
+  
+  return check_sample
+
+
+def pick_sample_parameters(posterior, parameter_names, name_par = None, name_excluded = None):
+  
+  if (name_par is not None):
+    npost, nfit = np.shape(posterior)
+    post_ci = np.percentile(posterior, [15.865, 84.135], axis = 0, interpolation='midpoint')
+    #print np.shape(post_ci)
+    
+    sel_par = 0
+    for ipar in range(0, nfit):
+      if(name_par.lower() == parameter_names[ipar].lower()):
+        sel_par = ipar
+        break
+    #print name_par, ' -> ',sel_par,': ',parameter_names[ipar]
+    # get idx sorted of the selected parameter-posterior
+    idx_posterior = np.argsort(posterior[:,sel_par])
+    # define the number of testing sample given the values within credible intervals
+    n_test = int(np.sum(np.logical_and(posterior[:,sel_par] >= post_ci[0,sel_par], posterior[:,sel_par] <= post_ci[1,sel_par]).astype(int))*0.5)
+    # create the list with the sorted idx, starting from the 50th and moving of +1,-1 every time
+    testing = []
+    testing.append(0)
+    for itest in range(0,n_test):
+      testing.append(itest+1)
+      testing.append(-(itest+1))
+    #print n_test
+    #print testing
+    n_testing = len(testing)
+    #print n_testing
+    sel_idx = [int(0.5*npost) + testing[ii] for ii in range(0, n_testing)]
+    #print sel_idx
+
+    for ii in range(0,n_testing):
+      idx = idx_posterior[sel_idx[ii]]
+      sample_parameters = posterior[idx,:]
+      check_sample = True
+      check_sample = check_sample_parameters(parameter_names, sample_parameters, post_ci, name_excluded)
+      if(check_sample):
+        print ' found good sample parameters at index: ', idx
+        print sample_parameters
+        return sample_parameters, idx
+    return None, None
+
 def print_parameters_nolog(parameter_names, parameters, perc68, confint, par_type):
   sigmas_percentiles = [15.87, 2.28, 0.13, 84.13, 97.72, 99.87]
   nsigmas = ['-1','-2','-3','+1','+2','+3']
@@ -622,7 +784,7 @@ def print_parameters_logger(logger, parameter_names, parameters, perc68, confint
 
   return
 
-
+# OLD
 def get_derived_posterior_parameters(parameter_names, chains_T, flatchain_posterior):
   nfit = flatchain_posterior.shape[1]
   derived_names = []
@@ -676,6 +838,7 @@ def get_derived_posterior_parameters(parameter_names, chains_T, flatchain_poster
   
   return derived_names, derived_chains_T, np.array(derived_posterior).T
     
+# OLD
 def save_posterior_like(out_folder, boot_id, parameter_names, flatchain_posterior):
   nfit = flatchain_posterior.shape[1]
   nboot = flatchain_posterior.shape[0]
@@ -688,6 +851,7 @@ def save_posterior_like(out_folder, boot_id, parameter_names, flatchain_posterio
   np.savetxt(boot_file, boot_fake, fmt=fmt_full, header=header_0000)
   return boot_file
 
+# ---
 def GelmanRubin_test_1(chains_T):
   n, M = np.shape(chains_T)
   theta_m = np.mean(chains_T, axis=0)

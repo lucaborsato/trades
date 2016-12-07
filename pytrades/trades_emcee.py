@@ -314,16 +314,18 @@ def main():
 
   if (nsave != False):
     # save temporary sampling during emcee every nruns*10%
-    if(os.path.exists(os.path.join(working_folder, 'emcee_temp.hdf5')) and os.path.isfile(os.path.join(working_folder, 'emcee_temp.hdf5'))):
-      os.remove(os.path.join(working_folder, 'emcee_temp.hdf5'))
-    of_temp = h5py.File(os.path.join(working_folder, 'emcee_temp.hdf5'), 'a')
-    of_temp.create_dataset('parameter_names', data=parameter_names, dtype='S10')
-    of_temp.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
-    temp_dset = of_temp.create_dataset('chains', (nwalkers, nruns, nfit), dtype=np.float64)
-    temp_lnprob = of_temp.create_dataset('lnprobability', (nwalkers, nruns), dtype=np.float64)
+    #if(os.path.exists(os.path.join(working_folder, 'emcee_temp.hdf5')) and os.path.isfile(os.path.join(working_folder, 'emcee_temp.hdf5'))):
+      #os.remove(os.path.join(working_folder, 'emcee_temp.hdf5'))
+    if(os.path.exists(os.path.join(working_folder, 'emcee_summary.hdf5')) and os.path.isfile(os.path.join(working_folder, 'emcee_summary.hdf5'))):
+      os.remove(os.path.join(working_folder, 'emcee_summary.hdf5'))
+    f_hdf5 = h5py.File(os.path.join(working_folder, 'emcee_summary.hdf5'), 'a')
+    f_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
+    f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
+    temp_dset = f_hdf5.create_dataset('chains', (nwalkers, nruns, nfit), dtype=np.float64)
+    temp_lnprob = f_hdf5.create_dataset('lnprobability', (nwalkers, nruns), dtype=np.float64)
     temp_lnprob.attrs['ln_err_const'] = ln_err_const
-    temp_acor = of_temp.create_dataset('autocor_time', data=np.zeros((nfit)), dtype=np.float64)
-    of_temp.close()
+    temp_acor = f_hdf5.create_dataset('autocor_time', data=np.zeros((nfit)), dtype=np.float64)
+    f_hdf5.close()
     pos = p0
     nchains = int(nruns/nsave)
     state=None
@@ -336,12 +338,12 @@ def main():
       bbb = aaa+nsave
       pos, prob, state = sampler.run_mcmc(pos, N=nsave, rstate0=state)
       print_both('completed %d steps of %d' %(bbb, nruns), of_run)
-      of_temp = h5py.File(os.path.join(working_folder, 'emcee_temp.hdf5'), 'a')
-      temp_dset = of_temp['chains'] #[:,:,:]
+      f_hdf5 = h5py.File(os.path.join(working_folder, 'emcee_summary.hdf5'), 'a')
+      temp_dset = f_hdf5['chains'] #[:,:,:]
       temp_dset[:,aaa:bbb,:] = sampler.chain[:, aaa:bbb, :]
-      #of_temp['chains'].attrs['completed_steps'] = bbb
+      #f_hdf5['chains'].attrs['completed_steps'] = bbb
       temp_dset.attrs['completed_steps'] = bbb
-      temp_lnprob = of_temp['lnprobability'] #[:,:]
+      temp_lnprob = f_hdf5['lnprobability'] #[:,:]
       temp_lnprob[:, aaa:bbb] = sampler.lnprobability[:, aaa:bbb]
       shape_lnprob = sampler.lnprobability.shape
       
@@ -349,14 +351,13 @@ def main():
       for ifit in range(0,nfit):
         temp_chains_T[:,:,ifit] = sampler.chain[:, :bbb, ifit].T
       acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
-      temp_acor = of_temp['autocor_time']
+      temp_acor = f_hdf5['autocor_time']
       temp_acor[...] = acor_time
-      #of_temp.create_dataset('autocor_time', data=np.array(acor_temp, dtype=np.float64), dtype=np.float64)
       
-      #of_temp.create_dataset('autocor_time', data=np.array(sampler.acor, dtype=np.float64), dtype=np.float64) # not working
-      
+      #f_hdf5.create_dataset('autocor_time', data=np.array(acor_temp, dtype=np.float64), dtype=np.float64)
+      #f_hdf5.create_dataset('autocor_time', data=np.array(sampler.acor, dtype=np.float64), dtype=np.float64) # not working
       #print 'aaa = %6d bbb = %6d -> sampler.lnprobability.shape = (%6d , %6d)' %(aaa, bbb, shape_lnprob[0], shape_lnprob[1])
-      of_temp.close()
+      f_hdf5.close()
       sys.stdout.flush()
     print_both('', of_run)
     print_both('...done with saving temporary total shape = %s' %(str(sampler.chain.shape)), of_run)
@@ -375,23 +376,25 @@ def main():
     print_both('done', of_run)
     print_both('', of_run)
     sys.stdout.flush()
-
-  flatchains = sampler.chain[:, :, :].reshape((nwalkers*nruns, nfit)) # full chain values
-  acceptance_fraction = sampler.acceptance_fraction
-  mean_acceptance_fraction = np.mean(acceptance_fraction)
-  autocor_time = sampler.acor
-  lnprobability = sampler.lnprobability
-
-  # save chains with original shape as hdf5 file
-  f_hdf5 = h5py.File(os.path.join(working_folder, 'emcee_summary.hdf5'), 'w')
-  f_hdf5.create_dataset('chains', data=sampler.chain, dtype=np.float64)
-  f_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
-  f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
-  f_hdf5.create_dataset('acceptance_fraction', data=acceptance_fraction, dtype=np.float64)
-  f_hdf5.create_dataset('autocor_time', data=autocor_time, dtype=np.float64)
-  f_hdf5.create_dataset('lnprobability', data=lnprobability, dtype=np.float64)
-  f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
-  f_hdf5.close()
+    flatchains = sampler.chain[:, :, :].reshape((nwalkers*nruns, nfit)) # full chain values
+    acceptance_fraction = sampler.acceptance_fraction
+    mean_acceptance_fraction = np.mean(acceptance_fraction)
+    #autocor_time = sampler.acor
+    temp_chains_T = np.zeros((bbb, nwalkers, nfit))
+    for ifit in range(0,nfit):
+      temp_chains_T[:,:,ifit] = sampler.chain[:, :, ifit].T
+      acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
+    lnprobability = sampler.lnprobability
+    # save chains with original shape as hdf5 file
+    f_hdf5 = h5py.File(os.path.join(working_folder, 'emcee_summary.hdf5'), 'w')
+    f_hdf5.create_dataset('chains', data=sampler.chain, dtype=np.float64)
+    f_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
+    f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
+    f_hdf5.create_dataset('acceptance_fraction', data=acceptance_fraction, dtype=np.float64)
+    f_hdf5.create_dataset('autocor_time', data=autocor_time, dtype=np.float64)
+    f_hdf5.create_dataset('lnprobability', data=lnprobability, dtype=np.float64)
+    f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
+    f_hdf5.close()
 
   print_both(" Mean_acceptance_fraction should be between [0.25-0.5] = %.6f" %(mean_acceptance_fraction), of_run)
   print_both('', of_run)

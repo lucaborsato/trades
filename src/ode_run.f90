@@ -1580,6 +1580,8 @@ module ode_run
       chi2r_oc=sum(resw_temp*resw_temp)*inv_dof
       deallocate(resw_temp)
     else
+      chi2r_T0=zero
+      chi2r_oc=zero
       write(*,*)
       write(*,'(a)')' TRANSIT TIMES NOT FOUND'
       write(*,*)
