@@ -107,18 +107,22 @@ def worker(input_q, full_id, full_fitness, full_check):
     set_parameters = input_q.get()
     i_grid = set_parameters['id_grid']
     grid_temp = set_parameters['fitting_parameters']
+    system_temp = set_parameters['system_parameters']
     
     id_procs = mp.current_process().name
 
     #fitness_run, lgllhd_run, check_run = pytrades_lib.pytrades.write_summary_files(i_grid, grid_temp)
-    lgllhd_run, check_run = pytrades_lib.pytrades.fortran_loglikelihood(grid_temp)
-    fitness_run = -2.0*lgllhd_run*inv_dof_cor
+    #lgllhd_run, check_run = pytrades_lib.pytrades.fortran_loglikelihood(grid_temp)
+    #fitness_run = -2.0*lgllhd_run*inv_dof_cor
+    fitness_run, check_run = pytrades_lib.pytrades.fortran_fitness_long(system_temp, grid_temp)
     
     full_id[i_grid-1] = i_grid
     full_fitness[i_grid-1] = fitness_run
+    #full_fitness[i_grid-1] = fitness_run*inv_dof
     full_check[i_grid-1] = check_run
     
-    print_both(' Thread == %s : Done simulation number %6d ==> check = %r, fitness = %14.8f\n' %(id_procs, i_grid, bool(check_run), fitness_run), of_run)
+    print_both(' Thread == %s : Done simulation number %6d ==> check = %r, fitness = %14.8f' %(id_procs, i_grid, bool(check_run), fitness_run))
+    #print_both(' Thread == %s : Done simulation number %6d ==> check = %r, fitness = %14.8f' %(id_procs, i_grid, bool(check_run), fitness_run*inv_dof))
 
 # Define the function for checking the process status
 def status(proc):
@@ -175,7 +179,7 @@ def main():
   print_both(' STARTING DATE: %s' %(start_time), of_run)
   print_both(' RUN THE INITIAL GUESS fitting_parameters WITH ID = 0', of_run)
   fitness_run0, lgllhd_run0, check_run0 = pytrades_lib.pytrades.write_summary_files(0, fitting_parameters)
-  fitness_run0 = fitness_run0*inv_dof_cor/inv_dof
+  #fitness_run0 = fitness_run0*inv_dof_cor/inv_dof
   print_both('fitness = %.8f lgllhd = %.8f check = %r' %(fitness_run0, lgllhd_run0, bool(check_run0)), of_run)
   print_both(' GO ON WITH THE GRID', of_run)
 
@@ -210,22 +214,25 @@ def main():
   for iic in range(0,n_ic):
     for iid in range(0,n_id):
       i_grid += 1
-      print_both(' Setting grid parameters at id = %5d (%4d , %4d): (%14.8f , %14.8f) ' %(i_grid, iic+1, iid+1, inc_c[iic], inc_d[iid]), of_run)
+      #print_both(' Setting grid parameters at id = %5d (%4d , %4d): (%14.8f , %14.8f) ' %(i_grid, iic+1, iid+1, inc_c[iic], inc_d[iid]), of_run)
       grid_temp = np.zeros((nfit)) + fitting_parameters
       
-      grid_temp[f_ic]   = inc_c[iic]*np.cos(system_parameters[s_ic+1]*deg2rad)
-      #print_both('icoslN_c = %.8f' %(inc_c[iic]*np.cos(system_parameters[s_ic+1]*deg2rad)),of_run)
+      #grid_temp[f_ic]   = inc_c[iic]*np.cos(system_parameters[s_ic+1]*deg2rad)
+      ##print_both('icoslN_c = %.8f' %(inc_c[iic]*np.cos(system_parameters[s_ic+1]*deg2rad)),of_run)
       
-      grid_temp[f_ic+1] = inc_c[iic]*np.sin(system_parameters[s_ic+1]*deg2rad)
-      #print_both('isinlN_c = %.8f' %(inc_c[iic]*np.sin(system_parameters[s_ic+1]*deg2rad)),of_run)
+      #grid_temp[f_ic+1] = inc_c[iic]*np.sin(system_parameters[s_ic+1]*deg2rad)
+      ##print_both('isinlN_c = %.8f' %(inc_c[iic]*np.sin(system_parameters[s_ic+1]*deg2rad)),of_run)
       
-      grid_temp[f_id]   = inc_d[iid]*np.cos(system_parameters[s_id+1]*deg2rad)
-      #print_both('icoslN_d = %.8f' %(inc_c[iid]*np.cos(system_parameters[s_id+1]*deg2rad)),of_run)
+      #grid_temp[f_id]   = inc_d[iid]*np.cos(system_parameters[s_id+1]*deg2rad)
+      ##print_both('icoslN_d = %.8f' %(inc_c[iid]*np.cos(system_parameters[s_id+1]*deg2rad)),of_run)
       
-      grid_temp[f_id+1] = inc_d[iid]*np.sin(system_parameters[s_id+1]*deg2rad)
-      #print_both('isinlN_d = %.8f' %(inc_c[iid]*np.sin(system_parameters[s_id+1]*deg2rad)),of_run)
+      #grid_temp[f_id+1] = inc_d[iid]*np.sin(system_parameters[s_id+1]*deg2rad)
+      ##print_both('isinlN_d = %.8f' %(inc_c[iid]*np.sin(system_parameters[s_id+1]*deg2rad)),of_run)
       
-      set_parameters = {'fitting_parameters':grid_temp, 'id_grid':i_grid}
+      system_temp = system_parameters.copy()
+      system_temp[s_ic] = inc_c[iic]
+      system_temp[s_id] = inc_d[iid]
+      set_parameters = {'fitting_parameters':grid_temp, 'id_grid':i_grid, 'system_parameters': system_temp}
       
       # GOOD IN SERIAL
       #fitness_run, lgllhd_run, check_run = pytrades_lib.pytrades.write_summary_files(i_grid, grid_temp)
@@ -275,13 +282,13 @@ def main():
 
   of_fin = open(os.path.join(working_folder, 'final_summary.dat'), 'w')
   of_fin.write('# iteration inc_c inc_d fitness check[0==False, 1==True]\n')
-  of_fin.write('%4d %17.13f %17.13f %23.16e %2d\n' %(0, system_parameters[s_ic], system_parameters[s_id], fitness_run0, check_run0))
+  of_fin.write('%6d %23.16e %23.16e %23.16e %2d\n' %(0, system_parameters[s_ic], system_parameters[s_id], fitness_run0, check_run0))
 
   ##for ii in range(0, n_grid):
     ##line = '%4d %17.13f %17.13f %23.16e %2d\n' %(ii+1, full_inc_c[ii], full_inc_d[ii], full_fitness[ii], full_check[ii])
     ##of_fin.write(line)
   for ii in range(0, n_grid):
-    line = '%4d %17.13f %17.13f %23.16e %2d\n' %(full_id[ii], full_inc_c[ii], full_inc_d[ii], full_fitness[ii], full_check[ii])
+    line = '%6d %23.16e %23.16e %23.16e %2d\n' %(full_id[ii], full_inc_c[ii], full_inc_d[ii], full_fitness[ii], full_check[ii])
     of_fin.write(line)
   of_fin.close()
   print_both(' WRITTEN SUMMARY FILE: %s' %(os.path.join(working_folder, 'final_summary.dat')), of_run)

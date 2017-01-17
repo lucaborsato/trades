@@ -11,9 +11,10 @@ import datetime
 # os: operating system | time: execution time | glob: globbing file...loading multiple files as *.pippa | sys: system...boh | datetime: day and so...
 import numpy as np # array
 #sys.path.append("/media/Data/Dropbox/Dottorato/pyscript")
-sys.path.append("../")
+#sys.path.append("../")
 #from path_check import checkpath
 import constants as cst
+import ancillary as anc
 # --------------------------------------------------------------------------
 
 # WARNING
@@ -47,10 +48,8 @@ def get_args():
   parser.add_argument('-lm', action='store', dest='lmflag', default='0', help='LM flag: 0 = not used LM (default), 1 = used LM')
   parser.add_argument('-b', '--bootstrap', action='store', dest='boot', default=True, help='Bootsrap flag: "0" or "no" or "n" or "False", "1" or "yes" or "y" or "True", default = True')
   parser.add_argument('-m', '--m-type', '--mass-type', action='store', dest='mtype', default='j', help='Mass type to use: e = Earth, j = Jupiter, n = Neptune, s = Sun')
-  parser.add_argument('-ms', '--m-scale', '--mass-scale', action='store', dest='mscale', default='True', help='If used old version of TRADES set it to "0" or "no" or "n" or "False", else it assumes that the masses of planets are scaled by the mass of star during the fit. Default is "1" or "yes" or "y" or "True".')
+  parser.add_argument('-mg', '--m-gauss', '--mass-gaussia', action='store', dest='mgauss', default='True', help='If used old version of TRADES set it to "0" or "no" or "n" or "False", else it assumes that the masses of planets are scaled by the mass of star during the fit. Default is "1" or "yes" or "y" or "True".')
   parser.add_argument('-ft', '--fit-type', action='store', dest='fit_type', default='hk', help='Fitting type: hk = (ecosw, esinw), ew = (e, w)')
-  parser.add_argument('-sl', '--sigma-level', action='store', dest='sigma_level', default=1, help='Sigma level: 1, 2, 3')
-
   
   cli = parser.parse_args()
   
@@ -70,19 +69,20 @@ def get_args():
     print " MASS TYPE HAS BEEN SET TO DEFAULT: j = Jupiter"
     
     
-  if (cli.mscale in noList):
-    cli.mscale = False
-    print ' DO NOT SCALE MASS FIT BY Mstar'
+  if (cli.mgauss in noList):
+    cli.mgauss = False
+    print ' DO NOT SCALE MASS FIT BY N(Mstar, sigma_Mstar)'
   else:
-    cli.mscale = True
-    print ' DO SCALE MASS FIT BY Mstar'
+    cli.mgauss = True
+    print ' DO SCALE MASS FIT BY N(Mstar, sigma_Mstar)'
     
   #if (cli.lmflag == '1'):
     #cli.fit_type = 'hk'
   
   cli.fpath = os.path.abspath(cli.fpath)
   
-  return cli.fpath, cli.idsim, cli.lmflag, cli.boot, cli.mtype, cli.mscale, cli.fit_type, int(cli.sigma_level)
+  return cli
+  #return cli.fpath, cli.idsim, cli.lmflag, cli.boot, cli.mtype, cli.mgauss, cli.fit_type
 
 # ---
 def parameters_file(fpath, idsim, lmf):
@@ -92,22 +92,13 @@ def parameters_file(fpath, idsim, lmf):
   file_par = os.path.abspath(f1[0])
   return file_par
 
-def elements(fpath, idsim, lmf):
-  kel_file = os.path.join(fpath, str(idsim) + "_" + str(lmf) + "_initialElements.dat")
-  try:
-    kep_elem = np.genfromtxt(kel_file) # (NB-1) x (M_Msun R_Rsun P_d a_AU ecc w_deg mA_deg inc_deg lN_deg)
-  except:
-    print ' KEPLERIAN ELEMENTS FILE NOT FOUND %s' %(kel_file)
-    sys.exit()
-  return kel_file, kep_elem
-
 
 # ---
 # read #_final#par.dat from the TRADES fit
 def read_parameters(file_par, lmf):
   print " Reading file "
   print " Parameters: %s" %(file_par)
-  idpar = []
+  names_par = []
   par = []
   fitness_s, fitness_x_dof_s, bic, chi2 = 'NONE', 'NONE', 'NONE','NONE'
   ndata='NONE'
@@ -130,43 +121,17 @@ def read_parameters(file_par, lmf):
         chi2 = 'NONE'
     if line[0] != "#":
       wline = line.strip("\n")
-      idpar.append(wline.split()[0])
+      names_par.append(wline.split()[0])
       par.append(wline.split()[1])
       #if(str(lmf) == '1'):
         #sig_par.append(wline.split()[2])
       #else:
         #sig_par.append("0.0")
   ofpar.close()
-  #return idpar, np.array(par).astype('f8'), np.array(sig_par).astype('f8'), fitness_s, fitness_x_dof_s, dof
-  return idpar, np.array(par).astype('f8'), fitness_s, fitness_x_dof_s, bic, chi2, ndata, dof
+  #return names_par, np.array(par).astype('f8'), np.array(sig_par).astype('f8'), fitness_s, fitness_x_dof_s, dof
+  return names_par, np.array(par).astype('f8'), fitness_s, fitness_x_dof_s, bic, chi2, ndata, dof
 
 # ---
-
-def mass_type_factor(Ms, mtype, mscale):
-  #Msjup = 1.047348644e3
-  #Msnep = 1.941226e4
-  #Msear = 332946.0487
-  if (mtype == 's'):
-    conv_factor = 1.000000000000000000000
-    scale_factor = Ms
-    mass_unit = 'M_Sun'
-  elif (mtype == 'e'):
-    conv_factor = cst.Msear
-    scale_factor = Ms * cst.Msear
-    mass_unit = 'M_Earth'
-  elif (mtype == 'n'):
-    conv_factor = cst.Msnep
-    scale_factor = Ms * cst.Msnep
-    mass_unit = 'M_Nep'
-  else:
-    conv_factor = cst.Msjup
-    scale_factor = Ms * cst.Msjup
-    mass_unit = 'M_Jup'
-  if(mscale):
-    return scale_factor, mass_unit
-  else:
-    return conv_factor, mass_unit
-
 def get_MR_start(fpath, star_file):
   #o_bd = open(os.path.join(fpath, 'bodies.lst'))
   #star_line = o_bd.readline().strip()
@@ -174,449 +139,6 @@ def get_MR_start(fpath, star_file):
   #star_file = star_line.split()[0]
   MR_star = np.genfromtxt(os.path.join(fpath, star_file), dtype=np.float64)
   return MR_star
-
-# convert planet mass from Msun to Mjup, Mnep and Mear
-def convmass(idpar, vec1, conv_factor):
-  
-  nfit = vec1.shape[0]
-  vec1_out = vec1.copy()
-  idpar_out = idpar
-  for ip in range(0,nfit):
-    if (idpar[ip][0] == "m" and idpar[ip][1] != "A"):
-      vec1_out[ip] = vec1[ip] * conv_factor
-      if("Ms" in idpar[ip]):
-        idpar_out[ip]=idpar[ip].split('Ms')[0]
-      
-  return idpar_out, vec1_out
-
-def get_case(id_body, fit_body):
-  fit_n = np.arange(1,11,1)
-  id_fit = [fit_n[j] for j in range(len(fit_body)) if (fit_body[j]=='1')]
-  id_all = [8*(id_body-1) + 2 + id_fit[j] for j in range(len(id_fit))]
-  
-  if (6 not in id_fit): # not fitting lambda
-    case = [0]
-  
-  else: #(6 in id_fit) # fitting lambda
-    if ( all( x in id_fit for x in [4, 5, 6, 7, 8]) ):  # fit ecosw, esinw, lambda, icoslN, isinlN
-      case = [4]
-    elif ( all( x in id_fit for x in [4, 5, 6]) ): # fit ecosw, esinw, lambda
-      case = [2]
-    elif ( all( x in id_fit for x in [6, 7, 8]) ): # fit lambda, icoslN, isinlN
-      case = [3]
-    else:
-      case = [1] # fit lambda & w || lambda & lN || lamda & w & lN
-  
-  return id_fit, id_all, case
-
-def get_fitted(fpath):
-  of = open(os.path.join(fpath, 'bodies.lst'), 'r')
-  lines = of.readlines()
-  of.close()
-  NB = len(lines)
-  n_pl = NB - 1
-  bodies_file = []
-  fit_string = ''
-  fit_list = []
-  for line in lines:
-    fname = line.strip().split()[0]
-    bodies_file.append(fname)
-    temp_string = line.strip().split(fname)[1].split('#')[0].strip()
-    if('F' in temp_string):
-      temp_string = temp_string.split('F')[0].strip()
-    elif('f' in temp_string):
-      temp_string = temp_string.split('f')[0].strip()
-    elif('T' in temp_string):
-      temp_string = temp_string.split('T')[0].strip()
-    elif('t' in temp_string):
-      temp_string = temp_string.split('t')[0].strip()
-
-    fit_string = '%s %s' %(fit_string, temp_string)
-    fit_list.append(temp_string.split())
-    #print fnatemp_string = temp_string.split('F')me, temp_string
-
-  nfit = np.sum(np.array(fit_string.split(), dtype=np.int))
-  
-  case = []
-  id_fit = []
-  id_all = []
-  nfit_list = []
-  cols_list = []
-  nfit_cnt = 0
-  for j in range(1,NB+1):
-    id_fit_j, id_all_j, case_j= get_case(j, fit_list[j-1])
-    id_fit.append(id_fit_j)
-    id_all.append(id_all_j)
-    case.append(case_j)
-    nfit_j = len(id_fit_j)
-    nfit_list.append(nfit_j)
-    cols_list.append([cc for cc in range(nfit_cnt, nfit_cnt+nfit_j)])
-    nfit_cnt += nfit_j
-    #print j, nfit_j, nfit_cnt
-  cols = [jj for jj in range(0,nfit)]
-
-  #print 'cols_list = ',cols_list
-  
-  return nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case
-
-
-def get_proper_bootstrap_correlated(col, parameter, bootstrap):
-  
-  par_scale = np.arctan2(np.sin(parameter*deg2rad), np.cos(parameter*deg2rad))*rad2deg
-  bootstrap_scale = np.arctan2(bootstrap[:,col+1], bootstrap[:,col]) * rad2deg
-  delta_scale = np.abs(np.mean(bootstrap_scale)-par_scale)
-  
-  par_mod = (parameter+360.0)%360.0
-  bootstrap_mod = (bootstrap_scale+360.)%360.
-  delta_mod = np.abs(np.mean(bootstrap_mod)-par_mod)
-  
-  pos_min = np.argmin(np.array([delta_scale, delta_mod]))
-  
-  if(pos_min == 0):
-    #print 'parameter = ',parameter
-    #print 'par_scale = ',par_scale
-    #print 'bootstrap_scale min  = ',np.min(bootstrap_scale),' mean = ',np.mean(bootstrap_scale), ' max  = ',np.max(bootstrap_scale)
-    return par_scale, bootstrap_scale
-  else:
-    #print 'parameter = ',parameter
-    #print 'par_mod = ',par_mod
-    #print 'bootstrap_mod min  = ',np.min(bootstrap_mod),' mean = ',np.mean(bootstrap_mod), ' max  = ',np.max(bootstrap_mod)
-    return par_mod, bootstrap_mod
-
-
-def get_proper_bootstrap_angle(parameter, bootstrap):
-  
-  par_scale = np.arctan2(np.sin(parameter*deg2rad), np.cos(parameter*deg2rad)) * rad2deg
-  bootstrap_scale = np.arctan2(np.sin(bootstrap*deg2rad), np.cos(bootstrap*deg2rad)) * rad2deg
-  delta_scale = np.abs(np.mean(bootstrap_scale)-par_scale)
-  
-  par_mod = (parameter+360.0)%360.0
-  bootstrap_mod = ((bootstrap_scale)+360.)%360.
-  delta_mod = np.abs(np.mean(bootstrap_mod)-par_mod)
-  
-  pos_min = np.argmin(np.array([delta_scale, delta_mod]))
-  
-  if(pos_min == 0):
-    #print 'parameter = ',parameter
-    #print 'par_scale = ',par_scale
-    #print 'bootstrap_scale min  = ',np.min(bootstrap_scale),' mean = ',np.mean(bootstrap_scale), ' max  = ',np.max(bootstrap_scale)
-    return par_scale, bootstrap_scale
-  else:
-    #print 'parameter = ',parameter
-    #print 'par_mod = ',par_mod
-    #print 'bootstrap_mod min  = ',np.min(bootstrap_mod),' mean = ',np.mean(bootstrap_mod), ' max  = ',np.max(bootstrap_mod)
-    return par_mod, bootstrap_mod
-
-
-def get_trigonometric_parameters(id_NB, id_l, col, idpar, fit_par, boot, bootstrap):
-  
-  #print idpar[id_l], 'id_l = ',id_l, ' (column ', col,') ',
-  acb = fit_par[id_l]
-  asb = fit_par[id_l+1]
-  aa = np.sqrt(acb*acb + asb*asb)
-  #bb =((np.arctan2(asb, acb) * 180./np.pi)+360.)%360.
-  bb = np.arctan2(asb, acb) * rad2deg
-  #print acb, asb, aa, bb
-  if('e' in idpar[id_l]):
-    if(aa <= eps64bit):
-      bb = 90.
-  
-  eder_aa, eder_bb = None, None
-
-  if(boot):
-    cosboot = bootstrap[:,col]
-    sinboot = bootstrap[:,col+1]
-    aboot = np.sqrt( (cosboot*cosboot) + (sinboot*sinboot) )
-    bb, bboot = get_proper_bootstrap_correlated(col, bb, bootstrap)
-    if('e' in idpar[id_l]):
-      sel_ezero = aboot <= eps64bit
-      bboot[sel_ezero] = 90.
-    eder_aa = np.percentile(aboot-aa, percentile_val, axis=0)
-    eder_aa[7] = np.percentile(np.abs(aboot-aa), percentile_val[7], axis=0)
-    eder_bb = np.percentile(bboot-bb, percentile_val, axis=0)
-    eder_bb[7] = np.percentile(np.abs(bboot-bb), percentile_val[7], axis=0)
-        
-  if ('ecosw' in idpar[id_l]):
-    id_aa = 'e'
-    id_bb = 'w'
-  else:
-    id_aa = 'i'
-    id_bb = 'lN'
-        
-  id_a0 = '%s%s' %(id_aa,id_NB+1)
-  id_b0 = '%s%s' %(id_bb,id_NB+1)
-    
-  return id_a0, aa, eder_aa, id_b0, bb, eder_bb
-
-
-def derived_case0(idpar_NB, fit_par_NB, id_fit_NB, i_NB, cols, boot, bootstrap): # not fitting lambda
-  id_c0 = []
-  der_c0 = []
-  eder_c0 = []
-  
-  nlist = len(id_fit_NB)
-  for i_l in range(nlist):
-    #print idpar_NB[i_l], fit_par_NB[i_l]
-    if ('ecosw' in idpar_NB[i_l] or 'icoslN' in idpar_NB[i_l]):
-      id_a0, aa, eder_aa, id_b0, bb, eder_bb = get_trigonometric_parameters(i_NB, i_l, cols[i_l], idpar_NB, fit_par_NB, boot, bootstrap)
-      id_c0.append(id_a0)
-      id_c0.append(id_b0)
-      der_c0.append(aa)
-      der_c0.append(bb)
-      eder_c0.append(eder_aa)
-      eder_c0.append(eder_bb)
-      
-  return id_c0, der_c0, eder_c0
-
-
-def derived_case1(idpar_NB, fit_par_NB, id_fit_NB_NB, i_NB, cols, kep_elem, boot, bootstrap): #  fitting lambda || lambda & w || lambda & lN || lamda & w & lN
-  id_c0 = []
-  der_c0 = []
-  eder_c0 = []
-  
-  nlist = len(id_fit_NB)
-  for i_l in range(0,nlist):
-    
-    if(id_fit_NB[i_l] == 6):
-      if(idpar_NB[i_l+2][0:2] != 'mA'):
-        aa = (fit_par_NB[i_l] - kep_elem[5] - kep_elem[8])%360. # mA = lambda - w - lN
-        
-        if(boot):
-          aboot = (bootstrap[:,cols[i_l]] - kep_elem[5] - kep_elem[8])%360.
-          aa, aboot = get_proper_bootstrap_angle(aa, aboot)
-          e_temp = np.percentile(aboot-aa, percentile_val, axis=0)
-          e_temp[7] = np.percentile(np.abs(aboot-aa), percentile_val[7], axis=0)
-          eder_c0.append(e_temp)
-          
-        id_c0.append('%s%s' %('mA',i_NB+1))
-        der_c0.append(aa)
-        
-  return id_c0, der_c0, eder_c0
-
-
-def derived_case2(idpar_NB, fit_par_NB, id_fit_NB, i_NB, cols, kep_elem, boot, bootstrap): # fit ecosw, esinw, lambda
-  id_c0 = []
-  der_c0 = []
-  eder_c0 = []
-  
-  nlist = len(id_fit_NB)
-  for i_l in range(0,nlist):
-    
-    if(id_fit_NB[i_l] == 4):
-      id_e0, ee, eder_ee, id_w0, ww, eder_ww = get_trigonometric_parameters(i_NB, i_l, cols[i_l], idpar_NB, fit_par_NB, boot, bootstrap)
-      id_c0.append(id_e0)
-      id_c0.append(id_w0)
-      der_c0.append(ee)
-      der_c0.append(ww)
-      eder_c0.append(eder_ee)
-      eder_c0.append(eder_ww)
-      
-      if(idpar[i_l+2][0:2] != 'mA'):
-        mA = (fit_par_NB[i_l+2] - ww - kep_elem[8])%360. # mA = lambda - w - lN
-        
-        if(boot):
-          mAboot = (bootstrap[:,cols[i_l+2]] - ww - kep_elem[8])%360.
-          mA, mAboot = get_proper_bootstrap_angle(mA, mAboot)
-          e_temp = np.percentile(mAboot-mA, percentile_val, axis=0)
-          e_temp[7] = np.percentile(np.abs(mAboot-mA), percentile_val[7], axis=0)
-          eder_c0.append(e_temp)
-        
-        id_c0.append('%s%s' %('mA',i_NB+1))
-        der_c0.append(mA)
-        #print id_c0[-1], der_c0[-1], eder_c0[-1]
-        
-  return id_c0, der_c0, eder_c0
-
-def derived_case3(idpar_NB, fit_par_NB, id_fit_NB, i_NB, cols, kep_elem, boot, bootstrap): # fit lambda, icoslN, isinlN
-  id_c0 = []
-  der_c0 = []
-  eder_c0 = []
-  
-  nlist = len(id_fit_NB)
-  for i_l in range(0,nlist):
-    
-    if(id_fit_NB[i_l] == 7):
-      id_i0, ii, eder_ii, id_lN0, lN, eder_lN = get_trigonometric_parameters(i_NB, i_l, cols[i_l], idpar_NB, fit_par_NB, boot, bootstrap)
-      id_c0.append(id_i0)
-      id_c0.append(id_lN0)
-      der_c0.append(ii)
-      der_c0.append(lN)
-      eder_c0.append(eder_ii)
-      eder_c0.append(eder_lN)
-      
-      if(idpar_NB[i_l+2][0:2] != 'mA'):
-        mA = (fit_par_NB[i_l-1] - kep_elem[5] - lN)%360. # mA = lambda - w - lN
-        
-        if(boot):
-          mAboot = (bootstrap[:,cols[i_l-1]] - kep_elem[5] - lN)%360.
-          mA, mAboot = get_proper_bootstrap_angle(mA, mAboot)
-          e_temp = np.percentile(mAboot-mA, percentile_val, axis=0)
-          e_temp[7] = np.percentile(np.abs(mAboot-mA), percentile_val[7], axis=0)
-          eder_c0.append(e_temp)
-  
-        id_c0.append('%s%s' %('mA',i_NB+1))
-        der_c0.append(mA)
-        
-  return id_c0, der_c0, eder_c0
-
-def derived_case4(idpar_NB, fit_par_NB, id_fit_NB, i_NB, cols, kep_elem, boot, bootstrap): # fit ecosw, esinw, lambda, icoslN, isinlN
-  id_c0 = []
-  der_c0 = []
-  eder_c0 = []
-  
-  nlist = len(id_fit)
-  for i_l in range(0,nlist):
-    
-    if(id_fit_NB[i_l] == 4):
-      id_e0, ee, eder_ee, id_w0, ww, eder_ww = get_trigonometric_parameters(i_NB, i_l, cols[i_l], idpar_NB, fit_par_NB, boot, bootstrap)
-      id_c0.append(id_e0)
-      id_c0.append(id_w0)
-      der_c0.append(ee)
-      der_c0.append(ww)
-      eder_c0.append(eder_ee)
-      eder_c0.append(eder_ww)
-      
-      id_i0, ii, eder_ii, id_lN0, lN, eder_lN = get_trigonometric_parameters(i_NB, i_l+3, cols[i_l+3], idpar_NB, fit_par_NB, boot, bootstrap)
-      id_c0.append(id_i0)
-      id_c0.append(id_lN0)
-      der_c0.append(ii)
-      der_c0.append(lN)
-      eder_c0.append(eder_ii)
-      eder_c0.append(eder_lN)
-      
-      if(idpar_NB[i_l+2][0:2] != 'mA'):
-        mA = (fit_par_NB[i_l+2] - ww - lN)%360. # mA = lambda - w - lN
-        
-        if(boot):
-          mAboot = (bootstrap[:,cols[i_l+2]] - ww - lN)%360.
-          mA, mAboot = get_proper_bootstrap_angle(mA, mAboot)
-          e_temp = np.percentile(mAboot-mA, percentile_val, axis=0)
-          e_temp[7] = np.percentile(mAboot-mA, percentile_val[7], axis=0)
-          eder_c0.append(e_temp)
-          
-        id_c0.append('%s%s' %('mA',i_NB+1))
-        der_c0.append(mA)
-        
-  return id_c0, der_c0, eder_c0
-
-def summary_parameters(idpar, fit_par, kep_elem, id_fit, case_list, cols_list, boot, bootstrap=None):
-  NB = len(case_list)
-  nfit = len(id_fit)
-  #print NB, nfit
-  
-  fit_par_out = fit_par.copy()
-  
-  if(boot): 
-    bootstrap_out = bootstrap.copy()
-  else:
-    bootstrap_out = None
-    
-  id_derived = []
-  der_par = []
-  eder_par = []
-  
-  cc_fit = 0
-  
-  for i_NB in range(0, NB):
-    nfit_NB = len(id_fit[i_NB])
-    
-    if(nfit_NB > 0):
-      #print id_fit[i_NB],' [ ',nfit_NB, ' ]',' ==> case = ',case_list[i_NB]
-      
-      idpar_NB = idpar[cols_list[i_NB][0]:cols_list[i_NB][-1]+1] # names of the parameter for the body i_NB
-      fit_par_NB = fit_par[cols_list[i_NB][0]:cols_list[i_NB][-1]+1] # values of the fitted parameters for the body i_NB
-      id_fit_NB = id_fit[i_NB] # integers that identify the proper type of the fitted parameters
-      
-      for i_fit in range(0, nfit_NB):
-        
-        if(id_fit[i_NB][i_fit] == 1): # convert Mp and Mp/Ms into mass unit specified by the user <-> mtype
-          
-          if('Ms' in idpar[cc_fit]):
-            xx = fit_par[cc_fit] * conv_factor
-            xid = 'm%d' %(i_NB+1)
-
-            id_derived.append(xid)
-            der_par.append(xx)
-
-            if(boot):
-              deboot = bootstrap[:,cc_fit]*conv_factor - xx
-              e_boot = np.percentile(deboot, percentile_val, axis=0)
-              e_boot[7] = np.percentile(np.abs(deboot), percentile_val[7], axis=0)
-              eder_par.append(e_boot)
-
-          else:
-            fit_par_out[cc_fit] = fit_par[cc_fit] * conv_factor
-            if(boot): bootstrap_out[:,cc_fit] = bootstrap[:,cc_fit] * conv_factor
-            
-        cc_fit += 1
-      
-      id_temp, der_temp, eder_temp = [], [], []
-      
-      if(case_list[i_NB][0] == 0):
-        id_temp, der_temp, eder_temp = derived_case0(idpar_NB, fit_par_NB, id_fit_NB, i_NB, cols_list[i_NB], boot, bootstrap)
-      
-      elif(case_list[i_NB][0] == 1):
-        id_temp, der_temp, eder_temp = derived_case1(idpar_NB, fit_par_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB-1,:], boot, bootstrap)
-        
-      elif(case_list[i_NB][0] == 2):
-        id_temp, der_temp, eder_temp = derived_case2(idpar_NB, fit_par_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB-1,:], boot, bootstrap)
-        
-      elif(case_list[i_NB][0] == 3):
-        id_temp, der_temp, eder_temp = derived_case3(idpar_NB, fit_par_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB-1,:], boot, bootstrap)
-        
-      elif(case_list[i_NB][0] == 4):
-        id_temp, der_temp, eder_temp = derived_case4(idpar_NB, fit_par_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB-1,:], boot, bootstrap)
-        
-      id_derived.append(id_temp)
-      der_par.append(der_temp)
-      eder_par.append(eder_temp)
-  
-  return idpar, fit_par_out, id_derived, der_par, eder_par, bootstrap_out
-
-def get_units(names, mass_unit):
-  n_names = len(names)
-  units_par = []
-  
-  for i in range(0, n_names):
-    
-    if(str(names[i])[0] == 'm'):
-      if('Ms' in names[i]):
-        units_par.append('[M_pl/M_star]')
-      elif('mA' in names[i]):
-        units_par.append('[deg]')
-      else:
-        units_par.append('[%s]' %(mass_unit))
-    
-    if('R' in str(names[i])):
-      units_par.append('[R_sun]')
-    
-    if('P' in str(names[i])):
-      units_par.append('[days]')
-      
-    if(str(names[i])[0] == 'e'): # the same for e, ecosw, esinw
-      units_par.append(' ')
-    
-    if(str(names[i])[0] == 'w'):
-      units_par.append('[deg]')
-      
-    if('lambda' in str(names[i])):
-      units_par.append('[deg]')
-      
-    if(str(names[i])[0] == 'i'):
-      if('cos' in names[i] or 'sin' in names[i]):
-        units_par.append(' ')
-      else:
-        units_par.append('[deg]')
-    
-    if(str(names[i])[0:2] == 'lN'):
-      units_par.append('[deg]')
-    
-  return units_par
-
-def print_both(output, line):
-  print line
-  output.write(line + '\n')
-  return
 
 
 def main():
@@ -627,27 +149,36 @@ def main():
   print " --- read_finalpar_v2.py --- "
   print ""
 
-  fpath, idsim, lmflag, boot, mtype, mscale, fit_type, sigma_level = get_args()
+  cli = get_args()
+  fpath, idsim, lmflag, boot, mtype, mgauss, fit_type = cli.fpath, cli.idsim, cli.lmflag, cli.boot, cli.mtype, cli.mgauss, cli.fit_type
 
-  nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case_list = get_fitted(fpath)
-  print ' nfit = ',nfit
+  nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case_list = anc.get_fitted(fpath)
 
-  # oldy
   MR_star = get_MR_start(fpath, bodies_file[0])
   if(len(MR_star.shape)==2):
     Mstar = MR_star[0,0]
   else:
-    Mstar = MR_star[0]
-  conv_factor, mass_unit = mass_type_factor(Mstar, mtype, mscale)
+    Mstar = MR_star[0].copy()
+    MR_star = np.zeros((2,2))
+    MR_star[0,0] = Mstar
+
+  if(boot):
+    if(mgauss):
+      m_factor, mass_unit = anc.mass_type_factor(Ms=Mstar, mtype=mtype, mscale=True)
+      m_factor_boot = m_factor
+    else:
+      m_factor, mass_unit = anc.mass_type_factor(Ms=1.0, mtype=mtype, mscale=False)
+      np.random.seed(seed=cli.seed)
+      Ms_gaussian = MR_star[0,0] + np.random.normal(0., 1., size=(np.shape(flatchain_posterior_0)[0]))*MR_star[0,1] # if exists an error on the mass, it creates a Normal distribution for the values and use it to re-scale mp/Ms to mp.
+      m_factor_boot = m_factor * Ms_gaussian # given the factor from Msun to mass_unit it multiply it by the Normal Mstar.
+      m_factor = m_factor * MR_star[0,0]
+  else:
+    m_factor, mass_unit = anc.mass_type_factor(Ms=Mstar, mtype=mtype, mscale=True)
+  
+  kel_file, kep_elem = anc.elements(fpath, int(idsim), int(lmflag))
+
   file_par = parameters_file(fpath, idsim, lmflag)
-  kel_file, kep_elem = elements(fpath, idsim, lmflag)
-
-  #idpar, par, sig_par, fitness_s, fitness_x_dof_s, dof = read_parameters(file_par, lmflag)
-  idpar, par, fitness_s, fitness_x_dof_s, bic, chi2, ndata, dof = read_parameters(file_par, lmflag)
-
-  #par_new, sig_par_new = convmass(idpar, par, sig_par, conv_factor)
-  #idpar_new, par_new = convmass(idpar, par, conv_factor)
-  #sig_par_new = module_angles(idpar, sig_par_new)
+  names_par, par, fitness_s, fitness_x_dof_s, bic, chi2, ndata, dof = read_parameters(file_par, lmflag)
 
   if (boot):
     file_boot = os.path.join(fpath, '%s_bootstrap_sim.dat' %(idsim))
@@ -655,106 +186,48 @@ def main():
       bootstrap = np.genfromtxt(file_boot)[:,1:]
     except:
       sys.exit(' CANNOT FIND BOOTSTRAP FILE: %s' %(file_boot))
-      
-    if (sigma_level == 2):
-      perc_pos = [1, 5, 7]
-    elif (sigma_level == 3):
-      perc_pos = [0, 6, 7]
-    else:
-      perc_pos = [2, 4, 7]
-    sigma_header = '# SIGMA LEVEL = %d sigma' %(sigma_level)
   else:
     bootstrap = None
-    perc_pos  = None
     
-  names_par, fit_par_out, names_der, der_par, eder_par, bootstrap_out = summary_parameters(idpar, par, kep_elem, id_fit, case_list, cols_list, boot, bootstrap)
-
-  units_par = get_units(names_par, mass_unit)
-  #units_par = [' ']*nfit
-
+  units_par = anc.get_units(names_par, mass_unit)
+  names_derived, derived_par = anc.compute_derived_parameters(names_par, kep_elem, id_fit, case_list, cols_list, par, conv_factor=m_factor)
+  units_der = anc.get_units(names_derived, mass_unit)
 
   if(boot):
-    sigma_boot = np.percentile(np.subtract(bootstrap_out, fit_par_out), percentile_val, axis=0) # (n_percentile x nfit)
-    sigma_boot[7] = np.percentile(np.abs(np.subtract(bootstrap_out, fit_par_out)), percentile_val[7], axis=0)
-
-
-  output_file = '%s_%dsigma_%s.log' %(os.path.splitext(file_par)[0], sigma_level, mass_unit)
+    sigma_par = anc.compute_intervals(bootstrap, par, anc.percentile_val)
+    names_derived, der_posterior = anc.compute_derived_posterior(names_par, kep_elem, id_fit, case_list, cols_list, bootstrap, conv_factor=m_factor_boot)
+    derived_par, der_posterior = anc.adjust_derived_parameters(names_derived, derived_par, der_posterior)
+    sigma_derived = anc.compute_intervals(der_posterior, derived_par, anc.percentile_val)
+  else:
+    sigma_par = None
+    sigma_derived = None
+    
+  output_file = '%s_%s.log' %(os.path.splitext(file_par)[0], mass_unit)
   out = open(output_file, 'w')
 
+  top_header, header = anc.get_header(anc.percentile_val)
+
   # print to screen and into file
-  print
-  print_both(out, '# Number of bodies = %d' %(NB))
-  print_both(out, '# OUTPUT FILE: %s' %(output_file))
-  print_both(out, '# fitness = %s' %(fitness_s))
-  print_both(out, '# fitness x dof = %s' %(fitness_x_dof_s))
-  print_both(out, '# bic = %s' %(bic))
-  print_both(out, '# chi2 = %s' %(chi2))
-  print_both(out, '# ndata = %s' %(ndata))
-  print_both(out, '# dof = %s' %(dof))
-  print_both(out, '# Mstar = %.4f M_sun' %(Mstar))
-  print_both(out, '# FITTED PARAMETERS (nfit = %d)' %(nfit))
-  header = '%1s %15s %20s %15s' %('#', 'name', 'unit', 'parameter')
-  if(boot):
-    print_both(out, sigma_header)
-    header = '%s %15s %15s %15s' %(header, '%4.2f-th' %(percentile_val[perc_pos[0]]), '%4.2f-th' %(percentile_val[perc_pos[1]]), '%1d x 68.27-th' %(sigma_level))
-  print_both(out, header)
-  for i in range(0, nfit):
-    line = '%17s %20s %15.10f' %(names_par[i], units_par[i], fit_par_out[i])
-    if(boot):
-      line = '%s %15.10f %15.10f %15.10f' %(line, sigma_boot[perc_pos[0],i], sigma_boot[perc_pos[1],i], sigma_level*sigma_boot[perc_pos[2],i])
-    print_both(out, line)
-
-  n_der = 0
-  n_xder = len(der_par)
-  if(n_xder > 0):
-    n_der_single  = []
-    derived_par   = []
-    names_derived = []
-    e_derived_par = []
-    
-    for ii in range(0, n_xder):
-      temp_der = np.array(der_par[ii],dtype=np.float64)
-      ntemp = np.size(temp_der)
-      n_der_single.append(ntemp)
-      n_der += ntemp
-      
-      temp_names = np.array(names_der[ii],dtype=str)
-      
-      if(boot): temp_eder = np.array(eder_par[ii],dtype=np.float64)
-
-      if(ntemp > 0):
-        
-        if(ntemp == 1):
-          derived_par.append(temp_der)
-          names_derived.append(temp_names)
-          if(boot): e_derived_par.append(temp_eder)
-        else:
-          for jj in range(0, ntemp):
-            derived_par.append(temp_der[jj])
-            names_derived.append(temp_names[jj])
-            if(boot): e_derived_par.append(temp_eder[jj])
-
-
-  units_der = get_units(names_derived, mass_unit)
-  #units_der = [' ']*n_der
-
-  print_both(out, '# DERIVED PARAMETERS (nder = %d)' %(n_der))
-  print_both(out, header)
-
-  for i in range(0, n_der):
-    #print str(names_derived[i]), np.float64(derived_par[i])
-    #if(str(names_derived[i])[0] == 'w' and np.float64(derived_par[i-1]) <= np.finfo(1.0).eps): # if 'eccentricity' is <= machine precision => arg.pericentre = 90 deg
-      #line = '%17s %20s %15.10f' %(str(names_derived[i]), units_der[i], np.float64(derived_par[i])+90.)
-    #else:
-      #line = '%17s %20s %15.10f' %(str(names_derived[i]), units_der[i], np.float64(derived_par[i]))
-    line = '%17s %20s %15.10f' %(str(names_derived[i]), units_der[i], np.float64(derived_par[i]))
-    
-    if(boot):
-      line = '%s %15.10f %15.10f %15.10f' %(line, e_derived_par[i][perc_pos[0]], e_derived_par[i][perc_pos[1]], sigma_level*e_derived_par[i][perc_pos[2]])
-      
-    print_both(out, line)
-    
-  print_both(out, '')
+  anc.print_both('', out)
+  anc.print_both('# Number of bodies = %d' %(NB), out)
+  anc.print_both('# OUTPUT FILE: %s' %(output_file), out)
+  anc.print_both('# fitness = %s' %(fitness_s), out)
+  anc.print_both('# fitness x dof = %s' %(fitness_x_dof_s), out)
+  anc.print_both('# bic = %s' %(bic), out)
+  anc.print_both('# chi2 = %s' %(chi2), out)
+  anc.print_both('# ndata = %s' %(ndata), out)
+  anc.print_both('# dof = %s' %(dof), out)
+  anc.print_both('# Mstar = %.4f +/- %.4f M_sun' %(MR_star[0,0], MR_star[0,1]), out)
+  anc.print_both('# FITTED PARAMETERS (nfit = %d)' %(nfit), out)
+  
+  
+  anc.print_both('# FITTED PARAMETERS', out)
+  anc.print_parameters(top_header, header, names_par, units_par, par, sigma_par, out)
+  
+  anc.print_both('# DERIVED PARAMETERS', out)
+  anc.print_parameters(top_header, header, names_derived, units_der, derived_par, sigma_derived, out)
+  out.close()
+  
   return
 
 if __name__ == "__main__":

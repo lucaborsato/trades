@@ -11,7 +11,7 @@ import sys # sys: system...boh
 import numpy as np # array
 #import veusz.embed as vsz
 #sys.path.append("/media/Data/Dropbox/Dottorato/pyscript")
-sys.path.append("../")
+#sys.path.append("../")
 import constants as cst
 #from path_check import checkpath
 #from shapes import circle

@@ -10,8 +10,7 @@ import ancillary as anc # not so good...but fast
 import random
 import logging
 import warnings
-
-from scipy.stats import gaussian_kde
+import h5py
 from scipy.stats import norm as scipy_norm
 
 import matplotlib.cm as cm
@@ -124,59 +123,65 @@ def main():
     logger.info('saved bootstrap like file: %s' %(boot_file))
     del flatchain_posterior_msun
 
-  # GET MAX LNPROBABILITY AND PARAMETERS -> id 40XX
-  max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
+  ## TO BE SUBSTITUTED WITH PROPER READ OF summary_parameters.hdf5 FILE
+  ## GET MAX LNPROBABILITY AND PARAMETERS -> id 40XX
+  #max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
 
-  # std way: median of the posterior parameter distribution -> id 10XX
-  median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
+  ## std way: median of the posterior parameter distribution -> id 10XX
+  #median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
 
-  # MODE-LIKE PARAMETERS -> id 30XX
-  # take the mean of 5 bin centered to the higher bin
+  ## MODE-LIKE PARAMETERS -> id 30XX
+  ## take the mean of 5 bin centered to the higher bin
   k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
-  #if(k>11): k=11
   if(k>50): k=50
-  mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
+  #mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
 
-  name_par, name_excluded = anc.get_sample_list(cli.sample_str, parameter_names_emcee)
-  sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0, parameter_names_emcee, name_par = name_par, name_excluded = name_excluded)
+  #name_par, name_excluded = anc.get_sample_list(cli.sample_str, parameter_names_emcee)
+  #sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0, parameter_names_emcee, name_par = name_par, name_excluded = name_excluded)
+  
+  ## OPEN summary_parameters.hdf5 FILE
+  s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
+  # take only the selected sample
+  s_overplot = '%04d' %(cli.overplot)
+  read_par = s_h5f['parameters/%s/fitted/parameters' %(s_overplot)][...]
+  s_h5f.close()
 
   #fig, ax = plt.subplots(nrows = nfit-1, ncols=nfit, figsize=(12,12))
   fig = plt.figure(figsize=(12,12))
   fig.subplots_adjust(hspace=0.05, wspace=0.05)
 
-  for ii in range(0, nfit, 1):
-    x_data = flatchain_posterior_0[:, ii]
-    #x_med = np.median(x_data)
-    #x_16 = np.percentile(x_data, 16)
-    #x_84 = np.percentile(x_data, 84)
-    x_med = median_parameters[ii]
+  # fitted parameters has always Mp/Ms in Msun/Mstar, so it is needed to rescale it properly
+  overp_par = read_par.copy()
+  for ii in range(0, nfit):
+    if('Ms' in parameter_names_emcee[ii]):
+      overp_par[ii] = overp_par[ii]*m_factor
+
+  for ix in range(0, nfit, 1):
+    x_data = flatchain_posterior_0[:, ix]
+    ##x_med = median_parameters[ix]
+    
     x_min, x_max = anc.compute_limits(x_data, 0.05)
     if(x_min == x_max):
-      x_min = parameter_boundaries[ii,0]
-      x_max = parameter_boundaries[ii,1]
+      x_min = parameter_boundaries[ix,0]
+      x_max = parameter_boundaries[ix,1]
 
-    
-    #x_max_mean, x_max_bin = compute_max_mean(x_data, k)
-    x_max_mean = mode_parameters[ii]
+    #x_max_mean = mode_parameters[ix]
 
-    for jj in range(nfit-1, -1, -1):
-      y_data = flatchain_posterior_0[:, jj]
-      #y_med = np.median(y_data)
-      y_med = median_parameters[jj]
+    for iy in range(nfit-1, -1, -1):
+      y_data = flatchain_posterior_0[:, iy]
       y_min, y_max = anc.compute_limits(y_data, 0.05)
       if(y_min == y_max):
-        y_min = parameter_boundaries[jj,0]
-        y_max = parameter_boundaries[jj,1]
+        y_min = parameter_boundaries[iy,0]
+        y_max = parameter_boundaries[iy,1]
       
-      #y_max_mean, y_max_bin = compute_max_mean(y_data, k)
-      y_max_mean = mode_parameters[jj]
+      #y_max_mean = mode_parameters[iy]
       
-      if(jj > ii): # correlation plot
-        logger.info('%s vs %s' %(parameter_names_emcee[ii], parameter_names_emcee[jj]))
-        logger.info('(%.4f) %.4f <= X <= %.4f (%.4f)' %(parameter_boundaries[ii,0], x_data.min(), x_data.max(), parameter_boundaries[ii,1]))
-        logger.info('(%.4f) %.4f <= Y <= %.4f (%.4f)' %(parameter_boundaries[jj,0], y_data.min(), y_data.max(), parameter_boundaries[jj,1]))
+      if(iy > ix): # correlation plot
+        logger.info('%s vs %s' %(parameter_names_emcee[ix], parameter_names_emcee[iy]))
+        #logger.info('(%.4f) %.4f <= X <= %.4f (%.4f)' %(parameter_boundaries[ix,0], x_data.min(), x_data.max(), parameter_boundaries[ix,1]))
+        #logger.info('(%.4f) %.4f <= Y <= %.4f (%.4f)' %(parameter_boundaries[iy,0], y_data.min(), y_data.max(), parameter_boundaries[iy,1]))
 
-        ax = plt.subplot2grid((nfit+1, nfit), (jj,ii))
+        ax = plt.subplot2grid((nfit+1, nfit), (iy,ix))
         
         #hist2d_counts, xedges, yedges, image2d = ax.hist2d(x_data, y_data, bins=k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], cmap=plt.get_cmap('Greys'), normed=True)
         hist2d_counts, xedges, yedges, image2d = ax.hist2d(x_data, y_data, bins=k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], cmap=cm.gray_r, normed=True)
@@ -192,35 +197,40 @@ def main():
         #ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, colors=('black', 'forestgreen', 'lightgray'), linestyle='solid', linewidths=(0.5, 0.5, 0.5))
         ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
         
-        # plot mean_mode
-        ax.axvline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
-        ax.axhline(y_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
-        # plot median
-        ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-        ax.axhline(y_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+        # plot selected overplot sample
+        ax.axvline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+        ax.axhline(overp_par[iy], color='blue', ls='--', lw=1.1, alpha=0.7)
         
-        if(sample_parameters is not None):
-          # plot of sample_parameters
-          ax.axvline(sample_parameters[ii], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[ii]))
-          ax.axhline(sample_parameters[jj], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[jj]))
+        ## plot mean_mode
+        #ax.axvline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
+        #ax.axhline(y_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
+        # plot median
+        #ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+        #ax.axhline(y_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+        
+        ## plot sample 
+        #if(sample_parameters is not None):
+          ## plot of sample_parameters
+          #ax.axvline(sample_parameters[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[ix]))
+          #ax.axhline(sample_parameters[iy], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[iy]))
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
-        if(jj == nfit-1):
-          set_xaxis(ax, label_size, label_separation, label_pad, ticklabel_size, kel_plot_labels[ii], [xedges[0], xedges[-1], 3])
-        if(ii == 0): 
-          set_yaxis(ax, label_size, label_separation, label_pad, ticklabel_size, kel_plot_labels[jj], [yedges[0], yedges[-1], 5])
+        if(iy == nfit-1):
+          set_xaxis(ax, label_size, label_separation, label_pad, ticklabel_size, kel_plot_labels[ix], [xedges[0], xedges[-1], 3])
+        if(ix == 0): 
+          set_yaxis(ax, label_size, label_separation, label_pad, ticklabel_size, kel_plot_labels[iy], [yedges[0], yedges[-1], 5])
         
         ax.set_ylim([y_min, y_max])
         ax.set_xlim([x_min, x_max])
         plt.draw()
       
-      elif(jj == ii): # distribution plot
-        logger.info('%s histogram' %(parameter_names_emcee[ii]))
-        logger.info('(%.4f) %.4f <= X <= %.4f (%.4f)' %(parameter_boundaries[ii,0], x_data.min(), x_data.max(), parameter_boundaries[ii,1]))
+      elif(iy == ix): # distribution plot
+        logger.info('%s histogram' %(parameter_names_emcee[ix]))
+        #logger.info('(%.4f) %.4f <= X <= %.4f (%.4f)' %(parameter_boundaries[ix,0], x_data.min(), x_data.max(), parameter_boundaries[ix,1]))
 
-        ax = plt.subplot2grid((nfit+1, nfit), (ii,ii))
-        if (ii == nfit-1):
+        ax = plt.subplot2grid((nfit+1, nfit), (ix,ix))
+        if (ix == nfit-1):
           hist_orientation='horizontal'
         else:
           hist_orientation='vertical'
@@ -232,46 +242,51 @@ def main():
           # HISTOGRAM and pdf
           hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True)
           
-          #x_pdf = scipy_norm.pdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
-          x_pdf = scipy_norm.pdf(x_data, loc=x_data.mean(), scale=x_data.std())
-          if(ii == nfit-1):
-            ax.plot(x_pdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
-          else:
-            ax.plot(x_data[idx], x_pdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+          ##x_pdf = scipy_norm.pdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
+          #x_pdf = scipy_norm.pdf(x_data, loc=x_data.mean(), scale=x_data.std())
+          #if(ix == nfit-1):
+            #ax.plot(x_pdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+          #else:
+            #ax.plot(x_data[idx], x_pdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
         
         else:
           # CUMULATIVE HISTOGRAM and cdf
           hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True, cumulative=True)
           
-          #x_cdf = scipy_norm.cdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
-          x_cdf = scipy_norm.cdf(x_data, loc=x_data.mean(), scale=x_data.std())
-          if(ii == nfit-1):
-            ax.plot(x_cdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
-          else:
-            ax.plot(x_data[idx], x_cdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+          ##x_cdf = scipy_norm.cdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
+          #x_cdf = scipy_norm.cdf(x_data, loc=x_data.mean(), scale=x_data.std())
+          #if(ix == nfit-1):
+            #ax.plot(x_cdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+          #else:
+            #ax.plot(x_data[idx], x_cdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
         
-        if (ii == nfit-1):
+        if (ix == nfit-1):
           ax.set_ylim([y_min, y_max])
-          # plot mean_mode
-          ax.axhline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
-          # plot median
-          ax.axhline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-          if(sample_parameters is not None):
-            # plot of sample_parameters
-            ax.axhline(sample_parameters[ii], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[ii]))
+          # plot selected overplot sample
+          ax.axhline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+          ## plot mean_mode
+          #ax.axhline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
+          ## plot median
+          #ax.axhline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+          ## plot sample
+          #if(sample_parameters is not None):
+            ## plot of sample_parameters
+            #ax.axhline(sample_parameters[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[ix]))
         else:
           ax.set_xlim([x_min, x_max])
-          # plot mean_mode
-          ax.axvline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
-          # plot median
-          ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-          if(sample_parameters is not None):
-            # plot of sample_parameters
-            ax.axvline(sample_parameters[jj], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[jj]))
+          # plot selected overplot sample
+          ax.axvline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+          ## plot mean_mode
+          #ax.axvline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
+          ## plot median
+          #ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+          ## plot sample
+          #if(sample_parameters is not None):
+            #ax.axvline(sample_parameters[iy], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[iy]))
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
-        ax.set_title(kel_plot_labels[ii], fontsize=label_size)
+        ax.set_title(kel_plot_labels[ix], fontsize=label_size)
 
         plt.draw()
 
@@ -287,8 +302,8 @@ def main():
 
   logger.info('')
 
-  anc.print_parameters_logger(logger, parameter_names_emcee, median_parameters, median_perc68, median_confint, 'median')
-  anc.print_parameters_logger(logger, parameter_names_emcee, mode_parameters, mode_perc68, mode_confint, 'mode')
+  #anc.print_parameters_logger(logger, parameter_names_emcee, median_parameters, median_perc68, median_confint, 'median')
+  #anc.print_parameters_logger(logger, parameter_names_emcee, mode_parameters, mode_perc68, mode_confint, 'mode')
 
   return
 

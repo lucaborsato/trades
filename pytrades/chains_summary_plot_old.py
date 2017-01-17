@@ -55,9 +55,8 @@ def main():
 
   chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=True)
   
-  
-  #name_par, name_excluded = anc.get_sample_list(cli.sample_str, parameter_names_emcee)
-  #sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0, parameter_names_emcee, name_par = name_par, name_excluded = name_excluded)
+  name_par, name_excluded = anc.get_sample_list(cli.sample_str, parameter_names_emcee)
+  sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0, parameter_names_emcee, name_par = name_par, name_excluded = name_excluded)
 
   flatchain_posterior_1 = flatchain_posterior_0
 
@@ -67,36 +66,24 @@ def main():
     logger.info('saved bootstrap like file: %s' %(boot_file))
     del flatchain_posterior_msun
 
-  #median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
+  median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
 
   k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
+  #if(k>11): k=11
   if(k>50): k=50
-  #mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
+  mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
   
   # max lnprob
-  #max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
-  #print 
+  max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
+  print 
   
-  ## OPEN summary_parameters.hdf5 FILE
-  s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
-  # sample_parameters
-  ci_fitted = s_h5f['confidence_intervals/fitted/ci'][...]
-  sample_parameters = s_h5f['parameters/0666/fitted/parameters'][...]
-  median_parameters = s_h5f['parameters/1050/fitted/parameters'][...]
-  max_lnprob_parameters = s_h5f['parameters/2050/fitted/parameters'][...]
-  mode_parameters = s_h5f['parameters/3050/fitted/parameters'][...]
-  s_h5f.close()
+  
 
   emcee_plots = os.path.join(cli.full_path,'plots')
   if (not os.path.isdir(emcee_plots)):
     os.makedirs(emcee_plots)
 
   for i in range(0, nfit):
-    if('Ms' in parameter_names_emcee[i]):
-      conv_plot = m_factor
-    else:
-      conv_plot = 1.
-    
     emcee_fig_file = os.path.join(emcee_plots, 'chain_%s.png' %(parameter_names_emcee[i].strip()))
     print ' %s' %(emcee_fig_file),
     fig, (axChain, axHist) = plt.subplots(nrows=1, ncols=2, figsize=(12,12))
@@ -110,22 +97,30 @@ def main():
 
     axChain.plot(chains_T[:,:,i], '-', alpha=0.3)
 
+    post_15th = np.percentile(flatchain_posterior_1[:,i], anc.percentile_val[2], interpolation='midpoint')
+    post_84th = np.percentile(flatchain_posterior_1[:,i], anc.percentile_val[3], interpolation='midpoint')
+
+    median  = median_parameters[i]
+    lower = median_parameters[i]+median_confint[0,i]
+    upper = median_parameters[i]+median_confint[3,i]
+
     # plot of mode (mean of higher peak/bin)
-    axChain.axhline(mode_parameters[i]*conv_plot, color='red', ls='-', lw=2.1, alpha=1, label='mode')
+    axChain.axhline(mode_parameters[i], color='red', ls='-', lw=2.1, alpha=1, label='mode')
+    axChain.axhline(mode_parameters[i]+mode_confint[0,i], color='red', ls='--', lw=1.3, alpha=0.5, label='lower mode')
+    axChain.axhline(mode_parameters[i]+mode_confint[3,i], color='red', ls='-.', lw=1.3, alpha=0.5, label='upper mode')
     
     # plot of median
-    axChain.axhline(median_parameters[i]*conv_plot, marker='None', c='blue',ls='-', lw=2.1, alpha=1.0, label='median fit')
+    #axChain.axhline(max_lnprob_parameters[i], marker='None', c='cyan',ls='-', lw=1.5, label='max lnprob fit', alpha=0.65)
+    axChain.axhline(median, marker='None', c='blue',ls='-', lw=2.1, alpha=1.0, label='median fit')
+    axChain.axhline(lower, marker='None', c='blue',ls='-.', lw=1.1, alpha=0.5, label='lower median')
+    axChain.axhline(upper, marker='None', c='blue',ls='--', lw=1.1, alpha=0.5, label='upper median')
     
     # plot of max_lnprob
-    axChain.axhline(max_lnprob_parameters[i]*conv_plot, marker='None', c='black',ls='-', lw=2.1, alpha=1.0, label='max lnprob')
+    axChain.axhline(max_lnprob_parameters[i], marker='None', c='black',ls='-', lw=2.1, alpha=1.0, label='max lnprob')
     
     if(sample_parameters is not None):
       # plot of sample_parameters
-      axChain.axhline(sample_parameters[i]*conv_plot, marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]))
-      
-    # plot ci
-    axChain.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th')
-    axChain.axhline(ci_fitted[i,1]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 84.135th')
+      axChain.axhline(sample_parameters[i], marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]))
     
     axChain.ticklabel_format(useOffset=False)
     xlabel = '$N_\mathrm{steps}$'
@@ -147,26 +142,34 @@ def main():
     axHist.set_ylim([y_min, y_max])
 
     # plot mode
-    axHist.axhline(mode_parameters[i]*conv_plot, color='red', ls='-', lw=2.1, alpha=1, label='mode')
+    axHist.axhline(mode_parameters[i], color='red', ls='-', lw=2.1, alpha=1, label='mode')
+    axHist.axhline(mode_parameters[i]+mode_confint[0,i], color='red', ls='--', lw=1.3, alpha=0.5, label='lower mode')
+    axHist.axhline(mode_parameters[i]+mode_confint[3,i], color='red', ls='-.', lw=1.3, alpha=0.5, label='upper mode')
     # plot median
-    axHist.axhline(median_parameters[i]*conv_plot, marker='None', c='blue',ls='-', lw=2.1, alpha=1.0, label='median fit')
+    axHist.axhline(median, marker='None', c='blue',ls='-', lw=2.1, alpha=1.0, label='median fit')
+    axHist.axhline(lower, marker='None', c='blue',ls='-.', lw=1.1, alpha=0.5, label='lower median')
+    axHist.axhline(upper, marker='None', c='blue',ls='--', lw=1.1, alpha=0.5, label='upper median')
+    # plot CI
+    axHist.axhline(post_15th, marker='None', color='lightgreen', ls='-', lw=1.5, alpha=0.4, label='posterior[15.86th]')
+    axHist.axhline(post_84th, marker='None', color='darkgreen', ls='-', lw=1.5, alpha=0.4, label='posterior[84.14th]')
     # plot of max_lnprob
-    axHist.axhline(max_lnprob_parameters[i]*conv_plot, marker='None', c='black',ls='-', lw=2.1, alpha=1.0, label='max lnprob')
+    axHist.axhline(max_lnprob_parameters[i], marker='None', c='black',ls='-', lw=2.1, alpha=1.0, label='max lnprob')
     
     if(sample_parameters is not None):
       # plot of sample_parameters
-      axHist.axhline(sample_parameters[i]*conv_plot, marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]))
+      axHist.axhline(sample_parameters[i], marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]))
       
-    # plot ci
-    axHist.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th')
-    axHist.axhline(ci_fitted[i,1]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 84.135th')
-    
     axHist.set_title('Distribution of posterior chain')
     axHist.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5))
     plt.draw()
 
     fig.savefig(emcee_fig_file, bbox_inches='tight', dpi=150)
     print ' saved'
+    print '   median = ', median,             ' lower = ', lower,                                ' upper = ', upper
+    print '     mode = ', mode_parameters[i], ' lower = ', mode_parameters[i]+mode_confint[0,i], ' upper = ', mode_parameters[i]+mode_confint[3,i]
+    if(sample_parameters is not None):
+      print '   picked = ', sample_parameters[i]
+    print 'post 15th = ', post_15th,          '  84th = ', post_84th
     print
 
   fig = plt.figure(figsize=(12,12))

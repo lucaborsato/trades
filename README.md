@@ -13,7 +13,12 @@ Comments are welcome!
 **only tested on a Unix/Linux machine (i.e., Centos Rocks 5.3, Ubuntu > 12.04 and derivatives)**    
 **Please use `gfortran` version greater than `4.8.1`. Previous versions could fail to compile.**    
 **`MPI/open-MPI` required in order to compile the PolyChord library. In the future this will be fixed.**    
-**`openMP` required to compile parallel versions `TRADES`**
+**`openMP` required to compile parallel versions `TRADES`**    
+**Required `python` packages: `numpy`, `sys`, `argparse`, `os`, `scipy.stats`, `random`, `logging`, `warnings`, `glob`, `matplotlib`, [`veusz`][veusz] `h5py`, [`acor`][acor], [`emcee`][emcee], `subprocess`, `multiprocessing`, `time`, `shutil`**    
+
+[acor](https://github.com/dfm/acor)    
+[emcee](http://dan.iel.fm/emcee/current/)    
+[veusz](http://home.gna.org/veusz/)
 
 ---
 
@@ -411,9 +416,8 @@ Check also other files in the `pytrades` folder to understand how to use the pyt
 **sorry, I will not be able to report all the small changes...**    
 
 #### `TRADES 2.10.1`
-Constants values, such as `0._dp`, `1._dp`, and `2._dp`, have been replaced with `parameter` variables.    
-Added python scripts for the analysis of the simulations.    
-Added file `full_emcee_analysis.py` that runs all the post-`emcee` related python scripts for the analysis (it uses `subprocess` and `multiprocessing`).    
+
+More updates on python scripts.    
 
 #### `TRADES 2.10.0`
 

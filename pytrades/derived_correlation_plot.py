@@ -339,48 +339,70 @@ def main():
   n_der = derived_names.shape[0]
   n_flatchain = derived_posterior_in.shape[0]
 
-  # check distribution of angles...
-  derived_posterior = derived_posterior_in.copy()
-  for ider in range(0, n_der):
-    if('w' in derived_names[ider] or 'mA' in derived_names[ider] or 'lN' in derived_names[ider]):
-      #print derived_names[ider]
-      cosp = np.cos(derived_posterior_in[:,ider]*anc.deg2rad)
-      sinp = np.sin(derived_posterior_in[:,ider]*anc.deg2rad)
-      p_scale = np.arctan2(sinp, cosp)*anc.rad2deg
-      p_mod = (p_scale+360.)%360.
-      temp_par, temp_post = anc.get_good_distribution(p_scale, p_mod)
-      derived_posterior[:,ider] = temp_post
+  ## check distribution of angles...
+  #derived_posterior = derived_posterior_in.copy()
+  #for ider in range(0, n_der):
+    #if('w' in derived_names[ider] or 'mA' in derived_names[ider] or 'lN' in derived_names[ider]):
+      ##print derived_names[ider]
+      #cosp = np.cos(derived_posterior_in[:,ider]*anc.deg2rad)
+      #sinp = np.sin(derived_posterior_in[:,ider]*anc.deg2rad)
+      #p_scale = np.arctan2(sinp, cosp)*anc.rad2deg
+      #p_mod = (p_scale+360.)%360.
+      #temp_par, temp_post = anc.get_good_distribution(p_scale, p_mod)
+      #derived_posterior[:,ider] = temp_post
+      
+  derived_posterior = anc.derived_posterior_check(derived_names, derived_posterior_in)
 
   labels_list = anc.derived_labels(derived_names, cli.m_type)
 
   # median
-  median_derived, median_perc68, median_confint = anc.get_median_parameters(derived_posterior)
+  #median_derived, median_perc68, median_confint = anc.get_median_parameters(derived_posterior)
   # mode
   k = np.ceil(2. * n_flatchain**(1./3.)).astype(int)
   if(k>50): k=50
-  mode_bin, mode_derived, mode_perc68, mode_confint = anc.get_mode_parameters_full(derived_posterior, k)
+  #mode_bin, mode_derived, mode_perc68, mode_confint = anc.get_mode_parameters_full(derived_posterior, k)
   
-  file_sample = os.path.join(os.path.join(cli.full_path, '0666_sim'), 'parameters_summary.txt')
-  if(os.path.exists(file_sample) and os.path.isfile(file_sample)):
-    of = open(file_sample, 'r')
-    lines = of.readlines()
-    of.close()
-    for line in lines:
-      if('idx' in line.strip()):
-        idx_sample = int(line.strip().split('idx = ')[1])
-        print idx_sample
-        break
-    sample_derived = derived_posterior[idx_sample, :]
-  else:
-    sample_derived = None
+  #file_sample = os.path.join(os.path.join(cli.full_path, '0666_sim'), 'parameters_summary.txt')
+  #if(os.path.exists(file_sample) and os.path.isfile(file_sample)):
+    #of = open(file_sample, 'r')
+    #lines = of.readlines()
+    #of.close()
+    #for line in lines:
+      #if('idx' in line.strip()):
+        #idx_sample = int(line.strip().split('idx = ')[1])
+        #print idx_sample
+        #break
+    #sample_derived = derived_posterior[idx_sample, :]
+  #else:
+    #sample_derived = None
+  
+  
+  ## OPEN summary_parameters.hdf5 FILE
+  s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
+  # take only the selected sample
+  s_overplot = '%04d' %(cli.overplot)
+  #overp_der = s_h5f['parameters/%s/derived/parameters' %(s_overplot)][...]
+  read_der = s_h5f['parameters/%s/derived/parameters' %(s_overplot)][...]
+  s_h5f.close()
+  
+  #overp_der = read_der.copy()
+  #for ider in range(0, n_der):
+    #if('w' in derived_names[ider] or 'mA' in derived_names[ider] or 'lN' in derived_names[ider]):
+      #if(np.min(derived_posterior[:,ider]) < 0.):
+        #if(np.max(derived_posterior[:,ider]) < 0.):
+          #overp_der[ider] = (overp_der[ider]-360.)%360.
+      #else:
+        #overp_der[ider] = (overp_der[ider]+360.)%360.
+        
+  overp_der = anc.derived_parameters_check(derived_names, read_der, derived_posterior)
   
   fig = plt.figure(figsize=(12,12))
   fig.subplots_adjust(hspace=0.05, wspace=0.05)
   
   for ix in range(0, n_der):
     x_data = derived_posterior[:,ix]
-    x_med = median_derived[ix]
-    x_mode = mode_derived[ix]
+    #x_med = median_derived[ix]
+    #x_mode = mode_derived[ix]
     x_min, x_max = anc.compute_limits(x_data, 0.05)
     if(x_min == x_max):
       x_min = x_min - 1.
@@ -388,8 +410,8 @@ def main():
    
     for iy in range(0, n_der):
       y_data = derived_posterior[:,iy]
-      y_med = median_derived[iy]
-      y_mode = mode_derived[iy]
+      #y_med = median_derived[iy]
+      #y_mode = mode_derived[iy]
       y_min, y_max = anc.compute_limits(y_data, 0.05)
       if(y_min == y_max):
         y_min = y_min - 1.
@@ -409,17 +431,20 @@ def main():
         
         ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
         
-        # plot mean_mode
-        ax.axvline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
-        ax.axhline(y_mode, color='red', ls='-', lw=0.9, alpha=0.7)
+        # plot selected overplot sample
+        ax.axvline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+        ax.axhline(overp_der[iy], color='blue', ls='--', lw=1.1, alpha=0.7)
+        ## plot mean_mode
+        #ax.axvline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
+        #ax.axhline(y_mode, color='red', ls='-', lw=0.9, alpha=0.7)
         # plot median
-        ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-        ax.axhline(y_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-        
-        if(sample_derived is not None):
-          # plot of sample_derived
-          ax.axvline(sample_derived[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[ix]))
-          ax.axhline(sample_derived[iy], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[iy]))
+        #ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+        #ax.axhline(y_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+        ## plot sample
+        #if(sample_derived is not None):
+          ## plot of sample_derived
+          #ax.axvline(sample_derived[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[ix]))
+          #ax.axhline(sample_derived[iy], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[iy]))
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -446,42 +471,51 @@ def main():
           # HISTOGRAM and pdf
           hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True)
           
-          #x_pdf = scipy_norm.pdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
-          x_pdf = scipy_norm.pdf(x_data, loc=x_data.mean(), scale=x_data.std())
-          if(ix == n_der-1):
-            ax.plot(x_pdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
-          else:
-            ax.plot(x_data[idx], x_pdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+          ##x_pdf = scipy_norm.pdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
+          #x_pdf = scipy_norm.pdf(x_data, loc=x_data.mean(), scale=x_data.std())
+          #if(ix == n_der-1):
+            #ax.plot(x_pdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+          #else:
+            #ax.plot(x_data[idx], x_pdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
         
         else:
           # CUMULATIVE HISTOGRAM and cdf
           hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True, cumulative=True)
         
-          #x_cdf = scipy_norm.cdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
-          x_cdf = scipy_norm.cdf(x_data, loc=x_data.mean(), scale=x_data.std())
-          if(ix == n_der-1):
-            ax.plot(x_cdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
-          else:
-            ax.plot(x_data[idx], x_cdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+          ##x_cdf = scipy_norm.cdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
+          #x_cdf = scipy_norm.cdf(x_data, loc=x_data.mean(), scale=x_data.std())
+          #if(ix == n_der-1):
+            #ax.plot(x_cdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
+          #else:
+            #ax.plot(x_data[idx], x_cdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
   
+        #print parameter_names_emcee[ix], overp_der[ix]
         if (ix == n_der-1):
           ax.set_ylim([y_min, y_max])
-          # plot mean_mode
-          ax.axhline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
-          # plot median
-          ax.axhline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-          if(sample_derived is not None):
-            # plot of sample_derived
-            ax.axhline(sample_derived[iy], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[iy]))
+          # plot selected overplot sample
+          ax.axhline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+          ## plot mean_mode
+          #ax.axhline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
+          ## plot median
+          #ax.axhline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+          ## plot sample
+          #if(sample_derived is not None):
+            ## plot of sample_derived
+            #ax.axhline(sample_derived[iy], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[iy]))
         else:
           ax.set_xlim([x_min, x_max])
-          # plot mean_mode
-          ax.axvline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
-          # plot median
-          ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-          if(sample_derived is not None):
-            # plot of sample_derived
-            ax.axvline(sample_derived[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[ix]))
+          # plot selected overplot sample
+          ax.axvline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+          ## plot mean_mode
+          #ax.axvline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
+          ## plot median
+          #ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
+          ## plot sample
+          #if(sample_derived is not None):
+            ## plot of sample_derived
+            #ax.axvline(sample_derived[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[ix]))
+        
+        print derived_names[ix], ' overplot val = ', overp_der[ix], ' min = ', x_data.min(), ' max = ', x_data.max()
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)

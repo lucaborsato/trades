@@ -35,7 +35,7 @@ def chains(cli):
   
   print 'RUN chains_summary_plot.py'
   pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'chains_summary_plot.py')
-  run = sp.Popen(['python', pyscript, '-p',cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--sample', str(cli.sample_str) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p',cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED chains_summary_plot.py'
   
@@ -45,14 +45,23 @@ def correlation(cli):
   
   print 'RUN correlation_triangle_plot.py'
   pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'correlation_triangle_plot.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '-c', str(cli.cumulative), '--sample', str(cli.sample_str) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '-c', str(cli.cumulative), '--overplot', str(cli.overplot) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED correlation_triangle_plot.py'
   
   return
 
+def derived_correlation(cli):
+  
+  print 'RUN derived_correlation_plot.py'
+  pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'derived_correlation_plot.py')
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  sout, serr = run.communicate()  
+  print 'COMPLETED derived_correlation_plot.py'
+  
+  return
 
-def ci_and_derived(cli):
+def ci_chains_correlation(cli):
   
   print 'RUN confidence_intervals.py'
   pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'confidence_intervals.py')
@@ -60,11 +69,36 @@ def ci_and_derived(cli):
   sout, serr = run.communicate()  
   print 'COMPLETED confidence_intervals.py'
   
-  print 'RUN derived_correlation_plot.py'
-  pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'derived_correlation_plot.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
-  sout, serr = run.communicate()  
-  print 'COMPLETED derived_correlation_plot.py'
+  sub_th = []
+  
+  # run chains plot
+  sub_pp = mp.Process(target=chains, args=(cli,))
+  sub_pp.start()
+  sub_th.append(sub_pp)
+  
+  # run correlation plot
+  sub_pp = mp.Process(target=correlation, args=(cli,))
+  sub_pp.start()
+  sub_th.append(sub_pp)
+  
+  # run derived correlation plot
+  sub_pp = mp.Process(target=derived_correlation, args=(cli,))
+  sub_pp.start()
+  sub_th.append(sub_pp)
+  
+  for sub_pp in sub_th:
+    sub_pp.join()
+    
+  # Check processes status
+  for sub_pp in sub_th:
+    print "Process ",sub_pp, " @ ", sub_pp.pid, " is ", status(sub_pp)
+  # Wait processes to finish
+  while len(sub_th) != 0:
+    for sub_pp in sub_th:
+      if status(sub_pp) == "dead":
+        sub_th.pop(sub_th.index(sub_pp))
+    # loose 10 seconds before checking again
+    time.sleep(5)
   
   return
 
@@ -94,18 +128,18 @@ def main():
   pp.start()
   threads.append(pp)
   
-  # run chains plot
-  pp = mp.Process(target=chains, args=(cli,))
-  pp.start()
-  threads.append(pp)
+  ## run chains plot
+  #pp = mp.Process(target=chains, args=(cli,))
+  #pp.start()
+  #threads.append(pp)
   
-  # run correlation plot
-  pp = mp.Process(target=correlation, args=(cli,))
-  pp.start()
-  threads.append(pp)
+  ## run correlation plot
+  #pp = mp.Process(target=correlation, args=(cli,))
+  #pp.start()
+  #threads.append(pp)
 
-  # run credible intervals and derived correlation plot
-  pp = mp.Process(target=ci_and_derived, args=(cli,))
+  # run credible intervals, chains, and derived correlation plot
+  pp = mp.Process(target=ci_chains_correlation, args=(cli,))
   pp.start()
   threads.append(pp)
 

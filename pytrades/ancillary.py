@@ -41,6 +41,15 @@ def set_int_argument(arg_in):
   except:
     arg_out = 0
   return arg_out
+
+def set_int_argument_overplot(arg_in):
+  try:
+    arg_out = int(arg_in)
+  except:
+    arg_out = 1051
+  if(arg_out not in [0, 666, 777, 1050, 1051, 2050, 3050, 3051]):
+    arg_out = 1051
+  return arg_out
   
 def set_int_or_none(arg_in):
   try:
@@ -73,6 +82,7 @@ def get_args():
   
   parser.add_argument('--seed', action='store', dest='seed', default='None', help='Set the seed for random number generator. Default is None.')
   
+  parser.add_argument('--overplot', action='store', dest='overplot', default='1051', help='Define which parameter set to be overplotted on the correlation plot.\nInput the proper number:\n0 (starting parameters),\n666 (pick sample),\n777 (ad hoc sample),\n1050 (median, derived as median of the derived posterior),\n1051 (median, derived computed from median parameters), 2050 (max lnprob),\n3050 (mode, derived as mode of the derived posterior),\n3051 (mode, derived computed from mode parameters)')
   
   cli = parser.parse_args()
 
@@ -83,6 +93,7 @@ def get_args():
   cli.boot_id = set_int_argument(cli.boot_id)
   cli.use_thin = set_bool_argument(cli.use_thin)
   cli.seed = set_int_or_none(cli.seed)
+  cli.overplot = set_int_argument_overplot(cli.overplot)
   
   return cli
 
@@ -513,7 +524,7 @@ def thin_the_chains(use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_fu
     n_thin = np.shape(sel_thin_steps)[0]
     
     print ' n_thin = ', n_thin
-    print ' sel_thin_steps = ', sel_thin_steps
+    #print ' sel_thin_steps = ', sel_thin_steps
     chains_T = chains_T_full[sel_thin_steps,:,:]
     # create a flat array of the posterior: from (nruns_sel, nwalkers, nfit) -> (nruns_sel * nwalkers, nfit)
     flatchain_posterior_0 = chains_T[:,:,:].reshape((-1, nfit))
@@ -679,7 +690,9 @@ def pick_sample_parameters(posterior, parameter_names, name_par = None, name_exc
   
   if (name_par is not None):
     npost, nfit = np.shape(posterior)
-    post_ci = np.percentile(posterior, [15.865, 84.135], axis = 0, interpolation='midpoint')
+    #post_ci = np.percentile(posterior, [15.865, 84.135], axis = 0, interpolation='midpoint')
+    post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]], axis = 0, interpolation='midpoint')
+    #post_ci = np.percentile(posterior, [percentile_val[4], percentile_val[5]], axis = 0, interpolation='midpoint')
     #print np.shape(post_ci)
     
     sel_par = 0
@@ -688,6 +701,8 @@ def pick_sample_parameters(posterior, parameter_names, name_par = None, name_exc
         sel_par = ipar
         break
     #print name_par, ' -> ',sel_par,': ',parameter_names[ipar]
+    
+    # use median
     # get idx sorted of the selected parameter-posterior
     idx_posterior = np.argsort(posterior[:,sel_par])
     # define the number of testing sample given the values within credible intervals
@@ -704,9 +719,29 @@ def pick_sample_parameters(posterior, parameter_names, name_par = None, name_exc
     #print n_testing
     sel_idx = [int(0.5*npost) + testing[ii] for ii in range(0, n_testing)]
     #print sel_idx
+    
+    ## use mode
+    #k = np.ceil(2. * posterior.shape[0]**(1./3.)).astype(int)
+    #if(k>50): k=50
+    #hist_counts, bin_edges = np.histogram(posterior[:,sel_par], bins=k)
+    #max_bin = np.argmax(np.array(hist_counts))
+    #if (max_bin == 0 or max_bin == k):
+      #ext_bin = 0
+    #elif (max_bin == 1 or max_bin == k-1):
+      #ext_bin = 1
+    #else:
+      #ext_bin = 2
+    #idx_posterior = np.arange(0,posterior.shape[0],1)
+    #sel_post = np.logical_and(posterior[:,sel_par]>=bin_edges[max_bin-ext_bin], posterior[:,sel_par]<=bin_edges[max_bin+ext_bin])
+    #sel_idx = idx_posterior[sel_post]
+    #n_testing = np.shape(sel_idx)[0]
 
     for ii in range(0,n_testing):
+      # w/ median
       idx = idx_posterior[sel_idx[ii]]
+      ## w/ mode
+      #idx = sel_idx[ii]
+      
       sample_parameters = posterior[idx,:]
       check_sample = True
       check_sample = check_sample_parameters(parameter_names, sample_parameters, post_ci, name_excluded)
@@ -1001,7 +1036,7 @@ def get_units(names, mass_unit):
     
     if(str(names[i])[0] == 'm'):
       if('Ms' in names[i]):
-        units_par.append('[M_pl/M_star]')
+        units_par.append('[M_sun/M_star]')
       elif('mA' in names[i]):
         units_par.append('[deg]')
       else:
@@ -1453,6 +1488,38 @@ def derived_parameters_case4(idpar_NB, id_fit_NB, i_NB, cols, kep_elem, paramete
         
   return name_der, der_par
 
+def derived_posterior_check(derived_names, derived_posterior_in):
+  # check distribution of angles...
+  derived_posterior = derived_posterior_in.copy()
+  n_der = np.shape(derived_names)[0]
+  for ider in range(0, n_der):
+    if('w' in derived_names[ider] or 'mA' in derived_names[ider] or 'lN' in derived_names[ider]):
+      #print derived_names[ider]
+      cosp = np.cos(derived_posterior_in[:,ider]*deg2rad)
+      sinp = np.sin(derived_posterior_in[:,ider]*deg2rad)
+      p_scale = np.arctan2(sinp, cosp)*rad2deg
+      p_mod = (p_scale+360.)%360.
+      temp_par, temp_post = get_good_distribution(p_scale, p_mod)
+      derived_posterior[:,ider] = temp_post
+  return derived_posterior
+ 
+def derived_parameters_check(derived_names, derived_parameters_in, derived_posterior):
+  derived_parameters = derived_parameters_in.copy()
+  n_der = np.shape(derived_names)[0]
+  for ider in range(0, n_der):
+    #print derived_names[ider]
+    if('w' in derived_names[ider] or 'mA' in derived_names[ider] or 'lN' in derived_names[ider]):
+      #print '[0]', derived_parameters[ider]
+      if(np.min(derived_posterior[:,ider]) < 0.):
+        #print np.min(derived_posterior[:,ider])
+        if(np.max(derived_posterior[:,ider]) < 0.):
+          #print np.max(derived_posterior[:,ider])
+          derived_parameters[ider] = derived_parameters[ider]%-360.
+      else:
+        derived_parameters[ider] = derived_parameters[ider]%360.
+      #print '[1]', derived_parameters[ider]
+  return derived_parameters
+
 def compute_derived_posterior(idpar, kep_elem, id_fit, case_list, cols_list, posterior, conv_factor=1.):
   NB = len(case_list)
   nfit = len(id_fit)
@@ -1661,16 +1728,38 @@ def get_header(perc_val):
   
   return top_header, header
 
-def print_parameters(top_header, header, name_parameters, unit_parameters, parameters, sigma_parameters, output=None):
+def print_parameters(top_header, header, name_parameters, unit_parameters, parameters, sigma_parameters=None, output=None):
   
   print_both(top_header, output)
   print_both(header, output)
   #n_par = parameters.shape[0]
   n_par = len(name_parameters)
   for i_p in range(0, n_par):
-    sigma_line = ' '.join(['%15.10f' %(sigma_parameters[ii,i_p]) for ii in range(0,len(percentile_val))])
+    if(sigma_parameters is None):
+      sigma_line = ' '
+    else:
+      sigma_line = ' '.join(['%15.10f' %(sigma_parameters[ii,i_p]) for ii in range(0,len(percentile_val))])
     line = '%17s %20s %15.10f %s' %(name_parameters[i_p], unit_parameters[i_p], parameters[i_p], sigma_line)
     print_both(line, output)
+  
+  return
+
+def print_confidence_intervals(percentiles, conf_interv=None, name_parameters=None, unit_parameters=None, output=None):
+  
+  if(conf_interv is not None):
+    header = '%1s %15s %20s' %('#', 'name', 'unit')
+    perc_str = ' '.join(['%15s' %('%4.2f-th' %(percentiles[i_p])) for i_p in range(len(percentiles))])
+    header = '%s %s' %(header, perc_str)
+    print_both(header, output)
+    
+    n_par = len(name_parameters)
+    for i_p in range(0, n_par):
+      ci_line = ' '.join(['%15.10f' %(conf_interv[ii,i_p]) for ii in range(0,len(percentiles))])
+      line = '%17s %20s %s' %(name_parameters[i_p], unit_parameters[i_p], ci_line)
+      print_both(line, output)
+  
+  else:
+    print_both('EMPTY',output)
   
   return
 

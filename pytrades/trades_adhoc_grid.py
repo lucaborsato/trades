@@ -122,6 +122,7 @@ def main():
   fitness_run0, lgllhd_run0, check_run0 = pytrades_lib.pytrades.write_summary_files(0, fitting_parameters)
   fitness_run0 = fitness_run0*inv_dof_cor/inv_dof
   print_both('fitness = %.8f lgllhd = %.8f check = %r' %(fitness_run0, lgllhd_run0, bool(check_run0)), of_run)
+  print_both(' '.join([str(fitting_parameters[i]) for i in range(len(fitting_parameters))]), of_run)
   print_both(' GO ON WITH THE GRID', of_run)
 
   # WE WANT TO GENERATE A GRID ON INC_C AND INC_D BETWEEN THE BOUNDARIES
@@ -150,32 +151,39 @@ def main():
     for iid in range(0,n_id):
       i_grid += 1
       print_both(' Setting grid parameters at id = %d (%d , %d): (%14.8f , %14.8f) ' %(i_grid, iic+1, iid+1, inc_c[iic], inc_d[iid]), of_run)
+      
       grid_temp = np.zeros((nfit)) + fitting_parameters
       
-      grid_temp[f_ic]   = inc_c[iic]*np.cos(system_parameters[s_ic+1]*deg2rad)
-      #print_both('icoslN_c = %.8f' %(inc_c[iic]*np.cos(system_parameters[s_ic+1]*deg2rad)),of_run)
+      #grid_temp[f_ic]   = inc_c[iic]*np.cos(system_parameters[s_ic+1]*deg2rad)
+      ##print_both('icoslN_c = %.8f' %(inc_c[iic]*np.cos(system_parameters[s_ic+1]*deg2rad)),of_run)
       
-      grid_temp[f_ic+1] = inc_c[iic]*np.sin(system_parameters[s_ic+1]*deg2rad)
-      #print_both('isinlN_c = %.8f' %(inc_c[iic]*np.sin(system_parameters[s_ic+1]*deg2rad)),of_run)
+      #grid_temp[f_ic+1] = inc_c[iic]*np.sin(system_parameters[s_ic+1]*deg2rad)
+      ##print_both('isinlN_c = %.8f' %(inc_c[iic]*np.sin(system_parameters[s_ic+1]*deg2rad)),of_run)
       
-      grid_temp[f_id]   = inc_d[iid]*np.cos(system_parameters[s_id+1]*deg2rad)
-      #print_both('icoslN_d = %.8f' %(inc_c[iid]*np.cos(system_parameters[s_id+1]*deg2rad)),of_run)
+      #grid_temp[f_id]   = inc_d[iid]*np.cos(system_parameters[s_id+1]*deg2rad)
+      ##print_both('icoslN_d = %.8f' %(inc_c[iid]*np.cos(system_parameters[s_id+1]*deg2rad)),of_run)
       
-      grid_temp[f_id+1] = inc_d[iid]*np.sin(system_parameters[s_id+1]*deg2rad)
-      #print_both('isinlN_d = %.8f' %(inc_c[iid]*np.sin(system_parameters[s_id+1]*deg2rad)),of_run)
+      #grid_temp[f_id+1] = inc_d[iid]*np.sin(system_parameters[s_id+1]*deg2rad)
+      ##print_both('isinlN_d = %.8f' %(inc_c[iid]*np.sin(system_parameters[s_id+1]*deg2rad)),of_run)
+      
+      system_temp = system_parameters.copy()
+      system_temp[s_ic] = inc_c[iic]
+      system_temp[s_id] = inc_d[iid]
       
       set_parameters = {'fitting_parameters':grid_temp, 'id_grid':i_grid}
       
       # GOOD IN SERIAL
       #fitness_run, lgllhd_run, check_run = pytrades_lib.pytrades.write_summary_files(i_grid, grid_temp)
-      lgllhd_run, check_run = pytrades_lib.pytrades.fortran_loglikelihood(grid_temp)
-      #fitness_run = -2.0*lgllhd_run*inv_dof
-      fitness_run = -2.0*lgllhd_run*inv_dof_cor
+      #lgllhd_run, check_run = pytrades_lib.pytrades.fortran_loglikelihood(grid_temp)
+      ##fitness_run = -2.0*lgllhd_run*inv_dof
+      #fitness_run = -2.0*lgllhd_run*inv_dof_cor
+      
+      fitness_run, check_run = pytrades_lib.pytrades.fortran_fitness_long(system_temp, grid_temp)
       
       # save final lists
       full_inc_c.append(inc_c[iic])
       full_inc_d.append(inc_d[iid])
-      full_fitness.append(fitness_run)
+      full_fitness.append(fitness_run*inv_dof)
       full_check.append(check_run)
       
       print_both(' Done simulation number %d ==> check = %r, fitness = %.8f\n' %(i_grid, bool(check_run), fitness_run), of_run)
