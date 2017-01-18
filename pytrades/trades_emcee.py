@@ -54,7 +54,7 @@ def get_args():
   # COMPUTE OR NOT CONSTANT TO ADD TO THE LGLIKELIHOOD: - (1/2dof) * SUM( ln 2pi * sigma_obs^2 )
   parser.add_argument('-l', '--ln-err', '--ln-err-const', action='store', dest='ln_flag', default=True, help='Computes or not constant to add to the lglikelihood: - (1/2dof) * SUM( ln 2pi * sigma_obs^2 ). Default = True. Set to False if not use this value.')
   
-  parser.add_argument('-ds', '--d-sigma', '--delta-sigma', action='store', dest='delta_sigma', default=1.e-4, type=np.float64, help='Value of the sigma to compute initial walkers from initial solution. Default=1.e-4')
+  parser.add_argument('-ds', '--d-sigma', '--delta-sigma', action='store', dest='delta_sigma', default='1.e-4', type=str, help='Value of the sigma to compute initial walkers from initial solution. Default=1.e-4')
   
   cli = parser.parse_args()
   
@@ -69,10 +69,10 @@ def get_args():
   
   cli.ln_flag = anc.set_bool_argument(cli.ln_flag)
   
-  try:
-    cli.delta_sigma = np.float64(cli.delta_sigma)
-  except:
-    cli.delta_sigma = np.float64(1.e-4)
+  #try:
+    #cli.delta_sigma = np.float64(cli.delta_sigma)
+  #except:
+    #cli.delta_sigma = np.float64(1.e-4)
     
   return cli
 
@@ -116,7 +116,8 @@ def init_folder(working_path, sub_folder):
   t0files = glob.glob(os.path.join(working_path,'NB*_observations.dat'))
   for t0f in t0files:
     shutil.copy(t0f, os.path.join(working_folder,''))
-  shutil.copy(os.path.join(working_path,'obsRV.dat'), os.path.join(working_folder,''))
+  if(os.path.exists(os.path.join(working_path,'obsRV.dat'))):
+    shutil.copy(os.path.join(working_path,'obsRV.dat'), os.path.join(working_folder,''))
   run_log = os.path.join(working_folder, "trades_run.log")
   of_run = open(run_log, 'w')
   print_both("# pyTRADES LOG FILE", of_run)
@@ -195,23 +196,38 @@ def compute_proper_sigma(nfit, delta_sigma, parameter_names):
 def compute_initial_walkers(nfit, nwalkers, fitting_parameters, delta_parameters, parameter_names, delta_sigma, of_run):
   # initial walkers as input fitting_parameters + N(loc=0.,sigma=1.,size=nwalkers)*delta_sigma
   #p0 = [parameters_minmax[:,0] + np.random.random(nfit)*delta_parameters for i in range(0, nwalkers)]
-  print_both(' Inititializing walkers with delta_sigma = %.16f' %(delta_sigma),of_run)
+  print_both(' Inititializing walkers with delta_sigma = %s' %(str(delta_sigma).strip()), of_run)
   p0 = []
   i_p0 = 0
-  delta_sigma_out = compute_proper_sigma(nfit, delta_sigma, parameter_names)
+  
   print_both(' good p0:', of_run)
-  while True:
-    #test_p0 = fitting_parameters + np.random.normal(loc=0., scale=1., size=nfit)*delta_sigma
-    #test_p0 = fitting_parameters + np.random.normal(loc=0., scale=1., size=nfit)*delta_sigma_out
-    test_p0 = np.array([fitting_parameters[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
-    #test_p0 = fitting_parameters + fitting_parameters*np.random.normal(loc=0., scale=1., size=nfit)*cli.delta_sigma
-    #test_p0 = fitting_parameters + delta_parameters*np.random.normal(loc=0., scale=1., size=nfit)*cli.delta_sigma
-    test_lg = lnprob(test_p0)
-    if(not np.isinf(test_lg)):
-      i_p0 +=1
-      p0.append(test_p0)
-      print i_p0,
-      if(i_p0 == nwalkers): break
+  if('ran' in str(delta_sigma).strip().lower()):
+    while True:
+      test_p0 = fitting_parameters + delta_parameters*np.random.random(nfit)
+      test_lg = lnprob(test_p0)
+      if(not np.isinf(test_lg)):
+        i_p0 +=1
+        p0.append(test_p0)
+        print i_p0,
+        if(i_p0 == nwalkers): break
+  else:
+    try:
+      d_sigma = np.float64(delta_sigma)
+    except:
+      d_sigma = np.float64(1.e-4)
+    
+    delta_sigma_out = compute_proper_sigma(nfit, d_sigma, parameter_names)
+    
+    while True:
+      test_p0 = np.array([fitting_parameters[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
+      #test_p0 = fitting_parameters + delta_parameters*np.random.normal(loc=0., scale=1., size=nfit)*cli.delta_sigma
+      test_lg = lnprob(test_p0)
+      if(not np.isinf(test_lg)):
+        i_p0 +=1
+        p0.append(test_p0)
+        print i_p0,
+        if(i_p0 == nwalkers): break
+
   p0[0] = fitting_parameters # I want the original fitting paramameters in the initial walkers
   print
   print_both(' done initial walkers.', of_run)

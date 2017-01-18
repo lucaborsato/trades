@@ -155,7 +155,7 @@ def main():
     
     if(sample_parameters is not None):
       # plot of sample_parameters
-      axHist.axhline(sample_parameters[i]*conv_plot, marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]))
+      axHist.axhline(sample_parameters[i]*conv_plot, marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]*conv_plot))
       
     # plot ci
     axHist.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th')

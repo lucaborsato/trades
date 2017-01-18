@@ -538,7 +538,8 @@ def thin_the_chains(use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_fu
     if(burnin_done):
       flatchain_posterior_0 = chains_T[:,:,:].reshape((-1, nfit))
     else:
-      flatchain_posterior_0 = chains_T[npost:nruns,:,:].reshape((-1, nfit))
+      chains_T = chains_T[npost:nruns,:,:]
+      flatchain_posterior_0 = chains_T[:,:,:].reshape((-1, nfit))
     print ' posterior not thinned shape = ', np.shape(flatchain_posterior_0)
     lnprob_burnin = lnprobability[:,npost:nruns]
     print ' lnprob_burnin not thinned shape = ', np.shape(lnprob_burnin)

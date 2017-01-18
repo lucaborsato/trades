@@ -55,7 +55,7 @@ def main():
 
   top_header, header = anc.get_header(anc.percentile_val)
 
-
+  # GET INTERVALS
   def get_intervals(full_path, id_sim, parameter_names, parameters, flatchain_posterior, derived_type=None, full_output=False, idx_sample=None, summary_file_hdf5=None):
     
     out_folder = os.path.join(os.path.join(full_path, '%04d_sim' %(id_sim)), '')
@@ -65,7 +65,7 @@ def main():
     out = open(out_file, 'w')
     pytrades_lib.pytrades.path_change(out_folder)
 
-    anc.print_both(' ORIGINAL PARAMETER VALUES -> %d' %(id_sim), out)
+    anc.print_both(' PARAMETER VALUES -> %d' %(id_sim), out)
     fitness, lgllhd, check = pytrades_lib.pytrades.write_summary_files(id_sim, parameters)
 
     kel_file, kep_elem = anc.elements(out_folder, id_sim, lmf=0)
@@ -174,6 +174,7 @@ def main():
   # ************************************
   ## MAX LNPROBABILITY AND PARAMETERS -> id 2050
   max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
+  max_id1, max_id2 = anc.get_max_indices(lnprob_burnin)
   folder_2050, names_derived, der_posterior = get_intervals(cli.full_path, 2050, names_par, max_lnprob_parameters, flatchain_posterior_0, derived_type=None, full_output=True, summary_file_hdf5=s_h5f)
   units_der = anc.get_units(names_derived, mass_unit)
   # write out the derived names and posterior into an hdf5 file
@@ -231,11 +232,11 @@ def main():
   else:
     print 'NONE SAMPLE PARAMETERS!!!'
 
-  # SELECT AD HOC PARAMETERS: K-19 median b,c, mode d
-  adhoc_par = median_parameters.copy()
-  #adhoc_par[10:] = mode_parameters[10:].copy()
-  adhoc_par[12] = mode_parameters[12].copy()
-  folder_777 = get_intervals(cli.full_path, 777, names_par, adhoc_par, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
+  ## SELECT AD HOC PARAMETERS: K-19 median b,c, mode d
+  #adhoc_par = median_parameters.copy()
+  ##adhoc_par[10:] = mode_parameters[10:].copy()
+  #adhoc_par[12] = mode_parameters[12].copy()
+  #folder_777 = get_intervals(cli.full_path, 777, names_par, adhoc_par, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
   
   
   s_h5f.close()
