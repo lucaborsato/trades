@@ -340,6 +340,7 @@ def main():
     temp_dset = f_hdf5.create_dataset('chains', (nwalkers, nruns, nfit), dtype=np.float64)
     temp_lnprob = f_hdf5.create_dataset('lnprobability', (nwalkers, nruns), dtype=np.float64)
     temp_lnprob.attrs['ln_err_const'] = ln_err_const
+    temp_acceptance = f_hdf5.create_dataset('acceptance_fraction', data=np.zeros((nfit)), dtype=np.float64)
     temp_acor = f_hdf5.create_dataset('autocor_time', data=np.zeros((nfit)), dtype=np.float64)
     f_hdf5.close()
     pos = p0
@@ -363,6 +364,12 @@ def main():
       temp_lnprob[:, aaa:bbb] = sampler.lnprobability[:, aaa:bbb]
       shape_lnprob = sampler.lnprobability.shape
       
+      acceptance_fraction = sampler.acceptance_fraction
+      temp_acceptance = f_hdf5['acceptance_fraction']
+      temp_acceptance = acceptance_fraction
+      #f_hdf5.create_dataset('acceptance_fraction', data=acceptance_fraction, dtype=np.float64)
+      mean_acceptance_fraction = np.mean(acceptance_fraction)
+    
       temp_chains_T = np.zeros((bbb, nwalkers, nfit))
       for ifit in range(0,nfit):
         temp_chains_T[:,:,ifit] = sampler.chain[:, :bbb, ifit].T

@@ -110,7 +110,7 @@ def main():
   nfit, nwalkers, nruns, npost, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.npost, completed_steps)
   logger.info('nfit(%d), nwalkers(%d), nruns(%d), npost(%d), nruns_sel(%d)' %(nfit, nwalkers, nruns, npost, nruns_sel))
 
-  # test labelpad
+  # test label_separation
   #if (nfit <= 3): label_separation = -0.1
   if(nfit > 2):
     label_separation = -0.1 - ( 0.075 * (nfit-2) )

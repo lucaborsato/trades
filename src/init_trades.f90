@@ -832,7 +832,7 @@ module init_trades
           
           ! mean Anomaly & time of the passage at pericentre
           read(unit,*) mA(j),temp1,temp2
-          if(mA(j).ge.999._dp)then
+          if(mA(j).ge.9999._dp)then
             read(unit,*)tau(j),temp1,temp2
             
             if(tau(j).ge.9.e8_dp)then

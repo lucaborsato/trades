@@ -14,7 +14,7 @@ import time
 def geweke(cli):
 
   print 'RUN geweke.py'
-  pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'geweke.py')
+  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'geweke.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', '0', '-m', str(cli.m_type), '-t', str(cli.temp_status), '-s', str(cli.sel_steps)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED geweke.py'
@@ -24,7 +24,7 @@ def geweke(cli):
 def gelman_rubin(cli):
   
   print 'RUN gelman_rubin.py'
-  pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'gelman_rubin.py')
+  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'gelman_rubin.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', '0', '-m', str(cli.m_type), '-t', str(cli.temp_status), '-s', str(cli.sel_steps)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED gelman_rubin.py'
@@ -34,7 +34,7 @@ def gelman_rubin(cli):
 def chains(cli):
   
   print 'RUN chains_summary_plot.py'
-  pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'chains_summary_plot.py')
+  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'chains_summary_plot.py')
   run = sp.Popen(['python', pyscript, '-p',cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED chains_summary_plot.py'
@@ -44,7 +44,7 @@ def chains(cli):
 def correlation(cli):
   
   print 'RUN correlation_triangle_plot.py'
-  pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'correlation_triangle_plot.py')
+  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'correlation_triangle_plot.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '-c', str(cli.cumulative), '--overplot', str(cli.overplot) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED correlation_triangle_plot.py'
@@ -54,7 +54,7 @@ def correlation(cli):
 def derived_correlation(cli):
   
   print 'RUN derived_correlation_plot.py'
-  pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'derived_correlation_plot.py')
+  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'derived_correlation_plot.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED derived_correlation_plot.py'
@@ -64,7 +64,7 @@ def derived_correlation(cli):
 def ci_chains_correlation(cli):
   
   print 'RUN confidence_intervals.py'
-  pyscript = os.path.join(os.path.abspath('./local_trades/trades-dev/pytrades'), 'confidence_intervals.py')
+  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'confidence_intervals.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--sample', str(cli.sample_str), '--seed', str(cli.seed) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED confidence_intervals.py'

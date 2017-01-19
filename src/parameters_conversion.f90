@@ -207,8 +207,10 @@ module parameters_conversion
 
           ! fit mA(8) ==> lambda[0,360]
           else if(id(ifit).eq.8)then
-            minpar(ifit)=zero
-            maxpar(ifit)=360._dp
+!             minpar(ifit)=zero
+!             maxpar(ifit)=360._dp
+            minpar(ifit)=-360._dp
+            maxpar(ifit)=720._dp
             done(ifit)=.true.
           
           ! fit i(9) & lN(10)==>(icoslN,isinlN) [-180,180],[-180,180]

@@ -84,6 +84,8 @@ def get_args():
   
   parser.add_argument('--overplot', action='store', dest='overplot', default='1051', help='Define which parameter set to be overplotted on the correlation plot.\nInput the proper number:\n0 (starting parameters),\n666 (pick sample),\n777 (ad hoc sample),\n1050 (median, derived as median of the derived posterior),\n1051 (median, derived computed from median parameters), 2050 (max lnprob),\n3050 (mode, derived as mode of the derived posterior),\n3051 (mode, derived computed from mode parameters)')
   
+  parser.add_argument('--script-folder', action='store', dest='pyscript', default='./', help='Folder of the python scripts... Default is "./"')
+  
   cli = parser.parse_args()
 
   cli.full_path = os.path.abspath(cli.full_path)
@@ -94,6 +96,7 @@ def get_args():
   cli.use_thin = set_bool_argument(cli.use_thin)
   cli.seed = set_int_or_none(cli.seed)
   cli.overplot = set_int_argument_overplot(cli.overplot)
+  cli.pyscript = os.path.abspath(cli.pyscript)
   
   return cli
 

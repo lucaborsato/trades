@@ -176,11 +176,11 @@ def set_yaxis(ax, label_size, label_separation, label_pad, ticklabel_size, kel_l
   ## read emcee data
   #parameter_names_emcee, parameter_boundaries, chains, acceptance_fraction, autocor_time, lnprobability, ln_err_const, completed_steps = anc.get_data(emcee_file, cli.temp_status)
   
-  #nfit, nwalkers, nruns, npost, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.npost, completed_steps)
+  #n_der, nwalkers, nruns, npost, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.npost, completed_steps)
   
   #m_factor = anc.get_proper_mass(cli.m_type, parameter_names_emcee, trades_folder)
 
-  #chains_T_full, parameter_boundaries_2 = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
+  #chains_T_full, parameter_boundaries_2 = anc.select_transpose_convert_chains(n_der, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
 
   #chains_T, flatchain_posterior_0, lnprob_burnin = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability)
   
@@ -243,11 +243,11 @@ def set_yaxis(ax, label_size, label_separation, label_pad, ticklabel_size, kel_l
   ## read emcee data
   #parameter_names_emcee, parameter_boundaries, chains, acceptance_fraction, autocor_time, lnprobability, ln_err_const, completed_steps = anc.get_data(emcee_file, cli.temp_status)
   
-  #nfit, nwalkers, nruns, npost, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.npost, completed_steps)
+  #n_der, nwalkers, nruns, npost, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.npost, completed_steps)
   
   #m_factor = anc.get_proper_mass(cli.m_type, parameter_names_emcee, trades_folder)
 
-  #chains_T, parameter_boundaries_2 = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
+  #chains_T, parameter_boundaries_2 = anc.select_transpose_convert_chains(n_der, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
 
   #if(cli.use_thin):
     #try:
@@ -269,14 +269,14 @@ def set_yaxis(ax, label_size, label_separation, label_pad, ticklabel_size, kel_l
     ##print ' nruns_sel = ', nruns_sel
     #print ' n_thin = ', n_thin
     #print ' sel_thin_steps = ', sel_thin_steps
-    ## create a flat array of the posterior: from (nruns_sel, nwalkers, nfit) -> (nruns_sel * nwalkers, nfit)
-    #flatchain_posterior_0 = chains_T[sel_thin_steps,:,:].reshape((-1, nfit))
+    ## create a flat array of the posterior: from (nruns_sel, nwalkers, n_der) -> (nruns_sel * nwalkers, n_der)
+    #flatchain_posterior_0 = chains_T[sel_thin_steps,:,:].reshape((-1, n_der))
     #print ' posterior thinned shape = ', np.shape(flatchain_posterior_0)
     #lnprob_burnin = lnprobability[:,nburnin+sel_thin_steps]
     #print ' lnprob_burnin thinned shape = ', np.shape(lnprob_burnin)
   #else:
-    ## create a flat array of the posterior: from (nruns_sel, nwalkers, nfit) -> (nruns_sel * nwalkers, nfit)
-    #flatchain_posterior_0 = chains_T[:,:,:].reshape((-1, nfit))
+    ## create a flat array of the posterior: from (nruns_sel, nwalkers, n_der) -> (nruns_sel * nwalkers, n_der)
+    #flatchain_posterior_0 = chains_T[:,:,:].reshape((-1, n_der))
     #print ' posterior not thinned shape = ', np.shape(flatchain_posterior_0)
     #lnprob_burnin = lnprobability[:,nburnin:nburnin+nruns_sel]
     #print ' lnprob_burnin not thinned shape = ', np.shape(lnprob_burnin)
@@ -352,6 +352,13 @@ def main():
       #derived_posterior[:,ider] = temp_post
       
   derived_posterior = anc.derived_posterior_check(derived_names, derived_posterior_in)
+
+  # test label_separation
+  #if (n_der <= 3): label_separation = -0.1
+  if(n_der > 2):
+    label_separation = -0.1 - ( 0.075 * (n_der-2) )
+  else:
+    label_separation = -0.15
 
   labels_list = anc.derived_labels(derived_names, cli.m_type)
 
