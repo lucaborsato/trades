@@ -146,22 +146,24 @@ def main():
   #name_par, name_excluded = anc.get_sample_list(cli.sample_str, parameter_names_emcee)
   #sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0, parameter_names_emcee, name_par = name_par, name_excluded = name_excluded)
   
-  ## OPEN summary_parameters.hdf5 FILE
-  s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
-  # take only the selected sample
-  s_overplot = '%04d' %(cli.overplot)
-  read_par = s_h5f['parameters/%s/fitted/parameters' %(s_overplot)][...]
-  s_h5f.close()
+  if(cli.overplot is not None):
+    ## OPEN summary_parameters.hdf5 FILE
+    s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
+    # take only the selected sample
+    s_overplot = '%04d' %(cli.overplot)
+    read_par = s_h5f['parameters/%s/fitted/parameters' %(s_overplot)][...]
+    s_h5f.close()
 
   #fig, ax = plt.subplots(nrows = nfit-1, ncols=nfit, figsize=(12,12))
   fig = plt.figure(figsize=(12,12))
   fig.subplots_adjust(hspace=0.05, wspace=0.05)
 
-  # fitted parameters has always Mp/Ms in Msun/Mstar, so it is needed to rescale it properly
-  overp_par = read_par.copy()
-  for ii in range(0, nfit):
-    if('Ms' in parameter_names_emcee[ii]):
-      overp_par[ii] = overp_par[ii]*m_factor
+  if(cli.overplot is not None):
+    # fitted parameters has always Mp/Ms in Msun/Mstar, so it is needed to rescale it properly
+    overp_par = read_par.copy()
+    for ii in range(0, nfit):
+      if('Ms' in parameter_names_emcee[ii]):
+        overp_par[ii] = overp_par[ii]*m_factor
 
   for ix in range(0, nfit, 1):
     x_data = flatchain_posterior_0[:, ix]
@@ -204,9 +206,10 @@ def main():
         #ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, colors=('black', 'forestgreen', 'lightgray'), linestyle='solid', linewidths=(0.5, 0.5, 0.5))
         ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
         
-        # plot selected overplot sample
-        ax.axvline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
-        ax.axhline(overp_par[iy], color='blue', ls='--', lw=1.1, alpha=0.7)
+        if(cli.overplot is not None):
+          # plot selected overplot sample
+          ax.axvline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+          ax.axhline(overp_par[iy], color='blue', ls='--', lw=1.1, alpha=0.7)
         
         ## plot mean_mode
         #ax.axvline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
@@ -269,8 +272,9 @@ def main():
         
         if (ix == nfit-1):
           ax.set_ylim([y_min, y_max])
-          # plot selected overplot sample
-          ax.axhline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+          if(cli.overplot is not None):
+            # plot selected overplot sample
+            ax.axhline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
           ## plot mean_mode
           #ax.axhline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
           ## plot median
@@ -281,8 +285,9 @@ def main():
             #ax.axhline(sample_parameters[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[ix]))
         else:
           ax.set_xlim([x_min, x_max])
-          # plot selected overplot sample
-          ax.axvline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+          if(cli.overplot is not None):
+            # plot selected overplot sample
+            ax.axvline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
           ## plot mean_mode
           #ax.axvline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
           ## plot median

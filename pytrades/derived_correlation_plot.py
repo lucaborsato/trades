@@ -383,14 +383,14 @@ def main():
   #else:
     #sample_derived = None
   
-  
-  ## OPEN summary_parameters.hdf5 FILE
-  s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
-  # take only the selected sample
-  s_overplot = '%04d' %(cli.overplot)
-  #overp_der = s_h5f['parameters/%s/derived/parameters' %(s_overplot)][...]
-  read_der = s_h5f['parameters/%s/derived/parameters' %(s_overplot)][...]
-  s_h5f.close()
+  if(cli.overplot is not None):
+    ## OPEN summary_parameters.hdf5 FILE
+    s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
+    # take only the selected sample
+    s_overplot = '%04d' %(cli.overplot)
+    #overp_der = s_h5f['parameters/%s/derived/parameters' %(s_overplot)][...]
+    read_der = s_h5f['parameters/%s/derived/parameters' %(s_overplot)][...]
+    s_h5f.close()
   
   #overp_der = read_der.copy()
   #for ider in range(0, n_der):
@@ -401,7 +401,7 @@ def main():
       #else:
         #overp_der[ider] = (overp_der[ider]+360.)%360.
         
-  overp_der = anc.derived_parameters_check(derived_names, read_der, derived_posterior)
+    overp_der = anc.derived_parameters_check(derived_names, read_der, derived_posterior)
   
   fig = plt.figure(figsize=(12,12))
   fig.subplots_adjust(hspace=0.05, wspace=0.05)
@@ -438,9 +438,10 @@ def main():
         
         ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
         
-        # plot selected overplot sample
-        ax.axvline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
-        ax.axhline(overp_der[iy], color='blue', ls='--', lw=1.1, alpha=0.7)
+        if(cli.overplot is not None):
+          # plot selected overplot sample
+          ax.axvline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+          ax.axhline(overp_der[iy], color='blue', ls='--', lw=1.1, alpha=0.7)
         ## plot mean_mode
         #ax.axvline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
         #ax.axhline(y_mode, color='red', ls='-', lw=0.9, alpha=0.7)
@@ -499,8 +500,9 @@ def main():
         #print parameter_names_emcee[ix], overp_der[ix]
         if (ix == n_der-1):
           ax.set_ylim([y_min, y_max])
-          # plot selected overplot sample
-          ax.axhline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+          if(cli.overplot is not None):
+            # plot selected overplot sample
+            ax.axhline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
           ## plot mean_mode
           #ax.axhline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
           ## plot median
@@ -511,8 +513,9 @@ def main():
             #ax.axhline(sample_derived[iy], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[iy]))
         else:
           ax.set_xlim([x_min, x_max])
-          # plot selected overplot sample
-          ax.axvline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+          if(cli.overplot is not None):
+            # plot selected overplot sample
+            ax.axvline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
           ## plot mean_mode
           #ax.axvline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
           ## plot median

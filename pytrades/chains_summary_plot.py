@@ -77,14 +77,23 @@ def main():
   #max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
   #print 
   
+  try:
+    overplot = int(cli.overplot)
+  except:
+    overplot = None
   ## OPEN summary_parameters.hdf5 FILE
   s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
-  # sample_parameters
-  ci_fitted = s_h5f['confidence_intervals/fitted/ci'][...]
-  sample_parameters = s_h5f['parameters/0666/fitted/parameters'][...]
-  median_parameters = s_h5f['parameters/1050/fitted/parameters'][...]
-  max_lnprob_parameters = s_h5f['parameters/2050/fitted/parameters'][...]
-  mode_parameters = s_h5f['parameters/3050/fitted/parameters'][...]
+  if(overplot is not None):
+    # sample_parameters
+    ci_fitted = s_h5f['confidence_intervals/fitted/ci'][...]
+    sample_parameters = s_h5f['parameters/0666/fitted/parameters'][...]
+    median_parameters = s_h5f['parameters/1050/fitted/parameters'][...]
+    max_lnprob_parameters = s_h5f['parameters/2050/fitted/parameters'][...]
+    mode_parameters = s_h5f['parameters/3050/fitted/parameters'][...]
+  #nfit = s_h5f['confidence_intervals/fitted'].attrs['nfit']
+  ndata = s_h5f['confidence_intervals/fitted'].attrs['ndata']
+  dof = s_h5f['confidence_intervals/fitted'].attrs['dof']
+  
   s_h5f.close()
 
   emcee_plots = os.path.join(cli.full_path,'plots')
@@ -110,22 +119,23 @@ def main():
 
     axChain.plot(chains_T[:,:,i], '-', alpha=0.3)
 
-    # plot of mode (mean of higher peak/bin)
-    axChain.axhline(mode_parameters[i]*conv_plot, color='red', ls='-', lw=2.1, alpha=1, label='mode')
-    
-    # plot of median
-    axChain.axhline(median_parameters[i]*conv_plot, marker='None', c='blue',ls='-', lw=2.1, alpha=1.0, label='median fit')
-    
-    # plot of max_lnprob
-    axChain.axhline(max_lnprob_parameters[i]*conv_plot, marker='None', c='black',ls='-', lw=2.1, alpha=1.0, label='max lnprob')
-    
-    if(sample_parameters is not None):
-      # plot of sample_parameters
-      axChain.axhline(sample_parameters[i]*conv_plot, marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]))
+    if(overplot is not None):
+      # plot of mode (mean of higher peak/bin)
+      axChain.axhline(mode_parameters[i]*conv_plot, color='red', ls='-', lw=2.1, alpha=1, label='mode')
       
-    # plot ci
-    axChain.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th')
-    axChain.axhline(ci_fitted[i,1]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 84.135th')
+      # plot of median
+      axChain.axhline(median_parameters[i]*conv_plot, marker='None', c='blue',ls='-', lw=2.1, alpha=1.0, label='median fit')
+      
+      # plot of max_lnprob
+      axChain.axhline(max_lnprob_parameters[i]*conv_plot, marker='None', c='black',ls='-', lw=2.1, alpha=1.0, label='max lnprob')
+      
+      if(sample_parameters is not None):
+        # plot of sample_parameters
+        axChain.axhline(sample_parameters[i]*conv_plot, marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]))
+        
+      # plot ci
+      axChain.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th')
+      axChain.axhline(ci_fitted[i,1]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 84.135th')
     
     axChain.ticklabel_format(useOffset=False)
     xlabel = '$N_\mathrm{steps}$'
@@ -146,20 +156,21 @@ def main():
     axHist.ticklabel_format(useOffset=False)
     axHist.set_ylim([y_min, y_max])
 
-    # plot mode
-    axHist.axhline(mode_parameters[i]*conv_plot, color='red', ls='-', lw=2.1, alpha=1, label='mode')
-    # plot median
-    axHist.axhline(median_parameters[i]*conv_plot, marker='None', c='blue',ls='-', lw=2.1, alpha=1.0, label='median fit')
-    # plot of max_lnprob
-    axHist.axhline(max_lnprob_parameters[i]*conv_plot, marker='None', c='black',ls='-', lw=2.1, alpha=1.0, label='max lnprob')
-    
-    if(sample_parameters is not None):
-      # plot of sample_parameters
-      axHist.axhline(sample_parameters[i]*conv_plot, marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]*conv_plot))
+    if(overplot is not None):
+      # plot mode
+      axHist.axhline(mode_parameters[i]*conv_plot, color='red', ls='-', lw=2.1, alpha=1, label='mode')
+      # plot median
+      axHist.axhline(median_parameters[i]*conv_plot, marker='None', c='blue',ls='-', lw=2.1, alpha=1.0, label='median fit')
+      # plot of max_lnprob
+      axHist.axhline(max_lnprob_parameters[i]*conv_plot, marker='None', c='black',ls='-', lw=2.1, alpha=1.0, label='max lnprob')
       
-    # plot ci
-    axHist.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th')
-    axHist.axhline(ci_fitted[i,1]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 84.135th')
+      if(sample_parameters is not None):
+        # plot of sample_parameters
+        axHist.axhline(sample_parameters[i]*conv_plot, marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]*conv_plot))
+        
+      # plot ci
+      axHist.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th')
+      axHist.axhline(ci_fitted[i,1]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 84.135th')
     
     axHist.set_title('Distribution of posterior chain')
     axHist.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5))
@@ -170,14 +181,39 @@ def main():
     print
 
   fig = plt.figure(figsize=(12,12))
-  plt.plot(lnprob_burnin.T, '-', alpha=0.8)
-  plt.xlabel('$N_\mathrm{steps}$')
-  plt.ylabel('logprob')
+  #plt.plot(lnprob_burnin.T, '-', alpha=0.8)
+  #plt.xlabel('$N_\mathrm{steps}$')
+  #plt.ylabel('logprob')
+  #min_lnp = np.min(lnprob_burnin.T, axis=0).min()
+  #max_lnp = np.max(lnprob_burnin.T, axis=0).max()
+  #y_min, y_max = anc.compute_limits(np.asarray([min_lnp, max_lnp]), 0.05)
+  #plt.ylim((y_min, y_max))
+  #plt.draw()
+  # lnprob
+  xlabel = '$N_\mathrm{steps}$'
+  if(cli.use_thin):
+    xlabel = '$N_\mathrm{steps} \\times %d$' %(thin_steps)
+  
+  ax = plt.subplot2grid((2,1), (0,0))
+  ax.plot(lnprob_burnin.T, '-', alpha=0.8)
   min_lnp = np.min(lnprob_burnin.T, axis=0).min()
   max_lnp = np.max(lnprob_burnin.T, axis=0).max()
   y_min, y_max = anc.compute_limits(np.asarray([min_lnp, max_lnp]), 0.05)
-  plt.ylim((y_min, y_max))
-  plt.draw()
+  #ax.get_xaxis().set_visible(False)
+  ax.set_xlabel(xlabel)
+  ax.set_ylim((y_min, y_max))
+  ax.set_ylabel('lnprob')
+  # chi2r
+  chi2r = -2.*(lnprob_burnin.T-ln_err_const)/np.float64(dof)
+  c2r_min = -2.*(y_max - ln_err_const)/np.float64(dof)
+  c2r_max = -2.*(y_min - ln_err_const)/np.float64(dof)
+  ax = plt.subplot2grid((2,1), (1,0))
+  ax.plot(chi2r, '-', alpha=0.8)
+  #ax.get_xaxis().set_visible(True)
+  ax.set_xlabel(xlabel)
+  ax.set_ylim((c2r_min, c2r_max))
+  ax.set_ylabel('$\chi^{2}/\mathrm{dof}$')
+  
   fig.savefig(os.path.join(emcee_plots, 'emcee_lnprobability.png'), bbox_inches='tight', dpi=150)
   print ' %s saved' %(os.path.join(emcee_plots, 'emcee_lnprobability.png'))
 

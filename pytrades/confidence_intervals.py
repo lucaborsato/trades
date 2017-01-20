@@ -25,7 +25,9 @@ def main():
   pytrades_lib.pytrades.initialize_trades(os.path.join(cli.full_path, ''), '')
 
   nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case_list = anc.get_fitted(cli.full_path)
-
+  ndata = pytrades_lib.pytrades.ndata
+  dof = pytrades_lib.pytrades.dof
+  
   # read emcee data
   emcee_file, emcee_best, folder_best = anc.get_emcee_file_and_best(cli.full_path, cli.temp_status)
   # get data from the hdf5 file
@@ -70,16 +72,22 @@ def main():
     anc.print_both(' PARAMETER VALUES -> %d' %(id_sim), out)
     fitness, lgllhd, check = pytrades_lib.pytrades.write_summary_files(id_sim, parameters)
     print 'CHECK = ',check
-    if(not bool(check)):
-      print 'WRTING WARNING FILE: %s' %(os.path.join(out_folder,'WARNING.txt'))
-      warn_o = open(os.path.join(out_folder,'WARNING.txt'), 'w')
-      warn_o.write('*******\nWARNING: FITTED PARAMETERS COULD NOT BE PHYSICAL!\nWARNING: BE VERY CAREFUL WITH THIS PARAMETER SET!\n*******')
-      warn_o.close()
       
     kel_file, kep_elem = anc.elements(out_folder, id_sim, lmf=0)
 
     sigma_par = anc.compute_intervals(flatchain_posterior, parameters, anc.percentile_val)
     units_par = anc.get_units(names_par, mass_unit)
+    
+    if(not bool(check)):
+      print 'WRTING WARNING FILE: %s' %(os.path.join(out_folder,'WARNING.txt'))
+      warn_o = open(os.path.join(out_folder,'WARNING.txt'), 'w')
+      warn_o.write('*******\nWARNING: FITTED PARAMETERS COULD NOT BE PHYSICAL!\nWARNING: BE VERY CAREFUL WITH THIS PARAMETER SET!\n*******')
+      warn_o.close()
+      if(full_output):
+        return out_folder, None, None
+      else:
+        return out_folder
+    
     
     names_derived, der_posterior = anc.compute_derived_posterior(parameter_names, kep_elem, id_fit, case_list, cols_list, flatchain_posterior, conv_factor=m_factor_boot)
     
@@ -129,6 +137,8 @@ def main():
       s_h5f.create_dataset('parameters/%s/fitted/units' %(s_id_sim), data=units_par, dtype='S15')
       s_h5f.create_dataset('parameters/%s/fitted/sigma' %(s_id_sim), data=sigma_par.T, dtype=np.float64)
       s_h5f['parameters/%s/fitted/sigma' %(s_id_sim)].attrs['percentiles'] = anc.percentile_val
+    #if(s_h5f is not None):
+      #s_id_sim = '%04d' %(id_sim)
       s_h5f.create_dataset('parameters/%s/derived/parameters' %(s_id_sim), data=derived_par, dtype=np.float64)
       s_h5f.create_dataset('parameters/%s/derived/names' %(s_id_sim), data=names_derived, dtype='S10')
       s_h5f.create_dataset('parameters/%s/derived/units' %(s_id_sim), data=units_der, dtype='S15')
@@ -168,6 +178,10 @@ def main():
   s_h5f.create_dataset('confidence_intervals/fitted/names', data=names_par, dtype='S10')
   s_h5f.create_dataset('confidence_intervals/fitted/units', data=units_par, dtype='S15')
   s_h5f.create_dataset('confidence_intervals/fitted/percentiles', data=np.array(anc.percentile_val[2:]), dtype=np.float64)
+  
+  s_h5f['confidence_intervals/fitted'].attrs['nfit'] = nfit
+  s_h5f['confidence_intervals/fitted'].attrs['ndata'] = ndata
+  s_h5f['confidence_intervals/fitted'].attrs['dof'] = dof
   
   
   ## ORIGINAL FITTING PARAMETERS ID == 0

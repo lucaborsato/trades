@@ -42,13 +42,16 @@ def set_int_argument(arg_in):
     arg_out = 0
   return arg_out
 
-def set_int_argument_overplot(arg_in):
-  try:
-    arg_out = int(arg_in)
-  except:
-    arg_out = 1051
-  if(arg_out not in [0, 666, 777, 1050, 1051, 2050, 3050, 3051]):
-    arg_out = 1051
+def set_overplot(arg_in):
+  if(str(arg_in).lower() == 'none'):
+    arg_out = None
+  else:
+    try:
+      arg_out = int(arg_in)
+    except:
+      arg_out = None
+    if(arg_out not in [0, 666, 777, 1050, 1051, 2050, 3050, 3051]):
+      arg_out = None
   return arg_out
   
 def set_int_or_none(arg_in):
@@ -82,7 +85,7 @@ def get_args():
   
   parser.add_argument('--seed', action='store', dest='seed', default='None', help='Set the seed for random number generator. Default is None.')
   
-  parser.add_argument('--overplot', action='store', dest='overplot', default='1051', help='Define which parameter set to be overplotted on the correlation plot.\nInput the proper number:\n0 (starting parameters),\n666 (pick sample),\n777 (ad hoc sample),\n1050 (median, derived as median of the derived posterior),\n1051 (median, derived computed from median parameters), 2050 (max lnprob),\n3050 (mode, derived as mode of the derived posterior),\n3051 (mode, derived computed from mode parameters)')
+  parser.add_argument('--overplot', action='store', dest='overplot', default='None', help='Define which parameter set to be overplotted on the correlation plot.\nInput the proper number:\n0 (starting parameters),\n666 (pick sample),\n777 (ad hoc sample),\n1050 (median, derived as median of the derived posterior),\n1051 (median, derived computed from median parameters), 2050 (max lnprob),\n3050 (mode, derived as mode of the derived posterior),\n3051 (mode, derived computed from mode parameters)')
   
   parser.add_argument('--script-folder', action='store', dest='pyscript', default='./', help='Folder of the python scripts... Default is "./"')
   
@@ -95,7 +98,7 @@ def get_args():
   cli.boot_id = set_int_argument(cli.boot_id)
   cli.use_thin = set_bool_argument(cli.use_thin)
   cli.seed = set_int_or_none(cli.seed)
-  cli.overplot = set_int_argument_overplot(cli.overplot)
+  cli.overplot = set_overplot(cli.overplot)
   cli.pyscript = os.path.abspath(cli.pyscript)
   
   return cli
