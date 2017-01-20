@@ -525,7 +525,8 @@ def main():
             ## plot of sample_derived
             #ax.axvline(sample_derived[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[ix]))
         
-        print derived_names[ix], ' overplot val = ', overp_der[ix], ' min = ', x_data.min(), ' max = ', x_data.max()
+        if(cli.overplot is not None):
+          print derived_names[ix], ' overplot val = ', overp_der[ix], ' min = ', x_data.min(), ' max = ', x_data.max()
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
