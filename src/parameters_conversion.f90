@@ -699,9 +699,10 @@ module parameters_conversion
   end subroutine update_parameters_fit2all
   
   ! function for pso/pik to initialize properly the first-generation population
-  function check_only_boundaries(all_parameters,fit_parameters) result(check)
+  function check_only_boundaries(all_parameters,fit_parameters,wrt_info) result(check)
     logical::check
     real(dp),dimension(:),intent(in)::all_parameters,fit_parameters
+    logical,intent(in),optional::wrt_info
     real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
     
     check=.true.
@@ -709,7 +710,11 @@ module parameters_conversion
 !     write(*,'(a,l2)')'checkbounds_fit = ',check
     if(check)then
       allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB))
-      call par2kel_fit(all_parameters,fit_parameters,m,R,P,a,e,w,mA,inc,lN,check)
+      if(present(wrt_info).and.wrt_info)then
+        call par2kel_fit(all_parameters,fit_parameters,m,R,P,a,e,w,mA,inc,lN,check,wrt_info)
+      else
+        call par2kel_fit(all_parameters,fit_parameters,m,R,P,a,e,w,mA,inc,lN,check)
+      end if
 !       write(*,'(a,l2)')'par2kel_fit = ',check
 !       if(check) check=checkbounds_kel(m,R,P,e,w,mA,inc,lN)
         if(check)then

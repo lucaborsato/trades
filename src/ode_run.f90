@@ -1401,32 +1401,17 @@ module ode_run
       gls_scale=one
       call convert_parameters_scale(allpar,par,m,R,P,a,e,w,mA,inc,lN,fit_scale)
     else
-      call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar,.true.)
+!       call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar,.true.)
+      call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
       if(.not.checkpar)then
         write(*,*)' checkpar after convert_parameters is FALSE ... BAD'
   !       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
-        return
+!         return ! removed 2017-01-20 so the files can be written even if parameters are out of boundaries ...
       end if
     end if
 
     
-!     write(*,*)
-!     write(*,'(a12,4(1x,a25))')'parid','value','min','max','allpar(id)'
-!     do i_par=1,nfit
-!       write(*,'(a12,10(1x,f25.15))')parid(i_par),par(i_par),minpar(i_par),maxpar(i_par),allpar(idall(i_par))
-!     end do
-!     write(*,*)
-!     write(*,'(a12,1000(f25.15,1x))')"  m = ",m
-!     write(*,'(a12,1000(f25.15,1x))')"  P = ",P
-!     write(*,'(a12,1000(f25.15,1x))')"  a = ",a
-!     write(*,'(a12,1000(f25.15,1x))')"  e = ",e
-!     write(*,'(a12,1000(f25.15,1x))')"  w = ",w
-!     write(*,'(a12,1000(f25.15,1x))')" mA = ",mA
-!     write(*,'(a12,1000(f25.15,1x))')"  i = ",inc
-!     write(*,'(a12,1000(f25.15,1x))')" lN = ",lN
-!     write(*,*)
-!     write(*,'(a)')' CHECK FIT/KEP.ELEM. BOUNDARIES'
     if(present(fit_scale)) write(*,'(a,es23.16)')' fit_scale = ',fit_scale
 !     write(*,*)
     flush(6)
@@ -1587,7 +1572,9 @@ module ode_run
       write(*,*)
     end if
 
+    if(.not.checkpar.or..not.Hc) resw=set_max_residuals(ndata)
     fitness = sum(resw*resw)
+    
     if(present(fit_scale))then
       call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale)
     else

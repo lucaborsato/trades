@@ -64,10 +64,18 @@ def main():
     out_file = os.path.join(out_folder, 'parameters_summary.txt')
     out = open(out_file, 'w')
     pytrades_lib.pytrades.path_change(out_folder)
-
+    
+    anc.print_both(' ', out)
+    anc.print_both(' --------------------------------- ', out)
     anc.print_both(' PARAMETER VALUES -> %d' %(id_sim), out)
     fitness, lgllhd, check = pytrades_lib.pytrades.write_summary_files(id_sim, parameters)
-
+    print 'CHECK = ',check
+    if(not bool(check)):
+      print 'WRTING WARNING FILE: %s' %(os.path.join(out_folder,'WARNING.txt'))
+      warn_o = open(os.path.join(out_folder,'WARNING.txt'), 'w')
+      warn_o.write('*******\nWARNING: FITTED PARAMETERS COULD NOT BE PHYSICAL!\nWARNING: BE VERY CAREFUL WITH THIS PARAMETER SET!\n*******')
+      warn_o.close()
+      
     kel_file, kep_elem = anc.elements(out_folder, id_sim, lmf=0)
 
     sigma_par = anc.compute_intervals(flatchain_posterior, parameters, anc.percentile_val)
@@ -115,7 +123,7 @@ def main():
     
     if(s_h5f is not None):
       s_id_sim = '%04d' %(id_sim)
-      print s_id_sim
+      #print s_id_sim
       s_h5f.create_dataset('parameters/%s/fitted/parameters' %(s_id_sim), data=parameters, dtype=np.float64)
       s_h5f.create_dataset('parameters/%s/fitted/names' %(s_id_sim), data=names_par, dtype='S10')
       s_h5f.create_dataset('parameters/%s/fitted/units' %(s_id_sim), data=units_par, dtype='S15')

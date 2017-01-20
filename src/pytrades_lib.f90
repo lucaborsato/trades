@@ -329,10 +329,57 @@ module pytrades
   end subroutine fortran_fitness_long
   
 
+!   subroutine write_summary_files(write_number,parameters_values,fitness,wrt_info,lgllhd,check,nfit)
+!     use driver,only:write_summary_nosigma
+! !     use ode_run,only:ode_out
+! !     use output_files,only:write_parameters
+!     integer,intent(in)::nfit
+!     integer,intent(in)::write_number
+!     real(dp),dimension(nfit),intent(in)::parameters_values
+!     logical,intent(in),optional::wrt_info
+!     real(dp),intent(out)::fitness,lgllhd
+!     logical,intent(out)::check
+!     real(dp),dimension(:),allocatable::run_all_par
+!     logical::check_status
+!     integer::i
+!     
+!     check=.true.
+!     check_status=.true.
+!     
+!     write(*,'(a,l2)') 'check begin = ', check
+! !     check=check_fit_boundaries(parameters_values)
+!     if(present(wrt_info))then
+!       check=check_only_boundaries(system_parameters,parameters_values,wrt_info)
+!     else
+!       check=check_only_boundaries(system_parameters,parameters_values)
+!     end if
+!   
+!     if(check)then
+!       write(*,'(a,l2)') 'check boundaries = ', check
+!       allocate(run_all_par(npar))
+!       run_all_par=system_parameters
+!       if(check_derived) check_status=check_derived_parameters(parameters_values)
+!       if(fix_derived) call fix_derived_parameters(parameters_values,run_all_par,check_status)
+!       if(check_status)then
+!         call write_summary_nosigma(1,write_number,0,run_all_par,parameters_values,fitness)
+!       else
+!         fitness=resmax ! set it to resmax
+!         check=.false.
+!       end if
+!       deallocate(run_all_par)
+!       
+!     else
+!       write(*,'(a,l2)') 'check boundaries = ', check
+!       fitness=resmax
+!     end if
+!     lgllhd=-0.5_dp*fitness*real(dof,dp)
+!     if(fitness.ge.resmax)check=.false.
+!     
+!     return
+!   end subroutine write_summary_files
+
   subroutine write_summary_files(write_number,parameters_values,fitness,lgllhd,check,nfit)
     use driver,only:write_summary_nosigma
-!     use ode_run,only:ode_out
-!     use output_files,only:write_parameters
     integer,intent(in)::nfit
     integer,intent(in)::write_number
     real(dp),dimension(nfit),intent(in)::parameters_values
@@ -341,32 +388,41 @@ module pytrades
     real(dp),dimension(:),allocatable::run_all_par
     logical::check_status
     integer::i
-    
+!     logical::wrt_info=.true.
+        
     check=.true.
     check_status=.true.
     
-!     check=check_fit_boundaries(parameters_values)
+!     write(*,'(a,l2)') 'check begin = ', check
+!     if(present(wrt_info).and.wrt_info)then
+!     check=check_only_boundaries(system_parameters,parameters_values,wrt_info)
+!     else
+!       check=check_only_boundaries(system_parameters,parameters_values)
+!     end if
     check=check_only_boundaries(system_parameters,parameters_values)
-    
-    if(check)then
-      allocate(run_all_par(npar))
-      run_all_par=system_parameters
-      if(check_derived) check_status=check_derived_parameters(parameters_values)
-      if(fix_derived) call fix_derived_parameters(parameters_values,run_all_par,check_status)
-      if(check_status)then
-        call write_summary_nosigma(1,write_number,0,run_all_par,parameters_values,fitness)
-      else
-        fitness=resmax ! set it to resmax
-        check=.false.
-      end if
-      deallocate(run_all_par)
-      
-    else
+  
+!     write(*,'(a,l2)') 'check boundaries = ', check
+    allocate(run_all_par(npar))
+    run_all_par=system_parameters
+    if(check_derived) check_status=check_derived_parameters(parameters_values)
+    if(fix_derived) call fix_derived_parameters(parameters_values,run_all_par,check_status)
+    call write_summary_nosigma(1,write_number,0,run_all_par,parameters_values,fitness)
+    deallocate(run_all_par)
+    if(.not.check.or..not.check_status)then
       fitness=resmax
+      write(*,'(a)')'*******'
+      write(*,'(a)')'WARNING'
+      write(*,'(a)')'WARNING'
+      write(*,'(a)')'FITTED PARAMETERS COULD NOT BE PHYSICAL!'
+      write(*,'(a)')'BE VERY CAREFUL WITH THIS PARAMETER SET!'
+      write(*,'(a)')'WARNING'
+      write(*,'(a)')'WARNING'
+      write(*,'(a)')'*******'
     end if
     lgllhd=-0.5_dp*fitness*real(dof,dp)
-    if(fitness.ge.resmax)check=.false.
-    
+!     if(fitness.ge.resmax)check=.false.
+
+        
     return
   end subroutine write_summary_files
   
