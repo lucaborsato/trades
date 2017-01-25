@@ -36,24 +36,39 @@ def main():
   anc.print_memory_usage(chains)
 
   nfit, nwalkers, nruns, npost, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.npost, completed_steps)
+  
   #chains_T, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, names_par, parameter_boundaries, chains)
   chains_T_full = np.zeros((nruns, nwalkers, nfit))
   for ii in xrange(0,nfit):
-    chains_T_full[:,:,ii] = chains[:,:nruns,ii].T # transpose after removing the burnin steps
+    chains_T_full[:,:,ii] = chains[:,:nruns,ii].T # transpose
     
   chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False)
+  
   
   # computes mass conversion factor
   #m_factor = anc.mass_conversion_factor(cli.m_type)
   MR_star = pytrades_lib.pytrades.mr_star
-  m_factor, mass_unit = anc.mass_type_factor(Ms=1.0, mtype=cli.m_type, mscale=False)
+  m_factor_0, mass_unit = anc.mass_type_factor(Ms=1.0, mtype=cli.m_type, mscale=False)
   np.random.seed(seed=cli.seed)
   Ms_gaussian = MR_star[0,0] + np.random.normal(0., 1., size=(np.shape(flatchain_posterior_0)[0]))*MR_star[0,1] # if exists an error on the mass, it creates a Normal distribution for the values and use it to re-scale mp/Ms to mp.
-  m_factor_boot = m_factor * Ms_gaussian # given the factor from Msun to mass_unit it multiply it by the Normal Mstar.
-  m_factor = m_factor * MR_star[0,0]
+  m_factor_boot = m_factor_0 * Ms_gaussian # given the factor from Msun to mass_unit it multiply it by the Normal Mstar.
+  m_factor = m_factor_0 * MR_star[0,0]
 
   # set label and legend names
   #kel_legends, labels_list = anc.keplerian_legend(names_par, cli.m_type)
+  
+  flatchain_posterior = flatchain_posterior_0.copy()
+  for ifit in range(0,nfit):
+    if('Ms' in names_par[ifit]):
+      flatchain_posterior[:,ifit] = m_factor_0 * flatchain_posterior[:,ifit]
+  posterior_file = os.path.join(cli.full_path, 'posterior.hdf5')
+  p_h5f = h5py.File(posterior_file, 'w')
+  p_h5f.create_dataset('posterior', data=flatchain_posterior, dtype=np.float64)
+  p_h5f['posterior'].attrs['nfit'] = nfit
+  p_h5f['posterior'].attrs['nposterior'] = np.shape(flatchain_posterior)[0]
+  p_h5f.create_dataset('parameter_names', data=names_par, dtype='S10')
+  p_h5f.close()
+  anc.print_both(' Saved posterior file: %s' %(posterior_file))
 
   top_header, header = anc.get_header(anc.percentile_val)
 
@@ -83,11 +98,6 @@ def main():
       warn_o = open(os.path.join(out_folder,'WARNING.txt'), 'w')
       warn_o.write('*******\nWARNING: FITTED PARAMETERS COULD NOT BE PHYSICAL!\nWARNING: BE VERY CAREFUL WITH THIS PARAMETER SET!\n*******')
       warn_o.close()
-      if(full_output):
-        return out_folder, None, None
-      else:
-        return out_folder
-    
     
     names_derived, der_posterior = anc.compute_derived_posterior(parameter_names, kep_elem, id_fit, case_list, cols_list, flatchain_posterior, conv_factor=m_factor_boot)
     
@@ -100,8 +110,9 @@ def main():
       par_type = 'MEDIAN'
     elif(str(derived_type).strip().lower() == 'mode'):
       # MODE-LIKE PARAMETERS -> id 3050
-      k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
-      if(k>50): k=50
+      #k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
+      #if(k>50): k=50
+      k = anc.get_bins(flatchain_posterior_0, rule='doane')
       der_bin, derived_par = anc.get_mode_parameters(der_posterior_T, k)
       par_type = 'MODE'
     else:      
@@ -172,6 +183,7 @@ def main():
   
   ## COMPUTE CONFIDENCE INTERVALS OF THE FITTED PARAMETER DISTRIBUTIONS
   ci_fitted = np.percentile(flatchain_posterior_0, anc.percentile_val[2:], axis=0, interpolation='midpoint') # (n_percentile-1 x nfit) ==> skip first item, the 68.27th
+  
   units_par = anc.get_units(names_par, mass_unit)
   
   s_h5f.create_dataset('confidence_intervals/fitted/ci', data=ci_fitted.T, dtype=np.float64)
@@ -254,11 +266,15 @@ def main():
   else:
     print 'NONE SAMPLE PARAMETERS!!!'
 
-  ## SELECT AD HOC PARAMETERS: K-19 median b,c, mode d
+  ## SELECT AD HOC PARAMETERS:
   #adhoc_par = median_parameters.copy()
   ##adhoc_par[10:] = mode_parameters[10:].copy()
   #adhoc_par[12] = mode_parameters[12].copy()
-  #folder_777 = get_intervals(cli.full_path, 777, names_par, adhoc_par, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
+  #if(cli.overplot is not None):
+  if( cli.adhoc is not None):
+    print cli.overplot, cli.adhoc
+    adhoc_names, adhoc_par = anc.read_fitted_file(cli.adhoc)
+    folder_777 = get_intervals(cli.full_path, 777, names_par, adhoc_par, flatchain_posterior_0, derived_type=777, summary_file_hdf5=s_h5f)
   
   
   s_h5f.close()
@@ -279,12 +295,6 @@ def main():
   oci.close()
 
   pytrades_lib.pytrades.deallocate_variables()
-
-  #print
-  #print thin_steps
-  #print np.shape(flatchain_posterior_0)
-  #print np.shape(der_posterior)
-
 
   return
 

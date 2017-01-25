@@ -383,7 +383,7 @@ def main():
       f_hdf5.close()
       sys.stdout.flush()
     print_both('', of_run)
-    print_both('...done with saving temporary total shape = %s' %(str(sampler.chain.shape)), of_run)
+    print_both('...done with saving temporary total shape = %s' %(str(np.shape(sampler.chain))), of_run)
     print_both('', of_run)
     sys.stdout.flush()
 
@@ -411,6 +411,7 @@ def main():
     # save chains with original shape as hdf5 file
     f_hdf5 = h5py.File(os.path.join(working_folder, 'emcee_summary.hdf5'), 'w')
     f_hdf5.create_dataset('chains', data=sampler.chain, dtype=np.float64)
+    f_hdf5['chains'].attrs['completed_steps'] = nruns
     f_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
     f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
     f_hdf5.create_dataset('acceptance_fraction', data=acceptance_fraction, dtype=np.float64)

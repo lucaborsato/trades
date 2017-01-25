@@ -122,7 +122,7 @@ def main():
 
   chains_T_full, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
 
-  chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=True)
+  chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False)
 
   if(cli.boot_id > 0):
     flatchain_posterior_msun = anc.posterior_back_to_msun(m_factor,parameter_names_emcee,flatchain_posterior_0)
@@ -139,31 +139,39 @@ def main():
 
   ## MODE-LIKE PARAMETERS -> id 30XX
   ## take the mean of 5 bin centered to the higher bin
-  k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
-  if(k>50): k=50
+  #k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
+  ##if(k>50): k=50
+  #if(k>20): k=20
+  k = anc.get_bins(flatchain_posterior_0, rule='doane')
+  
   #mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
 
   #name_par, name_excluded = anc.get_sample_list(cli.sample_str, parameter_names_emcee)
   #sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0, parameter_names_emcee, name_par = name_par, name_excluded = name_excluded)
   
   if(cli.overplot is not None):
-    ## OPEN summary_parameters.hdf5 FILE
-    s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
-    # take only the selected sample
-    s_overplot = '%04d' %(cli.overplot)
-    read_par = s_h5f['parameters/%s/fitted/parameters' %(s_overplot)][...]
-    s_h5f.close()
-
-  #fig, ax = plt.subplots(nrows = nfit-1, ncols=nfit, figsize=(12,12))
-  fig = plt.figure(figsize=(12,12))
-  fig.subplots_adjust(hspace=0.05, wspace=0.05)
-
-  if(cli.overplot is not None):
+    
+    if(cli.adhoc is not None):
+      overp_names, read_par = anc.read_fitted_file(cli.adhoc)
+      cli.overplot = 777
+    else:
+      ## OPEN summary_parameters.hdf5 FILE
+      s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
+      # take only the selected sample
+      s_overplot = '%04d' %(cli.overplot)
+      read_par = s_h5f['parameters/%s/fitted/parameters' %(s_overplot)][...]
+      s_h5f.close()
+      
     # fitted parameters has always Mp/Ms in Msun/Mstar, so it is needed to rescale it properly
     overp_par = read_par.copy()
     for ii in range(0, nfit):
       if('Ms' in parameter_names_emcee[ii]):
+      #if('Ms' in overp_names[ii]):
         overp_par[ii] = overp_par[ii]*m_factor
+
+  #fig, ax = plt.subplots(nrows = nfit-1, ncols=nfit, figsize=(12,12))
+  fig = plt.figure(figsize=(12,12))
+  fig.subplots_adjust(hspace=0.05, wspace=0.05)
 
   for ix in range(0, nfit, 1):
     x_data = flatchain_posterior_0[:, ix]
@@ -187,42 +195,34 @@ def main():
       
       if(iy > ix): # correlation plot
         logger.info('%s vs %s' %(parameter_names_emcee[ix], parameter_names_emcee[iy]))
-        #logger.info('(%.4f) %.4f <= X <= %.4f (%.4f)' %(parameter_boundaries[ix,0], x_data.min(), x_data.max(), parameter_boundaries[ix,1]))
-        #logger.info('(%.4f) %.4f <= Y <= %.4f (%.4f)' %(parameter_boundaries[iy,0], y_data.min(), y_data.max(), parameter_boundaries[iy,1]))
 
         ax = plt.subplot2grid((nfit+1, nfit), (iy,ix))
         
-        #hist2d_counts, xedges, yedges, image2d = ax.hist2d(x_data, y_data, bins=k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], cmap=plt.get_cmap('Greys'), normed=True)
-        hist2d_counts, xedges, yedges, image2d = ax.hist2d(x_data, y_data, bins=k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], cmap=cm.gray_r, normed=True)
+        #hist2d_counts, xedges, yedges, image2d = ax.hist2d(x_data, y_data, bins=k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], cmap=cm.gray_r, normed=True)
+        hist2d_counts, xedges, yedges, image2d = ax.hist2d(x_data, y_data, bins=k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], cmap=cm.gray_r, normed=False)
         
-        #hist2d_counts, xedges, yedges, image2d = ax.hist2d(x_data, y_data, bins=k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], cmap=plt.get_cmap('Greys'))
-              
-        new_k = int(k/3)
+       #new_k = int(k/3)
+        new_k = k
         hist2d_counts_2, xedges_2, yedges_2 = np.histogram2d(x_data, y_data, bins=new_k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], normed=True)
         
         x_bins = [0.5*(xedges_2[i]+xedges_2[i+1]) for i in range(0, new_k)]
         y_bins = [0.5*(yedges_2[i]+yedges_2[i+1]) for i in range(0, new_k)]
-        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, colors=('forestgreen', 'royalblue', 'red'), linestyle='solid', linewidths=(0.5, 0.5, 0.5))
-        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, colors=('black', 'forestgreen', 'lightgray'), linestyle='solid', linewidths=(0.5, 0.5, 0.5))
-        ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
+
+        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
+        nl = 5
+        levels = [1.-np.exp(-0.5*ii) for ii in range(0,nl)] # 2D sigmas: 0sigma, 1sigma, 2sigma, 3sigma, ..
+        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, levels, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
+        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, levels, cmap=cm.viridis, linestyle='solid', linewidths=1.)
+        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, cmap=cm.viridis, linestyle='solid', linewidths=0.7)
+        
+        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, levels, cmap=cm.viridis, linestyle='solid', linewidths=0.7, norme=True)
+        ax.contour(x_bins, y_bins, hist2d_counts_2.T, nl, cmap=cm.viridis, linestyle='solid', linewidths=0.5, norme=True)
+        
         
         if(cli.overplot is not None):
           # plot selected overplot sample
           ax.axvline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
           ax.axhline(overp_par[iy], color='blue', ls='--', lw=1.1, alpha=0.7)
-        
-        ## plot mean_mode
-        #ax.axvline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
-        #ax.axhline(y_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
-        # plot median
-        #ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-        #ax.axhline(y_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-        
-        ## plot sample 
-        #if(sample_parameters is not None):
-          ## plot of sample_parameters
-          #ax.axvline(sample_parameters[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[ix]))
-          #ax.axhline(sample_parameters[iy], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[iy]))
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -237,7 +237,6 @@ def main():
       
       elif(iy == ix): # distribution plot
         logger.info('%s histogram' %(parameter_names_emcee[ix]))
-        #logger.info('(%.4f) %.4f <= X <= %.4f (%.4f)' %(parameter_boundaries[ix,0], x_data.min(), x_data.max(), parameter_boundaries[ix,1]))
 
         ax = plt.subplot2grid((nfit+1, nfit), (ix,ix))
         if (ix == nfit-1):
@@ -275,26 +274,11 @@ def main():
           if(cli.overplot is not None):
             # plot selected overplot sample
             ax.axhline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
-          ## plot mean_mode
-          #ax.axhline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
-          ## plot median
-          #ax.axhline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-          ## plot sample
-          #if(sample_parameters is not None):
-            ## plot of sample_parameters
-            #ax.axhline(sample_parameters[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[ix]))
         else:
           ax.set_xlim([x_min, x_max])
           if(cli.overplot is not None):
             # plot selected overplot sample
             ax.axvline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
-          ## plot mean_mode
-          #ax.axvline(x_max_mean, color='red', ls='-', lw=0.9, alpha=0.7)
-          ## plot median
-          #ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-          ## plot sample
-          #if(sample_parameters is not None):
-            #ax.axvline(sample_parameters[iy], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_parameters[iy]))
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -313,9 +297,6 @@ def main():
   plt.close(fig)
 
   logger.info('')
-
-  #anc.print_parameters_logger(logger, parameter_names_emcee, median_parameters, median_perc68, median_confint, 'median')
-  #anc.print_parameters_logger(logger, parameter_names_emcee, mode_parameters, mode_perc68, mode_confint, 'mode')
 
   return
 

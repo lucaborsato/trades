@@ -53,13 +53,18 @@ def main():
 
   chains_T_full, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
 
-  chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=True)
+  chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False)
   
+  print 'np.shape(chains_T_full), np.shape(chains_T_full.reshape((-1,nfit))), np.shape(lnprobability)'
+  print np.shape(chains_T_full), np.shape(chains_T_full.reshape((-1,nfit))), np.shape(lnprobability)
+  print 'np.shape(chains_T), np.shape(flatchain_posterior_0), np.shape(lnprob_burnin)'
+  print np.shape(chains_T), np.shape(flatchain_posterior_0), np.shape(lnprob_burnin)
+  #sys.exit()
   
   #name_par, name_excluded = anc.get_sample_list(cli.sample_str, parameter_names_emcee)
   #sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0, parameter_names_emcee, name_par = name_par, name_excluded = name_excluded)
 
-  flatchain_posterior_1 = flatchain_posterior_0
+  #flatchain_posterior_1 = flatchain_posterior_0
 
   if(cli.boot_id > 0):
     flatchain_posterior_msun = anc.posterior_back_to_msun(m_factor,parameter_names_emcee,flatchain_posterior_0)
@@ -69,8 +74,9 @@ def main():
 
   #median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
 
-  k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
-  if(k>50): k=50
+  #k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
+  #if(k>50): k=50
+  k = anc.get_bins(flatchain_posterior_0, rule='doane')
   #mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
   
   # max lnprob
@@ -81,6 +87,9 @@ def main():
     overplot = int(cli.overplot)
   except:
     overplot = None
+  #print overplot
+  #sys.exit()
+  
   ## OPEN summary_parameters.hdf5 FILE
   s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
   if(overplot is not None):
@@ -111,11 +120,11 @@ def main():
     fig, (axChain, axHist) = plt.subplots(nrows=1, ncols=2, figsize=(12,12))
 
     
-    (counts, bins_val, patches) = axHist.hist(flatchain_posterior_1[:,i], bins=k, range=(flatchain_posterior_1[:,i].min(), flatchain_posterior_1[:,i].max()), orientation='horizontal', normed=True, stacked=True, histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid')
+    (counts, bins_val, patches) = axHist.hist(flatchain_posterior_0[:,i], bins=k, range=(flatchain_posterior_0[:,i].min(), flatchain_posterior_0[:,i].max()), orientation='horizontal', normed=True, stacked=True, histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid')
 
-    xpdf = scipy_norm.pdf(flatchain_posterior_1[:,i], loc = flatchain_posterior_1[:,i].mean(), scale = flatchain_posterior_1[:,i].std())
-    idx = np.argsort(flatchain_posterior_1[:,i])
-    axHist.plot(xpdf[idx], flatchain_posterior_1[idx,i], color='black', marker='None', ls='-.', lw=1.5, label='pdf')
+    xpdf = scipy_norm.pdf(flatchain_posterior_0[:,i], loc = flatchain_posterior_0[:,i].mean(), scale = flatchain_posterior_0[:,i].std())
+    idx = np.argsort(flatchain_posterior_0[:,i])
+    axHist.plot(xpdf[idx], flatchain_posterior_0[idx,i], color='black', marker='None', ls='-.', lw=1.5, label='pdf')
 
     axChain.plot(chains_T[:,:,i], '-', alpha=0.3)
 
@@ -134,8 +143,8 @@ def main():
         axChain.axhline(sample_parameters[i]*conv_plot, marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]))
         
       # plot ci
-      axChain.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th')
-      axChain.axhline(ci_fitted[i,1]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 84.135th')
+      axChain.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th (%.5f)' %(ci_fitted[i,0]*conv_plot))
+      axChain.axhline(ci_fitted[i,1]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 84.135th (%.5f)' %(ci_fitted[i,1]*conv_plot))
     
     axChain.ticklabel_format(useOffset=False)
     xlabel = '$N_\mathrm{steps}$'
@@ -144,10 +153,12 @@ def main():
     axChain.set_xlabel(xlabel)
     axChain.set_ylabel(kel_labels[i])
     
-    y_min, y_max = anc.compute_limits(flatchain_posterior_1[:,i], 0.05)
-    if(y_min == y_max):
-      y_min = parameter_boundaries[i,0]
-      y_max = parameter_boundaries[i,1]
+    #y_min, y_max = anc.compute_limits(flatchain_posterior_0[:,i], 0.05)
+    #if(y_min == y_max):
+      #y_min = parameter_boundaries[i,0]
+      #y_max = parameter_boundaries[i,1]
+    y_min = flatchain_posterior_0[:,i].min()
+    y_max = flatchain_posterior_0[:,i].max()
     
     axChain.set_ylim([y_min, y_max])
     axChain.set_title('Full chain %s:=[%.3f , %.3f]' %(kel_labels[i], parameter_boundaries[i,0], parameter_boundaries[i,1]))
@@ -169,8 +180,8 @@ def main():
         axHist.axhline(sample_parameters[i]*conv_plot, marker='None', c='orange',ls='--', lw=2.3, alpha=0.77, label='picked: %12.7f' %(sample_parameters[i]*conv_plot))
         
       # plot ci
-      axHist.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th')
-      axHist.axhline(ci_fitted[i,1]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 84.135th')
+      axHist.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th (%.5f)' %(ci_fitted[i,0]*conv_plot))
+      axHist.axhline(ci_fitted[i,1]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 84.135th (%.5f)' %(ci_fitted[i,1]*conv_plot))
     
     axHist.set_title('Distribution of posterior chain')
     axHist.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5))

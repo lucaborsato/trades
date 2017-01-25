@@ -655,7 +655,7 @@ module parameters_conversion
     
 !     checkpar=.true.
     checkpar=checkbounds_fit(par,wrt_info)
-    if(present(wrt_info))then
+    if(present(wrt_info).and.wrt_info)then
       if(wrt_info) write(*,*)' checkbounds_fit: ',checkpar
       flush(6)
     end if

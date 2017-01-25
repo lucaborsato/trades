@@ -339,22 +339,8 @@ def main():
   n_der = derived_names.shape[0]
   n_flatchain = derived_posterior_in.shape[0]
 
-  ## check distribution of angles...
-  #derived_posterior = derived_posterior_in.copy()
-  #for ider in range(0, n_der):
-    #if('w' in derived_names[ider] or 'mA' in derived_names[ider] or 'lN' in derived_names[ider]):
-      ##print derived_names[ider]
-      #cosp = np.cos(derived_posterior_in[:,ider]*anc.deg2rad)
-      #sinp = np.sin(derived_posterior_in[:,ider]*anc.deg2rad)
-      #p_scale = np.arctan2(sinp, cosp)*anc.rad2deg
-      #p_mod = (p_scale+360.)%360.
-      #temp_par, temp_post = anc.get_good_distribution(p_scale, p_mod)
-      #derived_posterior[:,ider] = temp_post
-      
   derived_posterior = anc.derived_posterior_check(derived_names, derived_posterior_in)
 
-  # test label_separation
-  #if (n_der <= 3): label_separation = -0.1
   if(n_der > 2):
     label_separation = -0.1 - ( 0.075 * (n_der-2) )
   else:
@@ -362,26 +348,10 @@ def main():
 
   labels_list = anc.derived_labels(derived_names, cli.m_type)
 
-  # median
-  #median_derived, median_perc68, median_confint = anc.get_median_parameters(derived_posterior)
-  # mode
-  k = np.ceil(2. * n_flatchain**(1./3.)).astype(int)
-  if(k>50): k=50
-  #mode_bin, mode_derived, mode_perc68, mode_confint = anc.get_mode_parameters_full(derived_posterior, k)
-  
-  #file_sample = os.path.join(os.path.join(cli.full_path, '0666_sim'), 'parameters_summary.txt')
-  #if(os.path.exists(file_sample) and os.path.isfile(file_sample)):
-    #of = open(file_sample, 'r')
-    #lines = of.readlines()
-    #of.close()
-    #for line in lines:
-      #if('idx' in line.strip()):
-        #idx_sample = int(line.strip().split('idx = ')[1])
-        #print idx_sample
-        #break
-    #sample_derived = derived_posterior[idx_sample, :]
-  #else:
-    #sample_derived = None
+  #k = np.ceil(2. * n_flatchain**(1./3.)).astype(int)
+  ##if(k>50): k=50
+  #if(k>20): k=20
+  k = anc.get_bins(derived_posterior, rule='doane')
   
   if(cli.overplot is not None):
     ## OPEN summary_parameters.hdf5 FILE
@@ -392,15 +362,6 @@ def main():
     read_der = s_h5f['parameters/%s/derived/parameters' %(s_overplot)][...]
     s_h5f.close()
   
-  #overp_der = read_der.copy()
-  #for ider in range(0, n_der):
-    #if('w' in derived_names[ider] or 'mA' in derived_names[ider] or 'lN' in derived_names[ider]):
-      #if(np.min(derived_posterior[:,ider]) < 0.):
-        #if(np.max(derived_posterior[:,ider]) < 0.):
-          #overp_der[ider] = (overp_der[ider]-360.)%360.
-      #else:
-        #overp_der[ider] = (overp_der[ider]+360.)%360.
-        
     overp_der = anc.derived_parameters_check(derived_names, read_der, derived_posterior)
   
   fig = plt.figure(figsize=(12,12))
@@ -408,8 +369,6 @@ def main():
   
   for ix in range(0, n_der):
     x_data = derived_posterior[:,ix]
-    #x_med = median_derived[ix]
-    #x_mode = mode_derived[ix]
     x_min, x_max = anc.compute_limits(x_data, 0.05)
     if(x_min == x_max):
       x_min = x_min - 1.
@@ -417,8 +376,6 @@ def main():
    
     for iy in range(0, n_der):
       y_data = derived_posterior[:,iy]
-      #y_med = median_derived[iy]
-      #y_mode = mode_derived[iy]
       y_min, y_max = anc.compute_limits(y_data, 0.05)
       if(y_min == y_max):
         y_min = y_min - 1.
@@ -430,29 +387,24 @@ def main():
         
         hist2d_counts, xedges, yedges, image2d = ax.hist2d(x_data, y_data, bins=k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], cmap=cm.gray_r, normed=True)
         
-        new_k = int(k/3)
+        #new_k = int(k/3)
+        new_k = k
         hist2d_counts_2, xedges_2, yedges_2 = np.histogram2d(x_data, y_data, bins=new_k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], normed=True)
         
         x_bins = [0.5*(xedges_2[i]+xedges_2[i+1]) for i in range(0, new_k)]
         y_bins = [0.5*(yedges_2[i]+yedges_2[i+1]) for i in range(0, new_k)]
         
-        ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
+        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
+
+        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, levels, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
+        nl = 5
+        levels = [1.-np.exp(-0.5*ii) for ii in range(0,nl)] # 2D sigmas: 0sigma, 1sigma, 2sigma, 3sigma, ..
+        ax.contour(x_bins, y_bins, hist2d_counts_2.T, nl, cmap=cm.viridis, linestyle='solid', linewidths=0.5, normed=True)
         
         if(cli.overplot is not None):
           # plot selected overplot sample
           ax.axvline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
           ax.axhline(overp_der[iy], color='blue', ls='--', lw=1.1, alpha=0.7)
-        ## plot mean_mode
-        #ax.axvline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
-        #ax.axhline(y_mode, color='red', ls='-', lw=0.9, alpha=0.7)
-        # plot median
-        #ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-        #ax.axhline(y_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-        ## plot sample
-        #if(sample_derived is not None):
-          ## plot of sample_derived
-          #ax.axvline(sample_derived[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[ix]))
-          #ax.axhline(sample_derived[iy], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[iy]))
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -503,27 +455,11 @@ def main():
           if(cli.overplot is not None):
             # plot selected overplot sample
             ax.axhline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
-          ## plot mean_mode
-          #ax.axhline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
-          ## plot median
-          #ax.axhline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-          ## plot sample
-          #if(sample_derived is not None):
-            ## plot of sample_derived
-            #ax.axhline(sample_derived[iy], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[iy]))
         else:
           ax.set_xlim([x_min, x_max])
           if(cli.overplot is not None):
             # plot selected overplot sample
             ax.axvline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
-          ## plot mean_mode
-          #ax.axvline(x_mode, color='red', ls='-', lw=0.9, alpha=0.7)
-          ## plot median
-          #ax.axvline(x_med, color='blue', ls='--', lw=1.1, alpha=0.7)
-          ## plot sample
-          #if(sample_derived is not None):
-            ## plot of sample_derived
-            #ax.axvline(sample_derived[ix], marker='None', c='orange',ls='--', lw=1.4, alpha=0.77, label='picked: %12.7f' %(sample_derived[ix]))
         
         if(cli.overplot is not None):
           print derived_names[ix], ' overplot val = ', overp_der[ix], ' min = ', x_data.min(), ' max = ', x_data.max()
