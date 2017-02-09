@@ -677,9 +677,10 @@ module output_files
     integer::upar,j
     character(512)::flpar
     character(80)::fmt
-    real(dp)::fitness,bic,chi2,chi2r
+    real(dp)::fitness,fitxdof,bic,chi2,chi2r,lnL
 
     fitness = sum(resw*resw)
+    fitxdof = fitness*real(dof,dp)
     if(present(fit_scale))then
       chi2r=fitness/((fit_scale*fit_scale)*(gls_scale*gls_scale))
     else
@@ -687,7 +688,8 @@ module output_files
     end if
     chi2=chi2r*real(dof,dp)
 !     bic=fitness*real(dof,dp) + real(nfit,dp)*log(real(ndata,dp))
-    bic=chi2+real(nfit,dp)*log(real(ndata,dp))
+    bic=chi2+real(nfit+nfree,dp)*log(real(ndata,dp))
+    lnL = -(half*chi2)+ln_err_const
     
     upar=get_unit(cpuid)
     flpar=""
@@ -704,11 +706,11 @@ module output_files
     if(present(fit_scale))then
       write(*,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",&
         &fitness,&
-        &" => Fitness_x_dof = ",(fitness*real(dof,dp)),&
+        &" => Fitness_x_dof = ",fitxdof,&
         &" dof = ",dof
       write(upar,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",&
         &fitness,&
-        &" => Fitness_x_dof = ",(fitness*real(dof,dp)),&
+        &" => Fitness_x_dof = ",fitxdof,&
         &" dof = ",dof
         
       write(*,'(2(a,es23.16))')"# fit_scale = ",fit_scale," gls_scale = ",gls_scale
@@ -717,19 +719,24 @@ module output_files
     else
       write(*,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",&
         &fitness,&
-        &" => Fitness_x_dof = ",(fitness*real(dof,dp)),&
+        &" => Fitness_x_dof = ",fitxdof,&
         &" dof = ",dof
       write(upar,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",&
         &fitness,&
-        &" => Fitness_x_dof = ",(fitness*real(dof,dp)),&
+        &" => Fitness_x_dof = ",fitxdof,&
         &" dof = ",dof
     end if
     
-    write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')"# BIC = Chi2 + nfit x ln(ndata) = ",chi2," + ",nfit," x ln(",ndata,") = ",bic
-    write(upar,'(a,es23.16,a,i4,a,i5,a,es23.16)')"# BIC = Chi2 + nfit x ln(ndata) = ",chi2," + ",nfit," x ln(",ndata,") = ",bic
+    write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')"# BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
+      &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
+    write(upar,'(a,es23.16,a,i4,a,i5,a,es23.16)')"# BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
+      &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
     
-    write(*,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2)) - Fitness_x_dof / 2 = ", ln_err_const-half*fitness*real(dof,dp)
-    write(upar,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2)) - Fitness_x_dof / 2 = ", ln_err_const-half*fitness*real(dof,dp)
+    write(*,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 - Fitness_x_dof / 2 = ",lnL
+    write(*,'(a,es23.16)')"# ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
+    
+    write(upar,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 - Fitness_x_dof / 2 = ", lnL
+    write(upar,'(a,es23.16)')"# ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
     
     write(*,'(a,5x,a)')"# parameter "," value "
     write(upar,'(a,5x,a)')"# parameter "," value "
@@ -752,7 +759,7 @@ module output_files
     integer,intent(in)::cpuid,isim,wrtid
     real(dp),intent(in)::chi2r_RV,chi2r_T0,chi2wr_RV,chi2wr_T0,chi2r_oc,fitness
     real(dp),optional,intent(in)::fit_scale,gls_scale
-    real(dp)::chi2wr_oc,chi2r,chi2wr,bic
+    real(dp)::chi2wr_oc,chi2r,chi2wr,chi2,bic,lnL
     character(512)::summary_file
     integer::uwrt
     
@@ -775,7 +782,9 @@ module output_files
       chi2wr=chi2wr_RV
     end if
     
-    bic=chi2r*real(dof,dp) + real(nfit,dp)*log(real(ndata,dp))
+    chi2 = chi2r*real(dof,dp)
+    bic= chi2+real(nfit+nfree,dp)*log(real(ndata,dp))
+    lnL = -(half*chi2)+ln_err_const
     
     summary_file=trim(path)//trim(adjustl(string(isim)))//"_"//&
       &trim(adjustl(string(wrtid)))//"_fitness_summary.log"
@@ -789,7 +798,9 @@ module output_files
     if(ndata.gt.0)then
     
       ! print to screen
-      write(*,'(3(a,i4))')" dof = ndata - nfit = ",ndata," - ",nfit," = ",dof
+!       write(*,'(3(a,i4))')" dof = ndata - nfit = ",ndata," - ",nfit," = ",dof
+      write(*,'(10(a,i4))')" dof = ndata - nfit - nfree = ",&
+        &ndata," - ",nfit," - ",nfree," = ",dof ! I have to take into account RV offsets
       
       if(present(fit_scale))then
         write(*,'(100(a,es23.16))')&
@@ -800,9 +811,12 @@ module output_files
           &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",fitness
       end if
       
-      write(*,'(a,es23.16)')' Chi2 = ',chi2r*real(dof,dp)
-      write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')" BIC = Chi2 + nfit x ln(ndata) = ",chi2r*real(dof,dp)," + ",nfit," x ln(",ndata,") = ",bic
-      write(*,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ", ln_err_const-half*fitness*real(dof,dp)
+      write(*,'(a,es23.16)')' Chi2 = ',chi2
+      write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')" BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
+        &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
+      write(*,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ",&
+        &lnL
+      write(*,'(a,es23.16)')" ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
       write(*,'(a)')''
       write(*,'(a,es23.16)')" k_chi2r   = ",k_chi2r
       write(*,'(a,es23.16)')" Chi2r     = ",chi2r
@@ -817,19 +831,25 @@ module output_files
       write(*,'(a,es23.16)')" Chi2wr_oc = ",chi2wr_oc
       
       ! write into file
-      write(uwrt,'(3(a,i4))')" dof = ndata - nfit = ",ndata," - ",nfit," = ",dof
+!       write(uwrt,'(3(a,i4))')" dof = ndata - nfit = ",ndata," - ",nfit," = ",dof
+      write(uwrt,'(10(a,i4))')" dof = ndata - nfit - nfree = ",&
+        &ndata," - ",nfit," - ",nfree," = ",dof
+        
       if(present(fit_scale))then
         write(uwrt,'(100(a,es23.16))')&
           &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",fitness
         write(uwrt,'(2(a,es23.16))')' fit_scale = ',fit_scale,' gls_scale = ',gls_scale
-        write(uwrt,'(a,es23.16)')' Chi2 = ',chi2r*real(dof,dp)
       else
         write(uwrt,'(100(a,es23.16))')&
           &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",fitness
       end if
       
-      write(uwrt,'(a,es23.16,a,i4,a,i5,a,es23.16)')" BIC = Chi2 + nfit x ln(ndata) = ",chi2r*real(dof,dp)," + ",nfit," x ln(",ndata,") = ",bic
-      write(uwrt,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - (sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ", ln_err_const-half*fitness*real(dof,dp)
+      write(uwrt,'(a,es23.16)')' Chi2 = ',chi2
+      write(uwrt,'(a,es23.16,a,i4,a,i5,a,es23.16)')" BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
+        &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
+      write(uwrt,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ",&
+        &lnL
+      write(uwrt,'(a,es23.16)')" ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
       write(uwrt,'(a)')''
       write(uwrt,'(a,es23.16)')" k_chi2r   = ",k_chi2r
       write(uwrt,'(a,es23.16)')" Chi2r     = ",chi2r

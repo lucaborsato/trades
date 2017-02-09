@@ -26,6 +26,7 @@ def main():
 
   nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case_list = anc.get_fitted(cli.full_path)
   ndata = pytrades_lib.pytrades.ndata
+  nfree = pytrades_lib.pytrades.nfree
   dof = pytrades_lib.pytrades.dof
   
   # read emcee data
@@ -72,8 +73,20 @@ def main():
 
   top_header, header = anc.get_header(anc.percentile_val)
 
+
+  # 2017-01-26 EMCEE NOW USED sqrt(e)cos(w), sqrt(e)sin(w)
   # GET INTERVALS
-  def get_intervals(full_path, id_sim, parameter_names, parameters, flatchain_posterior, derived_type=None, full_output=False, idx_sample=None, summary_file_hdf5=None):
+  def get_intervals(full_path, id_sim, names_par_in, parameters_in, flatchain_posterior_in, derived_type=None, full_output=False, idx_sample=None, summary_file_hdf5=None):
+    
+    names_trades = anc.emcee_names_to_trades(names_par_in) # emcee to trades
+    parameters_trades = anc.sqrte_to_e_fitting(parameters_in, names_par_in) # emcee to trades
+    
+    names_par = names_par_in # emcee kind
+    parameters = parameters_in # emcee kind
+    flatchain_posterior = flatchain_posterior_in # emcee kind
+    
+    loglhdx, checkx = pytrades_lib.pytrades.fortran_loglikelihood(np.array(parameters_trades,dtype=np.float64))
+    loglhdx = loglhdx + ln_err_const
     
     out_folder = os.path.join(os.path.join(full_path, '%04d_sim' %(id_sim)), '')
     if (not os.path.isdir(out_folder)):
@@ -85,9 +98,8 @@ def main():
     anc.print_both(' ', out)
     anc.print_both(' --------------------------------- ', out)
     anc.print_both(' PARAMETER VALUES -> %d' %(id_sim), out)
-    fitness, lgllhd, check = pytrades_lib.pytrades.write_summary_files(id_sim, parameters)
-    print 'CHECK = ',check
-      
+    fitness, lgllhd, check = pytrades_lib.pytrades.write_summary_files(id_sim, parameters_trades)
+    
     kel_file, kep_elem = anc.elements(out_folder, id_sim, lmf=0)
 
     sigma_par = anc.compute_intervals(flatchain_posterior, parameters, anc.percentile_val)
@@ -99,7 +111,7 @@ def main():
       warn_o.write('*******\nWARNING: FITTED PARAMETERS COULD NOT BE PHYSICAL!\nWARNING: BE VERY CAREFUL WITH THIS PARAMETER SET!\n*******')
       warn_o.close()
     
-    names_derived, der_posterior = anc.compute_derived_posterior(parameter_names, kep_elem, id_fit, case_list, cols_list, flatchain_posterior, conv_factor=m_factor_boot)
+    names_derived, der_posterior = anc.compute_derived_posterior(names_par, kep_elem, id_fit, case_list, cols_list, flatchain_posterior, conv_factor=m_factor_boot)
     
     #der_posterior_T = der_posterior
     der_posterior_T = anc.derived_posterior_check(names_derived, der_posterior)
@@ -110,16 +122,14 @@ def main():
       par_type = 'MEDIAN'
     elif(str(derived_type).strip().lower() == 'mode'):
       # MODE-LIKE PARAMETERS -> id 3050
-      #k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
-      #if(k>50): k=50
-      k = anc.get_bins(flatchain_posterior_0, rule='doane')
+      k = anc.get_bins(flatchain_posterior, rule='doane')
       der_bin, derived_par = anc.get_mode_parameters(der_posterior_T, k)
       par_type = 'MODE'
     else:      
       # ORIGINAL FITTING PARAMETERS ID == 0
       # or
       # MAX LNPROBABILITY -> id 2050
-      names_derived, derived_par = anc.compute_derived_parameters(parameter_names, kep_elem, id_fit, case_list, cols_list, parameters, conv_factor=m_factor)
+      names_derived, derived_par = anc.compute_derived_parameters(names_par, kep_elem, id_fit, case_list, cols_list, parameters, conv_factor=m_factor)
       derived_par, der_posterior_T = anc.adjust_derived_parameters(names_derived, derived_par, der_posterior_T)
       if(id_sim == 0):
         par_type = 'ORIGINAL FIT'
@@ -131,9 +141,19 @@ def main():
         par_type = 'MODE PARAMETERS TO DERIVED'
       elif(id_sim == 666):
         par_type = 'SELECTED SAMPLE'
-        if(idx_sample is not None):
-          par_type = '%s <-> idx = %d' %(par_type, idx_sample)
-          derived_par = der_posterior_T[idx_sample, :]
+        # ***COMMENTED 2017-02-02: TO CHECK IF REALLY NEEDED
+        #if(idx_sample is not None):
+          #par_type = '%s <-> idx = %d' %(par_type, idx_sample)
+          #derived_par = der_posterior_T[idx_sample, :]
+          #for ider in range(0,np.shape(derived_par)[0]):
+            ##print ider, names_derived[ider], names_derived[ider][0], names_derived[ider][1]
+            #if(names_derived[ider][0] == 'm' and names_derived[ider][1] != 'A'):
+              ##print 'doing'
+              #derived_par[ider] = der_posterior_T[idx_sample, ider]*m_factor/m_factor_boot[idx_sample]
+      elif(id_sim == 667):
+        par_type = 'SELECTED SAMPLE CLOSE TO MEDIAN LGLLHD WITHIN POSTERIOR CI'
+      elif(id_sim == 668):
+        par_type = 'SELECTED SAMPLE CLOSE TO MEDIAN OF PAR AND LGLLHD WITHIN POSTERIOR CI'
       else:
         par_type = 'AD HOC'
     
@@ -142,19 +162,18 @@ def main():
     
     if(s_h5f is not None):
       s_id_sim = '%04d' %(id_sim)
-      #print s_id_sim
       s_h5f.create_dataset('parameters/%s/fitted/parameters' %(s_id_sim), data=parameters, dtype=np.float64)
       s_h5f.create_dataset('parameters/%s/fitted/names' %(s_id_sim), data=names_par, dtype='S10')
       s_h5f.create_dataset('parameters/%s/fitted/units' %(s_id_sim), data=units_par, dtype='S15')
       s_h5f.create_dataset('parameters/%s/fitted/sigma' %(s_id_sim), data=sigma_par.T, dtype=np.float64)
       s_h5f['parameters/%s/fitted/sigma' %(s_id_sim)].attrs['percentiles'] = anc.percentile_val
-    #if(s_h5f is not None):
-      #s_id_sim = '%04d' %(id_sim)
+
       s_h5f.create_dataset('parameters/%s/derived/parameters' %(s_id_sim), data=derived_par, dtype=np.float64)
       s_h5f.create_dataset('parameters/%s/derived/names' %(s_id_sim), data=names_derived, dtype='S10')
       s_h5f.create_dataset('parameters/%s/derived/units' %(s_id_sim), data=units_der, dtype='S15')
       s_h5f.create_dataset('parameters/%s/derived/sigma' %(s_id_sim), data=sigma_derived.T, dtype=np.float64)
       s_h5f['parameters/%s/derived/sigma' %(s_id_sim)].attrs['percentiles'] = anc.percentile_val
+
       s_h5f['parameters/%s' %(s_id_sim)].attrs['info'] = '%s ==> %s' %(s_id_sim, par_type)
       s_h5f['parameters/%s' %(s_id_sim)].attrs['fitness'] = fitness
       s_h5f['parameters/%s' %(s_id_sim)].attrs['lgllhd'] = lgllhd
@@ -169,6 +188,7 @@ def main():
     anc.print_both('# DERIVED PARAMETERS', out)
     anc.print_parameters(top_header, header, names_derived, units_der, derived_par, sigma_derived, out)
     out.close()
+
     if(full_output):
       return out_folder, names_derived, der_posterior_T
     else:
@@ -192,14 +212,19 @@ def main():
   s_h5f.create_dataset('confidence_intervals/fitted/percentiles', data=np.array(anc.percentile_val[2:]), dtype=np.float64)
   
   s_h5f['confidence_intervals/fitted'].attrs['nfit'] = nfit
+  s_h5f['confidence_intervals/fitted'].attrs['nfree'] = nfree
   s_h5f['confidence_intervals/fitted'].attrs['ndata'] = ndata
   s_h5f['confidence_intervals/fitted'].attrs['dof'] = dof
-  
   
   ## ORIGINAL FITTING PARAMETERS ID == 0
   # save initial_fitting parameters into array
   original_fit_parameters = pytrades_lib.pytrades.fitting_parameters # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
-  folder_0 = get_intervals(cli.full_path, 0, names_par, original_fit_parameters, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
+  #folder_0 = get_intervals(cli.full_path, 0, names_par, original_fit_parameters, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
+  # WARNING: original_fit_parameters from TRADES have to be converted to emcee parameters:
+  # (ecosw,esinw) => (sqrecosw, sqrtesinw)
+  trades_names = anc.emcee_names_to_trades(names_par)
+  original_parameters = anc.e_to_sqrte_fitting(original_fit_parameters, trades_names)
+  folder_0 = get_intervals(cli.full_path, 0, names_par, original_parameters, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
   # ************************************
   
   print
@@ -245,8 +270,9 @@ def main():
   # ************************************
   ## MODE-LIKE PARAMETERS -> id 3050
   ## take the mean of 5 bin centered to the higher bin
-  k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
-  if(k>50): k=50
+  #k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
+  #if(k>50): k=50
+  k = anc.get_bins(flatchain_posterior_0, rule='doane')
   mode_bin, mode_parameters = anc.get_mode_parameters(flatchain_posterior_0, k)
   folder_3050 = get_intervals(cli.full_path, 3050, names_par, mode_parameters, flatchain_posterior_0, derived_type='mode', summary_file_hdf5=s_h5f)
   ## MODE-LIKE PARAMETERS -> id 3051
@@ -273,9 +299,25 @@ def main():
   #if(cli.overplot is not None):
   if( cli.adhoc is not None):
     print cli.overplot, cli.adhoc
-    adhoc_names, adhoc_par = anc.read_fitted_file(cli.adhoc)
+    adhoc_names, adhoc_par_trades = anc.read_fitted_file(cli.adhoc)
+    adhoc_par = anc.e_to_sqrte_fitting(adhoc_par_trades, adhoc_names)
     folder_777 = get_intervals(cli.full_path, 777, names_par, adhoc_par, flatchain_posterior_0, derived_type=777, summary_file_hdf5=s_h5f)
   
+  # select the sample within post_ci and close to median lgllhd --> 667
+  sample2_parameters, sample2_lgllhd = anc.get_sample_by_sorted_lgllhd(flatchain_posterior_0,
+                                                                       lnprob_burnin.T,
+                                                                       post_ci = ci_fitted[0:2,:]
+                                                                      )
+  folder_667 = get_intervals(cli.full_path, 667, names_par, sample2_parameters, flatchain_posterior_0, derived_type=667, summary_file_hdf5=s_h5f)
+  
+  # another kind of selection: by a parameter but limited around MAD(LGLLHD-LGLLHDMEDIAN) -> 668
+  name_par, name_excluded = anc.get_sample_list(cli.sample_str, names_par)
+  sample3_parameters, sample3_lgllhd = anc.get_sample_by_par_and_lgllhd(flatchain_posterior_0,
+                                       lnprob_burnin.T, 
+                                       names_par, 
+                                       post_ci = ci_fitted[0:2,:], 
+                                       name_par= name_par)
+  folder_668 = get_intervals(cli.full_path, 668, names_par, sample3_parameters, flatchain_posterior_0, derived_type=668, summary_file_hdf5=s_h5f)
   
   s_h5f.close()
 

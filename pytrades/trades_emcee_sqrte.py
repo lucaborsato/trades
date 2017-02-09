@@ -226,7 +226,7 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
   while True:
       test_p0 = np.array([fitting_parameters[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
       #test_lg = lnprob(test_p0)
-      test_lg = lnprob(test_p0, parameter_names)
+      test_lg = lnprob_sq(test_p0, parameter_names)
       if(not np.isinf(test_lg)):
         i_p0 +=1
         p0.append(test_p0)
@@ -251,13 +251,13 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
         print 'val = ', new_start[sel_fit],' with min = ',parameters_minmax[sel_fit,0],' and delta = ',delta_parameters[sel_fit]
         while True:
           new_start[sel_fit] = parameters_minmax[sel_fit,0] + delta_parameters[sel_fit]*np.random.random()
-          test_lg = lnprob(new_start, parameter_names)
+          test_lg = lnprob_sq(new_start, parameter_names)
           if(not np.isinf(test_lg)): break
         i_pos = nw_min * i_gpt
         print 'i_pos = ',
         while True:
           test_p0 = np.array([new_start[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
-          test_lg = lnprob(test_p0, parameter_names)
+          test_lg = lnprob_sq(test_p0, parameter_names)
           if(not np.isinf(test_lg)):
             p0[i_pos] = test_p0
             print i_pos,
@@ -269,7 +269,7 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
     #while True:
       #test_p0 = fitting_parameters + delta_parameters*np.random.random(nfit)
       ##test_lg = lnprob(test_p0)
-      #test_lg = lnprob(test_p0, parameter_names)
+      #test_lg = lnprob_sq(test_p0, parameter_names)
       #if(not np.isinf(test_lg)):
         #i_p0 +=1
         #p0.append(test_p0)
@@ -286,7 +286,7 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
     #while True:
       #test_p0 = np.array([fitting_parameters[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
       ##test_lg = lnprob(test_p0)
-      #test_lg = lnprob(test_p0, parameter_names)
+      #test_lg = lnprob_sq(test_p0, parameter_names)
       #if(not np.isinf(test_lg)):
         #i_p0 +=1
         #p0.append(test_p0)
@@ -323,7 +323,6 @@ def main():
   ndata = pytrades_lib.pytrades.ndata # TOTAL NUMBER OF DATA AVAILABLE
   npar  = pytrades_lib.pytrades.npar # NUMBER OF TOTAL PARAMATERS ~n_planets X 6
   nfit  = pytrades_lib.pytrades.nfit # NUMBER OF PARAMETERS TO FIT
-  nfree  = pytrades_lib.pytrades.nfree # NUMBER OF FREE PARAMETERS (ie nrvset)
   dof   = pytrades_lib.pytrades.dof # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
   global inv_dof
   inv_dof = np.float64(1.0 / dof)
@@ -336,8 +335,7 @@ def main():
   trades_names = anc.convert_fortran2python_strarray(pytrades_lib.pytrades.parameter_names,
                                                      nfit, str_len=10
                                                     )
-  #parameter_names = anc.trades_names_to_emcee(trades_names)
-  parameter_names = trades_names
+  parameter_names = anc.trades_names_to_emcee(trades_names)
   
   
   if(cli.trades_previous is not None):
@@ -353,16 +351,14 @@ def main():
     # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
     #fitting_parameters = pytrades_lib.pytrades.fitting_parameters
     trades_parameters = pytrades_lib.pytrades.fitting_parameters
-  
-  # save initial_fitting parameters into array  
+    # save initial_fitting parameters into array
   original_fit_parameters = trades_parameters.copy()
-  #fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
-  fitting_parameters = trades_parameters
+  fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
   
   trades_minmax = pytrades_lib.pytrades.parameters_minmax # PARAMETER BOUNDARIES
   parameters_minmax = trades_minmax.copy()
-  #parameters_minmax[:,0] = anc.e_to_sqrte_fitting(parameters_minmax[:,0], trades_names)
-  #parameters_minmax[:,1] = anc.e_to_sqrte_fitting(parameters_minmax[:,1], trades_names)
+  parameters_minmax[:,0] = anc.e_to_sqrte_fitting(parameters_minmax[:,0], trades_names)
+  parameters_minmax[:,1] = anc.e_to_sqrte_fitting(parameters_minmax[:,1], trades_names)
 
 
   # RADIAL VELOCITIES SET
@@ -403,7 +399,7 @@ def main():
   print_both('',of_run)
   print_both(' WORKING PATH = %s' %(working_path),of_run)
   print_both(' NUMBER OF THREADS = %d' %(nthreads),of_run)
-  print_both(' dof = ndata(%d) - nfit(%d) - nfree(%d) = %d' %(ndata, nfit, nfree, dof),of_run)
+  print_both(' dof = ndata(%d) - nfit(%d) = %d' %(ndata, nfit, dof),of_run)
   print_both(' Total N_RV = %d for %d set(s)' %(n_rv, n_set_rv),of_run)
   print_both(' Total N_T0 = %d for %d out of %d planet(s)' %(n_t0_sum, n_set_t0, n_planets),of_run)
   print_both(' %s = %.7f' %('log constant error = ', ln_err_const),of_run)
@@ -418,17 +414,17 @@ def main():
   print_both(' ORIGINAL PARAMETER VALUES -> 0000', of_run)
   fitness_0000, lgllhd_0000, check_0000 = pytrades_lib.pytrades.write_summary_files(0, original_fit_parameters)
   print_both(' ', of_run)
-  #print_both(' TESTING LNPROB_SQ ...', of_run)
+  print_both(' TESTING LNPROB_SQ ...', of_run)
   
   lgllhd_zero = lnprob(trades_parameters)
-  #lgllhd_sq_zero = lnprob(fitting_parameters, parameter_names)
+  lgllhd_sq_zero = lnprob_sq(fitting_parameters, parameter_names)
 
   print_both(' ', of_run)
-  print_both(' %15s %23s %23s' %('trades_names', 'original_trades', 'trades_par'), of_run)
+  print_both(' %15s %23s %23s %15s %23s' %('trades_names', 'original_trades', 'trades_par', 'emcee_names', 'emcee_par'), of_run)
   for ifit in range(0, nfit):
-    print_both(' %15s %23.16e %23.16e' %(trades_names[ifit], original_fit_parameters[ifit], trades_parameters[ifit]), of_run)
+    print_both(' %15s %23.16e %23.16e %15s %23.16e' %(trades_names[ifit], original_fit_parameters[ifit], trades_parameters[ifit], parameter_names[ifit], fitting_parameters[ifit]), of_run)
   print_both(' ', of_run)
-  print_both(' %15s %23.16e %23.16e' %('lnprob', lgllhd_0000,lgllhd_zero), of_run)
+  print_both(' %15s %23.16e %23.16e %15s %23.16e' %('lnprob', lgllhd_0000,lgllhd_zero, 'lnprob_sq', lgllhd_sq_zero), of_run)
   print_both(' ', of_run)
   
   # INITIALISES THE WALKERS
@@ -444,8 +440,8 @@ def main():
 
   print_both(' emcee chain: nwalkers = %d nruns = %d' %(nwalkers, nruns), of_run)
   print_both(' sampler ... ',of_run)
-  sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, threads=nthreads)
-  #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, threads=nthreads, args=[parameter_names])
+  #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, threads=nthreads)
+  sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, threads=nthreads, args=[parameter_names])
   print_both(' ready to go', of_run)
   print_both(' with nsave = %r' %(nsave), of_run)
   sys.stdout.flush()
@@ -462,10 +458,6 @@ def main():
     f_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
     f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
     temp_dset = f_hdf5.create_dataset('chains', (nwalkers, nruns, nfit), dtype=np.float64)
-    f_hdf5['chains'].attrs['nwalkers'] = nwalkers
-    f_hdf5['chains'].attrs['nruns'] = nruns
-    f_hdf5['chains'].attrs['nfit'] = nfit
-    f_hdf5['chains'].attrs['nfree'] = nfree
     temp_lnprob = f_hdf5.create_dataset('lnprobability', (nwalkers, nruns), dtype=np.float64)
     temp_lnprob.attrs['ln_err_const'] = ln_err_const
     temp_acceptance = f_hdf5.create_dataset('acceptance_fraction', data=np.zeros((nfit)), dtype=np.float64)
@@ -539,10 +531,6 @@ def main():
     # save chains with original shape as hdf5 file
     f_hdf5 = h5py.File(os.path.join(working_folder, 'emcee_summary.hdf5'), 'w')
     f_hdf5.create_dataset('chains', data=sampler.chain, dtype=np.float64)
-    f_hdf5['chains'].attrs['nwalkers'] = nwalkers
-    f_hdf5['chains'].attrs['nruns'] = nruns
-    f_hdf5['chains'].attrs['nfit'] = nfit
-    f_hdf5['chains'].attrs['nfree'] = nfree
     f_hdf5['chains'].attrs['completed_steps'] = nruns
     f_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
     f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)

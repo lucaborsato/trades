@@ -35,7 +35,7 @@ module parameters
   character(128)::paridlist,sig_paridlist
   character(10),dimension(:),allocatable::all_names_list
   character(1024)::all_names_str
-  integer::ndata,npar,nfit,dof
+  integer::ndata,npar,nfit,nfree,dof
   real(dp)::inv_dof
 
   ! complete list of all the parameters for the whole system: M1,R1,M2,P2,a2,e2,...and so on

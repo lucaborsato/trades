@@ -37,7 +37,7 @@ def main():
 
   #plot_folder = prepare_plot_folder(working_path)
   emcee_plots = anc.prepare_emcee_plot_folder(cli.full_path)
-  log_file = os.path.join(emcee_plots, 'GelmanRubin_log.txt')
+  log_file = os.path.join(emcee_plots, 'Geweke_log.txt')
   flog = logging.FileHandler(log_file, 'w')
   flog.setLevel(logging.DEBUG)
   flog.setFormatter(formatter)
@@ -97,7 +97,7 @@ def main():
     #plt.legend(loc='best',fontsize=9)
     ax.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5), ncol=int(np.rint(nwalkers/40)))
     
-    fig.savefig(os.path.join(emcee_plots, 'geweke_trace_pam_%s.png' %(parameter_names_emcee[ifit])), bbox_inches='tight', dpi=300)
+    fig.savefig(os.path.join(emcee_plots, 'geweke_%03d_%s.png' %(ifit+1, parameter_names_emcee[ifit])), bbox_inches='tight', dpi=300)
     plt.close(fig)
     logger.info('saved plot %s' %(os.path.join(emcee_plots, 'geweke_trace_pam_%s.png' %(parameter_names_emcee[ifit]))))
     

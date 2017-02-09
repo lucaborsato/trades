@@ -1400,12 +1400,15 @@ module init_trades
     ! IT DETERMINES THE NDATA
     ndata=nRV+sum(nT0)
     
-    dof=(ndata-nfit)
+    nfree=nRVset
+!     dof=(ndata-nfit)
+    dof=(ndata-nfit-nfree) ! I have to take into account the number of RV offsets even if they are not fitted
     inv_dof = one / real(dof,dp)
     write(*,'(a,i5)')" NUMBER OF DATA AVAILABLE: ndata = ",ndata
     write(*,'(a,i5)')" NUMBER OF PARAMETERS TO FIT: nfit = ",nfit
+    write(*,'(a,i5)')" NUMBER OF FREE PARAMETERS: nfree = ",nfree
     write(*,'(a,i5)')&
-        &" NUMBER OF DEGREES OF FREEDOM : dof = ndata - nfit = ",dof
+        &" NUMBER OF DEGREES OF FREEDOM : dof = ndata - nfit -nfree = ",dof
 
     ! IT DETERMINES THE LN_ERR_CONST TO COMPUTE LOGLIKELIHOOD
     ln_err_const = get_ln_err_const(eRVobs,eT0obs)

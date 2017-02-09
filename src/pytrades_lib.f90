@@ -16,7 +16,7 @@ module pytrades
   ! exposing variables in parameters to trades_lib
   !f2py integer,parameter::dp=selected_real_kind(8)
   !f2py character(512)::path
-  !f2py integer::ndata,npar,nfit,dof
+  !f2py integer::ndata,npar,nfit,nfree,dof
   !f2py real(dp),parameter::resmax=1.e10_dp
   
   !f2py integer::nRV,nRVset
@@ -165,7 +165,9 @@ module pytrades
     if(nfit.ge.ndata)then
       stop('NUMBER OF PARAMETERS TO FIT IS GREATER/EQUAL TO TOTAL NUMBER OF DATAPOINTS')
     end if
-    dof=(ndata-nfit)
+!     dof=(ndata-nfit)
+    nfree=nRVset
+    dof=ndata-nfit-nfree
     
     inv_dof = one / real(dof,dp)
 !     write(*,'(a,i5)')" NUMBER OF DATA AVAILABLE: ndata = ",ndata
@@ -419,7 +421,7 @@ module pytrades
       write(*,'(a)')'WARNING'
       write(*,'(a)')'*******'
     end if
-    lgllhd=-0.5_dp*fitness*real(dof,dp)
+    lgllhd=-half*fitness*real(dof,dp)+ln_err_const
 !     if(fitness.ge.resmax)check=.false.
 
         
@@ -466,7 +468,7 @@ module pytrades
     else
       fitness=resmax
     end if
-    lgllhd=-0.5_dp*fitness*real(dof,dp)
+    lgllhd=-half*fitness*real(dof,dp)+ln_err_const
     if(fitness.ge.resmax)check=.false.
     
     return

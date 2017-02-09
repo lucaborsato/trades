@@ -409,7 +409,7 @@ def main():
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
         if(iy == n_der-1):
-          set_xaxis(ax, label_size, label_separation, label_pad, ticklabel_size, labels_list[ix], [xedges[0], xedges[-1], 3])
+          set_xaxis(ax, label_size, label_separation, label_pad, ticklabel_size, labels_list[ix], [xedges[0], xedges[-1], 4])
         if(ix == 0): 
           set_yaxis(ax, label_size, label_separation, label_pad, ticklabel_size, labels_list[iy], [yedges[0], yedges[-1], 5])
         

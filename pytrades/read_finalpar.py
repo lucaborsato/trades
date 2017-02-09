@@ -48,8 +48,9 @@ def get_args():
   parser.add_argument('-lm', action='store', dest='lmflag', default='0', help='LM flag: 0 = not used LM (default), 1 = used LM')
   parser.add_argument('-b', '--bootstrap', action='store', dest='boot', default=True, help='Bootsrap flag: "0" or "no" or "n" or "False", "1" or "yes" or "y" or "True", default = True')
   parser.add_argument('-m', '--m-type', '--mass-type', action='store', dest='mtype', default='j', help='Mass type to use: e = Earth, j = Jupiter, n = Neptune, s = Sun')
-  parser.add_argument('-mg', '--m-gauss', '--mass-gaussia', action='store', dest='mgauss', default='True', help='If used old version of TRADES set it to "0" or "no" or "n" or "False", else it assumes that the masses of planets are scaled by the mass of star during the fit. Default is "1" or "yes" or "y" or "True".')
-  parser.add_argument('-ft', '--fit-type', action='store', dest='fit_type', default='hk', help='Fitting type: hk = (ecosw, esinw), ew = (e, w)')
+  parser.add_argument('-mg', '--m-gauss', '--mass-gaussian', action='store', dest='mgauss', default='True', help='If used old version of TRADES set it to "0" or "no" or "n" or "False", else it assumes that the masses of planets are scaled by the mass of star during the fit. Default is "1" or "yes" or "y" or "True".')
+  parser.add_argument('--seed', action='store', dest='seed', default='None', help='Seed to generate Gaussian distribution of Mstar. If -mg is False it is not need. Default is None.')
+  parser.add_argument('-ft', '--fit-type', action='store', dest='fit_type', default='hk', help='Fitting type: hk = (ecosw, esinw), ew = (e, w), sew = (sqrtecosw, sqrtesinw). Default = hk, BUT IT IS NOT USED!')
   
   cli = parser.parse_args()
   
@@ -80,6 +81,14 @@ def get_args():
     #cli.fit_type = 'hk'
   
   cli.fpath = os.path.abspath(cli.fpath)
+  
+  if(str(cli.seed).lower() == 'none'):
+    cli.seed = None
+  else:
+    try:
+      cli.seed = int(cli.seed)
+    except:
+      cli.seed = None
   
   return cli
   #return cli.fpath, cli.idsim, cli.lmflag, cli.boot, cli.mtype, cli.mgauss, cli.fit_type
@@ -163,16 +172,22 @@ def main():
     MR_star[0,0] = Mstar
 
   if(boot):
+    file_boot = os.path.join(fpath, '%s_bootstrap_sim.dat' %(idsim))
+    try:
+      bootstrap = np.genfromtxt(file_boot)[:,1:]
+    except:
+      sys.exit(' CANNOT FIND BOOTSTRAP FILE: %s' %(file_boot))
     if(mgauss):
       m_factor, mass_unit = anc.mass_type_factor(Ms=Mstar, mtype=mtype, mscale=True)
       m_factor_boot = m_factor
     else:
       m_factor, mass_unit = anc.mass_type_factor(Ms=1.0, mtype=mtype, mscale=False)
       np.random.seed(seed=cli.seed)
-      Ms_gaussian = MR_star[0,0] + np.random.normal(0., 1., size=(np.shape(flatchain_posterior_0)[0]))*MR_star[0,1] # if exists an error on the mass, it creates a Normal distribution for the values and use it to re-scale mp/Ms to mp.
+      Ms_gaussian = MR_star[0,0] + np.random.normal(0., 1., size=(np.shape(bootstrap)[0]))*MR_star[0,1] # if exists an error on the mass, it creates a Normal distribution for the values and use it to re-scale mp/Ms to mp.
       m_factor_boot = m_factor * Ms_gaussian # given the factor from Msun to mass_unit it multiply it by the Normal Mstar.
       m_factor = m_factor * MR_star[0,0]
   else:
+    bootstrap = None
     m_factor, mass_unit = anc.mass_type_factor(Ms=Mstar, mtype=mtype, mscale=True)
   
   kel_file, kep_elem = anc.elements(fpath, int(idsim), int(lmflag))
@@ -180,14 +195,14 @@ def main():
   file_par = parameters_file(fpath, idsim, lmflag)
   names_par, par, fitness_s, fitness_x_dof_s, bic, chi2, ndata, dof = read_parameters(file_par, lmflag)
 
-  if (boot):
-    file_boot = os.path.join(fpath, '%s_bootstrap_sim.dat' %(idsim))
-    try:
-      bootstrap = np.genfromtxt(file_boot)[:,1:]
-    except:
-      sys.exit(' CANNOT FIND BOOTSTRAP FILE: %s' %(file_boot))
-  else:
-    bootstrap = None
+  #if (boot):
+    #file_boot = os.path.join(fpath, '%s_bootstrap_sim.dat' %(idsim))
+    #try:
+      #bootstrap = np.genfromtxt(file_boot)[:,1:]
+    #except:
+      #sys.exit(' CANNOT FIND BOOTSTRAP FILE: %s' %(file_boot))
+  #else:
+    #bootstrap = None
     
   units_par = anc.get_units(names_par, mass_unit)
   names_derived, derived_par = anc.compute_derived_parameters(names_par, kep_elem, id_fit, case_list, cols_list, par, conv_factor=m_factor)
