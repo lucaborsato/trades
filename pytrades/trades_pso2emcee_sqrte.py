@@ -93,6 +93,13 @@ def lnprob(fitting_parameters):
   
   return loglhd
 
+def lnprob_sq(fitting_parameters, names_par):
+  
+  fitting_trades = anc.sqrte_to_e_fitting(fitting_parameters, names_par)
+  loglhd = lnprob(fitting_trades)
+  
+  return loglhd
+
 #
 # INITIALISE FOLDER AND LOG FILE
 #
@@ -132,6 +139,7 @@ def compute_ln_err_const(ndata, dof, e_RVo, e_T0o, ln_flag=False):
 
 
 def get_emcee_arguments(cli,nfit):
+  
   #
   # NUMBER OF WALKERS
   if (cli.nwalkers < nfit*2):
@@ -332,13 +340,15 @@ def main():
   trades_names = anc.convert_fortran2python_strarray(pytrades_lib.pytrades.parameter_names,
                                                      nfit, str_len=10
                                                     )
-  #parameter_names = anc.trades_names_to_emcee(trades_names)
-  parameter_names = trades_names
+  parameter_names = anc.trades_names_to_emcee(trades_names)
+  #parameter_names = trades_names
   
-  fitting_parameters = pytrades_lib.pytrades.fitting_parameters # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
-  parameters_minmax = pytrades_lib.pytrades.parameters_minmax # PARAMETER BOUNDARIES
-  delta_parameters = np.abs(parameters_minmax[:,1] - parameters_minmax[:,0]) # DELTA BETWEEN MAX AND MIN OF BOUNDARIES
-
+  trades_parameters = pytrades_lib.pytrades.fitting_parameters # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
+  fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
+  
+  trades_minmax = pytrades_lib.pytrades.parameters_minmax # PARAMETER BOUNDARIES
+  parameters_minmax = anc.e_to_sqrte_boundaries(trades_minmax, trades_names)
+  
   # RADIAL VELOCITIES SET
   n_rv = pytrades_lib.pytrades.nrv
   n_set_rv = pytrades_lib.pytrades.nrvset
@@ -411,7 +421,7 @@ def main():
       anc.copy_simulation_files(working_path, pso_path)
 
       # CALL RUN_PSO SUBROUTINE FROM TRADES_LIB: RUNS PSO AND COMPUTES THE BEST SOLUTION, SAVING ALL THE POPULATION EVOLUTION
-      pso_parameters = fitting_parameters.copy()
+      pso_parameters = trades_parameters.copy()
       pso_fitness = 0.
       pso_parameters, pso_fitness = pytrades_lib.pytrades.pyrun_pso(nfit,i_global)
       anc.print_both(' completed run_pso', of_run)
@@ -432,8 +442,8 @@ def main():
       pso_hdf5.create_dataset('pso_parameters', data=pso_parameters, dtype=np.float64)
       pso_hdf5.create_dataset('pso_fitness', data=np.array(pso_fitness), dtype=np.float64)
       pso_hdf5.create_dataset('pso_best_evolution', data=pso_best_evolution, dtype=np.float64)
-      pso_hdf5.create_dataset('parameters_minmax', data=parameters_minmax, dtype=np.float64)
-      pso_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
+      pso_hdf5.create_dataset('parameters_minmax', data=trades_minmax, dtype=np.float64)
+      pso_hdf5.create_dataset('parameter_names', data=trades_names, dtype='S10')
       pso_hdf5['population'].attrs['npop'] = np_pso
       pso_hdf5['population'].attrs['niter'] = nit_pso
       pso_hdf5['population'].attrs['iter_global'] = iter_global
@@ -450,8 +460,10 @@ def main():
       anc.print_both(' ', of_run)
       anc.print_both(' PSO FINISHED in %2d day %02d hour %02d min %.2f sec - bye bye' %(int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s), of_run)
       
+      # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
+      emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
       #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
-      p0 = compute_initial_walkers(nfit, nwalkers, pso_parameters, parameters_minmax, parameter_names, delta_sigma, of_run)
+      p0 = compute_initial_walkers(nfit, nwalkers, emcee_parameters, parameters_minmax, parameter_names, delta_sigma, of_run)
 
     elif (cli.pso_type == 'exists'):
       # READ PREVIOUS PSO_RUN.HDF5 FILE AND INITIALISE POPULATION FOR EMCEE
@@ -463,8 +475,10 @@ def main():
       
       anc.print_both(' read pso_run.hdf5 file with best pso_fitness = %.7f' %(pso_fitness), of_run)
       
+      # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
+      emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
       #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
-      p0 = compute_initial_walkers(nfit, nwalkers, pso_parameters, parameters_minmax, parameter_names, delta_sigma, of_run)
+      p0 = compute_initial_walkers(nfit, nwalkers, emcee_parameters, parameters_minmax, parameter_names, delta_sigma, of_run)
           
       
     elif (cli.pso_type == 'skip'):

@@ -31,6 +31,16 @@ percentile_val = [68.27, 50.0, 15.865, 84.135, 2.265, 97.735, 0.135, 99.865]
 
 # ===================================================================
 
+def print_both(line, output=None):
+  
+  print line
+  if(output is not None):
+    output.write(line + '\n')
+  
+  return
+
+# ===================================================================
+
 def set_bool_argument(arg_in):
   if (str(arg_in).lower() in ['t', 'tr', 'tru', 'true', 'y', 'ye', 'yes', '1']):
     arg_out = True
@@ -129,6 +139,32 @@ def get_args():
   cli.pyscript = os.path.abspath(cli.pyscript)
   
   return cli
+
+# -------------------------------------
+
+def copy_simulation_files(dir_src, dir_dest):
+  
+  # copy all the simulation files from the source directory to destination directory
+  ## arg.in
+  arg_file = os.path.join(dir_src, 'arg.in')
+  shutil.copy(arg_file, os.path.join(dir_dest,''))
+  ## bodies.lst
+  bodies_file = os.path.join(dir_src, 'bodies.lst')
+  shutil.copy(bodies_file, os.path.join(dir_dest,''))
+  ## bodies file (inside bodies.lst)
+  obd = open(bodies_file, 'r')
+  for line in obd.readlines():
+    shutil.copy(os.path.join(dir_src, line.strip().split()[0]), os.path.join(dir_dest,''))
+  obd.close()
+  ## TT files
+  t0files = glob.glob(os.path.join(dir_src,'NB*_observations.dat'))
+  for t0f in t0files:
+    shutil.copy(t0f, os.path.join(dir_dest,''))
+  ## RV file
+  if(os.path.exists(os.path.join(dir_src,'obsRV.dat'))):
+    shutil.copy(os.path.join(dir_src,'obsRV.dat'), os.path.join(dir_dest,''))
+  
+  return
 
 # -------------------------------------
 
@@ -1323,17 +1359,6 @@ def geweke_test(chains_T, start_frac=0.05, n_sel_steps=5):
 
 # =============================================================================
 
-# ------------------------------
-# function from read_finalpar_v2
-
-def print_both(line, output=None):
-  
-  print line
-  if(output is not None):
-    output.write(line + '\n')
-  
-  return
-
 # -------------------------------------
 
 def get_units(names, mass_unit):
@@ -2244,6 +2269,21 @@ def emcee_names_to_trades(emcee_names):
       trades_names[ifit+1] = '%s' %(emcee_names[ifit+1].split('sqrt')[1])
   
   return trades_names
+
+# -------------------------------------
+
+def e_to_sqrte_boundaries(boundaries_in, names_par):
+
+  nfit = np.shape(boundaries_in)[0]
+  boundaries_out = np.array(boundaries_in, dtype=np.float64).copy()
+  for ifit in range(0,nfit):
+    if(names_par[ifit][:2] == 'ec'):
+      ec = boundaries_in[ifit,:]
+      es = boundaries_in[ifit+1,:]
+      boundaries_out[ifit,:] = np.sign(ec)*np.sqrt(np.abs(ec))
+      boundaries_out[ifit+1,:] = np.sign(es)*np.sqrt(np.abs(es))
+
+  return boundaries_out
 
 # -------------------------------------
 

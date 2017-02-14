@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.11.1 by Luca Borsato - 2016**    
+**`TRADES` v2.12.1 by Luca Borsato - 2016/2017**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -406,7 +406,7 @@ The script to run is `trades_pso2emcee.py`, that shows how to call the `pytrades
 Run as `python trades_pso2emcee.py -h` for instruction on the all the command line arguments to provide.    -->
 In folder `pytrades/`: `pytrades_lib.so`, `constants.py`, `ancillary.py`, `trades_emcee.py`.    
 The script to run is `trades_emcee.py` or `trades_emcee_sqrte.py`, that shows how to call the `pytrades_lib` and how to combine with `emcee`. The two scripts fit `$e\cos\omega,e\sin\omega$` and `$\sqrt{e}\cos\omega,\sqrt{e}\sin\omega$`, respectively.     
-The script `trades_pso2emcee.py` is now not updated and cannot be run at the moment. It will be usable by end of Mar 2017.    
+The script `trades_pso2emcee.py` has been updated and `trades_pso2emcee_sqrte.py` has been created. They are under testing (2017-12-14).    
 Run as `python trades_emcee.py -h` for instruction on the all the command line arguments to provide.    
 The `ancillary.py` file has different functions to write and read output files from `PSO` and `emcee` and other stuff helpful to manage the output of the simulations.    
 Check also other files in the `pytrades` folder to understand how to use the python library.
@@ -419,11 +419,18 @@ Check also other files in the `pytrades` folder to understand how to use the pyt
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
 
+#### `TRADES 2.12.1`
+
+Python scripts: `trades_pso2emcee.py` and `trades_pso2emcee_sqrte.py`.    
+Counterparts of `trades_emcee.py` and `trades_emcee_sqrte.py`, but it runs or reads `PSO` before `emcee`.    
+Testing.    
+
+
 #### `TRADES 2.11.1`
 
 Python script `trades_emcee_sqrte.py`, that allow to fit `$\sqrt{e}\cos\omega,\sqrt{e}\sin\omega$` (in the python module, not in the fortran subroutines).    
 Added script `plot_rv.py` that plot RV model and RV-phased curves.    
-Now the degrees of freedom (dof) take into account the free parameters (nfre, determined within the program, but not fitted). In particular they are the number of `$\gamma$` RV offset (`$\mathr{nfree} = \mathrm{n_RV_set}$`).    
+Now the degrees of freedom (dof) take into account the free parameters (nfre, determined within the program, but not fitted). In particular they are the number of `$\gamma$` RV offset (`nfree = n_RVset`).    
 `dof = ndat - nfit - nfree`
 
 
@@ -485,7 +492,7 @@ The old main `trades.f90` has been replaced (still in the sources, it compiles)
 by small easier-to-understand mains.
 As for the version `2.5.1` the user has to change the `arg.in` accordingly to the purpose.
 See [](How to run TRADES).    
-During `RV` fit, `TRADES` will run a `GLS` periodogram [(Zechmeister and Kurster, 2009)][GLS] and look for peaks close (`$\Delta P = \pm 0.5\ d`) to the periods of the planets of the simulated system.
+During `RV` fit, `TRADES` will run a `GLS` periodogram [(Zechmeister and Kurster, 2009)][GLS] and look for peaks close (`$\Delta P = \pm 0.5\$ d`) to the periods of the planets of the simulated system.
 In case of a positive signal, it means the period has been induced (bad `RV` fit) and the fitness (`$\chi^{2}_\textrm{r}$`) will be set to max value (bad fit).    
 
 
