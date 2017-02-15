@@ -35,7 +35,7 @@ program main_grid
   cpuid=1
   ncpu=1
   call initu(nfiles,ncpu) ! prepares writing file units
-  ! nfiles,ncpu in module 'parameters'
+  ! nfiles,ncpu in module 'parameters' and 'constants'
   
   ! IT READS THE COMMAND ARGUMENT THAT DEFINE THE PATH OF THE FOLDER WITH THE FILES
   call read_com_arg(path)
@@ -43,6 +43,7 @@ program main_grid
   
   ! IT CALLS ALL THE SUBROUTINES TO READ ALL PARAMETERS AND DATA TO STORE IN COMMON MODULE PARAMETERS
   call read_first(cpuid,m,R,P,a,e,w,mA,inc,lN) ! new versione already set system_parameters and boundaries (physical and user-provided)
+  ! reset initu with proper ncpu_in argument from arg.in file
   
   ! IT SETS TWO VECTOR WITH PARAMETERS (ALL THE PARAMETERS AND ONLY THE FITTED ONES)
 !   call set_par(m,R,P,a,e,w,mA,i,lN,system_parameters,fitting_parameters)

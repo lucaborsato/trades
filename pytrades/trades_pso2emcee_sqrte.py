@@ -10,7 +10,6 @@ import emcee
 import h5py
 import sys
 import time
-import shutil
 import ancillary as anc
 
 #from matplotlib import use as mpluse
@@ -69,7 +68,7 @@ def get_args():
   cli.nruns = int(cli.nruns)
   cli.npost = int(cli.npost)
   
-  cli.ln_flag = set_bool_argument(cli.ln_flag)
+  cli.ln_flag = anc.set_bool_argument(cli.ln_flag)
 
   if (cli.pso_type not in ['skip', 'run', 'exists']):
     cli.pso_type = 'run'
@@ -214,7 +213,7 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
   while True:
       test_p0 = np.array([fitting_parameters[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
       #test_lg = lnprob(test_p0)
-      test_lg = lnprob(test_p0, parameter_names)
+      test_lg = lnprob_sq(test_p0, parameter_names)
       if(not np.isinf(test_lg)):
         i_p0 +=1
         p0.append(test_p0)
@@ -239,13 +238,15 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
         print 'val = ', new_start[sel_fit],' with min = ',parameters_minmax[sel_fit,0],' and delta = ',delta_parameters[sel_fit]
         while True:
           new_start[sel_fit] = parameters_minmax[sel_fit,0] + delta_parameters[sel_fit]*np.random.random()
-          test_lg = lnprob(new_start, parameter_names)
+          #test_lg = lnprob(new_start)
+          test_lg = lnprob_sq(new_start, parameter_names)
           if(not np.isinf(test_lg)): break
         i_pos = nw_min * i_gpt
         print 'i_pos = ',
         while True:
           test_p0 = np.array([new_start[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
-          test_lg = lnprob(test_p0, parameter_names)
+          #test_lg = lnprob(test_p0)
+          test_lg = lnprob_sq(test_p0, parameter_names)
           if(not np.isinf(test_lg)):
             p0[i_pos] = test_p0
             print i_pos,
@@ -321,7 +322,7 @@ def main():
   nthreads=cli.nthreads
 
   # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
-  pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder)
+  pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
 
   # RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
   
@@ -446,7 +447,7 @@ def main():
       pso_hdf5.create_dataset('parameter_names', data=trades_names, dtype='S10')
       pso_hdf5['population'].attrs['npop'] = np_pso
       pso_hdf5['population'].attrs['niter'] = nit_pso
-      pso_hdf5['population'].attrs['iter_global'] = iter_global
+      pso_hdf5['population'].attrs['iter_global'] = iter_global+1
       pso_hdf5['population'].attrs['nfit'] = nfit
       pso_hdf5.close()
 
@@ -456,14 +457,14 @@ def main():
       anc.print_both(' ', of_run)
       fitness_iter, lgllhd_iter, check_iter = pytrades_lib.pytrades.write_summary_files(i_global, pso_parameters)
       elapsed = time.time() - pso_start
-      elapsed_d, elapsed_h, elapsed_m, elapsed_s = computation_time(elapsed)
+      elapsed_d, elapsed_h, elapsed_m, elapsed_s = anc.computation_time(elapsed)
       anc.print_both(' ', of_run)
       anc.print_both(' PSO FINISHED in %2d day %02d hour %02d min %.2f sec - bye bye' %(int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s), of_run)
       
       # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
       emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
       #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
-      p0 = compute_initial_walkers(nfit, nwalkers, emcee_parameters, parameters_minmax, parameter_names, delta_sigma, of_run)
+      p0 = compute_initial_walkers(nfit, nwalkers, emcee_parameters, parameters_minmax, parameter_names, cli.delta_sigma, of_run)
 
     elif (cli.pso_type == 'exists'):
       # READ PREVIOUS PSO_RUN.HDF5 FILE AND INITIALISE POPULATION FOR EMCEE
@@ -478,7 +479,7 @@ def main():
       # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
       emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
       #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
-      p0 = compute_initial_walkers(nfit, nwalkers, emcee_parameters, parameters_minmax, parameter_names, delta_sigma, of_run)
+      p0 = compute_initial_walkers(nfit, nwalkers, emcee_parameters, parameters_minmax, parameter_names, cli.delta_sigma, of_run)
           
       
     elif (cli.pso_type == 'skip'):
@@ -486,13 +487,12 @@ def main():
       anc.print_both(' DO NOT RUN PSO, ONLY EMCEE', of_run)
       
       #p0 = [parameters_minmax[:,0] + np.random.random(nfit)*delta_parameters for i in range(0, nwalkers)]
-      p0 = compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minmax, parameter_names, delta_sigma, of_run)
+      p0 = compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minmax, parameter_names, cli.delta_sigma, of_run)
       
-
     anc.print_both(' emcee chain: nwalkers = %d nruns = %d' %(nwalkers, nruns), of_run)
     anc.print_both(' sampler ... ',of_run)
-    sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, threads=nthreads)
-    #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, threads=nthreads, args=[parameter_names])
+    #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, threads=nthreads)
+    sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, threads=nthreads, args=[parameter_names])
     anc.print_both(' ready to go', of_run)
     anc.print_both(' with nsave = %r' %(nsave), of_run)
     sys.stdout.flush()

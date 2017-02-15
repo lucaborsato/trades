@@ -43,6 +43,7 @@ program main_pik_pso
   
   ! IT CALLS ALL THE SUBROUTINES TO READ ALL PARAMETERS AND DATA TO STORE IN COMMON MODULE PARAMETERS
   call read_first(cpuid,m,R,P,a,e,w,mA,inc,lN) ! new versione already set system_parameters and boundaries (physical and user-provided)
+  ! reset initu with proper ncpu_in argument from arg.in file
   
   ! IT SETS TWO VECTOR WITH PARAMETERS (ALL THE PARAMETERS AND ONLY THE FITTED ONES)
 !   call set_par(m,R,P,a,e,w,mA,inc,lN,system_parameters,fitting_parameters)
@@ -67,7 +68,7 @@ program main_pik_pso
     ! reset system_parameters and fitting_parameters for each global search
 !     call set_par(m,R,P,a,e,w,mA,inc,lN,system_parameters,fitting_parameters)
     call init_param(system_parameters,fitting_parameters)
-    write(*,'(a)')' Rseet parameters: fitting_parameters'
+    write(*,'(a)')' Reset parameters: fitting_parameters'
     
     ! --------------------
     ! progtype == 3 => PIK

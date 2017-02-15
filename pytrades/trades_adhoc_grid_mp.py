@@ -148,9 +148,10 @@ def main():
 
   # RENAME 
   working_path = cli.full_path
+  nthreads = int(cli.nthreads)
 
   # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
-  pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder)
+  pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
 
   # RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
   system_parameters = pytrades_lib.pytrades.system_parameters
@@ -206,8 +207,6 @@ def main():
 
   # Initialize queues
   input_queue  = mp.Queue()
-
-  nthreads = int(cli.nthreads)
 
   i_grid = 0
   #grid_fit = np.zeros((n_grid, nfit))

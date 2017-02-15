@@ -9,12 +9,13 @@
 !----------------------------------------------------------------------
 module opti_pso
   use constants,only:dp,sprec,zero,half,one,two,three,TOLERANCE
-  use parameters,only:path,wrtAll,seed_pso,ndata,nfit,dof,inv_dof,npar,parid,np_pso,nit_pso,wrt_pso,minpar,maxpar,population,population_fitness,pso_best_evolution
+  use parameters,only:path,wrtAll,seed_pso,ndata,nfit,dof,inv_dof,npar,parid,np_pso,nit_pso,wrt_pso,minpar,maxpar,population,population_fitness,pso_best_evolution,ncpu_in
   use parameters_conversion
   use init_trades,only:get_unit
   use random_trades
   use convert_type,only:string
   use fitness_module
+  !$ use omp_lib
   implicit none
   private
 
@@ -325,7 +326,7 @@ module opti_pso
     !===== Print PSO parameters =====
     if(flag_off(flag, f_quiet)) then
       call print_param(n, np, w, c1, c2, c3, vmax, it, ie, flag)
-      print *, 'PSO --- cycle / best / mean / constrained(%) / evaluation ---'
+!      write(*,'(a)')'PSO --- cycle / best / mean / constrained(%) / evaluation ---'
     end if
 
     !===== Check arguments =====
@@ -352,7 +353,21 @@ module opti_pso
     !===== Initialize particles =====
     evcount = 0
 !     call init_particles(n, xinit, np, flag, p)
-    call init_good_particles(n,np,xall,p)
+!     call init_good_particles(n,np,xall,p)
+    call init_population_zero(n,np,p)
+    write(*,'(a)')' PSO: PARTICLES INITITIALISED - show first and last particle positions'
+    write(*,'(a)')' -----'
+    write(*,'(a)')' -----'
+    write(*,'(a)')' first [0,1)'
+    write(*,'(1000(1x,es23.16))')p(1)%x(1:n)
+    write(*,'(a)')' first [min,max)'
+    write(*,'(1000(1x,es23.16))')unscaling(n,p(1)%x(1:n))
+    write(*,'(a)')' last [0,1)'
+    write(*,'(1000(1x,es23.16))')p(np)%x(1:n)
+    write(*,'(a)')' last [min,max)'
+    write(*,'(1000(1x,es23.16))')unscaling(n,p(np)%x(1:n))
+    write(*,'(a)')' -----'
+    write(*,'(a)')' -----'
     gebest = void
 
     
@@ -362,16 +377,16 @@ module opti_pso
     wrt_it=10
 !     it_c=1
 
+
+    write(*,'(a)')' PSO: START MAIN LOOP'
     !***********************************************************
     !*********************** Main Loop *************************
     i = 0
     do
 
-!       write(*,'(a,i5)')'BIOMERDA aa ', i
-!       flush(6)
-    
       !===== Evaluate all particles =====
-      !$omp parallel do schedule(DYNAMIC,1)
+      !$omp parallel do NUM_THREADS(ncpu_in) schedule(DYNAMIC,1)&
+      !$omp& shared(n,np,xall,p)
       do j=1, np
 !           write(*,*)' ---- '
 !           write(*,*)''
@@ -384,10 +399,6 @@ module opti_pso
 !           write(*,*)' ---- '
       end do
       !$omp end parallel do
-
-!       write(*,'(a,i5)')'BIOMERDA bb ', i
-!       flush(6)
-!       stop('TEMP STOP')
 
       
       !===== Sort particles by evaluation value =====
@@ -449,11 +460,11 @@ module opti_pso
           write(*,'(a)')""
           print *, 'PSO ---', i, gebest * sign, evmean(np, p) * sign, &
             & infeasible(np, p), evcount
-          write(*,'(10(a,g25.15))')&
+          write(*,'(10(a,es23.16))')&
             &" Best parameters: <-> inv_fitness = ",gebest,&
             &" fitness_x_dof = ",(real(dof,dp)/gebest),&
             &" fitness = ",(one/gebest)
-          write(*,'(10000es23.16)') unscaling(n, gxbest)
+          write(*,'(10000(es23.16,1x))') unscaling(n, gxbest)
           write(*,'(a)')" "
       end if
       
@@ -800,20 +811,21 @@ module opti_pso
     integer,intent(in)::nfit,npop            ! number of particle
     real(dp),dimension(:),intent(in)::all_parameters
     type(type_p),dimension(:),intent(out)::p ! particles
-    real(dp),dimension(:),allocatable::xtemp
+    real(dp),dimension(:),allocatable::xtemp,ptemp
     integer::iloop
     logical::check
     
 !     write(*,*)' size of p = ',size(p)
 !     flush(6)
-    allocate(xtemp(nfit))
+    allocate(xtemp(nfit),ptemp(nfit))
     iloop=0
     initloop: do
         
         xtemp=zero
         call random_number(xtemp)
+        ptemp=unscaling(nfit,xtemp)
         check=.true.
-        check=check_only_boundaries(all_parameters,unscaling(nfit,xtemp))
+        check=check_only_boundaries(all_parameters,ptemp)
         if(check)then
 !           write(*,*)' par (True) = ',unscaling(nfit,xtemp)
           iloop=iloop+1
@@ -827,8 +839,29 @@ module opti_pso
     end do initloop
     deallocate(xtemp)
 
+    return
   end subroutine init_good_particles
 
+  !2017-02-15 AIMED TO SIMPLICITY
+  subroutine init_population_zero(nfit,npop,p)
+    integer,intent(in)::nfit,npop            ! number of particle
+    type(type_p),dimension(:),intent(out)::p ! particles
+    real(dp),dimension(:),allocatable::xtemp ! position in [0,1)
+    integer::iloop
+    
+    allocate(xtemp(nfit))
+    initloop: do iloop=1,npop
+        xtemp=zero
+        call random_number(xtemp)
+        p(iloop)%x(1:nfit)=xtemp(1:nfit)
+        p(iloop)%v(1:nfit)=zero
+        p(iloop)%evbest=void
+        p(iloop)%xbest(1:nfit)=p(iloop)%x(1:nfit)
+    end do initloop
+    deallocate(xtemp)
+        
+    return
+  end subroutine init_population_zero
   
   !----------------------------------------------------------------------
   ! Call Evaluation Function
@@ -1124,7 +1157,7 @@ module opti_pso
     bestpso(nfit+3,ipos)=fitness
     idbest(ipos)=ipx
     ! added 2014-07-14: write best each iteration
-    fmtw=adjustl("(i6,1x,i6,10000("//sprec//"))")
+    fmtw=adjustl("(i6,1x,i6,1x,10000("//sprec//",1x))")
     write(ubest,trim(fmtw))ipos,idbest(ipos),bestpso(:,ipos)
     flush(ubest)
 

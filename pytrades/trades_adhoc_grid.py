@@ -90,7 +90,7 @@ def main():
   working_path = cli.full_path
 
   # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
-  pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder)
+  pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder, 1)
 
   # RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
   system_parameters = pytrades_lib.pytrades.system_parameters

@@ -220,7 +220,7 @@ module driver
     
     ! first initialise the openMP stuff
     
-    !$omp parallel default(shared) &
+    !$omp parallel NUM_THREADS(ncpu_in) default(shared) &
     !$omp private(cpuid,ncpu)
     !$ cpuid=omp_get_thread_num()+1
     !$ ncpu=omp_get_num_threads()
@@ -248,7 +248,7 @@ module driver
     ! openMP private variables
     !$omp do private(sim_id,cpu_all_parameters,cpu_fit_parameters,&
     !$omp& fitness,fitness_x_dof) &
-    !$omp& schedule(dynamic)
+    !$omp& schedule(dynamic,1)
     
     ! start the loop on the simulation grid
     grid_loop: do sim_id=1,n_grid

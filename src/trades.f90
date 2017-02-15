@@ -92,7 +92,7 @@ program main_trades
 
   nRV=0 ! set number of RV points to zero (warning -Wunitialized ...)
   ! IT CALLS ALL THE SUBROUTINES TO READ ALL PARAMETERS AND DATA TO STORE IN COMMON MODULE PARAMETERS
-  call read_first(cpuid,m,R,P,a,e,w,mA,inc,lN)
+  call read_first(cpuid,m,R,P,a,e,w,mA,inc,lN) ! reset also initu with ncpu_in read in arg.in file
 !   call set_all_param(m,R,P,e,w,mA,i,lN,system_parameters)
   
   ! check if there are derived parameters to compute and to check
@@ -125,11 +125,11 @@ program main_trades
   ! -------------------
   if(progtype.eq.1)then
     !$omp parallel default(shared) &
-    !$omp private(cpuid,ncpu)
+    !$omp private(cpuid,ncpu) NUM_THREADS(ncpu_in)
     !$ cpuid=omp_get_thread_num()+1
     !$ ncpu=omp_get_num_threads()
     !$omp master
-    !$ call initu(nfiles,ncpu)
+!     !$ call initu(nfiles,ncpu) ! already done in read_first()
     ! IT CALLS THE SUBROUTINE TO BUILD THE GRID PARAMETERS
     call grid_build_2(cpuid,m,P,a,e,w,Ngrid,grid)
     !write(*,'(a,2i5)')" shape(grid) = ",shape(grid)
@@ -140,9 +140,10 @@ program main_trades
     !$omp end master
     !$ WRITE(*,'(a,i4,a)')" CPU ",cpuid," REACHED BARRIER"
     !$omp barrier
+    
     !$omp do private(jgrid,mw,Pw,aw,ew,ww,allpar,par,resw,iwa,copar,&
     !$omp& sigpar,info,start1,end1,hour1,minute1,sec1,fit_scale,gls_scale) &
-    !$omp& schedule(dynamic)
+    !$omp& schedule(dynamic,1)
 
     looppar: do jgrid=1,Ngrid
       write(*,'(a,i4,a,i8,a,i8)')" CPU ",cpuid,&

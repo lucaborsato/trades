@@ -44,6 +44,7 @@ program main_int_lm_bootstrap
   
   ! IT CALLS ALL THE SUBROUTINES TO READ ALL PARAMETERS AND DATA TO STORE IN COMMON MODULE PARAMETERS
   call read_first(cpuid,m,R,P,a,e,w,mA,inc,lN) ! new versione already set system_parameters and boundaries (physical and user-provided)
+  ! reset initu with proper ncpu_in argument from arg.in file
   
 !   write(*,'(a)')"SYSTEM PARAMETERS 1"
 !   write(*,'(1000(1x,es23.16))')system_parameters

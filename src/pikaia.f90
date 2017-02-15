@@ -1,6 +1,6 @@
 module Genetic_Algorithm
   use constants
-  use parameters,only:path,wrtAll,seed_pik,ctrl,dof,inv_dof,ndata,nfit,npar,parid,minpar,maxpar
+  use parameters,only:path,wrtAll,seed_pik,ctrl,dof,inv_dof,ndata,nfit,npar,parid,minpar,maxpar,ncpu_in
   use parameters_conversion
   use init_trades,only:get_unit
   use random_trades
@@ -101,6 +101,23 @@ module Genetic_Algorithm
     
   end subroutine init_good_particles
 
+    !2017-02-15 AIMED TO SIMPLICITY
+  subroutine init_population_zero(nfit,npop,oldph)
+    integer,intent(in)::nfit,npop            ! number of particle
+    real(dp),dimension(:,:)::oldph ! particles
+    real(dp),dimension(:),allocatable::xtemp ! position in [0,1)
+    integer::iloop
+    
+    allocate(xtemp(nfit))
+    initloop: do iloop=1,npop
+        xtemp=zero
+        call random_number(xtemp)
+        oldph(1:nfit,iloop)=xtemp(1:nfit)
+    end do initloop
+    deallocate(xtemp)
+        
+    return
+  end subroutine init_population_zero
   
   ! ------------------------------------------------------------------ !
   
@@ -391,9 +408,10 @@ module Genetic_Algorithm
 
     !     Compute initial (random but bounded) phenotypes
     write(*,'(a)',advance='no')" Computing initial random phenotypes..."
-    call init_good_particles(n,np,xall,oldph)
+!     call init_good_particles(n,np,xall,oldph)
+    call init_population_zero(n,np,oldph)
     
-    !$omp parallel do
+    !$omp parallel do schedule(DYNAMIC,1) NUM_THREADS(ncpu_in)
     do  ip = 1, np
 !       do  k = 1, n
 ! !           oldph(k,ip) = urand()
@@ -1280,12 +1298,11 @@ module Genetic_Algorithm
     end if
 
     !     replace population
-    !$omp parallel do
+    !$omp parallel do schedule(DYNAMIC,1) NUM_THREADS(ncpu_in)
     do  i = 1, np
       do  k = 1, n
           oldph(k, i) = newph(k, i)
       end do
-
       !        get fitness using caller's fitness function
       fitns(i) = ff(n,xall,oldph(1:n,i))
     end do

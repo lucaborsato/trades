@@ -79,7 +79,7 @@ module bootstrap
 !     !$ chunk=int(0.5_dp*(nboot/omp_get_num_threads()))
 
     !$omp parallel do schedule(DYNAMIC,chunk)&
-    !$omp& default(private)&
+    !$omp& default(private) NUM_THREADS(ncpu_in)&
     !$omp& shared(allpar, parok, ndata, nfit, eT0obs, eRVobs, storeboot,&
     !$omp& scale_errorbar, nboot, RVok, T0ok, NB, nRV, nT0, nTs,&
     !$omp& Ms_boot, Rs_boot)

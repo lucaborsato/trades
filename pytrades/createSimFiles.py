@@ -167,6 +167,10 @@ def createARG(fpath):
   ofarg.write(line + "\n")
   print line
   
+  line = "# number of cpu to use with opemMP. Default is 1.\nncpu = 1"
+  ofarg.write(line + '\n')
+  print line
+  
   ofarg.close()
 
 # CREATES bodies.lst file

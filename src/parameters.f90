@@ -13,6 +13,7 @@ module parameters
   integer::idtra=1,durcheck=0,rvcheck=0,idpert=2,lmon=0
   real(dp)::tstart=zero,tepoch=zero,tint=365.25_dp,&
     &step_0=1.e-3_dp,wrttime=0.04167_dp,tol_int=1.e-13_dp
+  integer::ncpu_in=1 ! default value of the max number of cpus
   ! for Bootstap
   integer::nboot=0
   logical::bootstrap_scaling=.false.,do_hill_check=.false.

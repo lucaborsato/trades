@@ -22,7 +22,7 @@ def main():
   cli = anc.get_args()
 
   # init trades
-  pytrades_lib.pytrades.initialize_trades(os.path.join(cli.full_path, ''), '')
+  pytrades_lib.pytrades.initialize_trades(os.path.join(cli.full_path, ''), '', 1)
 
   nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case_list = anc.get_fitted(cli.full_path)
   ndata = pytrades_lib.pytrades.ndata

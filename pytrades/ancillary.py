@@ -13,6 +13,8 @@ import constants as cst # local constants module
 #from emcee import autocorr as acor
 import acor
 import scipy.stats as scits
+import glob
+import shutil
 
 # common variables needed to create labels and parameter names
 kel_fmt = ['%.3f', '%.4f', '%.3f', '%.1f', '%.1f', '%.1f', '%.3f', '%.3f']
@@ -163,6 +165,12 @@ def copy_simulation_files(dir_src, dir_dest):
   ## RV file
   if(os.path.exists(os.path.join(dir_src,'obsRV.dat'))):
     shutil.copy(os.path.join(dir_src,'obsRV.dat'), os.path.join(dir_dest,''))
+  
+  ## lm.opt pso.opt pik.opt
+  opt_files = 'lm.opt pso.opt pik.opt'.split()
+  for opt in opt_files:
+    if(os.path.exists(os.path.join(dir_src,opt))):
+      shutil.copy(os.path.join(dir_src,opt), os.path.join(dir_dest,''))
   
   return
 

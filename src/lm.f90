@@ -1,5 +1,6 @@
 module Levenberg_Marquardt
   use constants
+  use parameters
   ! Luca Borsato 2014
   ! Levenberg-Marquardt by MINPACK converted to Fortran90
   ! I left some original code commented.
@@ -109,7 +110,7 @@ module Levenberg_Marquardt
   ! USED BY:
   ! BOOTSTRAP
   subroutine lm_driver_3(fcn,allpar,m,n,x,RV_obs,T0_obs,fvec,diag,sig,info,iwa)
-    use parameters,only:maxfev,nprint,lmtols
+!     use parameters,only:maxfev,nprint,lmtols
     use parameters_conversion,only:param_adj
     use init_trades,only:get_unit
     use convert_type,only:string
@@ -320,8 +321,8 @@ module Levenberg_Marquardt
   ! USED BY:
   ! LM (not BOOTSTRAP)
   subroutine lm_driver_4s(cpuid,isim,fcn,allpar,m,n,x,fvec,diag,sig,info,iwa)
-    use parameters,only:path,maxfev,nprint,npar,ndata,dof,&
-        &xtol,ftol,gtol,lmtols,progtype,paridlist,sig_paridlist
+!     use parameters,only:path,maxfev,nprint,npar,ndata,dof,&
+!         &xtol,ftol,gtol,lmtols,progtype,paridlist,sig_paridlist
     use parameters_conversion,only:param_adj
     use init_trades,only:get_unit
     use convert_type,only:string
@@ -432,7 +433,7 @@ module Levenberg_Marquardt
     allocate(wdiag(n),wsig(n))
 
     !$omp parallel do schedule(DYNAMIC,1)&
-    !$omp& default(private) &
+    !$omp& NUM_THREADS(ncpu_in) default(private) &
     !$omp& shared(cpuid,allpar,m,n,x,lmepsfcn,xtol,ftol,gtol,maxfev,&
     !$omp& nprint,lmfitness,dof,lmpar,lmfvec,lmdiag,lmsig,lmiwa,lmstat,&
     !$omp& infos)
@@ -539,8 +540,8 @@ module Levenberg_Marquardt
   ! varying epsfcn
   ! parallel version, to use with only LM, after PIKAIA or PSO
   subroutine lm_driver_4p(isim,fcn,allpar,m,n,x,fvec,diag,sig,info,iwa)
-    use parameters,only:path,maxfev,nprint,npar,ndata,dof,&
-        &xtol,ftol,gtol,lmtols,progtype,paridlist,sig_paridlist
+!     use parameters,only:path,maxfev,nprint,npar,ndata,dof,&
+!         &xtol,ftol,gtol,lmtols,progtype,paridlist,sig_paridlist
     use parameters_conversion,only:param_adj
     use init_trades,only:get_unit
     use convert_type,only:string
@@ -657,7 +658,7 @@ module Levenberg_Marquardt
 !     write(*,'(a)')""
 
     !$omp parallel do schedule(DYNAMIC,1) &
-    !$omp& default(private) &
+    !$omp& NUM_THREADS(ncpu_in) default(private) &
     !$omp& shared(allpar,m,n,dof,x,lmepsfcn,xtol,ftol,gtol,maxfev,&
     !$omp& nprint,lmfitness,lmpar,lmfvec,lmdiag,lmsig,lmiwa,lmstat,&
     !$omp& infos) &

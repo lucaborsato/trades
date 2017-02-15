@@ -10,11 +10,9 @@ import emcee
 import h5py
 import sys
 import time
-import shutil
 #from emcee.utils import MPIPool
 from constants import Mjups
 import ancillary as anc
-import glob
 #from pyde.de import DiffEvol as devol
 
 #from matplotlib import use as mpluse
@@ -286,7 +284,7 @@ def main():
   nthreads=cli.nthreads
 
   # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
-  pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder)
+  pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
 
   # RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
   

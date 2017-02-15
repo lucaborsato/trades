@@ -37,6 +37,8 @@ module pytrades
   !f2py real(dp),dimension(:,:),allocatable::pso_best_evolution
   !f2py integer::seed_pso,np_pso,nit_pso,wrt_pso
 
+  !f2py integer::ncpu_in
+  
   ! variables:  parameters to fit
   real(dp),dimension(:),allocatable::fitting_parameters
   real(dp),dimension(:,:),allocatable::parameters_minmax
@@ -46,12 +48,11 @@ module pytrades
    
   contains
   
-  subroutine initialize_trades(path_in, sub_folder)
+  subroutine initialize_trades(path_in, sub_folder, n_threads_in)
     !f2py real(dp),dimension(:),allocatable::eRVobs
     !f2py real(dp),dimension(:,:),allocatable::eT0obs
     character*(*),intent(in)::path_in, sub_folder
-!     integer,intent(in)::n_threads_in
-!     integer::n_threads
+    integer,intent(in)::n_threads_in
     real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
     integer,dimension(:),allocatable::nset
     character(80)::fmt
@@ -60,17 +61,6 @@ module pytrades
     ! variables:  nfiles -> constants (default = 90)
     !             ncpu = 1
     call initu(nfiles, 1)
-    
-!     ! omp threads
-!     n_threads=1
-!     !$ call omp_set_num_threads(n_threads_in)
-    
-!     !$OMP parallel
-!     !$ if(omp_get_thread_num().eq.0) n_threads = omp_get_num_threads()
-!     !$OMP end parallel
-!     write(*,*)' OMP NUMBER OF THREADS = ',n_threads
-
-    
     
     ! IT READS THE COMMAND ARGUMENT THAT DEFINE THE PATH OF THE FOLDER WITH THE FILES
     ! subroutine: read_com_arg -> init_trades
@@ -95,6 +85,14 @@ module pytrades
     ! subroutine: read_arg -> init_trades
     ! variables:  cpuid = 1
     call read_arg(1)
+    
+    ! if executed in parallel it uses the same cpus defined in the python script
+    !$ ncpu_in=n_threads_in
+    !$ call omp_set_num_threads(ncpu_in)
+    !$ call initu(nfiles, ncpu_in)
+    
+!     write(*,*)' in pytrades_lin ncpu_in = ',ncpu_in
+    
 !     write(*,'(a,a,a)')" READ ",trim(path)//"arg.in"
 !     progtype=6 ! needed for other subroutines
     
@@ -271,10 +269,6 @@ module pytrades
     n_global = nGlobal
     path=trim(adjustl(path_temp))
 
-!     !$OMP parallel
-!     !$ if(omp_get_thread_num().eq.0)  write(*,*)' OMP NUMBER OF THREADS = ', omp_get_num_threads()
-!     !$OMP end parallel
-    
     return
   end subroutine init_pso
   

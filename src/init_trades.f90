@@ -140,6 +140,43 @@ module init_trades
   end subroutine tofit_init
   ! ------------------------------------------------------------------ !
 
+  ! ------------------------------------------------------------------ !
+  subroutine set_cpus(ncpu_in, ncpu)
+    !$ use omp_lib
+    integer,intent(inout)::ncpu_in, ncpu
+    integer::max_ncpu
+  
+    max_ncpu=1
+    
+!     write(*,*)' ^^0^^ INPUT ncpu = ',ncpu,&
+!       &' ncpu_in = ',ncpu_in,&
+!       &' max_ncpu = ',max_ncpu
+      
+    !$omp parallel default(shared)
+    !$omp master
+    !$ max_ncpu = omp_get_num_threads()
+    !$omp end master
+    !$omp end parallel
+    
+!     write(*,*)' ^^1^^ INPUT ncpu = ',ncpu,&
+!       &' ncpu_in = ',ncpu_in,&
+!       &' max_ncpu = ',max_ncpu
+    
+    if(max_ncpu.gt.1)then ! to check if we are in parallel mode or not
+      if(ncpu_in.gt.max_ncpu)ncpu_in=max_ncpu
+      ncpu=ncpu_in
+    else ! if max_ncpu == 1, i.e. serial mode, set ncpu and ncpu_in to 1
+      ncpu=1
+      ncpu_in=1
+    end if
+    
+!     write(*,*)' ^^2^^ INPUT ncpu = ',ncpu,&
+!       &' ncpu_in = ',ncpu_in,&
+!       &' max_ncpu = ',max_ncpu
+  
+    return
+  end subroutine set_cpus
+  ! ------------------------------------------------------------------ !
   
   ! ------------------------------------------------------------------ !
   ! IT READS ARGUMENT/OPTION FOR THE PROGRAM FROM arg.in FILE
@@ -151,7 +188,6 @@ module init_trades
     integer::idx,idh,istat,it
     character(1)::hill_temp
     character(1),dimension(4)::list_true=(/'y', 'Y', 't', 'T'/)
-    
     
     inquire(file=trim(path)//"arg.in",exist=fstat)
     if(fstat)then
@@ -220,14 +256,19 @@ module init_trades
                 end do
               else if(line(1:idx-1).eq.'oc_fit')then
                 read(line(idx+1:idh),*) oc_fit
+              else if(line(1:idx-1).eq.'ncpu')then
+                read(line(idx+1:idh),*) ncpu_in
               end if
-              
             end if
             
           end if
         end if
       end do reading
       close(uread)
+      ! set the right number of cpus
+      call set_cpus(ncpu_in, ncpu)
+
+      
     else
         write(*,'(a,a,a)')" CANNOT FIND ARGUMENT FILE ",trim(path),"arg.in"
         write(*,'(a,a,a)')""
@@ -340,7 +381,7 @@ module init_trades
       if(nprint.lt.0) nprint = 0
       if(epsfcn.le.zero) epsfcn=TOLERANCE
       ncpu = 1
-      !$omp parallel
+      !$omp parallel NUM_THREADS(ncpu_in)
       !$omp master
       !$ ncpu = omp_get_num_threads()
       if(.not.allocated(lmtols)) allocate(lmtols(ncpu,4))
@@ -989,7 +1030,8 @@ module init_trades
     else
       write(*,'(a)')" SELECTED NO RV CHECK "
     end if
-
+    if(nRV.eq.0)nRVset=0 ! if there are no RVs or no obsRV.dat file, set nRVset to zero
+    
     return
   end subroutine read_RVobs
 
@@ -1298,6 +1340,7 @@ module init_trades
 
   ! calls all the read subroutines necessary to initialize all the variables/vectors/arrays
   subroutine read_first(cpuid,m,R,P,a,e,w,mA,inc,lN)
+    !$ use omp_lib
     integer,intent(in)::cpuid
     real(dp),dimension(:),allocatable,intent(out)::m,R,P,a,e,w,mA,inc,lN
     integer::j
@@ -1317,6 +1360,10 @@ module init_trades
     ! IT READS THE ARGUMENTS OF INTEGRATION AND STORE IN COMMON MODULE PARAMETERS.
     ! THE VARIBLES WILL NOT BE MODIFIED FURTHERMORE.
     call read_arg(cpuid)
+    ! reinit files with proper ncpu_in value for opemMP
+    !$ call omp_set_num_threads(ncpu_in)
+    !$ call initu(nfiles, ncpu_in)
+    
     write(*,'(a,a,a)')" READ ",trim(path),"arg.in"
     allocate(e_bounds(2,NB))
     e_bounds(1,:)=zero

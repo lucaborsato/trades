@@ -92,7 +92,7 @@ module constants
 
   ! for parallel openMP writing files
   integer,parameter::nfiles=90
-  integer::ncpu
+  integer::ncpu=1
   integer,dimension(:,:),allocatable::unit2
 
   ! define new data type for grid search
