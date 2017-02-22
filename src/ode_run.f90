@@ -708,12 +708,12 @@ module ode_run
 
       itime=itime+hok
 
-      ftime=(itime/time)*100._dp
-      iftime=int(ftime+half)
-      if(iftime.eq.compare)then
-        write(*,'(a,i3,a)')" done the ",compare," % "
-        compare=compare+10
-      end if
+!       ftime=(itime/time)*100._dp
+!       iftime=int(ftime+half)
+!       if(iftime.eq.compare)then
+!         write(*,'(a,i3,a)')" done the ",compare," % "
+!         compare=compare+10
+!       end if
 
       if(abs(itime).ge.abs(time)) exit integration
       hw=hnext
@@ -1351,12 +1351,13 @@ module ode_run
     ! ------------------------------------------------------------------ !
   ! subroutine to write file and to screen the data ... what it writes
   ! depends on the option isim and wrtid/lmon in arg.in file
-  subroutine ode_out(cpuid,isim,wrtid,allpar,par,resw,fit_scale,gls_scale)
+  subroutine ode_out(cpuid,isim,wrtid,allpar,par,resw,fit_scale,gls_scale,to_screen)
     integer,intent(in)::cpuid,isim,wrtid
     real(dp),dimension(:),intent(in)::allpar,par
     real(dp),dimension(:),intent(out)::resw
-    
+    logical,optional,intent(in)::to_screen
     real(dp),optional,intent(out)::fit_scale,gls_scale
+    
 
     
     real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
@@ -1404,7 +1405,7 @@ module ode_run
 !       call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar,.true.)
       call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
       if(.not.checkpar)then
-        write(*,*)' checkpar after convert_parameters is FALSE ... BAD'
+        write(*,'(a)')' checkpar after convert_parameters is FALSE ... BAD'
   !       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
 !         return ! removed 2017-01-20 so the files can be written even if parameters are out of boundaries ...
@@ -1524,7 +1525,7 @@ module ode_run
       write(*,*)""
       write(*,'(a,i4)')" RADIAL VELOCITIES found: ",cntRV
       write(*,*)""
-      call write_RV(gamma,RV_sim,RV_stat)
+      if(present(to_screen)) call write_RV(gamma,RV_sim,RV_stat)
       call write_RV(cpuid,isim,wrtid,gamma,RV_sim,RV_stat)
       allocate(resw_temp(nRV))
       call set_RV_resw(RVobs,RV_sim,eRVobs,gamma,resw_temp)
@@ -1540,7 +1541,7 @@ module ode_run
       end if
       if(.not.gls_check)resw=set_max_residuals(ndata)
     else
-    write(*,*)
+      write(*,*)
       write(*,'(a)')' RADIAL VELOCITIES NOT FOUND'
       write(*,*)
     end if
@@ -1549,7 +1550,7 @@ module ode_run
       write(*,*)
       write(*,'(a,i5)')" T0 SIM found ",cntT0
       write(*,*)
-      call write_T0(T0_sim,T0_stat)
+      if(present(to_screen)) call write_T0(T0_sim,T0_stat)
       call write_T0(cpuid,isim,wrtid,T0_sim,T0_stat)
       allocate(resw_temp(sum(nT0)))
       resw_temp=zero
@@ -1575,10 +1576,22 @@ module ode_run
     if(.not.checkpar.or..not.Hc) resw=set_max_residuals(ndata)
     fitness = sum(resw*resw)
     
-    if(present(fit_scale))then
-      call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale)
+    if(present(to_screen))then
+      if(present(fit_scale))then
+        call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
+          &chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale,to_screen=to_screen)
+      else
+        call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
+          chi2wr_T0,chi2r_oc,fitness,to_screen=to_screen)
+      end if
     else
-      call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,chi2r_oc,fitness)
+      if(present(fit_scale))then
+        call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
+          &chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale)
+      else
+        call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
+          &chi2wr_T0,chi2r_oc,fitness)
+      end if
     end if
 
     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)

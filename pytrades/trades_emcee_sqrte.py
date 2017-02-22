@@ -124,11 +124,11 @@ def init_folder(working_path, sub_folder):
     #shutil.copy(t0f, os.path.join(working_folder,''))
   #if(os.path.exists(os.path.join(working_path,'obsRV.dat'))):
     #shutil.copy(os.path.join(working_path,'obsRV.dat'), os.path.join(working_folder,''))
-  #run_log = os.path.join(working_folder, "trades_run.log")
   
   # copy files
   anc.copy_simulation_files(working_path, working_folder)
   
+  run_log = os.path.join(working_folder, "trades_run.log")
   of_run = open(run_log, 'w')
   anc.print_both("# pyTRADES LOG FILE", of_run)
   anc.print_both("# working_path = %s" %(working_path), of_run)

@@ -20,12 +20,16 @@ module driver
   
   contains
   
-  ! given the set of parameters to fit it integrates the orbits, computes the RVs and the T0s, and writes everything to screen and into files
+  ! ============================================================================
+  
+  ! given the set of parameters to fit it integrates the orbits,
+  ! computes the RVs and the T0s, and writes everything to screen and into files
   ! in this subroutine there will be not sigma/errors on the parameters
-  subroutine write_summary_nosigma(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,fitness)
+  subroutine write_summary_nosigma(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,fitness,to_screen)
     integer,intent(in)::cpuid,sim_id,lm_flag
     real(dp),dimension(:),intent(in)::all_parameters,fit_parameters
     real(dp),intent(out)::fitness
+    logical,optional,intent(in)::to_screen
   
     real(dp),dimension(:),allocatable::resw
     
@@ -34,11 +38,16 @@ module driver
     allocate(resw(ndata))
     resw=zero
     ! integrates and write RVs and T0s
-!     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,fit_scale,gls_scale)
-!     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,fit_scale,gls_scale)
-    call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw)
-    call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
-
+    if(present(to_screen))then
+      call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,to_screen=to_screen)
+      call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,to_screen=to_screen)
+    else
+  !     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,fit_scale,gls_scale)
+  !     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,fit_scale,gls_scale)
+      call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw)
+      call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
+    end if
+      
     fitness=sum(resw*resw)
     deallocate(resw)
     if(fitness.ge.resmax)then
@@ -50,14 +59,16 @@ module driver
     return
   end subroutine write_summary_nosigma
 
+  ! ============================================================================
   
   ! lmon == 1
   ! given the set of parameters to fit it integrates the orbits, computes the RVs and the T0s, and writes everything to screen and into files
   ! in this subroutine there will be sigma/errors on the parameters
-  subroutine write_summary_sigma(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,sigma_parameters,fitness)
+  subroutine write_summary_sigma(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,sigma_parameters,fitness,to_screen)
     integer,intent(in)::cpuid,sim_id,lm_flag
     real(dp),dimension(:),intent(in)::all_parameters
     real(dp),intent(out)::fitness
+    logical,optional,intent(in)::to_screen
     real(dp),dimension(:)::fit_parameters,sigma_parameters
   
     real(dp),dimension(:),allocatable::resw
@@ -68,11 +79,15 @@ module driver
     allocate(resw(ndata))
     resw=zero
     ! integrates and write RVs and T0s
+    if(present(to_screen))then 
+      call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,to_screen=to_screen)
+      call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,to_screen=to_screen)
+    else
 !     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,fit_scale,gls_scale)
 !     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,fit_scale,gls_scale)
     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw)
     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
-    
+    end if
 !     call write_par(cpuid,fit_parameters,sigma_parameters,resw)
 !     call write_par(cpuid,sim_id,lm_flag,fit_parameters,sigma_parameters,resw)
     
@@ -87,14 +102,16 @@ module driver
     return
   end subroutine write_summary_sigma
   
+  ! ============================================================================
   
   ! given the set of parameters it fits with the LM algorithm and then
   ! it integrates the orbits with the best-fit configuration
   ! and write the summary files
-  subroutine run_and_write_lm(cpuid,sim_id,all_parameters,fit_parameters)
+  subroutine run_and_write_lm(cpuid,sim_id,all_parameters,fit_parameters,to_screen)
     use parameters_conversion,only:check_only_boundaries
     integer,intent(in)::cpuid,sim_id
     real(dp),dimension(:)::all_parameters,fit_parameters
+    logical,optional,intent(in)::to_screen
     real(dp),dimension(:),allocatable::resw
     real(dp),dimension(:),allocatable::covariance_parameters
     real(dp),dimension(:),allocatable::sigma_parameters
@@ -128,10 +145,18 @@ module driver
     write(*,'(a)')''
     write(*,'(a)')'WRITE SUMMARY'
     write(*,'(a)')''
-    flush(6)
+    flush(6)    
 !     call lm_driver(cpuid,jgrid,ode_lm,allpar,ndata,nfit,par,&
 !             &resw,copar,sigpar,info,iwa)
-    call write_summary_sigma(cpuid,sim_id,1,all_parameters,fit_parameters,sigma_parameters,fitness)
+    
+    if(present(to_screen))then
+      call write_summary_sigma(cpuid,sim_id,1,all_parameters,fit_parameters,&
+        &sigma_parameters,fitness,to_screen=to_screen)
+    else
+      call write_summary_sigma(cpuid,sim_id,1,all_parameters,fit_parameters,&
+        &sigma_parameters,fitness)
+    end if
+    
     
     deallocate(resw,iwa,covariance_parameters,sigma_parameters)
     
@@ -222,6 +247,7 @@ module driver
     
     !$omp parallel NUM_THREADS(ncpu_in) default(shared) &
     !$omp private(cpuid,ncpu)
+    
     !$ cpuid=omp_get_thread_num()+1
     !$ ncpu=omp_get_num_threads()
     !$omp master

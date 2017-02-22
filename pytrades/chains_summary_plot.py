@@ -307,7 +307,10 @@ def main():
   c2r_med = -(2.*(lgllhd_med - ln_err_const))/np.float64(dof)
   c2r_smax = -(2.*(lnp_min - ln_err_const))/np.float64(dof)
   c2r_smin = -(2.*(lnp_max - ln_err_const))/np.float64(dof)
+  
+  print ' c2r_med = ',c2r_med
   print ' c2r_smin = ',c2r_smin, ' c2r_smax = ', c2r_smax
+  
   ax.axhline(c2r_med, color='black', ls='-', lw=1.6, alpha=0.77)
   ax.axhspan(c2r_smin, c2r_smax, color='gray', alpha=0.77)
   ax.axhline(c2r_smin, color='black', ls='--', lw=1.6, alpha=0.77)
@@ -328,6 +331,7 @@ def main():
   
   fig.savefig(os.path.join(emcee_plots, 'emcee_lnprobability.png'), bbox_inches='tight', dpi=150)
   print ' %s saved' %(os.path.join(emcee_plots, 'emcee_lnprobability.png'))
+
 
   return
 

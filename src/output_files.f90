@@ -669,11 +669,12 @@ module output_files
 
   ! ---
   ! adapted subroutine to write only final parameters
-  subroutine write_parameters(cpuid,isim,wrtid,par,resw,fit_scale,gls_scale)
+  subroutine write_parameters(cpuid,isim,wrtid,par,resw,fit_scale,gls_scale,to_screen)
     integer,intent(in)::cpuid,isim,wrtid
     real(dp),dimension(:),intent(in)::par
     real(dp),dimension(:),intent(in)::resw
     real(dp),optional,intent(in)::fit_scale,gls_scale
+    logical,optional,intent(in)::to_screen
     integer::upar,j
     character(512)::flpar
     character(80)::fmt
@@ -704,46 +705,54 @@ module output_files
     
     fmt=adjustl("(2(a,"//trim(sprec)//"),a,i6)")
     if(present(fit_scale))then
-      write(*,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",&
-        &fitness,&
-        &" => Fitness_x_dof = ",fitxdof,&
-        &" dof = ",dof
+    
+      if(present(to_screen))then
+        write(*,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",&
+          &fitness,&
+          &" => Fitness_x_dof = ",fitxdof,&
+          &" dof = ",dof
+        write(*,'(2(a,es23.16))')"# fit_scale = ",fit_scale," gls_scale = ",gls_scale
+      end if
+    
       write(upar,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",&
         &fitness,&
         &" => Fitness_x_dof = ",fitxdof,&
-        &" dof = ",dof
-        
-      write(*,'(2(a,es23.16))')"# fit_scale = ",fit_scale," gls_scale = ",gls_scale
+        &" dof = ",dof    
       write(upar,'(2(a,es23.16))')"# fit_scale = ",fit_scale," gls_scale = ",gls_scale
     
     else
-      write(*,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",&
-        &fitness,&
-        &" => Fitness_x_dof = ",fitxdof,&
-        &" dof = ",dof
+
+      if(present(to_screen))then
+        write(*,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",&
+          &fitness,&
+          &" => Fitness_x_dof = ",fitxdof,&
+          &" dof = ",dof
+      end if
+      
       write(upar,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",&
         &fitness,&
         &" => Fitness_x_dof = ",fitxdof,&
         &" dof = ",dof
+        
     end if
     
-    write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')"# BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
-      &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
+    if(present(to_screen))then
+      write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')"# BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
+        &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
+      write(*,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 - Fitness_x_dof / 2 = ",lnL
+      write(*,'(a,es23.16)')"# ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
+      write(*,'(a,5x,a)')"# parameter "," value "
+    end if
+    
     write(upar,'(a,es23.16,a,i4,a,i5,a,es23.16)')"# BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
       &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
-    
-    write(*,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 - Fitness_x_dof / 2 = ",lnL
-    write(*,'(a,es23.16)')"# ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
-    
     write(upar,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 - Fitness_x_dof / 2 = ", lnL
     write(upar,'(a,es23.16)')"# ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
-    
-    write(*,'(a,5x,a)')"# parameter "," value "
     write(upar,'(a,5x,a)')"# parameter "," value "
     
     fmt=adjustl("(a10,4x,"//trim(sprec)//")")
     do j=1,nfit
-      write(*,trim(fmt))trim(parid(j)),par(j)
+      if(present(to_screen)) write(*,trim(fmt))trim(parid(j)),par(j)
       write(upar,trim(fmt))trim(parid(j)),par(j)
     end do
     flush(6)
@@ -755,10 +764,11 @@ module output_files
   ! ---
   
   ! write Fitness/Chi2r/Chi2wr to screen and file
-  subroutine write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale)
+  subroutine write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale,to_screen)
     integer,intent(in)::cpuid,isim,wrtid
     real(dp),intent(in)::chi2r_RV,chi2r_T0,chi2wr_RV,chi2wr_T0,chi2r_oc,fitness
     real(dp),optional,intent(in)::fit_scale,gls_scale
+    logical,optional,intent(in)::to_screen
     real(dp)::chi2wr_oc,chi2r,chi2wr,chi2,bic,lnL
     character(512)::summary_file
     integer::uwrt
@@ -792,43 +802,45 @@ module output_files
     uwrt=get_unit(cpuid)
     open(uwrt,file=trim(summary_file))
     
-    write(*,'(a,i2)')"# FITNESS SUMMARY: oc_fit == ",oc_fit
+    if(present(to_screen)) write(*,'(a,i2)')"# FITNESS SUMMARY: oc_fit == ",oc_fit
     write(uwrt,'(a,i2)')"# FITNESS SUMMARY: oc_fit == ",oc_fit
     
     if(ndata.gt.0)then
     
       ! print to screen
-!       write(*,'(3(a,i4))')" dof = ndata - nfit = ",ndata," - ",nfit," = ",dof
-      write(*,'(10(a,i4))')" dof = ndata - nfit - nfree = ",&
-        &ndata," - ",nfit," - ",nfree," = ",dof ! I have to take into account RV offsets
-      
-      if(present(fit_scale))then
-        write(*,'(100(a,es23.16))')&
-          &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",fitness
-        write(*,'(2(a,es23.16))')' fit_scale = ',fit_scale,' gls_scale = ',gls_scale
-      else
-        write(*,'(100(a,es23.16))')&
-          &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",fitness
+      if(present(to_screen))then
+  !       write(*,'(3(a,i4))')" dof = ndata - nfit = ",ndata," - ",nfit," = ",dof
+        write(*,'(10(a,i4))')" dof = ndata - nfit - nfree = ",&
+          &ndata," - ",nfit," - ",nfree," = ",dof ! I have to take into account RV offsets
+        
+        if(present(fit_scale))then
+          write(*,'(100(a,es23.16))')&
+            &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",fitness
+          write(*,'(2(a,es23.16))')' fit_scale = ',fit_scale,' gls_scale = ',gls_scale
+        else
+          write(*,'(100(a,es23.16))')&
+            &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",fitness
+        end if
+        
+        write(*,'(a,es23.16)')' Chi2 = ',chi2
+        write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')" BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
+          &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
+        write(*,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ",&
+          &lnL
+        write(*,'(a,es23.16)')" ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
+        write(*,'(a)')''
+        write(*,'(a,es23.16)')" k_chi2r   = ",k_chi2r
+        write(*,'(a,es23.16)')" Chi2r     = ",chi2r
+        write(*,'(a,es23.16)')" Chi2r_RV  = ",chi2r_RV
+        write(*,'(a,es23.16)')" Chi2r_T0  = ",chi2r_T0
+        write(*,'(a,es23.16)')" Chi2r_oc  = ",chi2r_oc
+        write(*,'(a)')''
+        write(*,'(a,es23.16)')" k_chi2wr  = ",k_chi2wr
+        write(*,'(a,es23.16)')" Chi2wr    = ",chi2wr
+        write(*,'(a,es23.16)')" Chi2wr_RV = ",chi2wr_RV
+        write(*,'(a,es23.16)')" Chi2wr_T0 = ",chi2wr_T0
+        write(*,'(a,es23.16)')" Chi2wr_oc = ",chi2wr_oc
       end if
-      
-      write(*,'(a,es23.16)')' Chi2 = ',chi2
-      write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')" BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
-        &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
-      write(*,'(a,es23.16)')" LogLikelihood = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 - Fitness_x_dof/2 = ",&
-        &lnL
-      write(*,'(a,es23.16)')" ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
-      write(*,'(a)')''
-      write(*,'(a,es23.16)')" k_chi2r   = ",k_chi2r
-      write(*,'(a,es23.16)')" Chi2r     = ",chi2r
-      write(*,'(a,es23.16)')" Chi2r_RV  = ",chi2r_RV
-      write(*,'(a,es23.16)')" Chi2r_T0  = ",chi2r_T0
-      write(*,'(a,es23.16)')" Chi2r_oc  = ",chi2r_oc
-      write(*,'(a)')''
-      write(*,'(a,es23.16)')" k_chi2wr  = ",k_chi2wr
-      write(*,'(a,es23.16)')" Chi2wr    = ",chi2wr
-      write(*,'(a,es23.16)')" Chi2wr_RV = ",chi2wr_RV
-      write(*,'(a,es23.16)')" Chi2wr_T0 = ",chi2wr_T0
-      write(*,'(a,es23.16)')" Chi2wr_oc = ",chi2wr_oc
       
       ! write into file
 !       write(uwrt,'(3(a,i4))')" dof = ndata - nfit = ",ndata," - ",nfit," = ",dof

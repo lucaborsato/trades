@@ -25,7 +25,7 @@ COMP=-fopenmp
 # for MPI
 CMPI= -DMPI
 # for F2PY
-F2PYCF = -fPIC
+F2PYCF = -fPIC -lgomp
 TRADESLIB=pytrades_lib
 
 LIBCHORD = libchord.a
@@ -120,7 +120,8 @@ omp_debug: constants_debug polychord_omp_debug
 	$(CC) $(CFLAGS) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_polychord.f90 -o $(TARGET_PC)
 
 only_pytrades_debug:
-	$(F2PYCC) --f90flags='$(CFLAGS) $(F2PYCF) $(COMP)' -lgomp -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
+	$(F2PYCC) --f90flags='$(CFLAGS) $(F2PYCF) $(COMP)' -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
+# 	$(F2PYCC) --f90flags='$(CFLAGS) $(F2PYCF) $(COMP)' -lgomp -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
 	
 pyomp_debug: omp_debug only_pytrades_debug
 	cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
@@ -134,7 +135,8 @@ omp_release: constants_release polychord_omp_release
 	$(CC) $(COPT) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_polychord.f90 -o $(TARGET_PC)
 
 only_pytrades_release: 
-	$(F2PYCC) --f90flags='$(COPT) $(F2PYCF) $(COMP)' -lgomp -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
+	$(F2PYCC) --f90flags='$(COPT) $(F2PYCF) $(COMP)' -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
+# 	$(F2PYCC) --f90flags='$(COPT) $(F2PYCF) $(COMP)' -lgomp -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
 	
 pyomp_release: omp_release only_pytrades_release
 	cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so

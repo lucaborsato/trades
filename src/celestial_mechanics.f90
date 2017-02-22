@@ -768,7 +768,8 @@ module celestial_mechanics
     real(dp),intent(out)::P,a,e,inc,mA,w,lN,f,dt
     real(dp)::x,y,z,vx,vy,vz,R,R2,V,V2,rv,rd
     real(dp)::hx,hy,hz,h2,h
-    real(dp)::Energy
+!     real(dp)::Energy
+    real(dp)::isma
     real(dp)::cosi,sini
     real(dp)::coslN,sinlN,cpslN,cmslN
     real(dp)::wf,sinwf,coswf
@@ -804,8 +805,23 @@ module celestial_mechanics
     end if
     rd=sign(rd,rv)
 
-    Energy=(half*V2)-(mu/R)
-    a=-half*mu/Energy
+!     Energy=(half*V2)-(mu/R)
+!     a=-half*mu/Energy
+    isma= (two/R) - (V2/mu)
+    if(isma.le.TOLERANCE)then
+    ! out: P,a,e,inc,mA,w,lN,f,dt
+      P=9.e9_dp
+      a=P
+      e=one
+      inc=90.0_dp
+      mA=zero
+      w=zero
+      lN=zero
+      f=zero
+      dt=zero
+      return
+    end if
+    a=one/isma
 
     P=dpi*sqrt((a**3)/mu)
 

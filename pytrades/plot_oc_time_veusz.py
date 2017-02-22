@@ -617,6 +617,14 @@ def main():
       yname = 'y%d_r' %(inb)
       y_r_res = yRES(resPlot, yname, ylab_r, 1, '180', sizeLab, minResm, maxResm, lPos, uPos, font, sizeTL)
 
+      # print T0 residuals rms
+      rms_oc = np.sqrt(np.mean(oc*oc, axis=0))
+      rms_resT0 = np.sqrt(np.mean(res*res, axis=0))
+      print 'rms(OC)obs = %.8f days = %.6f min = %.4f sec' %(rms_oc[0], rms_oc[1], rms_oc[2])
+      print 'rms(OC)sim = %.8f days = %.6f min = %.4f sec' %(rms_oc[3], rms_oc[4], rms_oc[5])
+      print 'rms(T0)    = %.8f days = %.6f min = %.4f sec' %(rms_resT0[0], rms_resT0[1], rms_resT0[2])
+      print ''
+
     # set properly the xaxis of all the O-C and res plots
     min_time = float(np.min(min_max_time))
     max_time = float(np.max(min_max_time))

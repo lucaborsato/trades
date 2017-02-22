@@ -493,11 +493,16 @@ module opti_pso
       !===== Exit loop =====
       if(exit_loop) exit
 
+      ! 2017-02-16 -- PARALLEL --
       !===== Move particles =====
+      !$omp parallel do NUM_THREADS(ncpu_in) schedule(DYNAMIC,1)&
+      !$omp& shared(np,n,gxbest,w,c1,c2,c3,vmax,vrand,flag,p)
       do j = 1, np
           call  p_move(n, gxbest, w, c1, c2, c3, vmax, vrand, flag, p(j))
       end do
-
+      !$omp end parallel do
+      ! 2017-02-16 -- PARALLEL --
+      
 !       i = i + 1
 
 !       ! save all data
@@ -515,9 +520,8 @@ module opti_pso
 !       if(i.eq.1)stop
     end do
     !*********************** Main Loop *************************
+    
     !***********************************************************
-    !write(*,'(2(a,i6))')" DONE ",i," ITERATION IN PSO AND nit_pso was ",nit_pso
-    !read(*,*)
     !if(it_c.lt.it) call write_bestpso(it_c,it,idbest,bestpso)
     if(allocated(idbest)) deallocate(idbest)
     close(ubest)
@@ -560,7 +564,7 @@ module opti_pso
     r1 = random_scalar()
     r2 = random_scalar()
     r3 = one
-    v3= zero
+    v3 = zero
 
     !---- Velocity random expansion (optional) ----
     if(flag_on(flag, f_vrand)) then

@@ -411,7 +411,8 @@ module Genetic_Algorithm
 !     call init_good_particles(n,np,xall,oldph)
     call init_population_zero(n,np,oldph)
     
-    !$omp parallel do schedule(DYNAMIC,1) NUM_THREADS(ncpu_in)
+    !$omp parallel do schedule(DYNAMIC,1) NUM_THREADS(ncpu_in)&
+    !$omp& shared(np,n,xall,oldph)
     do  ip = 1, np
 !       do  k = 1, n
 ! !           oldph(k,ip) = urand()
