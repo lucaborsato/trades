@@ -60,11 +60,16 @@ Rura = 25559.  #  Uranus radius in km
 Rnep = 24764.  #  Neptune radius in km
 Rplu = 1195.   #  Pluto radius in km
 #
-Rsjup = Rsun/Rjup #  Rsun to Rjup
-Rjups = Rjup/Rsun #  Rjup to Rsun
+Rsjup = Rsun/Rjup # Rsun to Rjup
+Rjups = Rjup/Rsun # Rjup to Rsun
+Rsear = Rsun/Rear # Rsun to Rear
+Rears = Rear/Rsun # Rear to Rsun
+Rsnep = Rsun/Rnep # Rsun to Rnep
+Rneps = Rnep/Rsun # Rnep to Rsun
 #
 Rejup = Rear/Rjup # Rearth to Rjupiter
 Rjear = Rjup/Rear # Rjupiter to Rearth
+
 
 # astronomical constants
 AU = 149597870700. #Astronomical Unit in meters

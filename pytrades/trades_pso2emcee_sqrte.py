@@ -31,9 +31,7 @@ def get_args():
   # SUBFOLDER TO SAVE ALL SIMULATION DATA
   parser.add_argument('-s', '--sub-folder', '--sb', action='store', dest='sub_folder', default='emcee_run', help='Sub-folder name, without full path. Default = emcee_run')
   
-  # WARNING !! TO USE PARALLEL IN PSO BEFORE THIS SCRIPT TYPE:
-  # export OMP_NUM_THREADS=CPUNUMBER
-  # NUMBER OF CPU TO USE WITH EMCE !!
+  # NUMBER OF CPU TO USE WITH EMCE AND PSO!!
   parser.add_argument('-c', '--cpu', '--nthreads', action='store', dest='nthreads', default=1, help='Number of threads to use. default nthreads = 1. For PSO with openMP you have to set export OMP_NUM_THREADS=CPUNUMBER before to run this script')
   
   # NUMBER OF WALKERS TO USE WITH EMCEE
@@ -545,10 +543,11 @@ def main():
         #f_hdf5.create_dataset('acceptance_fraction', data=acceptance_fraction, dtype=np.float64)
         mean_acceptance_fraction = np.mean(acceptance_fraction)
       
-        temp_chains_T = np.zeros((bbb, nwalkers, nfit))
-        for ifit in range(0,nfit):
-          temp_chains_T[:,:,ifit] = sampler.chain[:, :bbb, ifit].T
-        acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
+        #temp_chains_T = np.zeros((bbb, nwalkers, nfit))
+        #for ifit in range(0,nfit):
+          #temp_chains_T[:,:,ifit] = sampler.chain[:, :bbb, ifit].T
+        #acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
+        acor_time = anc.compute_acor_time(sampler, steps_done=bbb)
         temp_acor = f_hdf5['autocor_time']
         temp_acor[...] = acor_time
         
@@ -574,10 +573,11 @@ def main():
       acceptance_fraction = sampler.acceptance_fraction
       mean_acceptance_fraction = np.mean(acceptance_fraction)
       #autocor_time = sampler.acor
-      temp_chains_T = np.zeros((bbb, nwalkers, nfit))
-      for ifit in range(0,nfit):
-        temp_chains_T[:,:,ifit] = sampler.chain[:, :, ifit].T
-      acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
+      #temp_chains_T = np.zeros((bbb, nwalkers, nfit))
+      #for ifit in range(0,nfit):
+        #temp_chains_T[:,:,ifit] = sampler.chain[:, :, ifit].T
+      #acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
+      acor_time = anc.compute_acor_time(sampler)
       lnprobability = sampler.lnprobability
       # save chains with original shape as hdf5 file
       f_hdf5 = h5py.File(os.path.join(pso_path, 'emcee_summary.hdf5'), 'w')

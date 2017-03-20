@@ -353,6 +353,7 @@ module transits
         ! continue with N-R
         dt1=dt2
         call advancefg(m,rw,dt1,Hc)
+        if(.not.Hc) write(*,'(a)')' find_transit: advancefg ==> Hc == False'
         if(.not.Hc) return
         tmidtra=tmidtra+dt1
       else
@@ -360,6 +361,7 @@ module transits
         dt1=dt1*half
         tmidtra=tmidtra+dt1
         call onetra_bis(itra,m,A,B,rw,dt1,Hc)
+        if(.not.Hc) write(*,'(a)')' find_transit: onetra_bis ==> Hc == False'
         if(.not.Hc) return
       end if
       !tmidtra=tmidtra+dt1
@@ -512,10 +514,13 @@ module transits
 
     real(dp)::mu,P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p,b_itra
     
+!     if(.not.Hc)write(*,'(a,l2)')'00 check_T0_1 Hc = ',Hc
+    
     allocate(rtra(NBDIM))
     rtra=one
     call find_transit(itra,m,r1,r2,itime,hok,tmidtra,lte,rtra,Hc)
     
+!     if(.not.Hc)write(*,'(a,l2)')'11 check_T0_1 Hc = ',Hc
     if(.not.Hc)then ! get out, if Hc == .false. is bad, so stop running
       deallocate(rtra)
       return
@@ -538,6 +543,8 @@ module transits
 !         flush(6)
         Hc=.false.
         deallocate(rtra)
+!         write(*,*)' itra = ',itra, ' b_itra = ', b_itra, ' do_transit = ',do_transit
+!         if(.not.Hc)write(*,'(a,l2)')'22 check_T0_1 Hc = ',Hc
         return
       
       else
@@ -684,12 +691,21 @@ module transits
 
     dT=tmidtra-Tephem(itra)
     dTP=dT/Pephem(itra)
-    if(dT.ge.zero)then
-      dTP=dTP+half
-    else
-      dTP=dTP-half
-    end if
-    ntmid=int(dTP)
+    
+!   test 0
+!     if(dT.ge.zero)then
+!       dTP=dTP+half
+!     else
+!       dTP=dTP-half
+!     end if
+!     ntmid=int(dTP)
+
+!   test 1
+    ntmid = nint(dTP)
+
+!   test 2
+!     ntmid = nint((tmidtra-Tephem(itra))/Pephem(itra))
+    
     do in=1,nTs
       if(ntmid.eq.epoTobs(in))then
         T0_sim(in,itra)=tmidtra
@@ -775,5 +791,80 @@ module transits
     return
   end subroutine all_transits
   ! ------------------------------------------------------------------ !
+  
+! ==============================================================================
 
+! compute the transit time and proper duration Dtra = T3.5 - T1.5
+  subroutine transit_time(id_body,m,R,r1,r2,iter_time,step_ok,ttra,dur_tra,check_ttra)
+    integer,intent(in)::id_body ! value: 2 to NB
+    real(dp),dimension(:),intent(in)::m,R,r1,r2
+    real(dp),intent(in)::iter_time,step_ok
+    real(dp),intent(out)::ttra,dur_tra
+    logical,intent(out)::check_ttra
+    
+    real(dp)::ttra_temp,lte
+    real(dp),dimension(:),allocatable::rtra
+    
+    real(dp)::mu,P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p,b_p
+    integer::sel_r
+    
+    check_ttra=.true.
+    ttra=zero
+    dur_tra=zero
+    
+    allocate(rtra(NBDIM))
+    rtra=one
+    call find_transit(id_body,m,r1,r2,iter_time,step_ok,ttra_temp,lte,rtra,check_ttra)
+    
+    if(.not.check_ttra)then ! there was an error in the computation of the transit time ==> check_ttra==False
+      ttra=zero
+      dur_tra=zero
+      deallocate(rtra)
+      return
+      
+    else ! check_ttra==True
+      
+      ! check impact parameter of the planet
+      sel_r=(id_body-1)*6
+      mu=Giau*(m(1)+m(id_body))
+      call eleMD(mu,rtra(1+sel_r:6+sel_r),P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p)
+      b_p = abs(impact_parameter(R(1),sma_p,inc_p*rad2deg,ecc_p=ecc_p,arg_p=w_p*rad2deg))
+      
+      ! in case the planet transits b < 1
+      if(b_p.lt.one)then
+        
+        if(.not.do_transit(id_body))then ! ... but it shouldn't!
+       
+          check_ttra=.false.
+          ttra=zero
+          dur_tra=zero
+          deallocate(rtra)
+          return
+      
+        else ! ok the b < 1 and the planet has to transit!
+      
+          ttra=ttra_temp+lte
+          ! computes transit duration ... TOBE IMPLEMENTED!
+          dur_tra=zero
+        
+        end if
+      
+      else
+      
+        check_ttra=.false.
+        ttra=zero
+        dur_tra=zero
+        deallocate(rtra)
+        return
+      
+      end if
+      
+    end if
+    if(allocated(rtra)) deallocate(rtra)
+    
+    return
+  end subroutine transit_time
+
+! ==============================================================================
+  
 end module transits

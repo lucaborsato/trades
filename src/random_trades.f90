@@ -4,6 +4,8 @@ module random_trades
 
   contains
 
+! ==============================================================================
+  
   subroutine init_random_seed_input(nx,input_seed)
     integer,intent(in)::nx,input_seed
     integer :: i, n!, clock
@@ -19,7 +21,8 @@ module random_trades
     return
   end subroutine init_random_seed_input
 
-  
+! ==============================================================================
+
     ! it initializes the seed/s, it uses a clock based generator
   subroutine init_random_seed_clock(nx)
     integer,intent(in)::nx
@@ -39,10 +42,30 @@ module random_trades
     return
   end subroutine init_random_seed_clock
 
+! ==============================================================================
+  
   ! random number from subroutine to function
   function random_scalar() result(xr)
     real(dp)::xr
     call random_number(xr)
   end function random_scalar
+  
+  ! Knuth Shuffle from http://rosettacode.org/wiki/Knuth_shuffle#Fortran
+  subroutine shuffle_int(a)
+    integer,dimension(:),intent(inout)::a
+    integer::iter,randpos,temp
+    real(dp)::r
+   
+    do iter = size(a), 2, -1
+      call random_number(r)
+      randpos = int(r * iter) + 1
+      temp = a(randpos)
+      a(randpos) = a(iter)
+      a(iter) = temp
+    end do
+ 
+  end subroutine shuffle_int
+
+! ==============================================================================
   
 end module random_trades

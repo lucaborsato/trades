@@ -24,8 +24,16 @@ module radial_velocities
 
     allocate(barRV(6),rbarRV(NBDIM),ro(NBDIM),err(NBDIM))
     call rkck_a(m,ri,drdt,stepRV,ro,err) ! call integrator
+!     write(*,*)m
+!     write(*,*)ri
+!     write(*,*)drdt
+!     write(*,*)stepRV
+!     write(*,*)ro
     call barycenter(m,ro,barRV,rbarRV) ! astrocentric 2 barycentric
-    RVsim=-rbarRV(6)*AU/s24h
+    RVsim=-rbarRV(6)*AU/s24h ! rv as -Zstar,bar m/s
+!     write(*,*)barRV
+!     write(*,*)rbarRV
+!     write(*,*)RVsim
     deallocate(barRV,rbarRV,ro,err)
 
     return

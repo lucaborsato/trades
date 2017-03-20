@@ -477,16 +477,18 @@ module celestial_mechanics
     real(dp),dimension(:),intent(in)::P,a,e,mA
     real(dp),dimension(:),intent(out)::output
     real(dp),parameter::circ=360._dp
-    real(dp)::EA,dEA,n,cosE,sinE,e2,rad1e2,mA2
+    real(dp)::EA,dEA,n,cosE,sinE,e2,rad1e2,mA_temp
     integer::i,nci
 
     output=zero
 
     do i=2,NB
       !computation of the anomalies of the bodies
-      mA2=mod(mA(i),circ)+circ
+!       mA_temp=mod(mA(i),circ)+circ
+      mA_temp=mod(mA(i),circ)
+      if(mA_temp.lt.zero) mA_temp=mA_temp+circ
       n=dpi/P(i)
-      EA=EAnom(mA2,e(i))*deg2rad
+      EA=EAnom(mA_temp,e(i))*deg2rad
       e2=e(i)*e(i)
       rad1e2=sqrt(one-e2)
       cosE=cos(EA)

@@ -1,7 +1,7 @@
 ! TRADES fortran module to be called fron python
 
 module pytrades
-  use omp_lib
+  !$ use omp_lib
   use constants
   use parameters
   use parameters_conversion
@@ -10,7 +10,8 @@ module pytrades
   use derived_parameters_mod
   use transits,only:set_ephem
   use fitness_module
-  use ode_run,only:orbits_to_data
+  use ode_run,only:orbits_to_data,ode_all_ttra_rv
+  use grid_search
   
   implicit none
   ! exposing variables in parameters to trades_lib
@@ -39,6 +40,8 @@ module pytrades
 
   !f2py integer::ncpu_in
   
+!   integer::ngrid,ncol_grid
+  
   ! variables:  parameters to fit
   real(dp),dimension(:),allocatable::fitting_parameters
   real(dp),dimension(:,:),allocatable::parameters_minmax
@@ -47,6 +50,8 @@ module pytrades
   
    
   contains
+  
+  ! ============================================================================
   
   subroutine initialize_trades(path_in, sub_folder, n_threads_in)
     !f2py real(dp),dimension(:),allocatable::eRVobs
@@ -160,12 +165,17 @@ module pytrades
     !             one -> constants
     ndata=nRV+sum(nT0)
     
-    if(nfit.ge.ndata)then
-      stop('NUMBER OF PARAMETERS TO FIT IS GREATER/EQUAL TO TOTAL NUMBER OF DATAPOINTS')
-    end if
+!     if(nfit.ge.ndata)then
+!       stop('NUMBER OF PARAMETERS TO FIT IS GREATER/EQUAL TO TOTAL NUMBER OF DATAPOINTS')
+!     end if
 !     dof=(ndata-nfit)
     nfree=nRVset
     dof=ndata-nfit-nfree
+    if(dof.le.0)then
+      write(*,'(a,a)')' FOUND dof <= 0 SO IT IS FORCE TO 1 IN CASE',&
+         &'THE USER WANT TO SIMULATE/INTEGRATE AND NOT CHECK THE FIT.'
+         dof=1
+    end if
     
     inv_dof = one / real(dof,dp)
 !     write(*,'(a,i5)')" NUMBER OF DATA AVAILABLE: ndata = ",ndata
@@ -196,7 +206,9 @@ module pytrades
       allocate(nset(1),k_b(1))
       nset(1)=sum(nT0)
     else
-      stop('No data-set available. Please check the files.')
+!       stop('No data-set available. Please check the files.')
+      allocate(nset(1),k_b(1))
+      nset(1)=1
     end if
     ! PARAMETER TO PROPERLY SCALE THE RESIDUALS FOR THE CHI2
     k_a = sqrt(k_chi2r*inv_dof)
@@ -241,6 +253,8 @@ module pytrades
     return
   end subroutine initialize_trades
   
+  ! ============================================================================
+  
   subroutine init_fit_parameters(all_parameters,n_par,fit_parameters,n_fit)
     use parameters_conversion,only:init_param
     integer,intent(in)::n_par
@@ -257,6 +271,7 @@ module pytrades
     return
   end subroutine init_fit_parameters
   
+  ! ============================================================================
   
   subroutine init_pso(cpuid, path_in)
     integer,intent(in)::cpuid
@@ -272,6 +287,7 @@ module pytrades
     return
   end subroutine init_pso
   
+  ! ============================================================================
   
   subroutine fortran_loglikelihood(fit_parameters, lgllhd, check, nfit)
     integer,intent(in)::nfit
@@ -290,6 +306,8 @@ module pytrades
     return
   end subroutine fortran_loglikelihood
 
+  ! ============================================================================
+  
   ! subroutine that output the fitness, check for given fit_parameters and global system_parameters
   subroutine fortran_fitness_short(fit_parameters, fitness, check, n_fit)
     integer,intent(in)::n_fit
@@ -304,6 +322,8 @@ module pytrades
     
     return
   end subroutine fortran_fitness_short
+  
+  ! ============================================================================
   
   ! subroutine that output the fitness, check for given fit_parameters and updated all_parameters (instead of system_parameters)
 !   subroutine fortran_fitness_long(fit_parameters, all_parameters, fitness, check, n_fit, n_par)
@@ -324,7 +344,8 @@ module pytrades
     return
   end subroutine fortran_fitness_long
   
-
+  ! ============================================================================
+  
 !   subroutine write_summary_files(write_number,parameters_values,fitness,wrt_info,lgllhd,check,nfit)
 !     use driver,only:write_summary_nosigma
 ! !     use ode_run,only:ode_out
@@ -374,6 +395,8 @@ module pytrades
 !     return
 !   end subroutine write_summary_files
 
+  ! ============================================================================
+  
   subroutine write_summary_files(write_number,parameters_values,fitness,lgllhd,check,nfit)
     use driver,only:write_summary_nosigma
     integer,intent(in)::nfit
@@ -422,6 +445,7 @@ module pytrades
     return
   end subroutine write_summary_files
   
+  ! ============================================================================
   
   subroutine write_summary_files_long(write_number,all_parameters,npar,parameters_values,nfit,fitness,lgllhd,check)
     use driver,only:write_summary_nosigma
@@ -468,6 +492,8 @@ module pytrades
     return
   end subroutine write_summary_files_long
   
+  ! ============================================================================
+  
   ! pso
   subroutine pyrun_pso(nfit,i_global,best_parameters,best_fitness)
     use opti_pso,only:pso_driver,evaluate_pso
@@ -488,6 +514,7 @@ module pytrades
     return
   end subroutine pyrun_pso
   
+  ! ============================================================================
   
   ! subroutine useful to modify the working path fo TRADES from python
   subroutine path_change(new_path)
@@ -498,6 +525,8 @@ module pytrades
     return
   end subroutine path_change
 
+  ! ============================================================================
+  
   ! init both cases for derived parameters
   ! 1)
   ! check if there are derived parameters to compute and to check
@@ -509,6 +538,9 @@ module pytrades
     
     return
   end subroutine init_check_parameters
+  
+  ! ============================================================================
+  
   ! 2)
   ! check if there are derived parameters to compute and to check
   subroutine init_fix_parameters(n_derived_in,in_names,in_parameters)
@@ -521,6 +553,7 @@ module pytrades
     return
   end subroutine init_fix_parameters
 
+  ! ============================================================================
   
   subroutine deallocate_variables()
   
@@ -529,7 +562,7 @@ module pytrades
     return
   end subroutine deallocate_variables
   
-  
+  ! ============================================================================
   
   ! SUBROUTINE TO INITIALISE TRADES WITHOUT READING FILES
   subroutine args_init(t_start,t_epoch,t_int,n_body,&
@@ -582,6 +615,8 @@ module pytrades
     
     return
   end subroutine
+  
+  ! ============================================================================
   
   !!! SUBROUTINE TO RUN TRADES INTEGRATION AND RETURN RV_SIM AND T0_SIM
   subroutine kelements_to_data(t_start,t_epoch,step_in,t_int,&
@@ -653,6 +688,224 @@ module pytrades
   
     return
   end subroutine kelements_to_data
+
+  ! ============================================================================
+  
+  ! create wrappers to init the grid of a perturber body (a)
+  ! and set properly the parameters to use in TRADES (b)
+  ! the output will be all the transit times within the t_int
+  ! for each parameter combination.
+  
+  ! (a)
+  subroutine wrapper_read_grid(cpuid,ngrid,ncol_grid)
+    integer,intent(in)::cpuid
+    integer,intent(out)::ngrid,ncol_grid
+    
+    ! read input file <-> idpert
+    call read_parameters_grid(cpuid,perturber_parameters_grid)
+    ! perturber_parameters_grid in 'parameters' module
+    
+    ! set properly the fields of the perturber_parameters_grid variable
+    call set_parameters_grid(perturber_parameters_grid,ngrid)
+    
+    ncol_grid=10 ! fixed in module grid_search -> build_grid
+  
+    return
+  end subroutine wrapper_read_grid
+    
+  subroutine wrapper_grid_init(cpuid,ngrid,ncol_grid,perturber_grid)
+    integer,intent(in)::cpuid
+    integer,intent(in)::ngrid,ncol_grid
+    real(dp),dimension(ngrid,ncol_grid),intent(out)::perturber_grid
+
+!     !f2py    integer,intent(hide),depend(perturber_grid)::ngrid=shape(perturber_grid,0), ncol_grid=shape(perturber_grid,1)
+    
+    real(dp),dimension(:,:),allocatable::temp_grid,fitness_grid
+    
+    ! create/build the full grid, with all the combination of the parameters of perturber body
+    call build_grid(MR_star(1,1),perturber_parameters_grid,temp_grid,fitness_grid,ngrid)
+    ! perturber_parameters_grid in 'parameters' module
+    
+    perturber_grid=temp_grid
+    
+    deallocate(temp_grid,fitness_grid) ! temporary -> useless here
+    
+    ! needed to update the max allowed value of the semi-major axis
+    amax=5._dp*maxval(perturber_grid(:,4))
+    
+    return
+  end subroutine wrapper_grid_init
+  
+  ! ============================================================================
+  
+  ! (b) - TOBESPLITTED
+!   subroutine wrapper_set_grid_orbelem(sim_id,idpert,perturber_grid,ngrid,ncol,&
+!     &sim_all_parameters,npar,&
+!     &ttra_all,id_ttra_all,n_ttra_all,time_rv_all,rv_all,n_rv_all)
+!     integer,intent(in)::sim_id,idpert
+!     integer::ngrid,ncol
+!     real(dp),dimension(ngrid,ncol),intent(in)::perturber_grid
+!     integer::npar
+!     real(dp),dimension(npar),intent(out)::sim_all_parameters
+!     integer::n_ttra_all
+!     real(dp),dimension(n_ttra_all),intent(out)::ttra_all
+!     integer,dimension(n_ttra_all),intent(out)::id_ttra_all
+!     integer::n_rv_all
+!     real(dp),dimension(n_rv_all),intent(out)::time_rv_all
+!     real(dp),dimension(n_rv_all),intent(out)::rv_all
+!     
+! !f2py    integer,intent(hide),depend(perturber_grid)::ngrid=shape(perturber_grid,0), ncol=shape(perturber_grid,1)
+! !f2py    integer,intent(hide),depend(sim_all_parameters)::npar=len(sim_all_parameters)
+! !f2py    integer,intent(hide),depend(ttra_all)::n_ttra_all=len(ttra_all)
+! !f2py    integer,intent(hide),depend(time_rv_all)::n_rv_all=len(time_rv_all)
+! 
+!     real(dp),dimension(:),allocatable::sim_fit_parameters
+!     real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
+!     real(dp),dimension(:),allocatable::temp_ttra,temp_time_rv,temp_rv
+!     integer,dimension(:),allocatable::temp_id_ttra
+!     logical::tempcheck
+!     
+!     allocate(sim_fit_parameters(nfit))
+!     sim_all_parameters=system_parameters
+!     sim_fit_parameters=zero
+!     
+!     ! 1. select proper set of parameters to use: perturber_grid to sim_all_parameters
+!     call perturber_grid2parameters(sim_id,idpert,perturber_grid,sim_all_parameters)
+!     ! 2. update from sim_all_parameters to sim_fit_parameters
+!     call init_param(sim_all_parameters,sim_fit_parameters)
+!     
+!     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB))
+!     call par2kel_fit(sim_all_parameters,sim_fit_parameters,m,R,P,a,e,w,mA,inc,lN,tempcheck)
+!     deallocate(sim_fit_parameters)
+! 
+!     call ode_all_ttra_rv(wrttime,m,R,P,a,e,w,mA,inc,lN,&
+!       &temp_ttra,temp_id_ttra,temp_time_rv,temp_rv)
+!     ttra_all=temp_ttra
+!     id_ttra_all=temp_id_ttra
+!     time_rv_all=temp_time_rv
+!     rv_all=temp_rv
+!     deallocate(temp_time_rv,temp_rv,temp_ttra,temp_id_ttra)
+!     
+!     return
+!   end subroutine wrapper_run_grid_parameters
+  
+  ! ============================================================================
+  
+  subroutine wrapper_set_grid_orbelem_fullgrid(sim_id,idpert,perturber_grid,ngrid,ncol,&
+    &m,R,P,sma,ecc,w,mA,inc,lN,n_bodies,nt0_full,nrv_nmax)
+    integer,intent(in)::sim_id,idpert
+    integer,intent(in)::ngrid,ncol
+    real(dp),dimension(ngrid,ncol),intent(in)::perturber_grid
+    integer,intent(in)::n_bodies
+    real(dp),dimension(n_bodies),intent(out)::m,R,P,sma,ecc,w,mA,inc,lN
+    integer,intent(out)::nt0_full,nrv_nmax
+    
+!f2py    integer,intent(hide),depend(perturber_grid)::ngrid=shape(perturber_grid,0), ncol=shape(perturber_grid,1)
+
+! !f2py    integer,intent(hide),depend(m)::n_bodies=len(m)
+
+    real(dp),dimension(:),allocatable::sim_all_parameters,sim_fit_parameters
+    logical::tempcheck
+    
+    integer,dimension(:),allocatable::nT0_perbody
+    
+    tempcheck=.true.
+    allocate(sim_all_parameters(npar),sim_fit_parameters(nfit))
+    sim_all_parameters=system_parameters
+    sim_fit_parameters=zero
+    
+    ! 1. select proper set of parameters to use: perturber_grid to sim_all_parameters
+    call perturber_grid2parameters(sim_id,idpert,perturber_grid,sim_all_parameters)
+    ! 2. update from sim_all_parameters to sim_fit_parameters
+    call init_param(sim_all_parameters,sim_fit_parameters)
+    
+    call par2kel_fit(sim_all_parameters,sim_fit_parameters,m,R,P,sma,ecc,w,mA,inc,lN,tempcheck)
+    deallocate(sim_all_parameters,sim_fit_parameters)
+    
+    ! compute number maximum of all transit times of all the planets from the
+    ! integration time (global variable tint)
+    allocate(nT0_perbody(n_bodies-1))
+    nT0_perbody = int((1.5_dp*tint)/P(2:n_bodies))+2 ! compute the number of transit for each planet ... avoid P(1)<->star
+    nt0_full=sum(nT0_perbody) ! sum them all
+    deallocate(nT0_perbody)
+
+    ! comput the number of maximum rv from integration and write time
+    ! (global variables tint, wrttime
+    nrv_nmax=int(tint/wrttime)+2
+    
+    return
+  end subroutine wrapper_set_grid_orbelem_fullgrid
+  
+  ! ============================================================================
+  
+  subroutine wrapper_set_grid_orbelem(sim_id,idpert,perturber_par,ncol,&
+    &m,R,P,sma,ecc,w,mA,inc,lN,n_bodies,nt0_full,nrv_nmax)
+    integer,intent(in)::sim_id,idpert
+    integer,intent(in)::ncol
+    real(dp),dimension(ncol),intent(in)::perturber_par
+    integer,intent(in)::n_bodies
+    real(dp),dimension(n_bodies),intent(out)::m,R,P,sma,ecc,w,mA,inc,lN
+    integer,intent(out)::nt0_full,nrv_nmax
+    
+!f2py    integer,intent(hide),depend(perturber_par)::ncol=len(perturber_par)
+! !f2py    integer,intent(hide),depend(m)::n_bodies=len(m)
+
+    real(dp),dimension(:),allocatable::sim_all_parameters,sim_fit_parameters
+    logical::tempcheck
+    
+    integer,dimension(:),allocatable::nT0_perbody
+    
+    tempcheck=.true.
+    allocate(sim_all_parameters(npar),sim_fit_parameters(nfit))
+    sim_all_parameters=system_parameters
+    sim_fit_parameters=zero
+    
+    ! 1. select proper set of parameters to use: perturber_grid to sim_all_parameters
+!     call perturber_grid2parameters(sim_id,idpert,perturber_grid,sim_all_parameters)
+    call perturber_par2all_par(idpert,perturber_par,sim_all_parameters)
+    ! 2. update from sim_all_parameters to sim_fit_parameters
+    call init_param(sim_all_parameters,sim_fit_parameters)
+    
+    call par2kel_fit(sim_all_parameters,sim_fit_parameters,m,R,P,sma,ecc,w,mA,inc,lN,tempcheck)
+    deallocate(sim_all_parameters,sim_fit_parameters)
+    
+    ! compute number maximum of all transit times of all the planets from the
+    ! integration time (global variable tint)
+    allocate(nT0_perbody(n_bodies-1))
+    nT0_perbody = int((1.5_dp*tint)/P(2:n_bodies))+2 ! compute the number of transit for each planet ... avoid P(1)<->star
+    nt0_full=sum(nT0_perbody) ! sum them all
+    deallocate(nT0_perbody)
+
+    ! comput the number of maximum rv from integration and write time
+    ! (global variables tint, wrttime
+    nrv_nmax=int(tint/wrttime)+2
+    
+    return
+  end subroutine wrapper_set_grid_orbelem
+  
+  ! ============================================================================
+  
+  subroutine wrapper_run_grid_combination(m,R,P,sma,ecc,w,mA,inc,lN,n_bodies,&
+    &ttra_full,id_ttra_full,stats_ttra,nt0_full,&
+    &time_rv_nmax,rv_nmax,stats_rv,nrv_nmax)
+    integer,intent(in)::n_bodies
+    real(dp),dimension(n_bodies),intent(in)::m,R,P,sma,ecc,w,mA,inc,lN
+    integer,intent(in)::nt0_full
+    real(dp),dimension(nt0_full),intent(out)::ttra_full
+    integer,dimension(nt0_full),intent(out)::id_ttra_full
+    logical,dimension(nt0_full),intent(out)::stats_ttra
+    integer,intent(in)::nrv_nmax
+    real(dp),dimension(nrv_nmax),intent(out)::time_rv_nmax,rv_nmax
+    logical,dimension(nrv_nmax),intent(out)::stats_rv
+    
+    call ode_all_ttra_rv(wrttime,m,R,P,sma,ecc,w,mA,inc,lN,&
+      &ttra_full,id_ttra_full,stats_ttra,&
+      &time_rv_nmax,rv_nmax,stats_rv)
+  
+    return
+  end subroutine wrapper_run_grid_combination
+  
+  ! ============================================================================
 
   
 end module pytrades

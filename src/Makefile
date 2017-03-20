@@ -21,11 +21,12 @@ COPT=-cpp -O3 -ffree-line-length-none -ffpe-trap=invalid,zero,overflow,underflow
 # COPT+=-pg # profiling
 
 # with openmp
+GOMP=-lgomp
 COMP=-fopenmp
 # for MPI
 CMPI= -DMPI
 # for F2PY
-F2PYCF = -fPIC -lgomp
+F2PYCF = -fPIC
 TRADESLIB=pytrades_lib
 
 LIBCHORD = libchord.a
@@ -33,6 +34,7 @@ AR = ar r
 CCHORD = -L. -lchord
 
 # executable
+TARGET_0=../bin/trades_integrates
 TARGET_SER_1=../bin/trades_s
 TARGET_SER_2=../bin/trades_s_int_lm_bootstrap
 TARGET_SER_3=../bin/trades_s_pik_pso
@@ -98,6 +100,7 @@ polychord_omp_release: constants_release
 serial_debug: constants_debug polychord_debug
 	$(CC) $(CFLAGS) $(F2PYCF) -I. $(CCHORD) -c $(SOURCES)
 	$(CC) $(CFLAGS) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades.f90 -o $(TARGET_SER_1)
+	$(CC) $(CFLAGS) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_integrates.f90 -o $(TARGET_0)
 	$(CC) $(CFLAGS) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_int_lm_bootstrap.f90 -o $(TARGET_SER_2)
 	$(CC) $(CFLAGS) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_pik_pso.f90 -o $(TARGET_SER_3)
 	$(CC) $(CFLAGS) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_grid.f90 -o $(TARGET_SER_4)
@@ -106,6 +109,7 @@ serial_debug: constants_debug polychord_debug
 serial_release: constants_release polychord_release
 	$(CC) $(COPT) $(F2PYCF) -I. $(CCHORD) -c $(SOURCES)
 	$(CC) $(COPT) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades.f90 -o $(TARGET_SER_1)
+	$(CC) $(COPT) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_integrates.f90 -o $(TARGET_0)
 	$(CC) $(COPT) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_int_lm_bootstrap.f90 -o $(TARGET_SER_2)
 	$(CC) $(COPT) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_pik_pso.f90 -o $(TARGET_SER_3)
 	$(CC) $(COPT) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_grid.f90 -o $(TARGET_SER_4)
@@ -114,31 +118,47 @@ serial_release: constants_release polychord_release
 omp_debug: constants_debug polychord_omp_debug
 	$(CC) $(CFLAGS) $(F2PYCF) $(COMP) -I. $(CCHORD) -c $(SOURCES)
 	$(CC) $(CFLAGS) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades.f90 -o $(TARGET_OMP_1)
+	$(CC) $(CFLAGS) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_integrates.f90 -o $(TARGET_0)
 	$(CC) $(CFLAGS) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_int_lm_bootstrap.f90 -o $(TARGET_OMP_2)
 	$(CC) $(CFLAGS) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_pik_pso.f90 -o $(TARGET_OMP_3)
 	$(CC) $(CFLAGS) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_grid.f90 -o $(TARGET_OMP_4)
 	$(CC) $(CFLAGS) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_polychord.f90 -o $(TARGET_PC)
 
-only_pytrades_debug:
-	$(F2PYCC) --f90flags='$(CFLAGS) $(F2PYCF) $(COMP)' -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
-# 	$(F2PYCC) --f90flags='$(CFLAGS) $(F2PYCF) $(COMP)' -lgomp -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
+# only_pytrades_debug:
+# 	$(F2PYCC) --f90flags='$(CFLAGS) $(F2PYCF) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
+only_pytrades_serial_debug:
+	$(F2PYCC) --f90flags='$(CFLAGS) $(F2PYCF)' -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
 	
-pyomp_debug: omp_debug only_pytrades_debug
+only_pytrades_omp_debug:
+	$(F2PYCC) --f90flags='$(CFLAGS) $(F2PYCF) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
+
+pyserial_debug: serial_debug only_pytrades_serial_debug
+	cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
+
+pyomp_debug: omp_debug only_pytrades_omp_debug
 	cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
 	
 omp_release: constants_release polychord_omp_release
 	$(CC) $(COPT) $(COMP) $(F2PYCF) -I. $(CCHORD) -c $(SOURCES)
 	$(CC) $(COPT) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades.f90 -o $(TARGET_OMP_1)
+	$(CC) $(COPT) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_integrates.f90 -o $(TARGET_0)
 	$(CC) $(COPT) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_int_lm_bootstrap.f90 -o $(TARGET_OMP_2)
 	$(CC) $(COPT) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_pik_pso.f90 -o $(TARGET_OMP_3)
 	$(CC) $(COPT) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_grid.f90 -o $(TARGET_OMP_4)
 	$(CC) $(COPT) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_polychord.f90 -o $(TARGET_PC)
 
-only_pytrades_release: 
-	$(F2PYCC) --f90flags='$(COPT) $(F2PYCF) $(COMP)' -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
-# 	$(F2PYCC) --f90flags='$(COPT) $(F2PYCF) $(COMP)' -lgomp -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
+# only_pytrades_release: 
+# 	$(F2PYCC) --f90flags='$(COPT) $(F2PYCF) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
+only_pytrades_serial_release: 
+	$(F2PYCC) --f90flags='$(COPT) $(F2PYCF)' -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
+
+only_pytrades_omp_release: 
+	$(F2PYCC) --f90flags='$(COPT) $(F2PYCF) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 *.o -m $(TRADESLIB)
+
+pyserial_release: serial_release only_pytrades_serial_release
+	cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
 	
-pyomp_release: omp_release only_pytrades_release
+pyomp_release: omp_release only_pytrades_omp_release
 	cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
 
 mpi_omp_debug: constants_debug

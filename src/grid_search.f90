@@ -583,8 +583,9 @@ module grid_search
   ! new subrotine to set properly the values for each
   ! parameter, i.e. name, n_steps, step_grid, grid_values
   ! -----------------------------------------------------
-  subroutine set_parameters_grid(parameters_grid)
+  subroutine set_parameters_grid(parameters_grid,n_grid)
     type (parameter_grid),dimension(:)::parameters_grid
+    integer,intent(out)::n_grid
     
     integer::jpar,ipar
     
@@ -714,6 +715,8 @@ module grid_search
     write(*,*)
     flush(6)
     
+    n_grid=product(parameters_grid(:)%n_steps)
+    
     return
   end subroutine set_parameters_grid
   
@@ -722,14 +725,14 @@ module grid_search
   subroutine build_grid(Mstar,parameters_grid,perturber_grid,fitness_grid,n_grid)
     real(dp),intent(in)::Mstar
     type (parameter_grid),dimension(:),intent(in)::parameters_grid
-    integer,intent(out)::n_grid
+    integer,intent(in)::n_grid
     real(dp),dimension(:,:),allocatable,intent(out)::perturber_grid
     real(dp),dimension(:,:),allocatable,intent(out)::fitness_grid
   
     integer::i_col
     integer::n_spread,n_in,n_out
     
-    n_grid=product(parameters_grid(:)%n_steps)
+!     n_grid=product(parameters_grid(:)%n_steps)
     allocate(perturber_grid(n_grid,10),fitness_grid(n_grid,2))
     fitness_grid=resmax ! resmax in 'parameters' module
     
@@ -801,6 +804,29 @@ module grid_search
     return
   end subroutine perturber_grid2parameters
   ! -------------------------------------
+  
+  subroutine perturber_par2all_par(id_perturber,perturber_par,all_parameters)
+    integer,intent(in)::id_perturber
+    real(dp),dimension(:),intent(in)::perturber_par
+    real(dp),dimension(:)::all_parameters ! no intent, because it will update only a part of it
+    
+    real(dp),dimension(8)::perturber_parameters
+    integer,dimension(8)::list_id=(/1,2,3,5,6,7,9,10/)
+    
+    integer::id_start,id_end
+    
+    perturber_parameters=perturber_par(list_id)
+    id_start=3+(id_perturber-2)*8
+    id_end=id_start+7
+!     write(*,*)' npar = ',npar
+!     write(*,*)' id_perturber = ',id_perturber
+!     write(*,*)' id_start = ',id_start
+!     write(*,*)' id_end = ',id_end
+    all_parameters(id_start:id_end)=perturber_parameters
+  
+    return
+  end subroutine perturber_par2all_par
+
   ! -------------------------------------
   
 end module grid_search

@@ -468,10 +468,11 @@ def main():
       #f_hdf5.create_dataset('acceptance_fraction', data=acceptance_fraction, dtype=np.float64)
       mean_acceptance_fraction = np.mean(acceptance_fraction)
     
-      temp_chains_T = np.zeros((bbb, nwalkers, nfit))
-      for ifit in range(0,nfit):
-        temp_chains_T[:,:,ifit] = sampler.chain[:, :bbb, ifit].T
-      acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
+      #temp_chains_T = np.zeros((bbb, nwalkers, nfit))
+      #for ifit in range(0,nfit):
+        #temp_chains_T[:,:,ifit] = sampler.chain[:, :bbb, ifit].T
+      #acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
+      acor_time = anc.compute_acor_time(sampler, steps_done=bbb)
       temp_acor = f_hdf5['autocor_time']
       temp_acor[...] = acor_time
       
@@ -504,7 +505,8 @@ def main():
     temp_chains_T = np.zeros((bbb, nwalkers, nfit))
     for ifit in range(0,nfit):
       temp_chains_T[:,:,ifit] = sampler.chain[:, :, ifit].T
-    acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
+    #acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
+    acor_time = anc.compute_acor_time(sampler)
     lnprobability = sampler.lnprobability
     # save chains with original shape as hdf5 file
     f_hdf5 = h5py.File(os.path.join(working_folder, 'emcee_summary.hdf5'), 'w')

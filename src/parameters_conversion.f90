@@ -410,6 +410,7 @@ module parameters_conversion
     logical,intent(out)::checkpar
     logical,intent(in),optional::wrt_info
     real(dp)::temp2
+    real(dp),parameter::circ=360._dp
     
 !     checkpar=.true.
     m=zero
@@ -425,11 +426,12 @@ module parameters_conversion
     allocate(atemp(npar))
     atemp=all_parameters
     
-    ! update atemp with fit_parameters
-    do j1=1,nfit
-        atemp(idall(j1))=fit_parameters(j1)
-    end do
-    
+    if(nfit.gt.0)then
+      ! update atemp with fit_parameters
+      do j1=1,nfit
+          atemp(idall(j1))=fit_parameters(j1)
+      end do
+    end if
     
     m(1)=atemp(1)
     R(1)=atemp(2)
@@ -453,7 +455,7 @@ module parameters_conversion
 !           return
         end if
         temp_kel(4)=temp2
-        temp_kel(5)=mod(rad2deg*atan2(atemp(j1+4),atemp(j1+3))+360._dp,360._dp)
+        temp_kel(5)=mod(rad2deg*atan2(atemp(j1+4),atemp(j1+3))+circ,circ)
         if(temp_kel(4).le.TOLERANCE) temp_kel(5)=90._dp
         if(abs(temp_kel(4)-atemp(j1+3)).le.TOLERANCE)then
           if(abs(atemp(j1+4)).gt.TOLERANCE) checkpar=.false.
@@ -465,7 +467,7 @@ module parameters_conversion
       if(tofit(j1+6).eq.1)then !inc fit
         if(tofit(j1+7).eq.1)then
          temp_kel(7)=sqrt(atemp(j1+6)*atemp(j1+6)+atemp(j1+7)*atemp(j1+7)) ! icoslN,isinlN to inc,lN
-         temp_kel(8)=mod(rad2deg*atan2(atemp(j1+7),atemp(j1+6))+360._dp,360._dp)
+         temp_kel(8)=mod(rad2deg*atan2(atemp(j1+7),atemp(j1+6))+circ,circ)
         end if
         if(temp_kel(7).le.zero.or.temp_kel(7).ge.180._dp)then
           if(present(wrt_info).and.wrt_info)write(*,'(1x,a15,es23.16)')'inc = ',temp2
@@ -476,7 +478,7 @@ module parameters_conversion
         
       end if
       
-      if(tofit(j1+5).eq.1)temp_kel(6)=mod(mod((atemp(j1+5)-temp_kel(5)-temp_kel(8)),360._dp)+360._dp,360._dp) ! lambda to mA
+      if(tofit(j1+5).eq.1)temp_kel(6)=mod(mod((atemp(j1+5)-temp_kel(5)-temp_kel(8)),circ)+circ,circ) ! lambda to mA
       
       m(cnt)   =temp_kel(1)
       R(cnt)   =temp_kel(2)
@@ -518,22 +520,23 @@ module parameters_conversion
     
     check = .true.
 
-    do j=1,nfit
-!      body=int((idall(j)-3)/8)+2
+    if(nfit.gt.0)then
+      do j=1,nfit
+  !      body=int((idall(j)-3)/8)+2
 
-      ! check if fit_parameters are within boundaries
-      if(fit_parameters(j).lt.minpar(j).or.fit_parameters(j).gt.maxpar(j))then
-        if(present(wrt_info))then
-          if(wrt_info)then
-            if(fit_parameters(j).lt.minpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' < ',minpar(j)
-            if(fit_parameters(j).gt.maxpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' > ',maxpar(j)
+        ! check if fit_parameters are within boundaries
+        if(fit_parameters(j).lt.minpar(j).or.fit_parameters(j).gt.maxpar(j))then
+          if(present(wrt_info))then
+            if(wrt_info)then
+              if(fit_parameters(j).lt.minpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' < ',minpar(j)
+              if(fit_parameters(j).gt.maxpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' > ',maxpar(j)
+            end if
           end if
+          check=.false.
+          return
         end if
-        check=.false.
-        return
-      end if
-
-    end do
+      end do
+    end if
     
     return
   end function checkbounds_fit

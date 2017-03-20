@@ -165,6 +165,8 @@ module driver
     return
   end subroutine run_and_write_lm
   
+  ! ============================================================================
+  
   ! this is a simple call of the driver of the bootstrap in the 'boostrap' module.
   subroutine run_bootstrap(sim_id,all_parameters,fit_parameters)
     integer::sim_id
@@ -176,6 +178,8 @@ module driver
     
     return
   end subroutine run_bootstrap
+   
+  ! ============================================================================
    
   ! init and run grid search
   subroutine run_grid(all_parameters)
@@ -202,7 +206,7 @@ module driver
     ! perturber_parameters_grid in 'parameters' module
     
     ! set properly the fields of the perturber_parameters_grid variable
-    call set_parameters_grid(perturber_parameters_grid)
+    call set_parameters_grid(perturber_parameters_grid,n_grid)
     
 !     ! print to screen to debug
 !     do i=1,10
@@ -365,7 +369,7 @@ module driver
     return
   end subroutine run_grid
   
-  
+  ! ============================================================================
   
   ! run PIKAIA/GENETIC algorithm
   subroutine run_pikaia(sim_id,all_parameters,fit_parameters)
@@ -392,6 +396,8 @@ module driver
     return
   end subroutine run_pikaia
   
+  ! ============================================================================
+  
   ! run PARTICLE SWARM OPTIMIZATION (PSO) algorithm
   subroutine run_pso(sim_id,all_parameters,fit_parameters)
     integer,intent(in)::sim_id
@@ -410,6 +416,8 @@ module driver
   
     return
   end subroutine run_pso
+  
+  ! ============================================================================
   
 
 end module driver

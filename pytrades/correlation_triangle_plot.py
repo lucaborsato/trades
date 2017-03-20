@@ -215,8 +215,8 @@ def main():
         #ax.contour(x_bins, y_bins, hist2d_counts_2.T, levels, cmap=cm.viridis, linestyle='solid', linewidths=1.)
         #ax.contour(x_bins, y_bins, hist2d_counts_2.T, cmap=cm.viridis, linestyle='solid', linewidths=0.7)
         
-        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, levels, cmap=cm.viridis, linestyle='solid', linewidths=0.7, norme=True)
-        ax.contour(x_bins, y_bins, hist2d_counts_2.T, nl, cmap=cm.viridis, linestyle='solid', linewidths=0.5, norme=True)
+        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, levels, cmap=cm.viridis, linestyle='solid', linewidths=0.7, normed=True)
+        ax.contour(x_bins, y_bins, hist2d_counts_2.T, nl, cmap=cm.viridis, linestyle='solid', linewidths=0.5, normed=True)
         
         
         if(cli.overplot is not None):

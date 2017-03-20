@@ -291,8 +291,8 @@ module init_trades
     inquire(file=trim(path)//"bodies.lst",exist=fstat)
     if(fstat)then
       if(.not.allocated(bnames)) allocate(bnames(NB),bfiles(NB),do_transit(NB))
-      do_transit(1)=.false. ! star not transiting ... ...
       do_transit(2:NB)=.true. ! set all planet to transit by default
+      do_transit(1)=.false. ! star not transiting ... ...
       
       ulst=get_unit(cpuid)
       open(ulst,file=trim(path)//'bodies.lst',status='OLD')
@@ -330,7 +330,7 @@ module init_trades
             ih = index(temp(1:len(trim(adjustl(temp)))),'#')
             if(ih.eq.0)ih=len(trim(adjustl(temp)))
             ! then last column: planet should transit? T = True/Yes (or omit), F = False/No. Before # character.
-            it=scan(temp(1:ih),'Ff')
+            it=scan(temp(i2:ih),'Ff')
             if(it.ne.0)then
               read(temp(it:it),*)do_transit(i)
             end if
@@ -1446,10 +1446,14 @@ module init_trades
     
     ! IT DETERMINES THE NDATA
     ndata=nRV+sum(nT0)
-    
     nfree=nRVset
 !     dof=(ndata-nfit)
     dof=(ndata-nfit-nfree) ! I have to take into account the number of RV offsets even if they are not fitted
+    if(dof.le.0)then
+      write(*,'(a)')' FOUND dof <= 0 SO IT IS FORCE TO 1 IN CASE'&
+         &'THE USER WANT TO SIMULATE/INTEGRATE AND NOT CHECK THE FIT.'
+         dof=1
+    end if
     inv_dof = one / real(dof,dp)
     write(*,'(a,i5)')" NUMBER OF DATA AVAILABLE: ndata = ",ndata
     write(*,'(a,i5)')" NUMBER OF PARAMETERS TO FIT: nfit = ",nfit
@@ -1476,7 +1480,9 @@ module init_trades
       allocate(nset(1),k_b(1))
       nset(1)=sum(nT0)
     else
-      stop('No data-set available. Please check the files.')
+!       stop('No data-set available. Please check the files.')
+      allocate(nset(1),k_b(1))
+      nset(1)=1
     end if
     ! parameter to properly scale the residuals for the Chi2
     k_a = sqrt(k_chi2r*inv_dof)
@@ -1491,10 +1497,12 @@ module init_trades
     end if
     deallocate(nset)
     
-    write(*,'(a23,2(1x,a23))')'fit_parameters','( minpar ,','maxpar )'
-    do j=1,nfit
-      write(*,'(a23,2(a,es23.16),a)')parid(j),' ( ',minpar(j),' , ',maxpar(j),' )'
-    end do
+    if(nfit.gt.0)then
+      write(*,'(a23,2(1x,a23))')'fit_parameters','( minpar ,','maxpar )'
+      do j=1,nfit
+        write(*,'(a23,2(a,es23.16),a)')parid(j),' ( ',minpar(j),' , ',maxpar(j),' )'
+      end do
+    end if
     
     return
   end subroutine read_first
