@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.13.2 by Luca Borsato - 2016/2017**    
+**`TRADES` v2.13.3 by Luca Borsato - 2016/2017**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -418,6 +418,11 @@ Check also other files in the `pytrades` folder to understand how to use the pyt
 
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
+
+#### `TRADES 2.13.3`
+
+Nothing special, code-styling and better management of planet file names.    
+
 
 #### `TRADES 2.13.2`
 
