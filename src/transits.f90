@@ -353,7 +353,7 @@ module transits
         ! continue with N-R
         dt1=dt2
         call advancefg(m,rw,dt1,Hc)
-        if(.not.Hc) write(*,'(a)')' find_transit: advancefg ==> Hc == False'
+!         if(.not.Hc) write(*,'(a)')' find_transit: advancefg ==> Hc == False'
         if(.not.Hc) return
         tmidtra=tmidtra+dt1
       else
@@ -361,7 +361,7 @@ module transits
         dt1=dt1*half
         tmidtra=tmidtra+dt1
         call onetra_bis(itra,m,A,B,rw,dt1,Hc)
-        if(.not.Hc) write(*,'(a)')' find_transit: onetra_bis ==> Hc == False'
+!         if(.not.Hc) write(*,'(a)')' find_transit: onetra_bis ==> Hc == False'
         if(.not.Hc) return
       end if
       !tmidtra=tmidtra+dt1

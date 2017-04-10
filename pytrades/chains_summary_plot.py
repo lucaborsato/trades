@@ -259,35 +259,36 @@ def main():
   if(cli.use_thin):
     xlabel = '$N_\mathrm{steps} \\times %d$' %(thin_steps)
   
-  posterior_msun = anc.posterior_back_to_msun(m_factor,parameter_names_emcee,flatchain_posterior_0)
-  post_sel, lnprob_sel = anc.select_within_all_ci(posterior_msun, ci_fitted[:,0:2], lnprob_burnin.T.reshape(-1))
-  #lnprob_sel = lnprob_burnin.T.reshape((-1))
-  lgllhd_med = np.percentile(lnprob_burnin.T.reshape(-1), 50., interpolation='midpoint')
-  abs_dlg = np.abs(lnprob_sel - lgllhd_med)
-  lgllhd_mad = np.percentile(abs_dlg, 50., interpolation='midpoint')
-  
-  #lnp_min = np.min(lnprob_sel)
-  #lnp_max = np.max(lnprob_sel)
-  lnp_min = lgllhd_med - lgllhd_mad
-  lnp_max = lgllhd_med + lgllhd_mad
-  print ' lgllhd_med & mad = ',lgllhd_med, lgllhd_mad
-  print ' lnp_min = ',lnp_min, ' lnp_max = ',lnp_max
-  print ' lnl_668 = ',sample3_lgllhd
-
   ax = plt.subplot2grid((2,1), (0,0))
   ax.plot(lnprob_burnin.T, '-', alpha=0.3)
+
+  if(overplot is not None):
+    posterior_msun = anc.posterior_back_to_msun(m_factor,parameter_names_emcee,flatchain_posterior_0)
+    post_sel, lnprob_sel = anc.select_within_all_ci(posterior_msun, ci_fitted[:,0:2], lnprob_burnin.T.reshape(-1))
+    #lnprob_sel = lnprob_burnin.T.reshape((-1))
+    lgllhd_med = np.percentile(lnprob_burnin.T.reshape(-1), 50., interpolation='midpoint')
+    abs_dlg = np.abs(lnprob_sel - lgllhd_med)
+    lgllhd_mad = np.percentile(abs_dlg, 50., interpolation='midpoint')
+    
+    #lnp_min = np.min(lnprob_sel)
+    #lnp_max = np.max(lnprob_sel)
+    lnp_min = lgllhd_med - lgllhd_mad
+    lnp_max = lgllhd_med + lgllhd_mad
+    print ' lgllhd_med & mad = ',lgllhd_med, lgllhd_mad
+    print ' lnp_min = ',lnp_min, ' lnp_max = ',lnp_max
+    print ' lnl_668 = ',sample3_lgllhd
   
-  ax.axhline(lgllhd_med, color='black', ls='-', lw=1.6, alpha=0.77)
+    ax.axhline(lgllhd_med, color='black', ls='-', lw=1.6, alpha=0.77)
   
   #if(sample2_lgllhd is not None):
     #ax.axhline(sample2_lgllhd, marker='None', c='cyan',ls=':', lw=2.7, alpha=0.9)
   
-  if(sample3_lgllhd is not None):
-    ax.axhline(sample3_lgllhd, marker='None', c='yellow',ls='-', lw=3.1, alpha=0.9)
+    if(sample3_lgllhd is not None):
+      ax.axhline(sample3_lgllhd, marker='None', c='yellow',ls='-', lw=3.1, alpha=0.9)
     
-  ax.axhspan(lnp_min, lnp_max, color='gray', alpha=0.77)
-  ax.axhline(lnp_min, color='black', ls='--', lw=1.6, alpha=0.77)
-  ax.axhline(lnp_max, color='black', ls='--', lw=1.6, alpha=0.77)
+    ax.axhspan(lnp_min, lnp_max, color='gray', alpha=0.77)
+    ax.axhline(lnp_min, color='black', ls='--', lw=1.6, alpha=0.77)
+    ax.axhline(lnp_max, color='black', ls='--', lw=1.6, alpha=0.77)
   
   min_lnp = np.min(lnprob_burnin.T, axis=0).min()
   max_lnp = np.max(lnprob_burnin.T, axis=0).max()
@@ -304,23 +305,24 @@ def main():
   ax.axhline(1.0, color='gray', ls='-')
   ax.plot(chi2r, '-', alpha=0.3)
   
-  c2r_med = -(2.*(lgllhd_med - ln_err_const))/np.float64(dof)
-  c2r_smax = -(2.*(lnp_min - ln_err_const))/np.float64(dof)
-  c2r_smin = -(2.*(lnp_max - ln_err_const))/np.float64(dof)
+  if(overplot is not None):
+    c2r_med = -(2.*(lgllhd_med - ln_err_const))/np.float64(dof)
+    c2r_smax = -(2.*(lnp_min - ln_err_const))/np.float64(dof)
+    c2r_smin = -(2.*(lnp_max - ln_err_const))/np.float64(dof)
   
-  print ' c2r_med = ',c2r_med
-  print ' c2r_smin = ',c2r_smin, ' c2r_smax = ', c2r_smax
-  
-  ax.axhline(c2r_med, color='black', ls='-', lw=1.6, alpha=0.77)
-  ax.axhspan(c2r_smin, c2r_smax, color='gray', alpha=0.77)
-  ax.axhline(c2r_smin, color='black', ls='--', lw=1.6, alpha=0.77)
-  ax.axhline(c2r_smax, color='black', ls='--', lw=1.6, alpha=0.77)
-  #if(sample2_lgllhd is not None):
-    #c2r_sample2 = -2.*(sample2_lgllhd - ln_err_const)/np.float64(dof)
-    #ax.axhline(c2r_sample2, marker='None', c='cyan',ls=':', lw=2.7, alpha=0.9)
-  if(sample3_lgllhd is not None):
-    c2r_sample3 = -2.*(sample3_lgllhd - ln_err_const)/np.float64(dof)
-    ax.axhline(c2r_sample3, marker='None', c='yellow',ls='-', lw=3.1, alpha=0.9)
+    print ' c2r_med = ',c2r_med
+    print ' c2r_smin = ',c2r_smin, ' c2r_smax = ', c2r_smax
+    
+    ax.axhline(c2r_med, color='black', ls='-', lw=1.6, alpha=0.77)
+    ax.axhspan(c2r_smin, c2r_smax, color='gray', alpha=0.77)
+    ax.axhline(c2r_smin, color='black', ls='--', lw=1.6, alpha=0.77)
+    ax.axhline(c2r_smax, color='black', ls='--', lw=1.6, alpha=0.77)
+    #if(sample2_lgllhd is not None):
+      #c2r_sample2 = -2.*(sample2_lgllhd - ln_err_const)/np.float64(dof)
+      #ax.axhline(c2r_sample2, marker='None', c='cyan',ls=':', lw=2.7, alpha=0.9)
+    if(sample3_lgllhd is not None):
+      c2r_sample3 = -2.*(sample3_lgllhd - ln_err_const)/np.float64(dof)
+      ax.axhline(c2r_sample3, marker='None', c='yellow',ls='-', lw=3.1, alpha=0.9)
   
   c2r_min = -2.*(y_max - ln_err_const)/np.float64(dof)
   c2r_max = -2.*(y_min - ln_err_const)/np.float64(dof)

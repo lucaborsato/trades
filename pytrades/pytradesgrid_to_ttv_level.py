@@ -281,6 +281,7 @@ def rms(vec):
   rms_vec = np.sqrt(np.mean(vec*vec))
   
   return rms_vec
+
 # -------------------------------------
 
 def compute_oc(Tref, Pref, T0):
@@ -304,6 +305,30 @@ def compute_rms_mc(oc, nT0_sel, nMC):
   rms_med = np.percentile(rms_all, 50., interpolation='midpoint')
     
   return rms_mean, rms_med
+
+# -------------------------------------
+
+def do_chi2r(res, err, dof):
+  
+  chi2r = np.sum(np.power(res/err, 2)) / np.float64(dof)
+  
+  return chi2r
+
+# -------------------------------------
+
+def compute_chi2r_mc(oc, eoc, nT0_sel, nMC):
+  
+  noc = np.shape(oc)[0]
+  dof = noc - 2
+  if(noc < nT0_sel):
+    return 0.0, 0.0
+  for imc in range(0, nMC):
+    id_sel = np.sort(np.random.choice(noc, nT0_sel, replace=False))
+    chi2r_all = do_chi2r(oc[id_sel], eoc[id_sel], dof)
+  chi2r_mean = np.man(chi2r_all)
+  chi2r_med = np.percentile(chi2r_all, 50., interpolation='midpoint')
+  
+  return chi2r_mean, chi2r_med
 
 # -------------------------------------
 
@@ -360,14 +385,20 @@ def save_results_sim(f_h5, results_sim, mr_type):
   #f_h5.create_dataset('sim_%06d/sel_pre_cheops'%(sim_num), data=results_sim['sel_pre_cheops'], dtype=bool, compression="gzip")
   #f_h5.create_dataset('sim_%06d/sel_cheops'%(sim_num), data=results_sim['sel_cheops'], dtype=bool, compression="gzip")
   #f_h5.create_dataset('sim_%06d/T0_eT0'%(sim_num), data=results_sim['T0_eT0'], dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('sim_%06d/T0_eT0'%(sim_num), data=results_sim['T0_eT0'][sel_cheops,:], dtype=np.float64, compression="gzip")
   
   #f_h5.create_dataset('sim_%06d/time_rv'%(sim_num), data=results_sim['time_rv'], dtype=np.float64, compression="gzip")
   f_h5.create_dataset('sim_%06d/rms_rv'%(sim_num), data=np.array([results_sim['rms_rv']]), dtype=np.float64, compression="gzip")
   
   f_h5.create_dataset('sim_%06d/linear_ephem' %(sim_num), data=results_sim['linear_ephem'] , dtype=np.float64, compression="gzip")
+  
   f_h5.create_dataset('sim_%06d/rms_ttv' %(sim_num), data=np.array([results_sim['rms_ttv']]) , dtype=np.float64, compression="gzip")
   f_h5.create_dataset('sim_%06d/nT0_sel' %(sim_num), data=results_sim['nT0_sel'] , dtype=np.int, compression="gzip")
   f_h5.create_dataset('sim_%06d/rms_mc' %(sim_num), data=results_sim['rms_mc'] , dtype=np.float64, compression="gzip")
+
+
+  f_h5.create_dataset('sim_%06d/chi2r_cheops' %(sim_num), data=np.array([results_sim['chi2r_cheops']]) , dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('sim_%06d/chi2r_mc' %(sim_num), data=results_sim['chi2r_mc'] , dtype=np.float64, compression="gzip")
 
   f_h5['sim_%06d' %(sim_num)].attrs['sim_num'] = results_sim['sim_num']
   f_h5['sim_%06d' %(sim_num)].attrs['nMC'] = results_sim['nMC']
@@ -427,9 +458,11 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
     epo_cheops, oc_cheops, rms_cheops = compute_oc(Tref_pre, Pref_pre, T0[sel_cheops])
     #anc.print_both(' - computed O-C = T0cheops - T0lin', of_log)
     #anc.print_both(' | rms_TTV (cheops) = %.10f day = %.8f hour = %.6f min %.3f sec' %(rms_cheops, rms_cheops*24., rms_cheops*1440., rms_cheops*86400.), of_log)
+    chi2r_cheops = do_chi2r(oc_cheops, eT0[sel_cheops], np.shape(oc_cheops)[0]-2)
     
     #anc.print_both(' - computing Monte-Carlo rms of O-C for different number of T0s', of_log)
     rms_mc = [list(compute_rms_mc(oc_cheops, nT0_sel[i_n], nMC)) for i_n in range(len(nT0_sel))]
+    chi2r_mc = [list(compute_chi2r_mc(oc_cheops, eT0[sel_cheops], nT0_sel[i_n], nMC)) for i_n in range(len(nT0_sel))]
     
     #anc.print_both(' - Select rv', of_log)
     time_rv_all, rv_all = select_and_sort_rv(time_rv_nmax, rv_nmax, stats_rv.astype(bool))
@@ -459,6 +492,8 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
     Pref_pre = 0.
     rms_cheops = -1.
     rms_mc = -np.ones((len(nT0_sel), 2))
+    chi2r_cheops = -1.
+    chi2r_mc = -np.ones((len(nT0_sel), 2))
     
     time_rv = np.zeros((2))
     rms_rv = -1.
@@ -484,6 +519,9 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
   results_sim['nT0_sel']      = nT0_sel
   results_sim['nMC']          = nMC
   results_sim['rms_mc']       = rms_mc  # mean and median OC rms for different nT0_sel during CHEOPS mission
+  
+  results_sim['chi2r_cheops'] = chi2r_cheops
+  results_sim['chi2r_mc']     = chi2r_mc
   
   #f_h5 = save_results_sim(f_h5, results_sim, mr_type)
   
@@ -875,7 +913,7 @@ def plot_m_vs_p_vs_freq_obs(plot_file, mass, period, freq_obs, freq_rv, n_label 
   nplt = len(n_label)
   
   fig = plt.figure(figsize=(12,12))
-  fig.subplots_adjust(hspace=0.2, wspace=0.065)
+  fig.subplots_adjust(hspace=0.25, wspace=0.065)
   
   #xmin, xmax = anc.compute_limits(period, delta=0.025)
   log_p = np.log10(period)
@@ -904,31 +942,42 @@ def plot_m_vs_p_vs_freq_obs(plot_file, mass, period, freq_obs, freq_rv, n_label 
     iy = iplt % 2
     ax = plt.subplot2grid((nplt, 2), (ix,iy))
     print(' Plot n. %d: ' %(iplt))
+    
     #ax.scatter(period, mass, c=freq_obs[:,iplt], cmap=cm.viridis, marker='s', s=20, zorder=5, label='T0 CHEOPS N = %s' %(n_label[iplt]))
     #ax.legend(loc='upper right', fontsize=9, numpoints=0)
     
-    #scax = ax.scatter(log_p, log_m, c=freq_obs[:,iplt], cmap=cm.viridis, marker='s', s=10, zorder=5)
+    #ssax = ax.scatter(log_p, log_m, c=freq_obs[:,iplt], cmap=cm.magma, marker='s', s=30, alpha=0.5, zorder=10)
     
     #ax.text(0.90, 0.90, 'T0 CHEOPS N = %s' %(n_label[iplt]), fontsize=8, horizontalalignment='right', verticalalignment='center',transform=ax.transAxes)
     
     #print(' | scatter done')
     
     
-    mesh_p, mesh_m = np.meshgrid(pp, mm)
+    mesh_p, mesh_m = np.meshgrid(pp, mm, indexing='ij')
     mesh_f = np.zeros((n_p, n_m))
+    mesh_f_im = np.zeros((n_p, n_m))
     ipm = 0
     for i_p in range(0, n_p):
       for i_m in range(0, n_m):
         mesh_f[i_p, i_m] = freq_obs[ipm, iplt]
+        mesh_f_im[i_m, i_p] = freq_obs[ipm, iplt]
         ipm += 1
-    #scax = ax.contourf(mesh_p, mesh_m, mesh_f, cmap=cm.viridis, zorder=4)
-    scax = ax.contourf(mesh_p, mesh_m, mesh_f, levels=clev, cmap=cm.viridis, zorder=4)
+    
+    #scax = ax.imshow(np.flipud(mesh_f_im.T), cmap=cm.viridis, extent=[np.min(log_p), np.max(log_p), np.min(log_m), np.max(log_m)], vmin=0.0, vmax=1.0, interpolation='bilinear', aspect='auto', zorder=4)
+    #print(' | mesh/imshow done')
+    
+    scax = ax.contourf(mesh_p, mesh_m, mesh_f_im, levels=clev, cmap=cm.viridis, zorder=4)
     print(' | mesh/contourf done')
     
     # colorbar
     cbar = plt.colorbar(scax, ax=ax, orientation='vertical', pad=0.01)
     cbar.ax.set_ylabel('$f(\\textrm{TTV}) >$ threshold', size=6)
     cbar.ax.tick_params(labelsize=6)
+    
+    
+    #ccax = ax.contour(mesh_p, mesh_m, mesh_f_im, levels=clev, colors='k', linewidths=0.5, zorder=5)
+    #plt.clabel(ccax, clev[1::2], fontsize=6, inline=True, zorder=10) # not writing labels with plot of imshow!
+    #print(' | mesh/contour done')
     
     if(freq_rv is not None):
       #scax_rv = ax.scatter(log_p[gray_rv], log_m[gray_rv], c='darkgray', marker='s', s=20, alpha=0.66, zorder=5)
@@ -941,7 +990,9 @@ def plot_m_vs_p_vs_freq_obs(plot_file, mass, period, freq_obs, freq_rv, n_label 
           else:
             mesh_rv[i_p, i_m] = 1.
           ipm += 1
-      cax_rv = ax.contourf(mesh_p, mesh_m, mesh_rv, color='gray', cmap=cm.gray, alpha=0.90, zorder=5)
+      cax_rv = ax.contourf(mesh_p, mesh_m, mesh_rv.T, colors='gray', 
+                           #cmap=cm.gray, 
+                           ls='', alpha=0.90, zorder=6)
       #scax_rv = ax.scatter(log_p[gray_rv], log_m[gray_rv], c='darkgray', marker='s', s=20, alpha=0.88, zorder=5)
       print(' | excluded by RV done')
     

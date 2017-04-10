@@ -341,10 +341,20 @@ def main():
 
   derived_posterior = anc.derived_posterior_check(derived_names, derived_posterior_in)
 
+      
+  #label_separation=-0.25
+  label_separation=-0.70
+  label_pad = 16
+  label_size = 10
+  ticklabel_size = 5
+
+
   if(n_der > 2):
     label_separation = -0.1 - ( 0.075 * (n_der-2) )
   else:
     label_separation = -0.15
+
+  label_size = label_size - 1 * int(n_der / 10.)
 
   labels_list = anc.derived_labels(derived_names, cli.m_type)
 

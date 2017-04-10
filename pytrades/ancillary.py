@@ -1859,11 +1859,11 @@ def derived_parameters_case2(idpar_NB, id_fit_NB, i_NB, cols, kep_elem,
       der_par.append(w_par)
 
       if (idpar_NB[i_l + 2][0:2] != 'mA'):
-        print '*** lambda_par = ', parameters[cols[i_l + 2]]
+        #print '*** lambda_par = ', parameters[cols[i_l + 2]]
         mA_par = (parameters[cols[i_l + 2]] - w_par - kep_elem[8]) % 360.  # mA = lambda - w - lN
         name_der.append('%s%s' % ('mA', i_NB + 1))
         der_par.append(mA_par)
-        print '*** mA_par = ', mA_par
+        #print '*** mA_par = ', mA_par
   return name_der, der_par
 
 

@@ -117,6 +117,8 @@ def main():
   else:
     label_separation = -0.15
 
+  label_size = label_size - 1 * int(nfit / 5.)
+
   # set label and legend names
   kel_plot_labels = anc.keplerian_legend(parameter_names_emcee, cli.m_type)
 

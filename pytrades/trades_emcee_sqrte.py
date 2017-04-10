@@ -372,7 +372,7 @@ def main():
   anc.print_both('',of_run)
   anc.print_both(' WORKING PATH = %s' %(working_path),of_run)
   anc.print_both(' NUMBER OF THREADS = %d' %(nthreads),of_run)
-  anc.print_both(' dof = ndata(%d) - nfit(%d) = %d' %(ndata, nfit, dof),of_run)
+  anc.print_both(' dof = ndata(%d) - nfit(%d) - nfree(%d) = %d' %(ndata, nfit, nfree, dof),of_run)
   anc.print_both(' Total N_RV = %d for %d set(s)' %(n_rv, n_set_rv),of_run)
   anc.print_both(' Total N_T0 = %d for %d out of %d planet(s)' %(n_t0_sum, n_set_t0, n_planets),of_run)
   anc.print_both(' %s = %.7f' %('log constant error = ', ln_err_const),of_run)
