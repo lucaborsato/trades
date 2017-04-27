@@ -12,6 +12,56 @@ import constants as cst # local constants module
 import ancillary as anc
 import pytrades_lib
 
+
+def ttra_and_rv_from_samples(samples_fit_par, emcee_par_names, NB):
+  
+  n_samples, nfit = np.shape(samples_fit_par)
+  Pephem = pytrades_lib.pytrades.pephem
+  nt0_full, nrv_nmax = pytrades_lib.pytrades.get_max_nt0_nrv(Pephem,NB)
+  
+  #print(' Pephem = ', Pephem)
+  #print(' nT0 = %4d nRV = %6d' %(nt0_full, nrv_nmax))
+  
+  #trades_par_names = anc.emcee_names_to_trades(emcee_par_names)
+  
+  #init transit times dictionary
+  ttra_samples = {}
+  for ipl in range(0, NB-1):
+    ttra_samples['%d' %(ipl+2)] = []
+  
+  # rv dictionary
+  rv_samples = {'rv_mod': []}
+  
+  for isample in range(0, n_samples):
+    #anc.print_both('\nSample %d' %(isample))
+    trades_fit_par = anc.sqrte_to_e_fitting(samples_fit_par[isample], emcee_par_names)
+    ttra_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = pytrades_lib.pytrades.fit_par_to_ttra_rv(trades_fit_par, nt0_full, nrv_nmax)
+    
+    stats_ttra = np.array(stats_ttra).astype(bool)
+    stats_rv = np.array(stats_rv).astype(bool)
+    
+    for ipl in range(0, NB-1):
+      id_pl = ipl+2
+      ttra = np.sort(ttra_full[np.logical_and(id_ttra_full == id_pl, stats_ttra)])
+      ttra_samples['%d' %(id_pl)].append(ttra)
+  
+    #print('\ntime rv[0:10]:')
+    #print(time_rv_nmax[0:10])
+    time_rvx, rvx = time_rv_nmax[stats_rv], rv_nmax[stats_rv]
+    #print(time_rvx[0:10])
+    id_rv = np.argsort(time_rvx)
+    time_rv, rv = time_rvx[id_rv], rvx[id_rv]
+    #print(time_rv[0:10])
+    if(isample == 0):
+      rv_samples['time_rv_mod'] = np.array(time_rv, dtype=np.float64)
+    rv_samples['rv_mod'].append(rv)
+  rv_samples['rv_mod'] = np.array(rv_samples['rv_mod'], dtype=np.float64).T
+  
+  for key in ttra_samples.keys():
+    ttra_samples[key] = np.array(ttra_samples[key], dtype=np.float64).T
+  
+  return ttra_samples, rv_samples
+
 # main
 
 def main():
@@ -162,16 +212,24 @@ def main():
     
     if(s_h5f is not None):
       s_id_sim = '%04d' %(id_sim)
-      s_h5f.create_dataset('parameters/%s/fitted/parameters' %(s_id_sim), data=parameters, dtype=np.float64)
-      s_h5f.create_dataset('parameters/%s/fitted/names' %(s_id_sim), data=names_par, dtype='S10')
-      s_h5f.create_dataset('parameters/%s/fitted/units' %(s_id_sim), data=units_par, dtype='S15')
-      s_h5f.create_dataset('parameters/%s/fitted/sigma' %(s_id_sim), data=sigma_par.T, dtype=np.float64)
+      s_h5f.create_dataset('parameters/%s/fitted/parameters' %(s_id_sim), data=parameters,
+                           dtype=np.float64, compression='gzip')
+      s_h5f.create_dataset('parameters/%s/fitted/names' %(s_id_sim), data=names_par,
+                           dtype='S10', compression='gzip')
+      s_h5f.create_dataset('parameters/%s/fitted/units' %(s_id_sim), data=units_par,
+                           dtype='S15', compression='gzip')
+      s_h5f.create_dataset('parameters/%s/fitted/sigma' %(s_id_sim), data=sigma_par.T,
+                           dtype=np.float64, compression='gzip')
       s_h5f['parameters/%s/fitted/sigma' %(s_id_sim)].attrs['percentiles'] = anc.percentile_val
 
-      s_h5f.create_dataset('parameters/%s/derived/parameters' %(s_id_sim), data=derived_par, dtype=np.float64)
-      s_h5f.create_dataset('parameters/%s/derived/names' %(s_id_sim), data=names_derived, dtype='S10')
-      s_h5f.create_dataset('parameters/%s/derived/units' %(s_id_sim), data=units_der, dtype='S15')
-      s_h5f.create_dataset('parameters/%s/derived/sigma' %(s_id_sim), data=sigma_derived.T, dtype=np.float64)
+      s_h5f.create_dataset('parameters/%s/derived/parameters' %(s_id_sim), data=derived_par,
+                           dtype=np.float64, compression='gzip')
+      s_h5f.create_dataset('parameters/%s/derived/names' %(s_id_sim), data=names_derived,
+                           dtype='S10', compression='gzip')
+      s_h5f.create_dataset('parameters/%s/derived/units' %(s_id_sim), data=units_der,
+                           dtype='S15', compression='gzip')
+      s_h5f.create_dataset('parameters/%s/derived/sigma' %(s_id_sim), data=sigma_derived.T,
+                           dtype=np.float64, compression='gzip')
       s_h5f['parameters/%s/derived/sigma' %(s_id_sim)].attrs['percentiles'] = anc.percentile_val
 
       s_h5f['parameters/%s' %(s_id_sim)].attrs['info'] = '%s ==> %s' %(s_id_sim, par_type)
@@ -202,14 +260,18 @@ def main():
   s_h5f = h5py.File(summary_file, 'w')
   
   ## COMPUTE CONFIDENCE INTERVALS OF THE FITTED PARAMETER DISTRIBUTIONS
-  ci_fitted = np.percentile(flatchain_posterior_0, anc.percentile_val[2:], axis=0, interpolation='midpoint') # (n_percentile-1 x nfit) ==> skip first item, the 68.27th
+  ci_fitted = np.percentile(flatchain_posterior_0, anc.percentile_val[2:], axis=0, interpolation='midpoint') # (n_percentile-2 x nfit) ==> skip 1st and 2nd items, the 68.27th and 50th
   
   units_par = anc.get_units(names_par, mass_unit)
   
-  s_h5f.create_dataset('confidence_intervals/fitted/ci', data=ci_fitted.T, dtype=np.float64)
-  s_h5f.create_dataset('confidence_intervals/fitted/names', data=names_par, dtype='S10')
-  s_h5f.create_dataset('confidence_intervals/fitted/units', data=units_par, dtype='S15')
-  s_h5f.create_dataset('confidence_intervals/fitted/percentiles', data=np.array(anc.percentile_val[2:]), dtype=np.float64)
+  s_h5f.create_dataset('confidence_intervals/fitted/ci', data=ci_fitted.T, 
+                       dtype=np.float64, compression='gzip')
+  s_h5f.create_dataset('confidence_intervals/fitted/names', data=names_par,
+                       dtype='S10', compression='gzip')
+  s_h5f.create_dataset('confidence_intervals/fitted/units', data=units_par,
+                       dtype='S15', compression='gzip')
+  s_h5f.create_dataset('confidence_intervals/fitted/percentiles', data=np.array(anc.percentile_val[2:]), 
+                       dtype=np.float64, compression='gzip')
   
   s_h5f['confidence_intervals/fitted'].attrs['nfit'] = nfit
   s_h5f['confidence_intervals/fitted'].attrs['nfree'] = nfree
@@ -239,19 +301,26 @@ def main():
   # write out the derived names and posterior into an hdf5 file
   der_post_file = os.path.join(cli.full_path, 'derived_posterior.hdf5')
   h5f = h5py.File(der_post_file, 'w')
-  h5f.create_dataset('derived_names', data=names_derived, dtype='S10')
-  h5f.create_dataset('derived_posterior', data=der_posterior, dtype=np.float64)
-  h5f.create_dataset('units_derived', data=units_der, dtype='S15')
+  h5f.create_dataset('derived_names', data=names_derived,
+                     dtype='S10', compression='gzip')
+  h5f.create_dataset('derived_posterior', data=der_posterior,
+                     dtype=np.float64, compression='gzip')
+  h5f.create_dataset('units_derived', data=units_der,
+                     dtype='S15', compression='gzip')
   h5f.close()
   # ************************************
   
   ## COMPUTE CONFIDENCE INTERVALS OF THE DERIVED PARAMETER DISTRIBUTIONS
   ci_derived = np.percentile(der_posterior, anc.percentile_val[2:], axis=0, interpolation='midpoint') # (n_percentile-1 x nfit) ==> skip first item, the 68.27th
   
-  s_h5f.create_dataset('confidence_intervals/derived/ci', data=ci_derived.T, dtype=np.float64)
-  s_h5f.create_dataset('confidence_intervals/derived/names', data=names_derived, dtype='S10')
-  s_h5f.create_dataset('confidence_intervals/derived/units', data=units_der, dtype='S15')
-  s_h5f.create_dataset('confidence_intervals/derived/percentiles', data=np.array(anc.percentile_val[2:]), dtype=np.float64)
+  s_h5f.create_dataset('confidence_intervals/derived/ci', data=ci_derived.T,
+                       dtype=np.float64, compression='gzip')
+  s_h5f.create_dataset('confidence_intervals/derived/names', data=names_derived, 
+                       dtype='S10', compression='gzip')
+  s_h5f.create_dataset('confidence_intervals/derived/units', data=units_der,
+                       dtype='S15', compression='gzip')
+  s_h5f.create_dataset('confidence_intervals/derived/percentiles', data=np.array(anc.percentile_val[2:]),
+                       dtype=np.float64, compression='gzip')
   
   print
   print
@@ -263,6 +332,30 @@ def main():
   ## MEDIAN PARAMETERS ID == 1051
   folder_1051 = get_intervals(cli.full_path, 1051, names_par, median_parameters, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
   # ************************************
+  
+  print
+  print
+
+  # select n_samples from the posterior within the CI
+  if(cli.n_samples > 0):
+    anc.print_both(' Selecting %d samples from the posterior ...' %(cli.n_samples))
+    samples_fit_par = anc.take_n_samples(flatchain_posterior_0, ci_fitted[2:4,:], n_samples=cli.n_samples)
+    samples_fit_par[0,:] = median_parameters # first sample as the median of the posterior
+    anc.print_both(' Running TRADES and computing the T0s and RVs ...')
+    ttra_samples, rv_samples = ttra_and_rv_from_samples(samples_fit_par, names_par, NB)
+    samples_file = os.path.join(cli.full_path, 'samples_ttra_rv.hdf5')
+    anc.print_both(' Saving into %s' %(samples_file))
+    smp_h5 = h5py.File(samples_file, 'w')
+    tra_gr = smp_h5.create_group('T0')
+    for key in ttra_samples.keys():
+      tra_gr.create_dataset(key, data=ttra_samples[key], dtype=np.float64, compression='gzip')
+    rv_gr =  smp_h5.create_group('RV')
+    for key in rv_samples.keys():
+      rv_gr.create_dataset(key, data=rv_samples[key], dtype=np.float64, compression='gzip')
+    rv_gr['time_rv_mod'].attrs['tepoch'] = pytrades_lib.pytrades.tepoch
+    smp_h5.close()
+    anc.print_both(' ... done')
+  #sys.exit()
   
   print
   print

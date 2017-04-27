@@ -19,12 +19,16 @@ module pytrades
   !f2py character(512)::path
   !f2py integer::ndata,npar,nfit,nfree,dof
   !f2py real(dp),parameter::resmax=1.e10_dp
+  !f2py real(dp)::tepoch
   
   !f2py integer::nRV,nRVset
   !f2py real(dp),dimension(:),allocatable::eRVobs ! it will be exposed in python as ervobs
   
   !f2py integer,dimension(:),allocatable::nT0
   !f2py real(dp),dimension(:,:),allocatable::eT0obs ! it will be exposed in python as et0obs
+  
+  !! !f2py real(dp),dimension(:),allocatable::Tephem,eTephem,Pephem,ePephem
+  !f2py real(dp),dimension(:),allocatable::Pephem
   
   !f2py real(dp)::ln_err_const
   
@@ -614,7 +618,7 @@ module pytrades
     amax=1.e4_dp
     
     return
-  end subroutine
+  end subroutine args_init
   
   ! ============================================================================
   
@@ -791,6 +795,30 @@ module pytrades
   
   ! ============================================================================
   
+    subroutine get_max_nt0_nrv(P,n_bodies,nt0_full,nrv_nmax)
+    integer,intent(in)::n_bodies
+    real(dp),dimension(n_bodies),intent(in)::P
+    integer,intent(out)::nt0_full,nrv_nmax
+    
+    integer,dimension(:),allocatable::nT0_perbody
+  
+  ! compute number maximum of all transit times of all the planets from the
+    ! integration time (global variable tint)
+    allocate(nT0_perbody(n_bodies-1))
+    nT0_perbody = int((1.5_dp*tint)/P(2:n_bodies))+2 ! compute the number of transit for each planet ... avoid P(1)<->star
+    nt0_full=sum(nT0_perbody) ! sum them all
+    deallocate(nT0_perbody)
+
+    ! compute the number of maximum rv from integration and write time
+    ! (global variables tint, wrttime
+    nrv_nmax=int(tint/wrttime)+2
+  
+    return
+  end subroutine get_max_nt0_nrv
+  
+  ! ============================================================================
+
+  
   subroutine wrapper_set_grid_orbelem_fullgrid(sim_id,idpert,perturber_grid,ngrid,ncol,&
     &m,R,P,sma,ecc,w,mA,inc,lN,n_bodies,nt0_full,nrv_nmax)
     integer,intent(in)::sim_id,idpert
@@ -822,22 +850,24 @@ module pytrades
     call par2kel_fit(sim_all_parameters,sim_fit_parameters,m,R,P,sma,ecc,w,mA,inc,lN,tempcheck)
     deallocate(sim_all_parameters,sim_fit_parameters)
     
-    ! compute number maximum of all transit times of all the planets from the
-    ! integration time (global variable tint)
-    allocate(nT0_perbody(n_bodies-1))
-    nT0_perbody = int((1.5_dp*tint)/P(2:n_bodies))+2 ! compute the number of transit for each planet ... avoid P(1)<->star
-    nt0_full=sum(nT0_perbody) ! sum them all
-    deallocate(nT0_perbody)
-
-    ! comput the number of maximum rv from integration and write time
-    ! (global variables tint, wrttime
-    nrv_nmax=int(tint/wrttime)+2
+!     ! compute number maximum of all transit times of all the planets from the
+!     ! integration time (global variable tint)
+!     allocate(nT0_perbody(n_bodies-1))
+!     nT0_perbody = int((1.5_dp*tint)/P(2:n_bodies))+2 ! compute the number of transit for each planet ... avoid P(1)<->star
+!     nt0_full=sum(nT0_perbody) ! sum them all
+!     deallocate(nT0_perbody)
+! 
+!     ! comput the number of maximum rv from integration and write time
+!     ! (global variables tint, wrttime
+!     nrv_nmax=int(tint/wrttime)+2
+    
+    call get_max_nt0_nrv(P,n_bodies,nt0_full,nrv_nmax)
     
     return
   end subroutine wrapper_set_grid_orbelem_fullgrid
   
   ! ============================================================================
-  
+
   subroutine wrapper_set_grid_orbelem(sim_id,idpert,perturber_par,ncol,&
     &m,R,P,sma,ecc,w,mA,inc,lN,n_bodies,nt0_full,nrv_nmax)
     integer,intent(in)::sim_id,idpert
@@ -869,16 +899,17 @@ module pytrades
     call par2kel_fit(sim_all_parameters,sim_fit_parameters,m,R,P,sma,ecc,w,mA,inc,lN,tempcheck)
     deallocate(sim_all_parameters,sim_fit_parameters)
     
-    ! compute number maximum of all transit times of all the planets from the
-    ! integration time (global variable tint)
-    allocate(nT0_perbody(n_bodies-1))
-    nT0_perbody = int((1.5_dp*tint)/P(2:n_bodies))+2 ! compute the number of transit for each planet ... avoid P(1)<->star
-    nt0_full=sum(nT0_perbody) ! sum them all
-    deallocate(nT0_perbody)
-
-    ! comput the number of maximum rv from integration and write time
-    ! (global variables tint, wrttime
-    nrv_nmax=int(tint/wrttime)+2
+!     ! compute number maximum of all transit times of all the planets from the
+!     ! integration time (global variable tint)
+!     allocate(nT0_perbody(n_bodies-1))
+!     nT0_perbody = int((1.5_dp*tint)/P(2:n_bodies))+2 ! compute the number of transit for each planet ... avoid P(1)<->star
+!     nt0_full=sum(nT0_perbody) ! sum them all
+!     deallocate(nT0_perbody)
+! 
+!     ! compute the number of maximum rv from integration and write time
+!     ! (global variables tint, wrttime
+!     nrv_nmax=int(tint/wrttime)+2
+    call get_max_nt0_nrv(P,n_bodies,nt0_full,nrv_nmax)
     
     return
   end subroutine wrapper_set_grid_orbelem
@@ -891,6 +922,7 @@ module pytrades
     integer,intent(in)::n_bodies
     real(dp),dimension(n_bodies),intent(in)::m,R,P,sma,ecc,w,mA,inc,lN
     integer,intent(in)::nt0_full
+    
     real(dp),dimension(nt0_full),intent(out)::ttra_full
     integer,dimension(nt0_full),intent(out)::id_ttra_full
     logical,dimension(nt0_full),intent(out)::stats_ttra
@@ -906,6 +938,37 @@ module pytrades
   end subroutine wrapper_run_grid_combination
   
   ! ============================================================================
+  
+  subroutine fit_par_to_ttra_rv(fit_parameters,nfit,&
+    &ttra_full,id_ttra_full,stats_ttra,nt0_full,&
+    &time_rv_nmax,rv_nmax,stats_rv,nrv_nmax)
+    integer,intent(in)::nfit
+    real(dp),dimension(nfit),intent(in)::fit_parameters
+    integer,intent(in)::nt0_full
+    
+    real(dp),dimension(nt0_full),intent(out)::ttra_full
+    integer,dimension(nt0_full),intent(out)::id_ttra_full
+    logical,dimension(nt0_full),intent(out)::stats_ttra
+    integer,intent(in)::nrv_nmax
+    real(dp),dimension(nrv_nmax),intent(out)::time_rv_nmax,rv_nmax
+    logical,dimension(nrv_nmax),intent(out)::stats_rv
+    
+    real(dp),dimension(:),allocatable::m,R,P,sma,ecc,w,mA,inc,lN
+    logical::checkpar=.true.
+    
+    allocate(m(NB),R(NB),P(NB),sma(NB),ecc(NB),w(NB),mA(NB),inc(NB),lN(NB))
+    call convert_parameters(system_parameters,fit_parameters,&
+      &m,R,P,sma,ecc,w,mA,inc,lN,checkpar)
+      
+    call ode_all_ttra_rv(wrttime,m,R,P,sma,ecc,w,mA,inc,lN,&
+      &ttra_full,id_ttra_full,stats_ttra,&
+      &time_rv_nmax,rv_nmax,stats_rv)
+    
+    deallocate(m,R,P,sma,ecc,w,mA,inc,lN)
+    
+    return
+  end subroutine fit_par_to_ttra_rv
 
+  ! ============================================================================
   
 end module pytrades

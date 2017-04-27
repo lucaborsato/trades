@@ -11,6 +11,7 @@ import numpy as np # array
 import veusz.embed as vsz
 import constants as cst
 #import numpy.polynomial.polynomial as poly
+import h5py
 
 # --------------------------------------------------------------------------
 
@@ -28,6 +29,7 @@ def get_bool(bool_in):
   return bool_out
 
 def get_args():
+  
   print " EMBED VEUSZ VERSION ", vsz.API_VERSION
   parser = argparse.ArgumentParser()
   parser.add_argument('-p', action='store', dest='full_path', required=True, help='Folder path')
@@ -38,6 +40,8 @@ def get_args():
   parser.add_argument('-rv', action='store', dest='RVset', default='0', help='RVsetlag: 0/No/False = do not use RV data, 1/Yes/True = use RV data')
   parser.add_argument('-xs', '--x-scale', action='store', dest='xscale', default=None, help='Value to be subtract to the x-axis (time) in the plots. Default is None that means 2440000.5 will be subtract.')
   parser.add_argument('-oc', '--oc-fit', action='store', dest='oc_fit', default='False', help='Fit obs and sim linear ephem (set to False) or only the obs ephemem (set to True)')
+  parser.add_argument('-samples-file', '--samples-file', action='store', dest='samples_file', default=None, help='HDF5 file with T0 and RV from emcee samples to overplot on O-Cs.')
+  
   cli = parser.parse_args()
   full_path = os.path.abspath(cli.full_path)
   cli.idsim = int(cli.idsim)
@@ -46,6 +50,11 @@ def get_args():
   cli.nbF = int(cli.nbF)
   cli.oc_fit = get_bool(cli.oc_fit)
   cli.RVset = get_bool(cli.RVset)
+  
+  if(os.path.isfile(os.path.abspath(cli.samples_file))):
+    cli.samples_file = os.path.abspath(cli.samples_file)
+  else:
+    cli.samples_file = None
   
   #return full_path, cli.idsim, cli.lmflag, int(cli.nbI), int(cli.nbF), cli.RVset, cli.xscale, cli.oc_fit
   return cli
@@ -59,6 +68,14 @@ def intro(fullpath, nbI, nbF):
   print "Bodies to plot, from %d to %d"%(nbI,nbF)
   print ""
 
+
+def calculate_epoch(T0, Tref, Pref):
+
+  epo = np.rint((T0-Tref)/Pref).astype(int)
+
+  return epo
+
+
 # linear fit function with errors on y-axis.
 # It returns also the errors.
 # y = b_ls + m_ls * x
@@ -71,12 +88,60 @@ def lstsq_fit(x, y, yerr):
   return b_ls, m_ls, coeff_err
 
 
-def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False):
+def read_samples(samples_file = None, nbI = 2, nbF = 2):
+  
+  if(samples_file is not None):
+    
+    rv_samples = {}
+    t0_samples = {}
+    
+    sh5 = h5py.File(samples_file, 'r')
+    # read RV
+    rv_samples['time_rv_mod'] = sh5['RV/time_rv_mod'][...]
+    rv_samples['tepoch'] = sh5['RV/time_rv_mod'].attrs['tepoch']
+    rv_samples['rv_mod'] = sh5['RV/rv_mod'][...]
+    # read T0
+    for inb in range(nbI, nbF+1):
+      ipl = '%d' %(inb)
+      t0_samples[ipl] = sh5['T0/%s' %(ipl)][...]
+    sh5.close()
+    
+  else:
+    
+    return None, None
+  
+  return rv_samples, t0_samples # dictionaries
+
+def ttra_samples_to_oc(ttra_samples=None, Teph=None, Peph=None, t_subtract=0.):
+  
+  if(ttra_samples is not None):
+    n_t0, n_samples = np.shape(ttra_samples)
+    oc_samples = np.zeros((n_t0, 5, n_samples))
+    
+    epo_smp = calculate_epoch(ttra_samples, Teph, Peph)
+    ttra_smp = ttra_samples - t_subtract
+    oc_smp = ttra_samples - (Teph + epo_smp*Peph)
+    
+    for ismp in range(0, n_samples):
+      oc_samples[:,0,ismp] = epo_smp[:,ismp] # epoch
+      oc_samples[:,1,ismp] = ttra_smp[:,ismp] # T0-t_subtract
+      oc_samples[:,2,ismp] = oc_smp[:,ismp] # O-C days
+      oc_samples[:,3,ismp] = oc_smp[:,ismp] * 1440. # O-C minutes
+      oc_samples[:,4,ismp] = oc_smp[:,ismp] * 86400. # O-C seconds
+  
+  else:
+    return None
+  
+  return oc_samples
+
+
+def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, ttra_samples=None):
+  
   if(ibd >= 2):
     #simT0 = ssim + "_" + str(lmf) + "_NB" + str(ibd) + "_simT0.dat"
     simT0 = '%d_%d_NB%d_simT0.dat' %(ssim, lmf, ibd)
     fT0 = os.path.join(path, simT0)
-    print " OPENING FILE " + fT0
+    print " OPENING FILE %s" %(fT0)
     try:
       with open(fT0):
 
@@ -116,6 +181,7 @@ def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False):
           oc[:,5] = oc[:,3] * 86400.
 
         else:
+          
           #Teph_obs, Peph_obs = poly.polyfit(epo, data[:,1], deg=1, w=1./err[:,0])
           Teph_obs, Peph_obs, TP_err_obs = lstsq_fit(epo, data[:,1], err[:,0])
           tc_o = Teph_obs + Peph_obs * epo
@@ -141,23 +207,61 @@ def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False):
           res[:,0] = oc[:,0] - oc[:,3]
           res[:,1] = oc[:,1] - oc[:,4]
           res[:,2] = oc[:,2] - oc[:,5]
+          
+        oc_samples = ttra_samples_to_oc(ttra_samples=ttra_samples, Teph=Teph, Peph=Peph, t_subtract=t_subtract)
 
     except IOError:
       print '%s does not exist ... closing script' %(simT0)
       sys.exit()
 
-  return epo, t_obs_subtract, oc, res, err
+  return epo, t_obs_subtract, oc, res, err, oc_samples
+
+def plot_oc_samples(win_plot, graph_plot, xname, yname, oc_samples, letters, id_body=2):
+  
+  n_t0, n_cols, n_samples = np.shape(oc_samples)
+  
+  for ismp in range(0, n_samples):
+    xyname = "oc_d_%s_smp_%d" %(letters[id_body-2], ismp)
+    xy_smp = graph_plot.Add('xy', name = xyname, autoadd = False,
+                          #xData = epo,
+                          #yData = oc[:,3],
+                          xAxis = xname,
+                          yAxis = yname,
+                          PlotLine__hide = False,
+                          PlotLine__color = 'gray',
+                          PlotLine__style = 'solid',
+                          PlotLine__width = '0.25pt',
+                          PlotLine__transparency = 70,
+                          marker = 'none'
+                          )
+    #epoName = 'epo_' + letters[id_body-2]
+    #win_plot.SetData(epoName, epo)
+    time_name = 'xtime_%s_smp %d' %(letters[id_body-2], ismp)
+    win_plot.SetData(time_name, oc_samples[:,1,ismp])
+    dataYname = "oc_d_%s_smp_%d" %(letters[id_body-2], ismp)
+    win_plot.SetData(dataYname, oc_samples[:,2,ismp])
+    #xy_d_sim.xData.val = epoName
+    xy_smp.xData.val = time_name
+    xy_smp.yData.val = dataYname
+  
+  return
+
+
+
 
 # define the scaling of the rows
 def scalingRows(gRows):
+  
   scRows = []
   for i in range(0, gRows, 2):
     scRows.append(1.)
     scRows.append(0.90)
+  
   return scRows
 
 
 def lims(v1, v2, inc=0.05):
+  
   min1 = min(v1)
   min2 = min(v2)
   max1 = max(v1)
@@ -168,20 +272,24 @@ def lims(v1, v2, inc=0.05):
   #inc = 0.05
   min4 = float(min3 - abs(d3)*inc) # use float because veusz want float and not np.float64 ...
   max4 = float(max3 + abs(d3)*inc) # use float because veusz want float and not np.float64 ...
+  
   return min4, max4
 
 def read_obsRV(fullpath):
+  
   obsRV = os.path.join(fullpath, "obsRV.dat")
   RV_o = np.zeros(1)
   stat = False
   if os.path.exists(obsRV):
     RV_o = np.genfromtxt(obsRV)
     stat = True
+    
   return RV_o, stat
 
 # read #_simRV_1.dat with columns:
 # jd RVobs eRVobs rv_sim RV_sim gamma e_gamma RVsetID RV_stat
 def read_simRV(fullpath, sim, lmf):
+  
   fRV = os.path.join(fullpath, '%d_%d_simRV.dat' %(sim, lmf))
   RV = np.zeros(1)
   stat = False
@@ -195,9 +303,11 @@ def read_simRV(fullpath, sim, lmf):
       if (RV[irv,7] != RV[irv-1,7]):
         nRV_set += 1
     stat = True
+    
   return RV, gamma, nRV_set, stat
 
 def read_orbit(fullpath, sim, lmf):
+  
   #orbit = sim + "_" + str(lmf) + "_rotorbit.dat"
   orbit = '%d_%d_rotorbit.dat' %(sim, lmf)
   forbit = os.path.join(fullpath, orbit)
@@ -210,10 +320,45 @@ def read_orbit(fullpath, sim, lmf):
     jd_lte = data[idx,0] + data[idx,1]
     rv = data[idx,2]
     stat = True
+    
   return jd_lte, rv, stat
+
+def plot_rv_samples(win_plot, graph_plot, xname, yname, rv_samples, t_subtract=0., t_rv_min=None, t_rv_max=None):
+  
+  time_rv_mod = rv_samples['time_rv_mod'] + rv_samples['tepoch'] - t_subtract
+  rv_smp = rv_samples['rv_mod']
+  n_rv, n_samples = np.shape(rv_smp)
+  if(t_rv_min is not None and t_rv_max is not None):
+    rv_sel = np.logical_and(time_rv_mod >= t_rv_min, time_rv_mod <= t_rv_max)
+  else:
+    rv_sel = np.ones((n_rv)).astype(bool)
+  
+  for ismp in range(0, n_samples):
+    xyname = 'rv_smp_%d' %(ismp)
+    xy_rvsamples = graph_plot.Add('xy', name = xyname, autoadd = False,
+                          #xData = time_rv_mod[rv_sel],
+                          #yData = rv_smp[rv_sel,ismp],
+                          xAxis = xname,
+                          yAxis = yname,
+                          PlotLine__hide = False,
+                          PlotLine__color = 'gray',
+                          PlotLine__width = '0.25pt',
+                          PlotLine__style = 'solid',
+                          PlotLine__transparency = 70,
+                          marker = 'none',
+                          )
+    jdName = "time_rv_mod"
+    win_plot.SetData(jdName, time_rv_mod[rv_sel])
+    dataYname = "rv_smp_%d" %(ismp)
+    win_plot.SetData(dataYname, rv_smp[rv_sel,ismp])
+    xy_rvsamples.xData.val = jdName
+    xy_rvsamples.yData.val = dataYname
+  
+  return
 
 # x-axis of O-C
 def xOC(ocPlot, xname, xlab, min_time, max_time, font, sizeLab, LabHide, sizeTL):
+  
   x_oc = ocPlot.Add('axis', name = xname, autoadd = False,
                     label = xlab,
                     min = float(min_time),
@@ -231,6 +376,7 @@ def xOC(ocPlot, xname, xlab, min_time, max_time, font, sizeLab, LabHide, sizeTL)
                     TickLabels__size = sizeTL,
                     TickLabels__format = '%.1f'
                     )
+  
   return x_oc
 
 # x-axis of RV
@@ -258,6 +404,7 @@ def xRV(ocPlot, xname, xlab, min_time, max_time, font, sizeLab, LabHide, sizeTL)
 
 # y-axis of O-C ... position: 0=left, 1=right
 def yOC(ocPlot, yname, ylab, oPosition, rotation, sizeLab, minOC, maxOC, lPos, uPos, font, sizeTL):
+  
   if oPosition == 0:
     formatTickLabels = "%.3f"
   elif oPosition == 1:
@@ -287,9 +434,11 @@ def yOC(ocPlot, yname, ylab, oPosition, rotation, sizeLab, minOC, maxOC, lPos, u
                     MajorTicks__number = 5,
                     MinorTicks__number = 10,
                     )
+  
   return y_oc
 
 def yRES(plot, yname, ylab, oPosition, rotation, sizeLab, minOC, maxOC, lPos, uPos, font, sizeTL):
+  
   if oPosition == 0:
     formatTickLabels = "%.3f"
   elif oPosition == 1:
@@ -319,6 +468,7 @@ def yRES(plot, yname, ylab, oPosition, rotation, sizeLab, minOC, maxOC, lPos, uP
                     MajorTicks__number = 5,
                     MinorTicks__hide = True,
                     )
+  
   return y_res
 
 
@@ -326,6 +476,7 @@ def yRES(plot, yname, ylab, oPosition, rotation, sizeLab, minOC, maxOC, lPos, uP
 
 
 def main():
+  
   #cli.full_path, s_sim, lmf, nbI, nbF, RVset, xscale, oc_fit = get_args()
   cli = get_args()
 
@@ -408,13 +559,19 @@ def main():
   else:
     t_subtract=np.float64(cli.xscale)
     
+    
+  # read samples_file if provided
+  rv_samples, t0_samples = read_samples(samples_file=cli.samples_file, nbI=cli.nbI, nbF=cli.nbF)
+  
   xoc_list = [] # xaxis of O-C and res plots <-> T0
 
   if (cli.nbI > 1):
     min_max_time = np.zeros((nbPlt,2))
+    
     for inb in range(cli.nbI,cli.nbF+1):
+      
       #epo, oc, res, err = read_simT0(cli.full_path, cli.idsim, cli.lmflag, inb)
-      epo, t_obs_base, oc, res, err = read_simT0(cli.full_path, cli.idsim, cli.lmflag, inb, t_subtract, cli.oc_fit)
+      epo, t_obs_base, oc, res, err, oc_samples = read_simT0(cli.full_path, cli.idsim, cli.lmflag, inb, t_subtract, cli.oc_fit, ttra_samples=t0_samples['%d' %(inb)])
       print ""
 
       keyObs = ""
@@ -534,6 +691,10 @@ def main():
       #xy_d_sim.xData.val = epoName
       xy_d_sim.xData.val = time_name
       xy_d_sim.yData.val = dataYname
+      
+      # add oc_samples plot for current body!
+      if(oc_samples is not None):
+        plot_oc_samples(ocWin, ocPlot, xname, yname, oc_samples, letters, id_body=inb)
 
       zeroLine = ocPlot.Add('function', name = 'zeroLine', autoadd = False,
                             function = '0.',
@@ -799,9 +960,9 @@ def main():
                               xAxis = xname,
                               yAxis = yname,
                               PlotLine__hide = False,
-                              #PlotLine__color = 'blue',
+                              PlotLine__color = 'blue',
                               #PlotLine__color = '#33ADFF',
-                              PlotLine__color = '#B2B2B2',
+                              #PlotLine__color = '#B2B2B2',
                               PlotLine__width = '1pt',
                               PlotLine__style = 'dot1',
                               marker = 'none',
@@ -837,6 +998,11 @@ def main():
       else:
         print "I did not find the orbit file to plot RV model. Skipping."
 
+      if(rv_samples is not None):
+        print '\nPlotting rv samples ... it would take some time ...',
+        plot_rv_samples(ocWin, RVPlot, xname, yname, rv_samples, t_subtract=t_subtract, t_rv_min=minJD, t_rv_max=maxJD)
+        print 'done'
+        
       zeroLine = RVPlot.Add('function', name = 'zeroLine', autoadd = False,
                             function = '0.',
                             Line__color = 'black',
@@ -933,13 +1099,22 @@ def main():
     createDir = "mkdir -p " + plotFolder
     os.system(createDir)
   fveusz = os.path.join(plotFolder, '%d_%d_oc%s' %(cli.idsim, cli.lmflag, s_nbIF))
+  print '\nSaving vsz file ...',
   ocWin.Save(fveusz + ".vsz")
+  print 'done.\nSaving eps file ...',
   ocWin.Export(fveusz + ".eps")
+  print 'done.\nSaving pdf file ...',
   ocWin.Export(fveusz + ".pdf")
+  print 'done.\nSaving png150dpi file ...',
   ocWin.Export(fveusz + "_150dpi.png", dpi=150, antialias=True, quality=100, backcolor='white')
+  print 'done.\nSaving png300dpi file ...',
   ocWin.Export(fveusz + "_300dpi.png", dpi=300, antialias=True, quality=100, backcolor='white')
+  print 'done.\nSaving svg file ...',
   ocWin.Export(fveusz + ".svg")
+  print 'done.'
   ocWin.Close()
+  
+  return
 
 
 if __name__ == '__main__':

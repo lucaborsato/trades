@@ -5,7 +5,7 @@ module ode_run
   use celestial_mechanics
   use rotations,only:orb2obs
   use eq_motion,only:eqmastro
-  use numerical_integrator,only:int_rk_a
+  use numerical_integrator,only:int_rk_a,rkck_a
   use transits
   use radial_velocities
   use gls_module,only:check_periodogram,check_periodogram_scale,check_and_write_periodogram
@@ -767,6 +767,7 @@ module ode_run
     logical,intent(out)::Hc
 
     real(dp),dimension(:),allocatable::dr,r1,r2,err
+    real(dp),dimension(:),allocatable::drdt_save,r_save
     integer,dimension(:),allocatable::X,Y,Z
     real(dp),dimension(:),allocatable::cX,cY,cR,rmean
     real(dp)::hw,hok,hnext,itime
@@ -776,8 +777,7 @@ module ode_run
     integer::Norb
     real(dp)::itwrt,Etot,Eold,htot,hold
 
-    real(dp)::ftime
-    integer::iftime,compare
+    real(dp)::step_save,step_write
 
 !     Hc=Hillcheck(m,rin)
     if(do_hill_check) Hc=mutual_Hill_check(m,rin)
@@ -801,6 +801,7 @@ module ode_run
     Norb=NBDIM+3
 
     allocate(dr(NBDIM),r1(NBDIM),r2(NBDIM),err(NBDIM))
+    allocate(drdt_save(NBDIM),r_save(NBDIM))
     hw=step_0
     if(time.lt.zero) hw=-hw
     itime=zero
@@ -811,12 +812,16 @@ module ode_run
     j1=0
     j2=1
 
-    itwrt=wrttime
+    step_write=wrttime
+    if(time.lt.zero) step_write=-step_write
+    itwrt=step_write
+    
     if((wrtorb.eq.1).or.(wrtel.eq.1))then
       allocate(storeorb(Norb,DIMMAX))
       storeorb=zero
       call store_orb(j2,itime,m,r1,storeorb)
     end if
+    
     if(wrtconst.eq.1)then
       Etot=zero
       Eold=zero
@@ -827,6 +832,7 @@ module ode_run
       storecon=zero
       call store_con(j2,itime,Eold,Eold,hold,hold,storecon)
     end if
+    
     if((idtra.ge.1).and.(idtra.le.NB))then
       allocate(storetra(NBDIM+6,DIMMAX))
       storetra=zero
@@ -835,10 +841,6 @@ module ode_run
       jtra=0
     end if
 
-    ftime=zero
-    iftime=0
-    compare=10
-
     integration: do
       j1=j1+1
 
@@ -846,25 +848,81 @@ module ode_run
       call eqmastro(m,r1,dr) ! computes the eq. of motion
       call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err) ! computes the next orbit step
 
-      if(wrtconst.eq.1) call compute_con(m,r2,Etot,htot) ! if selected computed the Energy and Angular momentum
+      ! -------------------------------
+      ! OLD VERSION OF SAVE&WRITE ORBIT (WITH RV), KEP. ELEMENTS, CONST. OF MOTION
+!       if(wrtconst.eq.1) call compute_con(m,r2,Etot,htot) ! if selected computed the Energy and Angular momentum
+!       if(abs(itime+hw).ge.(abs(itwrt)))then
+!         j2=j2+1
+!         if((wrtorb.eq.1).or.(wrtel.eq.1))then
+!           call store_orb(j2,itime+hok,m,r2,storeorb)
+!           if(j2.eq.DIMMAX)then
+!             if(wrtorb.eq.1) call write_file(DIMMAX,uorb,fmorb,storeorb)
+!             if(wrtel.eq.1) call write_elem(DIMMAX,uele,fmele,m,storeorb)
+!             storeorb=zero
+!           end if
+!         end if
+!         if(wrtconst.eq.1)then
+!           call store_con(j2,itime+hok,Etot,Eold,htot,hold,storecon)
+!           if(j2.eq.DIMMAX)then
+!             call write_file(DIMMAX,ucon,fmcon,storecon)
+!             storecon=zero
+!           end if
+!         end if
+!         if(j2.eq.DIMMAX) j2=0
+!         itwrt=itwrt+wrttime
+!       end if
+      ! -------------------------------
 
-      if(abs(itime+hw).ge.(abs(itwrt)))then
-        j2=j2+1
-        if((wrtorb.eq.1).or.(wrtel.eq.1))then
-          call store_orb(j2,itime+hok,m,r2,storeorb)
-          if(j2.eq.DIMMAX)then
-            if(wrtorb.eq.1) call write_file(DIMMAX,uorb,fmorb,storeorb)
-            if(wrtel.eq.1) call write_elem(DIMMAX,uele,fmele,m,storeorb)
-          end if
+      ! ===============================
+      ! NEW VERSION
+      ! check if it has to compute or not 'something'
+      if((wrtorb.eq.1).or.(wrtel.eq.1).or.(wrtconst.eq.1))then
+        
+        if(abs(itime+hok).ge.(abs(itwrt)))then
+          
+          saveloop: do
+          
+            j2=j2+1
+!             computes the proper step -> itwrt will be updated in the loop
+            step_save=itwrt-itime
+!             computes state vector from r1 to the new time step (smaller then hok)
+            drdt_save=dr
+            r_save=r1
+            call rkck_a(m,r1,drdt_save,step_save,r_save,err)
+            
+            ! check and store orbit or kep. elements
+            if((wrtorb.eq.1).or.(wrtel.eq.1))then
+              call store_orb(j2,itime+step_save,m,r_save,storeorb) ! save r_save!!
+              if(j2.eq.DIMMAX)then ! write into file if reach max dimension
+                if(wrtorb.eq.1) call write_file(DIMMAX,uorb,fmorb,storeorb)
+                if(wrtel.eq.1) call write_elem(DIMMAX,uele,fmele,m,storeorb)
+                storeorb=zero ! reset the storeorb variable
+              end if
+            end if
+            
+            ! check and store constants of motion
+            if(wrtconst.eq.1)then
+              call compute_con(m,r_save,Etot,htot) ! if selected it computes the Energy and Angular momentum
+              call store_con(j2,itime+step_save,Etot,Eold,htot,hold,storecon)
+              if(j2.eq.DIMMAX)then ! write into file if reach max dimension
+                call write_file(DIMMAX,ucon,fmcon,storecon)
+                storecon=zero
+              end if
+            end if
+            
+            if(j2.eq.DIMMAX) j2=0
+            
+            itwrt=itwrt+step_write
+            if(abs(itwrt).gt.abs(itime+hok)) exit saveloop
+            
+          end do saveloop
+        
         end if
-        if(wrtconst.eq.1)then
-          call store_con(j2,itime+hok,Etot,Eold,htot,hold,storecon)
-          if(j2.eq.DIMMAX) call write_file(DIMMAX,ucon,fmcon,storecon)
-        end if
-        if(j2.eq.DIMMAX) j2=0
-        itwrt=itwrt+wrttime
+        
       end if
-
+      ! ===============================
+      
+      
       if(do_hill_check) Hc=mutual_Hill_check(m,r2)
 
       ! T0 check (to compare and all)
@@ -941,17 +999,21 @@ module ode_run
     if((idtra.ge.1).and.(idtra.le.NB)) call write_tra(jtra,utra,stat_tra,storetra)
 
     if((wrtorb.eq.1).or.(wrtel.eq.1))then
-      if(wrtorb.eq.1) call write_file(j2,uorb,fmorb,storeorb)
-      if(wrtel.eq.1) call write_elem(j2,uele,fmele,m,storeorb)
+      if(j2.gt.0)then
+        if(wrtorb.eq.1) call write_file(j2,uorb,fmorb,storeorb)
+        if(wrtel.eq.1) call write_elem(j2,uele,fmele,m,storeorb)
+      end if
       deallocate(storeorb)
     end if
     if(wrtconst.eq.1)then
-      call write_file(j2,ucon,fmcon,storecon)
+      if(j2.gt.0)then
+        call write_file(j2,ucon,fmcon,storecon)
+      end if
       deallocate(storecon)
     end if
 
     deallocate(X,Y,Z,cX,cY,cR,rmean)
-    deallocate(dr,r1,r2,err)
+    deallocate(dr,r1,r2,err,drdt_save,r_save)
 
     return
   end subroutine ode_a_orbit
@@ -1991,8 +2053,9 @@ module ode_run
     
     ! set the iteration write time: updated each wrt_time passed
     step_write=wrt_time
-    if(wrt_time.lt.zero)step_write=-step_write
-    iter_write=wrt_time
+!     if(wrt_time.lt.zero) step_write=-step_write
+    if(time_int.lt.zero) step_write=-step_write
+    iter_write=step_write
     
     integration: do
       step_num=step_num+1
@@ -2006,25 +2069,25 @@ module ode_run
         if(.not.Hc) return
       end if
 
-      ! check if it passes the iter_write and comput the rv at proper time and update last_rv
+      ! check if it passes the iter_write and compute the rv at proper time and update last_rv
       if(abs(iter_time+hok).ge.(abs(iter_write)))then
-        last_rv=last_rv+1
-        step_rv=iter_time+hok-iter_write ! computes the proper step
-        call calcRV(m,r1,dr,step_rv,rv_temp) ! computes the rv
-        ! save time rv status
-        time_rv_nmax(last_rv)=tepoch+iter_time+step_rv
-        rv_nmax(last_rv)=rv_temp
-        stats_rv(last_rv)=.true.
-        ! update next writing time
-        iter_write=iter_write+step_write
-        
-!         write(*,'(a,i10)')' step_num = ',step_num
-!         write(*,'(3(a,es23.16))')' hw = ',hw,' iter_time = ',&
-!           &iter_time,' iter_write = ',iter_write
-!         write(*,'(3(a,es23.16),a,i6,a,l2)')' RV step = ',step_rv,&
-!           &' time = ',time_rv_nmax(last_rv),' rv_nmax = ',rv_nmax(last_rv),&
-!           &' last_rv = ',last_rv,' stats_rv = ',stats_rv(last_rv)
+      
+        rvloop: do
           
+          last_rv=last_rv+1
+!           computes the proper step
+          step_rv=iter_write-iter_time
+          call calcRV(m,r1,dr,step_rv,rv_temp) ! computes the rv
+!           save time rv status
+          time_rv_nmax(last_rv)=iter_write
+          rv_nmax(last_rv)=rv_temp
+          stats_rv(last_rv)=.true.
+!           update next writing time
+          iter_write=iter_write+step_write
+          if(abs(iter_write).gt.abs(iter_time+hok)) exit rvloop
+          
+        end do rvloop
+        
       end if
 
       ! transit times!!
@@ -2155,6 +2218,7 @@ module ode_run
       call ode_b_orbit(m,R,ra1,dt1,wrt_time,clN,&
         &last_tra,ttra_full,id_ttra_full,stats_ttra,&
         &last_rv,time_rv_nmax,rv_nmax,stats_rv,Hc)
+        
       if(abs(dt1).le.tint)then
         ! forward integration
         call ode_b_orbit(m,R,ra1,dt2,wrt_time,clN,&
@@ -2196,6 +2260,13 @@ module ode_run
 !     ttra_all=ttra_all(idx_sort)
 !     id_ttra_all=id_ttra_all(idx_sort)
 !     deallocate(idx_sort)
+    
+    
+!     write(*,'(2(a,f14.8))')' dt1 = ',dt1,' dt2 = ',dt2
+!     
+!     write(*,'(a)')' FIRST time_rv_nmax(1:10)'
+!     write(*,'(1000(1x,f14.8))')time_rv_nmax(1:10)
+    
     
     return
   end subroutine ode_all_ttra_rv

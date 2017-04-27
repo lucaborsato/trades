@@ -56,11 +56,11 @@ def set_bool_argument(arg_in):
 
 # -------------------------------------
 
-def set_int_argument(arg_in):
+def set_int_argument(arg_in, default=0):
   try:
     arg_out = int(arg_in)
   except:
-    arg_out = 0
+    arg_out = default
   return arg_out
 
 
@@ -148,6 +148,9 @@ def get_args():
   parser.add_argument('--script-folder', action='store', dest='pyscript', default='./',
                       help='Folder of the python scripts... Default is "./"')
 
+  parser.add_argument('-n-samples', '--n-samples', action='store', dest='n_samples', default=0,
+                      help='Number of sample parameter within CI to generate T0s and RVs to be overplotted in the O-C plots. Defautl is 0')
+
   cli = parser.parse_args()
 
   cli.full_path = os.path.abspath(cli.full_path)
@@ -160,6 +163,7 @@ def get_args():
   cli.overplot = set_overplot(cli.overplot)
   cli.adhoc = set_adhoc_file(cli.adhoc)
   cli.pyscript = os.path.abspath(cli.pyscript)
+  cli.n_samples = set_int_argument(cli.n_samples, default=0)
 
   return cli
 
@@ -1136,6 +1140,26 @@ def get_sample_by_par_and_lgllhd(posterior, lnprobability, parameter_names, post
 
   return sample_parameters, sample_lgllhd
 
+# -------------------------------------
+
+def take_n_samples(posterior, post_ci, n_samples=100):
+  # post_ci must have fitted parameters as cols and
+  # lower and upper ci as row, i.e.:
+  # post_ci(2, nfit)
+  
+  npost, nfit = np.shape(posterior)
+  idx_post = np.arange(0, npost).astype(int)
+  
+  sel_within_ci = np.ones((npost)).astype(bool)
+  for ifit in range(0,nfit):
+    sel_par = np.logical_and(posterior[:,ifit] >= post_ci[0,ifit], posterior[:,ifit] <= post_ci[1,ifit])
+    sel_within_ci = np.logical_and(sel_within_ci, sel_par)
+  
+  idx_within_ci = idx_post[sel_within_ci]
+  idx_sample = np.random.choice(idx_within_ci, n_samples, replace=False)
+  sample_parameters = posterior[idx_sample, :]
+  
+  return sample_parameters
 
 # =============================================================================
 

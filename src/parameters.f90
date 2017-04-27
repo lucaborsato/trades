@@ -25,7 +25,7 @@ module parameters
   real(dp),dimension(:),allocatable::k_b
   
   integer::NBDIM
-  integer,parameter::DIMMAX=100000
+  integer,parameter::DIMMAX=500000
 
   ! names and files of the bodies
   character(128),dimension(:),allocatable::bnames,bfiles

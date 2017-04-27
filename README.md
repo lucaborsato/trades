@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.13.3 by Luca Borsato - 2016/2017**    
+**`TRADES` v2.13.4 by Luca Borsato - 2016/2017**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -418,6 +418,12 @@ Check also other files in the `pytrades` folder to understand how to use the pyt
 
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
+
+#### `TRADES 2.13.4`
+
+It is possible to save some parameter samples of the `emcee` analysis to be overplotted
+on the O-C and RV diagram.    
+Updated how it computes the orbits when the write step is smaller than the integration step.    
 
 #### `TRADES 2.13.3`
 
