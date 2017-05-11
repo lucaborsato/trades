@@ -489,8 +489,14 @@ def main():
       
     anc.print_both(' emcee chain: nwalkers = %d nruns = %d' %(nwalkers, nruns), of_run)
     anc.print_both(' sampler ... ',of_run)
+    # old version with threads
     #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, threads=nthreads)
-    sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, threads=nthreads, args=[parameter_names])
+    
+    #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, threads=nthreads, args=[parameter_names])
+    
+    threads_pool = emcee.interruptible_pool.InterruptiblePool(nthreads)
+    sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, pool=threads_pool)
+  
     anc.print_both(' ready to go', of_run)
     anc.print_both(' with nsave = %r' %(nsave), of_run)
     sys.stdout.flush()
@@ -517,11 +523,11 @@ def main():
       temp_acor = f_hdf5.create_dataset('autocor_time', data=np.zeros((nfit)), dtype=np.float64)
       f_hdf5.close()
       pos = p0
-      nchains = int(nruns/nsave)
+      niter_save = int(nruns/nsave)
       state=None
       anc.print_both(' Running emcee with temporary saving', of_run)
       sys.stdout.flush()
-      for i in range(0, nchains):
+      for i in range(0, niter_save):
         anc.print_both('', of_run)
         anc.print_both(' iter: %6d ' %(i+1), of_run)
         aaa = i*nsave
@@ -597,6 +603,10 @@ def main():
 
     anc.print_both(" Mean_acceptance_fraction should be between [0.25-0.5] = %.6f" %(mean_acceptance_fraction), of_run)
     anc.print_both('', of_run)
+
+    # close the pool of threads
+    threads_pool.close()
+    threads_pool.terminate()
 
     anc.print_both('COMPLETED EMCEE', of_run)
 

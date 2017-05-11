@@ -577,7 +577,8 @@ def compute_autocor_time(chains, walkers_transposed=True):
     for ifit in range(0, nfit):
       x = chains[:, :, ifit]
       # tau, mean, sigma = acor.acor(x)
-      temp_acor = np.mean(np.array([acor.acor(x[:, iw]) for iw in range(0, nw)]), axis=0)
+      #temp_acor = np.mean(np.array([acor.acor(x[:, iw]) for iw in range(0, nw)]), axis=0)
+      temp_acor = np.mean(np.array([emcee.autocorr.integrated_time(x[:, iw], c=1) for iw in range(0, nw)]), axis=0)
       autocor_time[ifit] = temp_acor[0]
 
   else:
@@ -586,7 +587,8 @@ def compute_autocor_time(chains, walkers_transposed=True):
     autocor_time = np.zeros((nfit), dtype=np.float64)
     for ifit in range(0, nfit):
       x = chains[:, :, ifit]
-      temp_acor = np.mean(np.array([acor.acor(x[iw, :]) for iw in range(0, nw)]), axis=1)
+      #temp_acor = np.mean(np.array([acor.acor(x[iw, :]) for iw in range(0, nw)]), axis=1)
+      temp_acor = np.mean(np.array([emcee.autocorr.integrated_time(x[iw, :], c=1) for iw in range(0, nw)]), axis=1)
       autocor_time[ifit] = temp_acor[0]
 
   return autocor_time

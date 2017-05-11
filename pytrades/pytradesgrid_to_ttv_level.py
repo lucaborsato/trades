@@ -33,6 +33,7 @@ import h5py
 import astropy.time as atime
 import os
 import sys
+import gc
 
 import matplotlib as mpl
 #from matplotlib import use as mpluse
@@ -319,13 +320,13 @@ def do_chi2r(res, err, dof):
 def compute_chi2r_mc(oc, eoc, nT0_sel, nMC):
   
   noc = np.shape(oc)[0]
-  dof = noc - 2
+  dof = nT0_sel - 2
   if(noc < nT0_sel):
-    return 0.0, 0.0
+    return -1., -1.
   for imc in range(0, nMC):
     id_sel = np.sort(np.random.choice(noc, nT0_sel, replace=False))
     chi2r_all = do_chi2r(oc[id_sel], eoc[id_sel], dof)
-  chi2r_mean = np.man(chi2r_all)
+  chi2r_mean = np.mean(chi2r_all)
   chi2r_med = np.percentile(chi2r_all, 50., interpolation='midpoint')
   
   return chi2r_mean, chi2r_med
@@ -385,7 +386,11 @@ def save_results_sim(f_h5, results_sim, mr_type):
   #f_h5.create_dataset('sim_%06d/sel_pre_cheops'%(sim_num), data=results_sim['sel_pre_cheops'], dtype=bool, compression="gzip")
   #f_h5.create_dataset('sim_%06d/sel_cheops'%(sim_num), data=results_sim['sel_cheops'], dtype=bool, compression="gzip")
   #f_h5.create_dataset('sim_%06d/T0_eT0'%(sim_num), data=results_sim['T0_eT0'], dtype=np.float64, compression="gzip")
-  f_h5.create_dataset('sim_%06d/T0_eT0'%(sim_num), data=results_sim['T0_eT0'][sel_cheops,:], dtype=np.float64, compression="gzip")
+  sel_cheops = results_sim['sel_cheops']
+  if(np.sum(sel_cheops.astype(int)) > 0):
+    f_h5.create_dataset('sim_%06d/T0_eT0'%(sim_num), data=results_sim['T0_eT0'][sel_cheops,:], dtype=np.float64, compression="gzip")
+  else:
+    f_h5.create_dataset('sim_%06d/T0_eT0'%(sim_num), data=np.zeros((2)), dtype=np.float64, compression="gzip")
   
   #f_h5.create_dataset('sim_%06d/time_rv'%(sim_num), data=results_sim['time_rv'], dtype=np.float64, compression="gzip")
   f_h5.create_dataset('sim_%06d/rms_rv'%(sim_num), data=np.array([results_sim['rms_rv']]), dtype=np.float64, compression="gzip")
@@ -395,7 +400,6 @@ def save_results_sim(f_h5, results_sim, mr_type):
   f_h5.create_dataset('sim_%06d/rms_ttv' %(sim_num), data=np.array([results_sim['rms_ttv']]) , dtype=np.float64, compression="gzip")
   f_h5.create_dataset('sim_%06d/nT0_sel' %(sim_num), data=results_sim['nT0_sel'] , dtype=np.int, compression="gzip")
   f_h5.create_dataset('sim_%06d/rms_mc' %(sim_num), data=results_sim['rms_mc'] , dtype=np.float64, compression="gzip")
-
 
   f_h5.create_dataset('sim_%06d/chi2r_cheops' %(sim_num), data=np.array([results_sim['chi2r_cheops']]) , dtype=np.float64, compression="gzip")
   f_h5.create_dataset('sim_%06d/chi2r_mc' %(sim_num), data=results_sim['chi2r_mc'] , dtype=np.float64, compression="gzip")
@@ -458,7 +462,12 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
     epo_cheops, oc_cheops, rms_cheops = compute_oc(Tref_pre, Pref_pre, T0[sel_cheops])
     #anc.print_both(' - computed O-C = T0cheops - T0lin', of_log)
     #anc.print_both(' | rms_TTV (cheops) = %.10f day = %.8f hour = %.6f min %.3f sec' %(rms_cheops, rms_cheops*24., rms_cheops*1440., rms_cheops*86400.), of_log)
-    chi2r_cheops = do_chi2r(oc_cheops, eT0[sel_cheops], np.shape(oc_cheops)[0]-2)
+    dof = np.shape(oc_cheops)[0]-2
+    print ' | OK TT'
+    print ' | shape(sel_cheops) = ', np.shape(sel_cheops)
+    print ' | nTTcheops = ', np.sum(sel_cheops.astype(int)),' dof = ',dof
+    chi2r_cheops = do_chi2r(oc_cheops, eT0[sel_cheops], dof)
+    print ' | chi2r_cheops = ',chi2r_cheops
     
     #anc.print_both(' - computing Monte-Carlo rms of O-C for different number of T0s', of_log)
     rms_mc = [list(compute_rms_mc(oc_cheops, nT0_sel[i_n], nMC)) for i_n in range(len(nT0_sel))]
@@ -484,7 +493,7 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
     
   else: # if the transit file is empty
     #anc.print_both(' | NO transits at all ...')
-    ttra_all = np.zeros((1))
+    ttra_all = np.zeros((1)).reshape((-1,1))
     sel_pre = np.zeros((1)).astype(bool)
     sel_cheops = np.zeros((1)).astype(bool)
     T0_eT0 = np.zeros((2))
@@ -494,6 +503,9 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
     rms_mc = -np.ones((len(nT0_sel), 2))
     chi2r_cheops = -1.
     chi2r_mc = -np.ones((len(nT0_sel), 2))
+    print ' | NONE TT'
+    print ' | sel_cheops = ', sel_cheops
+    print ' | ttra_all = ',ttra_all
     
     time_rv = np.zeros((2))
     rms_rv = -1.
@@ -1078,6 +1090,364 @@ def read_and_plot_p_vs_m_vs_freq(out_folder, hdf5_file, rms_min = None, rms_max 
 
 
 # ==============================================================================
+# ==============================================================================
+
+def get_chi2r_rms_from_results(results_sim, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, err_T0, rms_rv):
+  
+  i_grid = results_sim['sim_num'] - 1
+  chi2r_cheops = results_sim['chi2r_cheops']
+  chi2r_mc = results_sim['chi2r_mc']
+  chi2r_oc_grid[i_grid, 0]  = chi2r_cheops
+  chi2r_oc_grid[i_grid, 1:] = np.reshape(chi2r_mc, newshape=(len(nT0_sel)*2))
+
+  rms_ttv = results_sim['rms_ttv']
+  rms_mc = results_sim['rms_mc']
+  rms_oc_grid[i_grid, 0]  = rms_ttv
+  rms_oc_grid[i_grid, 1:] = np.reshape(rms_mc, newshape=(len(nT0_sel)*2))
+  above_threshold[i_grid, :] = rms_oc_grid[i_grid, :] > err_T0
+
+  rms_rv[i_grid] = results_sim['rms_rv']
+  
+  return
+
+# -------------------------------------
+
+def save_chi2r_rms_analysis(f_h5, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, rms_rv):
+  
+  # save chi2r_oc_grid
+  chi2r_header_str = 'chi2r_oc %s' %(' '.join(['chi2r_mean_N%d_d chi2r_median_N%d_d' %(nT0_sel[i_n], nT0_sel[i_n]) for i_n in range(len(nT0_sel))]))
+  chi2r_header_lst = chi2r_header_str.split()
+  
+  f_h5.create_dataset('grid/chi2r_oc_grid', data=chi2r_oc_grid, dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('grid/chi2r_header', data=np.array(chi2r_header_lst, dtype='S20'), dtype='S20', compression="gzip")
+  
+  # save rms_oc_grid
+  rms_header_str = 'rms_ttv_d %s' %(' '.join(['rms_mean_N%d_d rms_median_N%d_d' %(nT0_sel[i_n], nT0_sel[i_n]) for i_n in range(len(nT0_sel))]))
+  rms_header_lst = rms_header_str.split()
+  
+  f_h5.create_dataset('grid/rms_oc_grid', data=rms_oc_grid, dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('grid/rms_header', data=np.array(rms_header_lst, dtype='S20'), dtype='S20', compression="gzip")
+  f_h5.create_dataset('grid/above_threshold', data=above_threshold, dtype=bool, compression="gzip")
+  
+  
+  # save rms_RV
+  f_h5.create_dataset('grid/rms_rv', data=rms_rv, dtype=np.float64, compression="gzip")
+  
+  return f_h5
+
+# -------------------------------------
+
+def compute_grid_to_chi2r_rms(grid_par, chi2r_all, rms_oc_all, rms_rv=None, of_log=None):
+    
+  ngrid, npar = np.shape(grid_par)
+  #            0 1 2 3 4 5 6  7   8 9
+  # p_names = 'M R P a e w mA tau i lN'.split() # columns of grid_par (npar)
+  
+  m_grid = np.unique(grid_par[:,0])
+  n_m = np.shape(m_grid)[0]
+  
+  p_grid = np.unique(grid_par[:,2])
+  n_p = np.shape(p_grid)[0]
+  
+  n_mp = n_m * n_p
+
+  n_e  = np.shape(np.unique(grid_par[:,4]))[0]
+  n_mA = np.shape(np.unique(grid_par[:,6]))[0]
+  n_i  = np.shape(np.unique(grid_par[:,8]))[0]
+  
+  n_emAi = n_e * n_mA * n_i
+  #n_emAi = ngrid / n_mp
+
+  nrms = np.shape(rms_oc_all)[1] # columns mean-median
+  
+  mass, period = [], []
+  chi2r_MP, rms_oc_MP, rv_MP = [], [], []
+  
+  for iim in range(0, n_m):
+    for iip in range(0, n_p):
+      
+      mm = m_grid[iim]
+      pp = p_grid[iip]
+      mass.append(mm)
+      period.append(pp)
+      
+      chi2r_temp, rms_oc_temp, rv_temp = [], [], []
+      
+      for iig in range(0, ngrid):
+        if(mm == grid_par[iig,0] and pp == grid_par[iig,2]):
+          
+          chi2r_temp.append(chi2r_all[iig, :])
+          rms_oc_temp.append(rms_oc_all[iig, :])
+          if(rms_rv is not None):
+            #rv_temp.append(rms_rv[iig, :])
+            rv_temp.append(rms_rv[iig])
+      
+      #chi2r_MP.append(np.mean(chi2r_temp, axis=0))
+      chi2r_MP.append(np.percentile(np.array(chi2r_temp), 50., interpolation='midpoint', axis=0))
+      
+      #rms_oc_MP.append(np.mean(rms_oc_temp, axis=0))
+      rms_oc_MP.append(np.percentile(np.array(rms_oc_temp), 50., interpolation='midpoint', axis=0))
+      
+      if(rms_rv is not None):
+        #rv_MP.append(np.mean(rv_temp, axis=0))
+        rv_MP.append(np.percentile(np.array(rv_temp), 50., interpolation='midpoint', axis=0))
+      
+      
+  mass = np.array(mass)
+  period = np.array(period)
+  
+  chi2r_MP = np.array(chi2r_MP)
+  rms_oc_MP = np.array(rms_oc_MP)
+  
+  if(rms_rv is None):
+    rv_MP = None
+  else:
+    rv_MP = np.array(rv_MP)
+    
+  return mass, period, chi2r_MP, rms_oc_MP, rv_MP
+
+# ==============================================================================
+
+def plot_m_vs_p_vs_chi2r(plot_file, mass, period, chi2r_MP, rms_oc_MP, rms_oc_max=5./1440., K_rv=5., rv_MP=None, n_label = 'all 3 5 6 10 15'.split()):
+
+  #nplt = 6 # plot rms mean or median
+  nplt = len(n_label)
+  
+  fig = plt.figure(figsize=(12,12))
+  fig.subplots_adjust(hspace=0.25, wspace=0.065)
+  
+  #xmin, xmax = anc.compute_limits(period, delta=0.025)
+  log_p = np.log10(period)
+  #xmin, xmax = anc.compute_limits(log_p, delta=0.025)
+
+  #ymin, ymax = anc.compute_limits(mass, delta=0.025)
+  log_m = np.log10(mass)
+  #ymin, ymax = anc.compute_limits(log_m, delta=0.025)
+  
+  pp = np.unique(log_p)
+  n_p = np.shape(pp)[0]
+  mm = np.unique(log_m)
+  n_m = np.shape(mm)[0]
+
+    # contour levels
+  cmap_get = cm.get_cmap('viridis')
+  
+  clev = [np.float(ilev) for ilev in range(0,6)] + [ilev for ilev in np.power(10., np.linspace(np.log10(6.), np.log10(np.max(np.max(chi2r_MP))), num=4, endpoint=True))]
+  
+  #clev = [ilev for ilev in np.power(10., np.linspace(np.log10(np.min(np.min(mesh_chi2r_im))), np.log10(np.max(np.max(mesh_chi2r_im))), num=10, endpoint=True))]
+  levcols = cmap_get(np.linspace(0.,1.,num=np.shape(clev)[0],endpoint=True))
+
+  ix = 0
+  iy = 0
+  for iplt in range(0, nplt):
+    
+    iy = iplt % 2
+    ax = plt.subplot2grid((nplt, 2), (ix,iy))
+    print(' Plot n. %d: ' %(iplt))
+        
+    mesh_p, mesh_m = np.meshgrid(pp, mm, indexing='ij')
+    #mesh_chi2r = np.zeros((n_p, n_m))
+    mesh_chi2r_im = np.zeros((n_p, n_m))
+    ipm = 0
+    for i_p in range(0, n_p):
+      for i_m in range(0, n_m):
+        
+        #mesh_chi2r[i_p, i_m] = chi2r_MP[ipm, iplt]
+        mesh_chi2r_im[i_m, i_p] = chi2r_MP[ipm, iplt]
+        ipm += 1
+    
+    # plot rms selection in red
+    mesh_rms_oc = np.zeros((n_p, n_m))
+    ipm = 0
+    for i_p in range(0, n_p):
+      for i_m in range(0, n_m):
+        
+        #if(rms_oc_MP[ipm, iplt] > rms_oc_max):
+          #mesh_rms_oc[i_p, i_m] = 1.
+        #else:
+          #mesh_rms_oc[i_p, i_m] = np.ma.masked
+        
+        #mesh_rms_oc[i_p, i_m] = rms_oc_MP[ipm, iplt]
+        mesh_rms_oc[i_m, i_p] = rms_oc_MP[ipm, iplt]
+        
+        ipm += 1
+    
+    # mask values
+    #mesh_rms_oc = np.ma.masked_where(mesh_rms_oc < rms_oc_max, mesh_rms_oc)
+    
+    #ok_rms = mesh_rms_oc < rms_oc_max
+    #mesh_rms_oc[ok_rms] = np.ma.masked
+    
+    #cax_rms_oc = ax.contourf(mesh_p, mesh_m, mesh_rms_oc.T, 
+    #cax_rms_oc = ax.contourf(mesh_p, mesh_m, mesh_rms_oc,
+                             #colors='red', alpha=0.40, zorder=5
+                             ##cmap=cm.Reds_r, alpha=0.40, zorder=5
+                             #)
+    #ax.scatter(mesh_p, mesh_m, s=10, c=mesh_rms_oc, cmap=cm.Reds_r, alpha=0.33, zorder=5)
+    print(' | excluded by rms_oc done')
+    
+    if(rv_MP is not None and K_rv is not None):
+      mesh_rv = np.zeros((n_p, n_m))
+      ipm = 0
+      for i_p in range(0, n_p):
+        for i_m in range(0, n_m):
+          
+          #if(rv_MP[ipm] > K_rv):
+            #mesh_rv[i_p, i_m] = 1.
+          #else:
+            #mesh_rv[i_p, i_m] = np.ma.masked
+          
+          mesh_rv[i_m, i_p] = rv_MP[ipm]
+          
+          ipm += 1
+      
+      # mask values
+      #mesh_rv = np.ma.masked_where(mesh_rv < K_rv, mesh_rv)
+      
+      #ok_rv = np.logical_and(mesh_rv > 0., mesh_rv < K_rv)
+      #mesh_rv[ok_rv] = np.ma.masked
+      
+      #cax_rv = ax.contourf(mesh_p, mesh_m, mesh_rv,
+                           #colors='gray', alpha=0.70, zorder=6
+                           ##cmap=cm.Greys_r, alpha=0.40, zorder=6
+                           #)
+      #ax.scatter(mesh_p, mesh_m, marker='s', s=12, c=mesh_rv, cmap=cm.Greys_r, alpha=0.33, zorder=6)
+      print(' | excluded by RV done')
+    
+    
+    ## contour levels
+    #cmap_get = cm.get_cmap('viridis')
+    
+    #clev = [np.float(ilev) for ilev in range(0,6)] + [ilev for ilev in np.power(10., np.linspace(np.log10(6.), np.log10(np.max(np.max(mesh_chi2r_im))), num=4, endpoint=True))]
+    
+    ##clev = [ilev for ilev in np.power(10., np.linspace(np.log10(np.min(np.min(mesh_chi2r_im))), np.log10(np.max(np.max(mesh_chi2r_im))), num=10, endpoint=True))]
+    #levcols = cmap_get(np.linspace(0.,1.,num=np.shape(clev)[0],endpoint=True))
+
+    # mask values
+    
+    # rms_oc
+    tomask_rms = np.logical_or(mesh_rms_oc < 0., mesh_rms_oc > rms_oc_max)
+    # rv
+    tomask_rv =  np.logical_or(mesh_rv < 0., mesh_rv > K_rv)
+    
+    #mesh_chi2r = np.ma.masked_where(mesh_chi2r < 0., mesh_chi2r)
+    #ok_chi2r = mesh_chi2r < 0.
+    #mesh_chi2r[ok_chi2r] = np.ma.masked
+    
+    #mesh_chi2r_im = np.ma.masked_where(mesh_chi2r_im < 0., mesh_chi2r_im)
+    tomask_chi2r_im = mesh_chi2r_im < 0.
+    
+    #tomask_mesh = tomask_chi2r_im    
+    tomask_mesh = np.logical_or(tomask_chi2r_im, tomask_rms)
+    tomask_mesh = np.logical_or(tomask_mesh, tomask_rv)
+    #tomask_mesh = np.logical_or(tomask_chi2r_im, np.logical_or(tomask_rms, tomask_rv))
+
+    mesh_chi2r_im[tomask_mesh] = np.ma.masked
+    
+    scax = ax.contourf(mesh_p, mesh_m, mesh_chi2r_im, 
+                       linestyles='solid',
+                       #levels=clev, cmap=cm.viridis, zorder=4)
+                       levels=clev, colors=levcols, zorder=4)
+    print(' | mesh/contourf done')
+    
+    # colorbar
+    cbar = plt.colorbar(scax, ax=ax, orientation='vertical', pad=0.01)
+    cbar.ax.set_ylabel('$\chi^{2}_\\textrm{r}(O-C)$', size=6)
+    cbar.ax.tick_params(labelsize=6)
+    
+    
+    ax.axhline(np.log10(1.) , color='lightgray', ls='-', lw=0.8, alpha=0.66, zorder=7)
+    ax.axhline(np.log10(5.) , color='lightgray', ls='-', lw=0.8, alpha=0.66, zorder=7)
+    ax.axhline(np.log10(10.), color='lightgray', ls='-', lw=0.8, alpha=0.66, zorder=7)
+
+    ax.xaxis.set_tick_params(labelsize=6)
+    ax.set_xlabel('$\log P [\\textrm{days}] , N_{T_0} = \\textrm{%s}$' %(n_label[iplt]), fontsize=6)
+    
+    ax.yaxis.set_tick_params(labelsize=6)
+    ax.set_ylabel('$\log M [M_\oplus]$', fontsize=6)
+    
+    ax.tick_params(direction='in')
+    ix += iy
+    plt.draw()
+  
+  fig.savefig('%s' %(plot_file), bbox_inches='tight', dpi=300)
+  plt.close(fig)
+  
+  return
+
+# ==============================================================================
+
+def read_and_plot_p_vs_m_vs_chi2r(out_folder, hdf5_file, rms_oc_max = 5./1440., K_rv = None, of_log=None):
+  
+  f_h5 = h5py.File(hdf5_file, 'r')
+  grid_par = f_h5['grid/perturber_grid'][...]
+  err_T0_d = f_h5['grid'].attrs['err_T0_day']
+  
+  chi2r_oc_grid = f_h5['grid/chi2r_oc_grid'][...]
+  rms_oc_grid = f_h5['grid/rms_oc_grid'][...]
+  #rms_header = f_h5['grid/rms_header'][...]
+  
+  #above_threshold = f_h5['grid/above_threshold'][...]
+  
+  try:
+    rms_rv = f_h5['grid/rms_rv'][...]
+  except:
+    rms_rv = None
+  f_h5.close()
+  
+  #if(rms_min is not None):
+    #rms_lower = rms_min
+  #else:
+    #rms_lower = err_T0_d
+
+  #mass, period, freq_obs, freq_rv = compute_grid_to_freq_obs(grid_par, rms_oc_grid, lower_rms= rms_lower, upper_rms=rms_oc_max, K_rv=K_rv, rms_rv=rms_rv, of_log=of_log)
+  
+  mass, period, chi2r_MP, rms_oc_MP, rv_MP = compute_grid_to_chi2r_rms(grid_par, 
+                                             chi2r_oc_grid, rms_oc_grid, rms_rv=rms_rv,
+                                             of_log=of_log)
+  
+  ngrid, nrms = np.shape(rms_oc_grid)
+  
+  mean_sel = np.ones((nrms)).astype(bool)
+  mean_sel[1:] = np.arange(1,nrms,1) % 2 == 0
+  
+  median_sel = np.ones((nrms)).astype(bool)
+  median_sel[1:] = np.arange(1,nrms,1) % 2 == 1
+  
+  plt_file_mean = os.path.join(out_folder, 'p_vs_m_chi2r_%s_max%.2fmin' %('mean', rms_oc_max*1440.))
+  plt_file_med = os.path.join(out_folder, 'p_vs_m_chi2r_%s_max%.2fmin' %('median', rms_oc_max*1440.))
+  
+  if(K_rv is not None and rms_rv is not None):
+    plt_file_mean = '%s_K%.2fmps' %(plt_file_mean, K_rv)
+    plt_file_med = '%s_K%.2fmps' %(plt_file_med, K_rv)
+    
+  plt_file_mean = '%s.pdf' %(plt_file_mean)
+  plt_file_med  = '%s.pdf' %(plt_file_med )
+  
+  #plot_m_vs_p_vs_freq_obs(plt_file_mean, mass, period, freq_obs[:,mean_sel], freq_rv)
+  plot_m_vs_p_vs_chi2r(plt_file_mean, mass, period,
+                       chi2r_MP[:,mean_sel], rms_oc_MP[:,mean_sel], rms_oc_max=rms_oc_max,
+                       K_rv=K_rv, rv_MP=rv_MP
+                       )
+  print(plt_file_mean)
+  
+  #plot_m_vs_p_vs_freq_obs(plt_file_med, mass, period, freq_obs[:,median_sel], freq_rv)
+  plot_m_vs_p_vs_chi2r(plt_file_med, mass, period,
+                       chi2r_MP[:,median_sel], rms_oc_MP[:,median_sel], rms_oc_max=rms_oc_max,
+                       K_rv=K_rv, rv_MP=rv_MP
+                       )
+  print(plt_file_med)
+  
+  del grid_par, err_T0_d, chi2r_oc_grid, rms_oc_grid, mass, period, chi2r_MP, rms_oc_MP, rv_MP
+  if(K_rv is not None and rms_rv is not None): del rms_rv
+  gc.collect()
+  
+  return plt_file_mean, plt_file_med
+
+# ==============================================================================
+# ==============================================================================
+
+# ==============================================================================
 
 # ==============================================================================
 # MAIN
@@ -1087,7 +1457,6 @@ def main():
   cli = get_args()
   
   np.random.seed(cli.seed)
-  
   
   out_folder, log_file, of_log = set_analysis_folder_log(cli.full_path, cli.sub_folder)
   
@@ -1132,34 +1501,50 @@ def main():
   niter = ngrid
   #niter = 500
   
-  rms_grid = np.zeros((niter, n_rms))
+  chi2r_oc_grid = np.zeros((niter, n_rms))
+  rms_oc_grid = np.zeros((niter, n_rms))
   above_threshold = np.zeros((niter, n_rms)).astype(bool)
-  rms_rv = -np.ones((niter))
+  rms_rv_grid = -np.ones((niter))
   
   for igrid in range(0, niter):
     
     results_sim = simulation_and_ttv_analysis(igrid, transit_id, cli.perturber_id, n_bodies, perturber_grid[igrid,:], t_launch.jd, t_end, err_T0, nT0_sel, names_lst, units, cli.mr_type, nMC=nMC, of_log=of_log)
     f_h5 = save_results_sim(f_h5, results_sim, cli.mr_type)
-    get_rms_from_results(results_sim, rms_grid, above_threshold, nT0_sel, err_T0, rms_rv)
+    #get_rms_from_results(results_sim, rms_oc_grid, above_threshold, nT0_sel, err_T0, rms_rv_grid)
+    get_chi2r_rms_from_results(results_sim, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, err_T0, rms_rv_grid)
     anc.print_both(' - Saved sim %06d into hdf5 file.' %(results_sim['sim_num']), of_log)
   
-  f_h5 = save_rms_analysis(f_h5, rms_grid, above_threshold, nT0_sel, rms_rv)
+  f_h5 = save_chi2r_rms_analysis(f_h5, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, rms_rv_grid)
+  #f_h5 = save_rms_analysis(f_h5, rms_oc_grid, above_threshold, nT0_sel, rms_rv_grid)
   f_h5.close()
   anc.print_both(' ', of_log)
   anc.print_both(' ===============================', of_log)
-  anc.print_both(' - Saved rms_grid into hdf5 file', of_log)
+  anc.print_both(' - Saved chi2r/rms_oc_grid into hdf5 file', of_log)
   anc.print_both(' ', of_log)
   
+  # --------------------
+  # OLD
   ## create the plot:
-  fig_files_1min = plot_summary(out_folder, hdf5_name, body_id=cli.perturber_id, mr_type=cli.mr_type, rms_max_in=1./1440., K_rv = cli.K_rv, of_log=of_log)
-  fig_files_5min = plot_summary(out_folder, hdf5_name, body_id=cli.perturber_id, mr_type=cli.mr_type, rms_max_in=5./1440., K_rv = cli.K_rv, of_log=of_log)
-  fig_files_10min = plot_summary(out_folder, hdf5_name, body_id=cli.perturber_id, mr_type=cli.mr_type, rms_max_in=10./1440., K_rv = cli.K_rv, of_log=of_log)
+  #fig_files_1min = plot_summary(out_folder, hdf5_name, body_id=cli.perturber_id, mr_type=cli.mr_type, rms_max_in=1./1440., K_rv = cli.K_rv, of_log=of_log)
+  #fig_files_5min = plot_summary(out_folder, hdf5_name, body_id=cli.perturber_id, mr_type=cli.mr_type, rms_max_in=5./1440., K_rv = cli.K_rv, of_log=of_log)
+  #fig_files_10min = plot_summary(out_folder, hdf5_name, body_id=cli.perturber_id, mr_type=cli.mr_type, rms_max_in=10./1440., K_rv = cli.K_rv, of_log=of_log)
+  
 
-  plt_file_mean, plt_median = read_and_plot_p_vs_m_vs_freq(out_folder, hdf5_name, rms_min = err_T0, rms_max = 1/1440., K_rv = cli.K_rv, of_log=of_log)
-  plt_file_mean, plt_median = read_and_plot_p_vs_m_vs_freq(out_folder, hdf5_name, rms_min = err_T0, rms_max = 10./1440., K_rv = cli.K_rv, of_log=of_log)
-  plt_file_mean, plt_median = read_and_plot_p_vs_m_vs_freq(out_folder, hdf5_name, rms_min = err_T0, rms_max = 15./1440., K_rv = cli.K_rv, of_log=of_log)
+  #plt_file_mean, plt_file_median = read_and_plot_p_vs_m_vs_freq(out_folder, hdf5_name, rms_min = err_T0, rms_max = 1/1440., K_rv = cli.K_rv, of_log=of_log)
+  #plt_file_mean, plt_file_median = read_and_plot_p_vs_m_vs_freq(out_folder, hdf5_name, rms_min = err_T0, rms_max = 10./1440., K_rv = cli.K_rv, of_log=of_log)
+  #plt_file_mean, plt_file_median = read_and_plot_p_vs_m_vs_freq(out_folder, hdf5_name, rms_min = err_T0, rms_max = 15./1440., K_rv = cli.K_rv, of_log=of_log)
+  # --------------------
 
+
+  #plt_file_mean1, plt_file_median1 = read_and_plot_p_vs_m_vs_chi2r(out_folder, hdf5_name, rms_oc_max = 1./1440., K_rv = cli.K_rv, of_log=of_log)
+  #plt_file_mean2, plt_file_median2 = read_and_plot_p_vs_m_vs_chi2r(out_folder, hdf5_name, rms_oc_max = 2./1440., K_rv = cli.K_rv, of_log=of_log)
+  #plt_file_mean3, plt_file_median3 = read_and_plot_p_vs_m_vs_chi2r(out_folder, hdf5_name, rms_oc_max = 3./1440., K_rv = cli.K_rv, of_log=of_log)
+  for imin in range(0,5):
+    rms_threshold = np.float64(imin+1) / 1440.
+    plt_file_mean, plt_file_median = read_and_plot_p_vs_m_vs_chi2r(out_folder, hdf5_name, rms_oc_max=rms_threshold , K_rv = cli.K_rv, of_log=of_log)
   of_log.close()
+  
+  gc.collect()
   
   return
 

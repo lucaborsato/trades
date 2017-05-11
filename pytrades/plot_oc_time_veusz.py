@@ -232,7 +232,8 @@ def plot_oc_samples(win_plot, graph_plot, xname, yname, oc_samples, letters, id_
                           PlotLine__style = 'solid',
                           PlotLine__width = '0.25pt',
                           PlotLine__transparency = 70,
-                          marker = 'none'
+                          marker = 'none',
+                          color = 'white',
                           )
     #epoName = 'epo_' + letters[id_body-2]
     #win_plot.SetData(epoName, epo)
@@ -243,11 +244,10 @@ def plot_oc_samples(win_plot, graph_plot, xname, yname, oc_samples, letters, id_
     #xy_d_sim.xData.val = epoName
     xy_smp.xData.val = time_name
     xy_smp.yData.val = dataYname
+    #if(ismp == 0):
+      #xy_smp.key.val = 'MCMC samples'
   
   return
-
-
-
 
 # define the scaling of the rows
 def scalingRows(gRows):
@@ -346,6 +346,7 @@ def plot_rv_samples(win_plot, graph_plot, xname, yname, rv_samples, t_subtract=0
                           PlotLine__style = 'solid',
                           PlotLine__transparency = 70,
                           marker = 'none',
+                          color= 'white',
                           )
     jdName = "time_rv_mod"
     win_plot.SetData(jdName, time_rv_mod[rv_sel])
@@ -353,6 +354,8 @@ def plot_rv_samples(win_plot, graph_plot, xname, yname, rv_samples, t_subtract=0
     win_plot.SetData(dataYname, rv_smp[rv_sel,ismp])
     xy_rvsamples.xData.val = jdName
     xy_rvsamples.yData.val = dataYname
+    if(ismp == 0):
+      xy_rvsamples.key.val = 'MCMC samples'
   
   return
 
@@ -974,27 +977,7 @@ def main():
         ocWin.SetData(dataYname, RVmod)
         xy_modRV.xData.val = jdName
         xy_modRV.yData.val = dataYname
-
-        legend = RVPlot.Add('key', name = 'legendRV', autoadd = False,
-                            #Text__font ='URW Palladio L',
-                            #Text__size = '8pt',
-                            Text__font = font,
-                            Text__size = '6pt',
-                            Background__color = 'white',
-                            Background__hide = True,
-                            Border__hide = True,
-                            horzPosn = 'manual',
-                            vertPosn = 'manual',
-                            keyLength = '0.2cm',
-                            keyAlign = 'centre',
-                            horzManual = 1.0025,
-                            #vertManual = -0.7,
-                            vertManual = 0.8,
-                            marginSize = 0.,
-                            columns = 1,
-                            symbolswap = True,
-                            )
-
+        
       else:
         print "I did not find the orbit file to plot RV model. Skipping."
 
@@ -1002,7 +985,29 @@ def main():
         print '\nPlotting rv samples ... it would take some time ...',
         plot_rv_samples(ocWin, RVPlot, xname, yname, rv_samples, t_subtract=t_subtract, t_rv_min=minJD, t_rv_max=maxJD)
         print 'done'
-        
+      
+      legend = RVPlot.Add('key', name = 'legendRV', autoadd = False,
+                    #Text__font ='URW Palladio L',
+                    #Text__size = '8pt',
+                    Text__font = font,
+                    Text__size = '6pt',
+                    Background__color = 'white',
+                    Background__hide = True,
+                    Border__hide = True,
+                    horzPosn = 'manual',
+                    vertPosn = 'manual',
+                    keyLength = '0.25cm',
+                    keyAlign = 'centre',
+                    #horzManual = 1.0025,
+                    horzManual = 0.955,
+                    #vertManual = -0.7,
+                    #vertManual = 0.8,
+                    vertManual = -0.9,
+                    marginSize = 0.,
+                    columns = 1,
+                    symbolswap = True,
+                    )
+      
       zeroLine = RVPlot.Add('function', name = 'zeroLine', autoadd = False,
                             function = '0.',
                             Line__color = 'black',

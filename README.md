@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.13.4 by Luca Borsato - 2016/2017**    
+**`TRADES` v2.13.5 by Luca Borsato - 2016/2017**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -418,6 +418,11 @@ Check also other files in the `pytrades` folder to understand how to use the pyt
 
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
+
+#### `TRADES 2.13.5`
+
+Now TRADES uses the `pool` in `emcee` instead of `threads` to avoid memory overloading
+in loops.    
 
 #### `TRADES 2.13.4`
 
