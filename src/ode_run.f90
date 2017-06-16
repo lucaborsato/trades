@@ -379,7 +379,8 @@ module ode_run
 !     Hc=.true.
     
 !     Hc=Hillcheck(m,rin)
-    if(do_hill_check) Hc=mutual_Hill_check(m,rin)
+!     if(do_hill_check) Hc=mutual_Hill_check(m,rin)
+    Hc = separation_mutual_Hill_check(m,R,rin,do_hill_check)
 !     if(Hc) return
     if(.not.Hc) return
 
@@ -414,7 +415,8 @@ module ode_run
       call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err)
 
 !       Hc=Hillcheck(m,r2)
-      if(do_hill_check) Hc=mutual_Hill_check(m,r2)
+!       if(do_hill_check) Hc=mutual_Hill_check(m,r2)
+      Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
 !       if(Hc) return
       if(.not.Hc) return
 
@@ -532,7 +534,8 @@ module ode_run
 !     write(*,'(a,l)')'AAA ode_a_o Hc = ',Hc
     
 !     Hc=Hillcheck(m,rin)
-    if(do_hill_check) Hc=mutual_Hill_check(m,rin)
+!     if(do_hill_check) Hc=mutual_Hill_check(m,rin)
+    Hc = separation_mutual_Hill_check(m,R,rin,do_hill_check)
 !     write(*,*)' mutual_Hill_check = ',Hc
 !     if(Hc) return
     if(.not.Hc) return
@@ -623,7 +626,8 @@ module ode_run
       end if
 
 !       Hc=Hillcheck(m,r2)
-      if(do_hill_check) Hc=mutual_Hill_check(m,r2)
+!       if(do_hill_check) Hc=mutual_Hill_check(m,r2)
+      Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
 !       if(Hc) write(*,'(a7,i6,a6,l)')'iter = ',j1,' Hc = ',Hc
 !       if(Hc) return
       if(.not.Hc) return
@@ -780,7 +784,8 @@ module ode_run
     real(dp)::step_save,step_write
 
 !     Hc=Hillcheck(m,rin)
-    if(do_hill_check) Hc=mutual_Hill_check(m,rin)
+!     if(do_hill_check) Hc=mutual_Hill_check(m,rin)
+    Hc = separation_mutual_Hill_check(m,R,rin,do_hill_check)
 !     write(*,*)' mutual_Hill_check = ',Hc
 
     allocate(X(NB),Y(NB),Z(NB),cX(NB),cY(NB),cR(NB),rmean(NB))
@@ -923,7 +928,8 @@ module ode_run
       ! ===============================
       
       
-      if(do_hill_check) Hc=mutual_Hill_check(m,r2)
+!       if(do_hill_check) Hc=mutual_Hill_check(m,r2)
+      Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
 
       ! T0 check (to compare and all)
       do j=2,NB
@@ -1401,7 +1407,8 @@ module ode_run
     integer::n_rv
 
     
-    if(do_hill_check) Hc=mutual_Hill_check(m,rin)
+!     if(do_hill_check) Hc=mutual_Hill_check(m,rin)
+    Hc = separation_mutual_Hill_check(m,R,rin,do_hill_check)
     if(.not.Hc) return
     
     n_body=size(m)
@@ -1439,7 +1446,8 @@ module ode_run
       call eqmastro(m,r1,dr)
       call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err)
       
-      if(do_hill_check) Hc=mutual_Hill_check(m,r2)
+!       if(do_hill_check) Hc=mutual_Hill_check(m,r2)
+      Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
       if(.not.Hc) return
 
       ! RV check
@@ -2004,20 +2012,25 @@ module ode_run
     
     logical,intent(out)::Hc
 
+    integer::ntra_full
+    
     real(dp)::step_rv,rv_temp,ttra_temp,dur_tra_temp
     logical::check_ttra
+    integer::nrv_max
     
     real(dp),dimension(:),allocatable::dr,r1,r2,err
     integer,dimension(:),allocatable::X,Y,Z
     real(dp),dimension(:),allocatable::cX,cY,cR,rmean
     real(dp)::hw,hok,hnext,iter_time,iter_write,step_write
     integer::j,step_num
-
+    
+    ntra_full=size(ttra_full)
+    nrv_max=size(rv_nmax)
+    
     Hc=.true.
-    if(do_hill_check)then
-      Hc=mutual_Hill_check(m,rin)
-      if(.not.Hc) return
-    end if
+!     if(do_hill_check) Hc=mutual_Hill_check(m,rin)
+    Hc = separation_mutual_Hill_check(m,R,rin,do_hill_check)
+    if(.not.Hc) return
 
     ! init the state vector
     allocate(X(NB),Y(NB),Z(NB),cX(NB),cY(NB),cR(NB),rmean(NB))
@@ -2064,10 +2077,9 @@ module ode_run
       call eqmastro(m,r1,dr) ! computes the eq. of motion
       call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err) ! computes the next orbit step
       
-      if(do_hill_check)then
-        Hc=mutual_Hill_check(m,r2)
-        if(.not.Hc) return
-      end if
+!       if(do_hill_check) Hc=mutual_Hill_check(m,r2)
+      Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
+      if(.not.Hc) return
 
       ! check if it passes the iter_write and compute the rv at proper time and update last_rv
       if(abs(iter_time+hok).ge.(abs(iter_write)))then
@@ -2075,6 +2087,10 @@ module ode_run
         rvloop: do
           
           last_rv=last_rv+1
+          if(last_rv.gt.nrv_max)then
+                Hc=.false.
+                return
+          end if
 !           computes the proper step
           step_rv=iter_write-iter_time
           call calcRV(m,r1,dr,step_rv,rv_temp) ! computes the rv
@@ -2111,6 +2127,10 @@ module ode_run
             call transit_time(j,m,R,r1,r2,iter_time,hok,ttra_temp,dur_tra_temp,check_ttra)
             if(check_ttra)then
               last_tra=last_tra+1
+              if(last_tra.gt.ntra_full)then
+                Hc=.false.
+                return
+              end if
               ttra_full(last_tra)=ttra_temp
               id_ttra_full(last_tra)=j
               stats_ttra(last_tra)=.true.
@@ -2123,6 +2143,10 @@ module ode_run
             call transit_time(j,m,R,r1,r2,iter_time,hok,ttra_temp,dur_tra_temp,check_ttra)
             if(check_ttra)then
               last_tra=last_tra+1
+              if(last_tra.gt.ntra_full)then
+                Hc=.false.
+                return
+              end if
               ttra_full(last_tra)=ttra_temp
               id_ttra_full(last_tra)=j
               stats_ttra(last_tra)=.true.
@@ -2218,12 +2242,20 @@ module ode_run
       call ode_b_orbit(m,R,ra1,dt1,wrt_time,clN,&
         &last_tra,ttra_full,id_ttra_full,stats_ttra,&
         &last_rv,time_rv_nmax,rv_nmax,stats_rv,Hc)
+      if(.not.Hc)then
+        if(allocated(ra0)) deallocate(ra0,ra1)
+        return
+      end if
         
       if(abs(dt1).le.tint)then
         ! forward integration
         call ode_b_orbit(m,R,ra1,dt2,wrt_time,clN,&
           &last_tra,ttra_full,id_ttra_full,stats_ttra,&
           &last_rv,time_rv_nmax,rv_nmax,stats_rv,Hc)
+        if(.not.Hc)then
+          if(allocated(ra0)) deallocate(ra0,ra1)
+          return
+        end if
       end if
 
     else
@@ -2232,7 +2264,7 @@ module ode_run
       call ode_b_orbit(m,R,ra1,dt2,wrt_time,clN,&
         &last_tra,ttra_full,id_ttra_full,stats_ttra,&
         &last_rv,time_rv_nmax,rv_nmax,stats_rv,Hc)
-        
+   
     end if
     
     if(allocated(ra0)) deallocate(ra0,ra1)

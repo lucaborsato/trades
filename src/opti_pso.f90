@@ -9,7 +9,8 @@
 !----------------------------------------------------------------------
 module opti_pso
   use constants,only:dp,sprec,zero,half,one,two,three,TOLERANCE
-  use parameters,only:path,wrtAll,seed_pso,ndata,nfit,dof,inv_dof,npar,parid,np_pso,nit_pso,wrt_pso,minpar,maxpar,population,population_fitness,pso_best_evolution,ncpu_in
+!   use parameters,only:path,wrtAll,seed_pso,ndata,nfit,dof,inv_dof,npar,parid,np_pso,nit_pso,wrt_pso,minpar,maxpar,population,population_fitness,pso_best_evolution,ncpu_in
+  use parameters
   use parameters_conversion
   use init_trades,only:get_unit
   use random_trades
@@ -171,14 +172,23 @@ module opti_pso
     integer :: ie, flag
 
     !====== Setup control parameters =======
-    w = 0.9_dp            ! inertia parameter (0.9 is recommended) ! original
-!     w = 1.2_dp            ! inertia parameter (0.9 is recommended)
-    c1 = two           ! self intention parameter (2.0 is recommended)
-    c2 = two           ! swarm intention parameter (2.0 is recommended)
-    c3 = 1.e-5_dp         ! random search parameter (very small value is recommended) ! original value
-    !c3 = 1.e-4_dp         ! random search parameter (very small value is recommended)
-    vmax = half         ! limit of vector length (0.5-1.0 is recommended)
-    vrand = 0.15_dp       ! velocity perturbation parameter (0.0-0.1 is recommended)
+!     w = 0.9_dp            ! inertia parameter (0.9 is recommended) ! original
+! !     w = 1.2_dp            ! inertia parameter (0.9 is recommended)
+!     c1 = two           ! self intention parameter (2.0 is recommended)
+!     c2 = two           ! swarm intention parameter (2.0 is recommended)
+!     c3 = 1.e-5_dp         ! random search parameter (very small value is recommended) ! original value
+!     !c3 = 1.e-4_dp         ! random search parameter (very small value is recommended)
+!     vmax = half         ! limit of vector length (0.5-1.0 is recommended)
+! !     vrand = 0.15_dp       ! velocity perturbation parameter (0.0-0.1 is recommended)
+!     vrand = 0.07_dp
+    ! 2017-05-18 add contro parameters read from pso.opt file
+    w=inertia_in
+    c1=self_in
+    c2=swarm_in
+    c3=randsearch_in
+    vmax=vmax_in
+    vrand=vrand_in
+    
     ie = 0             ! maximum evaluation count (<=0 means unlimitted)
 
     !====== Setup control flags =======
@@ -275,7 +285,7 @@ module opti_pso
     real(dp),intent(in):: c2            ! swarm intention parameter
     real(dp),intent(in):: c3            ! random search parameter (f_lrand)
     real(dp),intent(in):: vmax          ! limit of vector (f_vlimit)
-    real(dp),intent(in):: vrand         ! velocity parametebtion parameter (f_vrand)
+    real(dp),intent(in):: vrand         ! velocity parameter (f_vrand)
     integer, intent(in):: it            ! maximum iteration count (<=0:unlimitted)
     integer, intent(in):: ie            ! maximum evaluation count (<=0:unlimitted)
     integer, intent(in):: ir            ! interval of message printing (<=0:nomessage)

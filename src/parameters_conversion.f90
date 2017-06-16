@@ -526,15 +526,18 @@ module parameters_conversion
 
         ! check if fit_parameters are within boundaries
         if(fit_parameters(j).lt.minpar(j).or.fit_parameters(j).gt.maxpar(j))then
+        
           if(present(wrt_info))then
             if(wrt_info)then
               if(fit_parameters(j).lt.minpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' < ',minpar(j)
               if(fit_parameters(j).gt.maxpar(j)) write(*,'(a12,"( ",i3," )", F20.10, a, F20.10)')parid(j),j,fit_parameters(j),' > ',maxpar(j)
             end if
           end if
+          
           check=.false.
           return
         end if
+        
       end do
     end if
     

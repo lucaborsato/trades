@@ -304,10 +304,13 @@ def main():
   #parameter_names = [''.join(reshaped_names[i,:]).strip() for i in range(0,nfit)]
   
   #parameter_names = anc.convert_fortran2python_strarray(pytrades_lib.pytrades.parameter_names, nfit, str_len=10)
-  trades_names = anc.convert_fortran2python_strarray(pytrades_lib.pytrades.parameter_names,
-                                                     nfit, str_len=10
-                                                    )
-  #parameter_names = anc.trades_names_to_emcee(trades_names)
+  #trades_names = anc.convert_fortran2python_strarray(pytrades_lib.pytrades.parameter_names,
+                                                     #nfit, str_len=10
+                                                    #)
+  ##parameter_names = anc.trades_names_to_emcee(trades_names)
+  str_len = pytrades_lib.pytrades.str_len
+  temp_names = pytrades_lib.pytrades.get_parameter_names(nfit,str_len)
+  trades_names = anc.convert_fortran_charray2python_strararray(temp_names)
   parameter_names = trades_names
   
   
@@ -536,6 +539,7 @@ def main():
   # close the pool of threads
   threads_pool.close()
   threads_pool.terminate()
+  threads_pool.join()
 
   anc.print_both('COMPLETED EMCEE', of_run)
 

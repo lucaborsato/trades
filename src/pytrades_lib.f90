@@ -49,10 +49,10 @@ module pytrades
   ! variables:  parameters to fit
   real(dp),dimension(:),allocatable::fitting_parameters
   real(dp),dimension(:,:),allocatable::parameters_minmax
-  character(10),dimension(:),allocatable::parameter_names
+!   character(10),dimension(:),allocatable::parameter_names
+  integer::str_len
   integer::n_global,n_bodies
   
-   
   contains
   
   ! ============================================================================
@@ -230,7 +230,8 @@ module pytrades
     ! ---
     ! IT SETS THE VARIABLES system_parameters and par with fitting parameters
 !     allocate(system_parameters(npar), fitting_parameters(nfit), parameters_minmax(nfit,2), parameter_names(nfit))
-    allocate(parameters_minmax(nfit,2), parameter_names(nfit))
+!     allocate(parameters_minmax(nfit,2), parameter_names(nfit))
+    allocate(parameters_minmax(nfit,2))
     
     ! subroutine: set_par -> init_trades
 !     call set_par(m,R,P,a,e,w,mA,i,lN,system_parameters,fitting_parameters)
@@ -243,7 +244,7 @@ module pytrades
 
     parameters_minmax(:,1)=minpar
     parameters_minmax(:,2)=maxpar
-    parameter_names = parid
+    str_len=len(parid(1))
     
     ! check if there are derived parameters to compute and to check
     call init_derived_parameters(1,path)
@@ -256,6 +257,23 @@ module pytrades
   
     return
   end subroutine initialize_trades
+  
+  ! ============================================================================
+  
+  subroutine get_parameter_names(parameter_names, nfit, str_len)
+    integer,intent(in)::nfit, str_len
+    character(1),dimension(nfit,str_len),intent(out)::parameter_names
+    
+    integer::in,ic
+    
+    do in=1,nfit
+      do ic=1,str_len
+        parameter_names(in,ic) = parid(in)(ic:ic)
+      end do
+    end do
+  
+    return
+  end subroutine get_parameter_names
   
   ! ============================================================================
   
@@ -969,6 +987,24 @@ module pytrades
     return
   end subroutine fit_par_to_ttra_rv
 
+  ! ============================================================================
+  
+  subroutine convert_trades_par_to_kepelem(all_par,npar,fit_par,nfit,&
+    &m,R,P,sma,ecc,w,mA,inc,lN,n_bodies)
+    integer,intent(in)::npar,nfit
+    real(dp),dimension(npar),intent(in)::all_par
+    real(dp),dimension(nfit),intent(in)::fit_par
+    
+    integer,intent(in)::n_bodies
+    real(dp),dimension(n_bodies),intent(out)::m,R,P,sma,ecc,w,mA,inc,lN
+  
+    logical::checkpar
+  
+    call convert_parameters(all_par,fit_par,m,R,P,sma,ecc,w,mA,inc,lN,checkpar)
+      
+   return
+  end subroutine convert_trades_par_to_kepelem
+  
   ! ============================================================================
   
 end module pytrades

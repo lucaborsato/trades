@@ -986,13 +986,14 @@ module init_trades
     nRV=0
     nRVset=1
     if(rvcheck.eq.1)then
+    
       inquire(file=trim(path)//"obsRV.dat",exist=fstat)
       if(fstat)then
         urv=get_unit(cpuid)
         open(urv,file=trim(path)//"obsRV.dat",status='OLD')
         nRV=get_rows(urv)
         if(.not.allocated(jdRV)) &
-        &allocate(jdRV(nRV),RVobs(nRV),eRVobs(nRV),RVsetID(nRV))
+          &allocate(jdRV(nRV),RVobs(nRV),eRVobs(nRV),RVsetID(nRV))
 !         do j=1,nRV
         j=0
         RVdo:do
@@ -1027,10 +1028,18 @@ module init_trades
         write(*,'(a)')""
         stop
       end if
+    
     else
-      write(*,'(a)')" SELECTED NO RV CHECK "
+    
+    write(*,'(a)')" SELECTED NO RV CHECK "
+    
     end if
-    if(nRV.eq.0)nRVset=0 ! if there are no RVs or no obsRV.dat file, set nRVset to zero
+    
+    if(nRV.eq.0)then
+      nRVset=0 ! if there are no RVs or no obsRV.dat file, set nRVset to zero
+      if(.not.allocated(jdRV)) &
+        &allocate(jdRV(nRV),RVobs(nRV),eRVobs(nRV),RVsetID(nRV))
+    end if
     
     return
   end subroutine read_RVobs
@@ -1166,7 +1175,7 @@ module init_trades
   subroutine read_pso_opt(cpuid)
     integer,intent(in)::cpuid
     character(512)::flopt
-    integer::uread
+    integer::uread,nrows
     logical::fstat
 
 
@@ -1177,15 +1186,36 @@ module init_trades
     inquire(file=trim(flopt),exist=fstat)
     if(fstat)then
       open(uread,file=trim(flopt),status='OLD')
+      
+      nrows=get_rows(uread)
+!       write(*,*)"*****************************************"
+!       write(*,*)' nrows = ',nrows
+!       write(*,*)"*****************************************"
+
       read(uread,*)np_pso
       read(uread,*)nit_pso
       read(uread,*)wrt_pso
       read(uread,*)wrtAll
       read(uread,*)nGlobal
       read(uread,*)seed_pso
-      if(seed_pso.le.0) seed_pso=123456
+      
+      if(nrows.gt.6)then
+        ! 2017-05-18 add contro parameters in pso.opt file
+        read(uread,*)inertia_in
+        read(uread,*)self_in
+        read(uread,*)swarm_in
+        read(uread,*)randsearch_in
+        read(uread,*)vmax_in
+        read(uread,*)vrand_in
+!         write(*,*)"*****************************************"
+!         write(*,*)inertia_in,self_in,swarm_in,randsearch_in,vmax_in,vrand_in
+!         write(*,*)"*****************************************"
+      end if
+      
       close(uread)
+      if(seed_pso.le.0) seed_pso=123456
       if(nGlobal.lt.1) nGlobal=1
+      
     else
       if(progtype.eq.3)then
         write(*,'(a,a,a)')" CANNOT FIND FILE ",trim(flopt)," FOR PSO OPTIONS"

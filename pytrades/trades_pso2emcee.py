@@ -328,10 +328,13 @@ def main():
   inv_dof = np.float64(1.0 / dof)
   
   # READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
-  trades_names = anc.convert_fortran2python_strarray(pytrades_lib.pytrades.parameter_names,
-                                                     nfit, str_len=10
-                                                    )
-  #parameter_names = anc.trades_names_to_emcee(trades_names)
+  #trades_names = anc.convert_fortran2python_strarray(pytrades_lib.pytrades.parameter_names,
+                                                     #nfit, str_len=10
+                                                    #)
+  ##parameter_names = anc.trades_names_to_emcee(trades_names)
+  str_len = pytrades_lib.pytrades.str_len
+  temp_names = pytrades_lib.pytrades.get_parameter_names(nfit,str_len)
+  trades_names = anc.convert_fortran_charray2python_strararray(temp_names)
   parameter_names = trades_names
   
   fitting_parameters = pytrades_lib.pytrades.fitting_parameters # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
@@ -392,6 +395,8 @@ def main():
 
   # RUN PSO+EMCEE n_global TIMES
   for iter_global in range(0,n_global):
+
+    threads_pool = emcee.interruptible_pool.InterruptiblePool(1)
 
     # CREATES PROPER WORKING PATH AND NAME
     i_global = iter_global + 1
@@ -480,6 +485,11 @@ def main():
     #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, threads=nthreads)
     
     #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, threads=nthreads, args=[parameter_names])
+    
+    # close the pool of threads
+    threads_pool.close()
+    threads_pool.terminate()
+    threads_pool.join()
     
     threads_pool = emcee.interruptible_pool.InterruptiblePool(nthreads)
     sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, pool=threads_pool)
@@ -597,6 +607,7 @@ def main():
     # close the pool of threads
     threads_pool.close()
     threads_pool.terminate()
+    threads_pool.join()
     
     anc.print_both('COMPLETED EMCEE', of_run)
 

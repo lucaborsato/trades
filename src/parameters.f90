@@ -83,6 +83,8 @@ module parameters
 
   ! for PSO
   integer::seed_pso,np_pso,nit_pso,wrt_pso
+  real(dp)::inertia_in=0.9_dp,self_in=two,swarm_in=two
+  real(dp)::randsearch_in=1.e-5_dp,vmax_in=half,vrand_in=0.07_dp
   
   ! boundaries
   real(dp),dimension(:),allocatable::par_min,par_max ! dimension: system_parameters

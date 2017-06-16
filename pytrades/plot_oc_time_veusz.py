@@ -593,6 +593,7 @@ def main():
         xlab = "BJD_{TDB} - %.1f" %(t_subtract)
       else:
         xlab = "BJD_{TDB}"
+      xlab = '%s (planet %s)' %(xlab, letters[inb-2])
 
       # O-C
 

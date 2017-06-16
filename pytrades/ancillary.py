@@ -2375,11 +2375,20 @@ def get_bins(x, rule='rice'):
 # use in emcee script sqrt(e)cos(w),sqrt(e)sin(w), while in trades use (e)cos(w),(e)sin(w)
 
 def convert_fortran2python_strarray(array_str_in, nfit, str_len=10):
-  temp = array_str_in.reshape((str_len, nfit), order='F').T
+  
+  temp = np.asarray(array_str_in, dtype=str).reshape((str_len, nfit), order='F').T
   array_str_out = [''.join(temp[i, :]).strip() for i in range(0, nfit)]
 
   return array_str_out
 
+# -------------------------------------
+
+def convert_fortran_charray2python_strararray(array_str_in):
+  
+  ndim, str_len = np.shape(array_str_in)
+  array_str_out = [''.join(array_str_in[i, :]).strip() for i in range(0, ndim)]
+
+  return array_str_out
 
 # -------------------------------------
 

@@ -537,6 +537,13 @@ def createPSO(fpath):
   ofpso.write("0      # wrtAll = 0 [not writing all individuals for each iteration] 1 [writing all individuals for each iteration]\n")
   ofpso.write("1      # nGlobal = number of global search, number of times that PSO will be run, i.e., Npart x Niter x nGlobal\n")
   ofpso.write("123456  # seed\n")
+  # 2017-05-18 add control parameters
+  ofpso.write("0.9    # inertia parameter (0.9 is recommended)\n")
+  ofpso.write("2.0    # self intention parameter (2.0 is recommended)\n")
+  ofpso.write("2.0    # swarm intention parameter (2.0 is recommended)\n")
+  ofpso.write("1.e-5  # random search parameter (very small value is recommended)\n")
+  ofpso.write("0.5    # limit of vector length (0.5-1.0 is recommended)\n")
+  ofpso.write("0.07   # velocity perturbation parameter (0.0-0.1 is recommended)\n")
   ofpso.close()
 
 # create PolyChord configuration file

@@ -1,5 +1,5 @@
 module bootstrap
-  use constants,only:dp,sprec,zero,one
+  use constants,only:dp,sprec,zero,one,half
   use parameters
   use Levenberg_Marquardt,only:lm_driver
   use gaussian
@@ -84,6 +84,7 @@ module bootstrap
     !$omp& scale_errorbar, nboot, RVok, T0ok, NB, nRV, nT0, nTs,&
     !$omp& Ms_boot, Rs_boot)
     bootstrap: do iboot=1,nboot
+
       cpu=1
       !$ cpu = omp_get_thread_num() + 1
 !       write(*,'(2(a,i5),a)')" CPU ",cpu,&
@@ -96,7 +97,9 @@ module bootstrap
           call gaussdev(RVboot)
           RVboot = RVok+RVboot*eRVobs*scale_errorbar
       end if
+      
       if(nTs.gt.0) T0boot=zero
+      
       do inb=2,NB
           iT0=nT0(inb)
           if(iT0.gt.0)then
@@ -120,6 +123,7 @@ module bootstrap
       sig=zero
       iwa=0
       info=0
+      
       call lm_driver(ode_boot,b_allpar,ndata,nfit,b_par,&
             &RVboot,T0boot,resw,diag,sig,info,iwa)
 
@@ -225,25 +229,26 @@ module bootstrap
     real(dp),dimension(:,:),intent(out)::perc
 
     real(dp),dimension(:),allocatable::vec
+    real(dp),parameter::hundred=100._dp
     ! percentiles of a distribution, they are not the percentiles of the variance distribution 
-    real(dp),parameter::p1=0.13_dp/100._dp, p2=2.28_dp/100._dp,&
-                      &p3=15.87_dp/100._dp, p4=0.5_dp,& ! this the median
-                      &p5=84.13_dp/100._dp, p6=97.72_dp/100._dp,&
-                      &p7=99.87_dp/100._dp
+    real(dp),parameter::p1=0.13_dp/hundred, p2=2.28_dp/hundred,&
+                      &p3=15.87_dp/hundred, p4=half,& ! this the median
+                      &p5=84.13_dp/hundred, p6=97.72_dp/hundred,&
+                      &p7=99.87_dp/hundred
     integer,dimension(7)::intperc
 !     real(dp),dimension(2)::val,valabs
     integer::ifit,iper,nperc!,iboot
     
     nperc=size(perc(:,1))
 
-    intperc(1)=int(p1*nboot+0.5_dp) !  0.13%
+    intperc(1)=int(p1*nboot+half) !  0.13%
     if(intperc(1).eq.0) intperc(1)=1
-    intperc(2)=int(p2*nboot+0.5_dp) !  2.28%
-    intperc(3)=int(p3*nboot+0.5_dp) ! 15.87%
-    intperc(4)=int(p4*nboot+0.5_dp) ! 50.00%
-    intperc(5)=int(p5*nboot+0.5_dp) ! 84.13%
-    intperc(6)=int(p6*nboot+0.5_dp) ! 97.72%
-    intperc(7)=int(p7*nboot+0.5_dp) ! 99.87%
+    intperc(2)=int(p2*nboot+half) !  2.28%
+    intperc(3)=int(p3*nboot+half) ! 15.87%
+    intperc(4)=int(p4*nboot+half) ! 50.00%
+    intperc(5)=int(p5*nboot+half) ! 84.13%
+    intperc(6)=int(p6*nboot+half) ! 97.72%
+    intperc(7)=int(p7*nboot+half) ! 99.87%
     if(intperc(1).eq.1) intperc(7)=nboot
     allocate(vec(nboot))
 !     write(*,*)"ifit iper inteperc(iper) vec(intperc(iper)) perc(iper,ifit)"
