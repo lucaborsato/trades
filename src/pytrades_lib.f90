@@ -95,8 +95,9 @@ module pytrades
     ! variables:  cpuid = 1
     call read_arg(1)
     
-    ! if executed in parallel it uses the same cpus defined in the python script
-    !$ ncpu_in=n_threads_in
+!     ! if executed in parallel it uses the same cpus defined in the python script
+!     !$ ncpu_in=n_threads_in
+
     !$ call omp_set_num_threads(ncpu_in)
     !$ call initu(nfiles, ncpu_in)
     

@@ -10,7 +10,8 @@
 module opti_pso
   use constants,only:dp,sprec,zero,half,one,two,three,TOLERANCE
 !   use parameters,only:path,wrtAll,seed_pso,ndata,nfit,dof,inv_dof,npar,parid,np_pso,nit_pso,wrt_pso,minpar,maxpar,population,population_fitness,pso_best_evolution,ncpu_in
-  use parameters
+  use parameters,only:path,seed_pso,np_pso,nit_pso,wrt_pso,wrtAll,nGlobal,dof,minpar,maxpar,population,population_fitness,pso_best_evolution,inertia_in,self_in,swarm_in,randsearch_in,vmax_in,vrand_in
+!   use parameters
   use parameters_conversion
   use init_trades,only:get_unit
   use random_trades
@@ -42,7 +43,7 @@ module opti_pso
   integer, public, parameter :: f_gjump   = 64    ! move to center of gravity
   integer, public, parameter :: f_qmcinit = 128   ! initialize by Quasi-Monte Carlo
 
-  !============= dpIVATE VARIABLES =============
+  !============= PRIVATE VARIABLES =============
   integer, parameter     :: max_nparam = 110      ! maximum number of parameter
   real(dp)               :: scale_a(max_nparam)   ! parameter scaling factor A
   real(dp)               :: scale_b(max_nparam)   ! parameter scaling factor B
@@ -76,8 +77,8 @@ module opti_pso
   end function evaluate_pso
 
   
-  subroutine pso_driver(iGlobal,evfunc,n,allpar,minpar,maxpar,xpar,inv_fitness)
-    integer,intent(in)::iGlobal,n
+  subroutine pso_driver(iGlobal,evfunc,n_fit,allpar,minpar,maxpar,xpar,inv_fitness)
+    integer,intent(in)::iGlobal,n_fit
     real(dp),dimension(:),intent(in)::allpar,minpar,maxpar
     real(dp),intent(out)::inv_fitness
 !     real(dp),dimension(:)::xpar
@@ -95,15 +96,15 @@ module opti_pso
       end function evfunc
     end interface
 
-    if(.not.allocated(ipar)) allocate(ipar(n))
-    if(.not.allocated(population)) allocate(population(n,np_pso,nit_pso))
+    if(.not.allocated(ipar)) allocate(ipar(n_fit))
+    if(.not.allocated(population)) allocate(population(n_fit,np_pso,nit_pso))
     if(.not.allocated(population_fitness)) allocate(population_fitness(np_pso,nit_pso))
     xpar=zero
     ipar=minpar
     population=zero
     population_fitness=zero
     
-    call do_pso(n,minpar,maxpar,ipar,np_pso,nit_pso,wrt_pso,1,&
+    call do_pso(n_fit,minpar,maxpar,ipar,np_pso,nit_pso,wrt_pso,1,&
         &evfunc,allpar,xpar,inv_fitness,iGlobal)
 
     deallocate(ipar)
@@ -113,7 +114,7 @@ module opti_pso
 
   ! initialize bestpso
   subroutine bestpso_init(nit,idbest,bestpso)
-    use parameters,only:nfit
+!     use parameters,only:nfit
     use convert_type,only:string
     integer,intent(in)::nit
     real(dp),dimension(:,:),allocatable,intent(out)::bestpso
@@ -821,8 +822,8 @@ module opti_pso
   end subroutine init_particles
 
   ! 2016-07-20 Luca Borsato own method to initialize population
-  subroutine init_good_particles(nfit,npop,all_parameters,p)
-    integer,intent(in)::nfit,npop            ! number of particle
+  subroutine init_good_particles(n_fit,npop,all_parameters,p)
+    integer,intent(in)::n_fit,npop            ! number of particle
     real(dp),dimension(:),intent(in)::all_parameters
     type(type_p),dimension(:),intent(out)::p ! particles
     real(dp),dimension(:),allocatable::xtemp,ptemp
@@ -831,22 +832,22 @@ module opti_pso
     
 !     write(*,*)' size of p = ',size(p)
 !     flush(6)
-    allocate(xtemp(nfit),ptemp(nfit))
+    allocate(xtemp(n_fit),ptemp(n_fit))
     iloop=0
     initloop: do
         
         xtemp=zero
         call random_number(xtemp)
-        ptemp=unscaling(nfit,xtemp)
+        ptemp=unscaling(n_fit,xtemp)
         check=.true.
         check=check_only_boundaries(all_parameters,ptemp)
         if(check)then
-!           write(*,*)' par (True) = ',unscaling(nfit,xtemp)
+!           write(*,*)' par (True) = ',unscaling(n_fit,xtemp)
           iloop=iloop+1
-          p(iloop)%x(1:nfit)=xtemp(1:nfit)
-          p(iloop)%v(1:nfit)=zero
+          p(iloop)%x(1:n_fit)=xtemp(1:n_fit)
+          p(iloop)%v(1:n_fit)=zero
           p(iloop)%evbest=void
-          p(iloop)%xbest(1:nfit)=p(iloop)%x(1:nfit)
+          p(iloop)%xbest(1:n_fit)=p(iloop)%x(1:n_fit)
           if(iloop.eq.npop)exit initloop
         end if
         
@@ -857,20 +858,20 @@ module opti_pso
   end subroutine init_good_particles
 
   !2017-02-15 AIMED TO SIMPLICITY
-  subroutine init_population_zero(nfit,npop,p)
-    integer,intent(in)::nfit,npop            ! number of particle
+  subroutine init_population_zero(n_fit,npop,p)
+    integer,intent(in)::n_fit,npop            ! number of particle
     type(type_p),dimension(:),intent(out)::p ! particles
     real(dp),dimension(:),allocatable::xtemp ! position in [0,1)
     integer::iloop
     
-    allocate(xtemp(nfit))
+    allocate(xtemp(n_fit))
     initloop: do iloop=1,npop
         xtemp=zero
         call random_number(xtemp)
-        p(iloop)%x(1:nfit)=xtemp(1:nfit)
-        p(iloop)%v(1:nfit)=zero
+        p(iloop)%x(1:n_fit)=xtemp(1:n_fit)
+        p(iloop)%v(1:n_fit)=zero
         p(iloop)%evbest=void
-        p(iloop)%xbest(1:nfit)=p(iloop)%x(1:nfit)
+        p(iloop)%xbest(1:n_fit)=p(iloop)%x(1:n_fit)
     end do initloop
     deallocate(xtemp)
         

@@ -40,7 +40,7 @@ def get_args():
   parser.add_argument('-rv', action='store', dest='RVset', default='0', help='RVsetlag: 0/No/False = do not use RV data, 1/Yes/True = use RV data')
   parser.add_argument('-xs', '--x-scale', action='store', dest='xscale', default=None, help='Value to be subtract to the x-axis (time) in the plots. Default is None that means 2440000.5 will be subtract.')
   parser.add_argument('-oc', '--oc-fit', action='store', dest='oc_fit', default='False', help='Fit obs and sim linear ephem (set to False) or only the obs ephemem (set to True)')
-  parser.add_argument('-samples-file', '--samples-file', action='store', dest='samples_file', default=None, help='HDF5 file with T0 and RV from emcee samples to overplot on O-Cs.')
+  parser.add_argument('-samples-file', '--samples-file', action='store', dest='samples_file', default='None', help='HDF5 file with T0 and RV from emcee samples to overplot on O-Cs.')
   
   cli = parser.parse_args()
   full_path = os.path.abspath(cli.full_path)
@@ -51,10 +51,13 @@ def get_args():
   cli.oc_fit = get_bool(cli.oc_fit)
   cli.RVset = get_bool(cli.RVset)
   
-  if(os.path.isfile(os.path.abspath(cli.samples_file))):
-    cli.samples_file = os.path.abspath(cli.samples_file)
-  else:
+  if(cli.samples_file.lower() == 'none'):
     cli.samples_file = None
+  else:
+    if(os.path.isfile(os.path.abspath(cli.samples_file))):
+      cli.samples_file = os.path.abspath(cli.samples_file)
+    else:
+      cli.samples_file = None
   
   #return full_path, cli.idsim, cli.lmflag, int(cli.nbI), int(cli.nbF), cli.RVset, cli.xscale, cli.oc_fit
   return cli
@@ -574,7 +577,11 @@ def main():
     for inb in range(cli.nbI,cli.nbF+1):
       
       #epo, oc, res, err = read_simT0(cli.full_path, cli.idsim, cli.lmflag, inb)
-      epo, t_obs_base, oc, res, err, oc_samples = read_simT0(cli.full_path, cli.idsim, cli.lmflag, inb, t_subtract, cli.oc_fit, ttra_samples=t0_samples['%d' %(inb)])
+      if(t0_samples is None):
+        ttra_samples = None
+      else:
+        ttra_samples=t0_samples['%d' %(inb)]
+      epo, t_obs_base, oc, res, err, oc_samples = read_simT0(cli.full_path, cli.idsim, cli.lmflag, inb, t_subtract, cli.oc_fit, ttra_samples=ttra_samples)
       print ""
 
       keyObs = ""

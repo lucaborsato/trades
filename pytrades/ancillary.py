@@ -37,6 +37,7 @@ percentile_val = [68.27, 50.0, 15.865, 84.135, 2.265, 97.735, 0.135, 99.865]
 # ===================================================================
 
 def print_both(line, output=None):
+  
   print(line)
   if (output is not None):
     output.write(line + '\n')
@@ -502,7 +503,7 @@ def get_percentile_angle(angle_posterior):
 # -------------------------------------
 
 def get_data(emcee_file, temp_status):
-  # read data from hdf5 file
+  ## read data from hdf5 file
   completed_steps = 0
   # print ' reading file', emcee_file
   f_read = h5py.File(emcee_file, 'r')
@@ -882,8 +883,12 @@ def compute_max_mean(data_vec, k):
   else:
     ext_bin = 2
 
-  max_mean = np.mean(
-    data_vec[np.logical_and(data_vec >= bin_edges[max_bin - ext_bin], data_vec < bin_edges[max_bin + ext_bin])])
+  data_max = data_vec[np.logical_and(data_vec >= bin_edges[max_bin - ext_bin], data_vec < bin_edges[max_bin + ext_bin])]
+  if(np.shape(data_max)[0] < 1):
+    print 'WARNING: n(data_max) < 1!'
+    return np.nan, 0
+    sys.stdout.flush()
+  max_mean = np.mean(data_max)
 
   # print 'MAX BIN: %d with %d counts' %(max_bin, np.max(hist_counts))
   # print 'Selected values in between bins: %d , %d' %(max_bin-ext_bin, max_bin+ext_bin)
@@ -895,12 +900,14 @@ def compute_max_mean(data_vec, k):
 # -------------------------------------
 
 def get_mode_parameters_full(flatchain_posterior, k):
-  nfit = flatchain_posterior.shape[1]
+  npost, nfit = np.shape(flatchain_posterior)
   mode_parameters = np.zeros((nfit))
   mode_bin = np.zeros((nfit)).astype(int)
+  
   for i_fit in range(0, nfit):
     data_vec = flatchain_posterior[:, i_fit]
     mode_parameters[i_fit], mode_bin[i_fit] = compute_max_mean(data_vec, k)
+
   mode_perc68, mode_confint = get_sigmas(mode_parameters, flatchain_posterior)
 
   return mode_bin, mode_parameters, mode_perc68, mode_confint
@@ -909,13 +916,21 @@ def get_mode_parameters_full(flatchain_posterior, k):
 # -------------------------------------
 
 def get_mode_parameters(flatchain_posterior, k):
-  nfit = flatchain_posterior.shape[1]
+  npost, nfit = np.shape(flatchain_posterior)
   mode_parameters = np.zeros((nfit))
   mode_bin = np.zeros((nfit)).astype(int)
+  
+  print('get_mode_parameters')
+  sys.stdout.flush()
+  
   for i_fit in range(0, nfit):
+    print 'i_fit = %d' %(i_fit),
     data_vec = flatchain_posterior[:, i_fit]
+    print 'computing mode and bin ... ',
     mode_parameters[i_fit], mode_bin[i_fit] = compute_max_mean(data_vec, k)
-
+    print '(%.5f , %d) done' %(mode_parameters[i_fit], mode_bin[i_fit])
+    sys.stdout.flush()
+    
   return mode_bin, mode_parameters
 
 

@@ -513,9 +513,10 @@ module ode_run
     integer,intent(inout)::cntT0
     real(dp),dimension(:,:),intent(inout)::T0_sim
     integer,dimension(:,:),intent(inout)::T0_stat
-    logical,intent(out)::Hc
+    logical,intent(inout)::Hc
 
     real(dp),dimension(:),allocatable::dr,r1,r2,err
+    real(dp),dimension(:),allocatable::drdt_save,r_save
     integer,dimension(:),allocatable::X,Y,Z
     real(dp),dimension(:),allocatable::cX,cY,cR,rmean
     real(dp)::hw,hok,hnext,itime
@@ -525,19 +526,9 @@ module ode_run
     integer::Norb
     real(dp)::itwrt,Etot,Eold,htot,hold
 
-    real(dp)::ftime
-    integer::iftime,compare
+    real(dp)::step_save,step_write
 
-!     Hc=.false.
-!     Hc=.true.
-    
-!     write(*,'(a,l)')'AAA ode_a_o Hc = ',Hc
-    
-!     Hc=Hillcheck(m,rin)
-!     if(do_hill_check) Hc=mutual_Hill_check(m,rin)
     Hc = separation_mutual_Hill_check(m,R,rin,do_hill_check)
-!     write(*,*)' mutual_Hill_check = ',Hc
-!     if(Hc) return
     if(.not.Hc) return
 
     allocate(X(NB),Y(NB),Z(NB),cX(NB),cY(NB),cR(NB),rmean(NB))
@@ -553,255 +544,7 @@ module ode_run
     cY=one
     cR=zero
     cR(2:NB)=1.5_dp*(R(1)+R(2:NB))*RsunAU
-    rmean=9.e3_dp
-
-    Norb=NBDIM+3
-
-    allocate(dr(NBDIM),r1(NBDIM),r2(NBDIM),err(NBDIM))
-    hw=step_0
-    if(time.lt.zero) hw=-hw
-    itime=zero
-    r1=rin
-    r2=zero
-    err=zero
-
-    j1=0
-    j2=1
-
-    itwrt=wrttime
-    if((wrtorb.eq.1).or.(wrtel.eq.1))then
-      allocate(storeorb(Norb,DIMMAX))
-      storeorb=zero
-      call store_orb(j2,itime,m,r1,storeorb)
-    end if
-    if(wrtconst.eq.1)then
-      Etot=zero
-      Eold=zero
-      htot=zero
-      hold=zero
-      call compute_con(m,r1,Eold,hold)
-      allocate(storecon(5,DIMMAX))
-      storecon=zero
-      call store_con(j2,itime,Eold,Eold,hold,hold,storecon)
-    end if
-    if((idtra.ge.1).and.(idtra.le.NB))then
-      allocate(storetra(NBDIM+6,DIMMAX))
-      storetra=zero
-      allocate(stat_tra(NB,DIMMAX))
-      stat_tra=0
-      jtra=0
-    end if
-
-    ftime=zero
-    iftime=0
-    compare=10
-
-    
-!     write(*,'(a)',advance='NO')' mutual_Hill_check: '
-    integration: do
-      j1=j1+1
-!       write(*,'(i8,a,l2)')j1,' BB ode_a_o Hc = ',Hc
-
-      if(abs(itime+hw).gt.abs(time)) hw=time-itime
-      call eqmastro(m,r1,dr) ! computes the eq. of motion
-      call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err) ! computes the next orbit step
-
-      if(wrtconst.eq.1) call compute_con(m,r2,Etot,htot) ! if selected computed the Energy and Angular momentum
-
-      if(abs(itime+hw).ge.(abs(itwrt)))then
-        j2=j2+1
-        if((wrtorb.eq.1).or.(wrtel.eq.1))then
-          call store_orb(j2,itime+hok,m,r2,storeorb)
-          if(j2.eq.DIMMAX)then
-            if(wrtorb.eq.1) call write_file(DIMMAX,uorb,fmorb,storeorb)
-            if(wrtel.eq.1) call write_elem(DIMMAX,uele,fmele,m,storeorb)
-          end if
-        end if
-        if(wrtconst.eq.1)then
-          call store_con(j2,itime+hok,Etot,Eold,htot,hold,storecon)
-          if(j2.eq.DIMMAX) call write_file(DIMMAX,ucon,fmcon,storecon)
-        end if
-        if(j2.eq.DIMMAX) j2=0
-        itwrt=itwrt+wrttime
-      end if
-
-!       Hc=Hillcheck(m,r2)
-!       if(do_hill_check) Hc=mutual_Hill_check(m,r2)
-      Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
-!       if(Hc) write(*,'(a7,i6,a6,l)')'iter = ',j1,' Hc = ',Hc
-!       if(Hc) return
-      if(.not.Hc) return
-
-      ! RV check
-      if(cntRV.lt.nRV) call check_RV(m,r1,dr,itime,hok,cntRV,RV_stat,RV_sim)
-
-      ! T0 check (to compare and all)
-      do j=2,NB
-        cX(j)=r1(X(j))*r2(X(j))
-        cY(j)=r1(Y(j))*r2(Y(j))
-        rmean(j)=half*( rsky(r1(X(j):Y(j))) + rsky(r2(X(j):Y(j))) )
-      end do
-      if((idtra.gt.0).and.(idtra.le.NB))then
-        !if(cntT0.lt.sum(nT0))then
-        if(idtra.eq.1)then
-          do j=2,NB
-            if(rmean(j).le.cR(j))then
-              if(clN(j).eq.0)then
-              
-                if((cX(j).le.zero).and.(r1(Z(j)).gt.zero))then
-                  if(nT0(j).gt.0) call check_T0(j,m,R,r1,r2,&
-                    &itime,hok,T0_stat,T0_sim,Hc)
-!                   if(Hc)return
-                  if(.not.Hc) return
-                  jtra=jtra+1
-                  call all_transits(jtra,j,m,R,r1,r2,&
-                    &itime,hok,stat_tra,storetra)
-                end if
-              
-              else
-              
-                if((cY(j).le.zero).and.(r1(Z(j)).gt.zero))then
-                  if(nT0(j).gt.0)call check_T0(j,m,R,r1,r2,&
-                    &itime,hok,T0_stat,T0_sim,Hc)
-!                   if(Hc)return
-                  if(.not.Hc) return
-                  jtra=jtra+1
-                  call all_transits(jtra,j,m,R,r1,r2,&
-                    &itime,hok,stat_tra,storetra)
-                end if
-              
-              end if
-            end if
-          end do
-        else
-          if(rmean(idtra).le.cR(idtra))then
-            if(clN(idtra).eq.0)then
-            
-              if((cX(idtra).le.zero).and.&
-                &(r1(Z(idtra)).gt.zero))then
-                if(nT0(idtra).gt.0)call check_T0(idtra,m,R,r1,r2,&
-                  &itime,hok,T0_stat,T0_sim,Hc)
-!                 if(Hc)return
-                if(.not.Hc) return
-                jtra=jtra+1
-                call all_transits(jtra,idtra,m,R,r1,r2,&
-                  &itime,hok,stat_tra,storetra)
-              end if
-            
-            else
-            
-              if((cY(idtra).le.zero).and.&
-                &(r1(Z(idtra)).gt.zero))then
-                if(nT0(idtra).gt.0)call check_T0(idtra,m,R,r1,r2,&
-                  &itime,hok,T0_stat,T0_sim,Hc)
-!                 if(Hc)return
-                if(.not.Hc) return
-                jtra=jtra+1
-                call all_transits(jtra,idtra,m,R,r1,r2,&
-                  &itime,hok,stat_tra,storetra)
-              end if
-            
-            end if
-          end if
-        end if
-        if(sum(nT0).gt.0) cntT0=sum(T0_stat)
-
-        if(jtra.eq.DIMMAX)then
-          call write_tra(jtra,utra,stat_tra,storetra)
-          jtra=0
-          stat_tra=0
-          storetra=zero
-        end if
-
-      end if
-
-      itime=itime+hok
-
-!       ftime=(itime/time)*100._dp
-!       iftime=int(ftime+half)
-!       if(iftime.eq.compare)then
-!         write(*,'(a,i3,a)')" done the ",compare," % "
-!         compare=compare+10
-!       end if
-
-      if(abs(itime).ge.abs(time)) exit integration
-      hw=hnext
-      r1=r2
-
-!       write(*,'(i8,a,l2)')j1,' YY ode_a_o Hc = ',Hc
-      
-    end do integration
-
-    if((idtra.ge.1).and.(idtra.le.NB)) call write_tra(jtra,utra,stat_tra,storetra)
-
-    if((wrtorb.eq.1).or.(wrtel.eq.1))then
-      if(wrtorb.eq.1) call write_file(j2,uorb,fmorb,storeorb)
-      if(wrtel.eq.1) call write_elem(j2,uele,fmele,m,storeorb)
-      deallocate(storeorb)
-    end if
-    if(wrtconst.eq.1)then
-      call write_file(j2,ucon,fmcon,storecon)
-      deallocate(storecon)
-    end if
-
-    deallocate(X,Y,Z,cX,cY,cR,rmean)
-    deallocate(dr,r1,r2,err)
-
-!     write(*,'(a,l)')'ZZZ ode_a_o Hc = ',Hc
-    
-    return
-  end subroutine ode_a_o
-  ! ------------------------------------------------------------------ !
-
-  
-    ! ------------------------------------------------------------------ !
-  ! subroutine that integrates orbit, computes, stores and
-  ! writes orbits, orbital elements, constants of motion, transit time and RV into files
-  ! it is called by ode_integrated, that check in which direction (in time) integrates
-  ! it doesn't need obsRV.dat or NB#_observations.dat files, it computes only all the possible transits
-  ! and the RVs are stored in the #_#_rotorbit.dat file.
-  subroutine ode_a_orbit(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
-      &m,R,rin,time,clN,Hc)
-    integer,intent(in)::uorb,ucon
-    integer,dimension(:),intent(in)::uele,utra
-    character(*),intent(in)::fmorb,fmcon,fmele
-    real(dp),dimension(:),intent(in)::m,R,rin
-    real(dp),intent(in)::time
-    integer,dimension(:),intent(in)::clN
-    logical,intent(out)::Hc
-
-    real(dp),dimension(:),allocatable::dr,r1,r2,err
-    real(dp),dimension(:),allocatable::drdt_save,r_save
-    integer,dimension(:),allocatable::X,Y,Z
-    real(dp),dimension(:),allocatable::cX,cY,cR,rmean
-    real(dp)::hw,hok,hnext,itime
-    integer::j,j1,j2,jtra
-    real(dp),dimension(:,:),allocatable::storeorb,storecon,storetra
-    integer,dimension(:,:),allocatable::stat_tra
-    integer::Norb
-    real(dp)::itwrt,Etot,Eold,htot,hold
-
-    real(dp)::step_save,step_write
-
-!     Hc=Hillcheck(m,rin)
-!     if(do_hill_check) Hc=mutual_Hill_check(m,rin)
-    Hc = separation_mutual_Hill_check(m,R,rin,do_hill_check)
-!     write(*,*)' mutual_Hill_check = ',Hc
-
-    allocate(X(NB),Y(NB),Z(NB),cX(NB),cY(NB),cR(NB),rmean(NB))
-    X=0
-    Y=0
-    Z=0
-    do j=2,NB
-      X(j)=1+(j-1)*6
-      Y(j)=2+(j-1)*6
-      Z(j)=3+(j-1)*6
-    end do
-    cX=one
-    cY=one
-    cR=zero
-    cR(2:NB)=1.5_dp*(R(1)+R(2:NB))*RsunAU
-    rmean=9.e3_dp
+    rmean=9.e8_dp
 
     Norb=NBDIM+3
 
@@ -853,30 +596,259 @@ module ode_run
       call eqmastro(m,r1,dr) ! computes the eq. of motion
       call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err) ! computes the next orbit step
 
-      ! -------------------------------
-      ! OLD VERSION OF SAVE&WRITE ORBIT (WITH RV), KEP. ELEMENTS, CONST. OF MOTION
-!       if(wrtconst.eq.1) call compute_con(m,r2,Etot,htot) ! if selected computed the Energy and Angular momentum
-!       if(abs(itime+hw).ge.(abs(itwrt)))then
-!         j2=j2+1
-!         if((wrtorb.eq.1).or.(wrtel.eq.1))then
-!           call store_orb(j2,itime+hok,m,r2,storeorb)
-!           if(j2.eq.DIMMAX)then
-!             if(wrtorb.eq.1) call write_file(DIMMAX,uorb,fmorb,storeorb)
-!             if(wrtel.eq.1) call write_elem(DIMMAX,uele,fmele,m,storeorb)
-!             storeorb=zero
-!           end if
-!         end if
-!         if(wrtconst.eq.1)then
-!           call store_con(j2,itime+hok,Etot,Eold,htot,hold,storecon)
-!           if(j2.eq.DIMMAX)then
-!             call write_file(DIMMAX,ucon,fmcon,storecon)
-!             storecon=zero
-!           end if
-!         end if
-!         if(j2.eq.DIMMAX) j2=0
-!         itwrt=itwrt+wrttime
-!       end if
-      ! -------------------------------
+      ! check if it has to compute or not 'something'
+      if((wrtorb.eq.1).or.(wrtel.eq.1).or.(wrtconst.eq.1))then
+        
+        if(abs(itime+hok).ge.(abs(itwrt)))then
+          
+          saveloop: do
+          
+            j2=j2+1
+!             computes the proper step -> itwrt will be updated in the loop
+            step_save=itwrt-itime
+!             computes state vector from r1 to the new time step (smaller then hok)
+            drdt_save=dr
+            r_save=r1
+            call rkck_a(m,r1,drdt_save,step_save,r_save,err)
+            
+            ! check and store orbit or kep. elements
+            if((wrtorb.eq.1).or.(wrtel.eq.1))then
+              call store_orb(j2,itime+step_save,m,r_save,storeorb) ! save r_save!!
+              if(j2.eq.DIMMAX)then ! write into file if reach max dimension
+                if(wrtorb.eq.1) call write_file(DIMMAX,uorb,fmorb,storeorb)
+                if(wrtel.eq.1) call write_elem(DIMMAX,uele,fmele,m,storeorb)
+                storeorb=zero ! reset the storeorb variable
+              end if
+            end if
+            
+            ! check and store constants of motion
+            if(wrtconst.eq.1)then
+              call compute_con(m,r_save,Etot,htot) ! if selected it computes the Energy and Angular momentum
+              call store_con(j2,itime+step_save,Etot,Eold,htot,hold,storecon)
+              if(j2.eq.DIMMAX)then ! write into file if reach max dimension
+                call write_file(DIMMAX,ucon,fmcon,storecon)
+                storecon=zero
+              end if
+            end if
+            
+            if(j2.eq.DIMMAX) j2=0
+            
+            itwrt=itwrt+step_write
+            if(abs(itwrt).gt.abs(itime+hok)) exit saveloop
+            
+          end do saveloop
+        
+        end if
+        
+      end if
+      ! ===============================
+
+      Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
+      if(.not.Hc) write(*,'(a,l)')' INLOOP Hc: ',Hc
+      if(.not.Hc) return
+
+      ! RV check
+      if(cntRV.lt.nRV) call check_RV(m,r1,dr,itime,hok,cntRV,RV_stat,RV_sim)
+
+      ! T0 check (to compare and all)
+      do j=2,NB
+        cX(j)=r1(X(j))*r2(X(j))
+        cY(j)=r1(Y(j))*r2(Y(j))
+        rmean(j)=half*( rsky(r1(X(j):Y(j))) + rsky(r2(X(j):Y(j))) )
+      end do
+      if((idtra.gt.0).and.(idtra.le.NB))then
+        !if(cntT0.lt.sum(nT0))then
+        if(idtra.eq.1)then
+          do j=2,NB
+            if(rmean(j).le.cR(j))then
+              if(clN(j).eq.0)then
+              
+                if((cX(j).le.zero).and.(r1(Z(j)).gt.zero))then
+                  if(nT0(j).gt.0) call check_T0(j,m,R,r1,r2,&
+                    &itime,hok,T0_stat,T0_sim,Hc)
+                  if(.not.Hc) return
+                  jtra=jtra+1
+                  call all_transits(jtra,j,m,R,r1,r2,&
+                    &itime,hok,stat_tra,storetra)
+                end if
+              
+              else
+              
+                if((cY(j).le.zero).and.(r1(Z(j)).gt.zero))then
+                  if(nT0(j).gt.0)call check_T0(j,m,R,r1,r2,&
+                    &itime,hok,T0_stat,T0_sim,Hc)
+                  if(.not.Hc) return
+                  jtra=jtra+1
+                  call all_transits(jtra,j,m,R,r1,r2,&
+                    &itime,hok,stat_tra,storetra)
+                end if
+              
+              end if
+            end if
+          end do
+        else
+          if(rmean(idtra).le.cR(idtra))then
+            if(clN(idtra).eq.0)then
+            
+              if((cX(idtra).le.zero).and.&
+                &(r1(Z(idtra)).gt.zero))then
+                if(nT0(idtra).gt.0)call check_T0(idtra,m,R,r1,r2,&
+                  &itime,hok,T0_stat,T0_sim,Hc)
+                if(.not.Hc) return
+                jtra=jtra+1
+                call all_transits(jtra,idtra,m,R,r1,r2,&
+                  &itime,hok,stat_tra,storetra)
+              end if
+            
+            else
+            
+              if((cY(idtra).le.zero).and.&
+                &(r1(Z(idtra)).gt.zero))then
+                if(nT0(idtra).gt.0)call check_T0(idtra,m,R,r1,r2,&
+                  &itime,hok,T0_stat,T0_sim,Hc)
+                if(.not.Hc) return
+                jtra=jtra+1
+                call all_transits(jtra,idtra,m,R,r1,r2,&
+                  &itime,hok,stat_tra,storetra)
+              end if
+            
+            end if
+          end if
+        end if
+        if(sum(nT0).gt.0) cntT0=sum(T0_stat)
+
+        if(jtra.eq.DIMMAX)then
+          call write_tra(jtra,utra,stat_tra,storetra)
+          jtra=0
+          stat_tra=0
+          storetra=zero
+        end if
+
+      end if
+
+      itime=itime+hok
+
+      if(abs(itime).ge.abs(time)) exit integration
+      hw=hnext
+      r1=r2
+
+    end do integration
+
+    if((idtra.ge.1).and.(idtra.le.NB)) call write_tra(jtra,utra,stat_tra,storetra)
+
+    if((wrtorb.eq.1).or.(wrtel.eq.1))then
+      if(wrtorb.eq.1) call write_file(j2,uorb,fmorb,storeorb)
+      if(wrtel.eq.1) call write_elem(j2,uele,fmele,m,storeorb)
+      deallocate(storeorb)
+    end if
+    if(wrtconst.eq.1)then
+      call write_file(j2,ucon,fmcon,storecon)
+      deallocate(storecon)
+    end if
+
+    deallocate(X,Y,Z,cX,cY,cR,rmean)
+    deallocate(dr,r1,r2,err,drdt_save,r_save)
+
+    return
+  end subroutine ode_a_o
+  ! ------------------------------------------------------------------ !
+
+  
+    ! ------------------------------------------------------------------ !
+  ! subroutine that integrates orbit, computes, stores and
+  ! writes orbits, orbital elements, constants of motion, transit time and RV into files
+!   ! it is called by ode_integrates, that check in which direction (in time) integrates
+  ! it doesn't need obsRV.dat or NB#_observations.dat files, it computes only all the possible transits
+  ! and the RVs are stored in the #_#_rotorbit.dat file.
+  subroutine ode_a_orbit(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
+      &m,R,rin,time,clN,Hc)
+    integer,intent(in)::uorb,ucon
+    integer,dimension(:),intent(in)::uele,utra
+    character(*),intent(in)::fmorb,fmcon,fmele
+    real(dp),dimension(:),intent(in)::m,R,rin
+    real(dp),intent(in)::time
+    integer,dimension(:),intent(in)::clN
+    logical,intent(inout)::Hc
+
+    real(dp),dimension(:),allocatable::dr,r1,r2,err
+    real(dp),dimension(:),allocatable::drdt_save,r_save
+    integer,dimension(:),allocatable::X,Y,Z
+    real(dp),dimension(:),allocatable::cX,cY,cR,rmean
+    real(dp)::hw,hok,hnext,itime
+    integer::j,j1,j2,jtra
+    real(dp),dimension(:,:),allocatable::storeorb,storecon,storetra
+    integer,dimension(:,:),allocatable::stat_tra
+    integer::Norb
+    real(dp)::itwrt,Etot,Eold,htot,hold
+
+    real(dp)::step_save,step_write
+
+    Hc = separation_mutual_Hill_check(m,R,rin,do_hill_check)
+
+    allocate(X(NB),Y(NB),Z(NB),cX(NB),cY(NB),cR(NB),rmean(NB))
+    X=0
+    Y=0
+    Z=0
+    do j=2,NB
+      X(j)=1+(j-1)*6
+      Y(j)=2+(j-1)*6
+      Z(j)=3+(j-1)*6
+    end do
+    cX=one
+    cY=one
+    cR=zero
+    cR(2:NB)=1.5_dp*(R(1)+R(2:NB))*RsunAU
+    rmean=9.e8_dp
+
+    Norb=NBDIM+3
+
+    allocate(dr(NBDIM),r1(NBDIM),r2(NBDIM),err(NBDIM))
+    allocate(drdt_save(NBDIM),r_save(NBDIM))
+    hw=step_0
+    if(time.lt.zero) hw=-hw
+    itime=zero
+    r1=rin
+    r2=zero
+    err=zero
+
+    j1=0
+    j2=1
+
+    step_write=wrttime
+    if(time.lt.zero) step_write=-step_write
+    itwrt=step_write
+    
+    if((wrtorb.eq.1).or.(wrtel.eq.1))then
+      allocate(storeorb(Norb,DIMMAX))
+      storeorb=zero
+      call store_orb(j2,itime,m,r1,storeorb)
+    end if
+    
+    if(wrtconst.eq.1)then
+      Etot=zero
+      Eold=zero
+      htot=zero
+      hold=zero
+      call compute_con(m,r1,Eold,hold)
+      allocate(storecon(5,DIMMAX))
+      storecon=zero
+      call store_con(j2,itime,Eold,Eold,hold,hold,storecon)
+    end if
+    
+    if((idtra.ge.1).and.(idtra.le.NB))then
+      allocate(storetra(NBDIM+6,DIMMAX))
+      storetra=zero
+      allocate(stat_tra(NB,DIMMAX))
+      stat_tra=0
+      jtra=0
+    end if
+
+    integration: do
+      j1=j1+1
+
+      if(abs(itime+hw).gt.abs(time)) hw=time-itime
+      call eqmastro(m,r1,dr) ! computes the eq. of motion
+      call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err) ! computes the next orbit step
 
       ! ===============================
       ! NEW VERSION
@@ -927,8 +899,6 @@ module ode_run
       end if
       ! ===============================
       
-      
-!       if(do_hill_check) Hc=mutual_Hill_check(m,r2)
       Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
 
       ! T0 check (to compare and all)
@@ -1059,12 +1029,11 @@ module ode_run
 !     gls_scale=one
     call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
     if(.not.checkpar)then
-        resw=set_max_residuals(ndata)
+      resw=set_max_residuals(ndata)
       return
     end if
 
 !     call convert_parameters_scale(allpar,par,m,R,P,a,e,w,mA,inc,lN,fit_scale)
-
     
     ! it is needed to define which is the alarm coordinate for the transit detection
     call lNset(lN,clN)
@@ -1634,7 +1603,7 @@ module ode_run
   end subroutine orbits_to_data
   
   
-    ! ------------------------------------------------------------------ !
+  ! ------------------------------------------------------------------ !
   ! subroutine to write file and to screen the data ... what it writes
   ! depends on the option isim and wrtid/lmon in arg.in file
   subroutine ode_out(cpuid,isim,wrtid,allpar,par,resw,fit_scale,gls_scale,to_screen)
@@ -1644,15 +1613,11 @@ module ode_run
     logical,optional,intent(in)::to_screen
     real(dp),optional,intent(out)::fit_scale,gls_scale
     
-
-    
-    real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
+    real(dp),dimension(:),allocatable::m,R,P,sma,ecc,w,mA,inc,lN
     integer,dimension(:),allocatable::clN
     real(dp),dimension(:),allocatable::ra0,ra1
     real(dp)::dt1,dt2
     logical::Hc
-    !real(dp),parameter::resmax=huge(zero)
-    !real(dp),parameter::resmax=1.e6_dp
     integer::cntRV
     real(dp),dimension(:),allocatable::RV_sim
     integer,dimension(:),allocatable::RV_stat
@@ -1681,20 +1646,22 @@ module ode_run
     resw=zero
     Hc=.true.
     
-    allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
+    write(*,'(a)')'fitting parameters'
+    write(*,'(1000(1x,es23.16))')par
+    
+    allocate(m(NB),R(NB),P(NB),sma(NB),ecc(NB),w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
     if(present(fit_scale))then
       fit_scale=one
       gls_scale=one
-      call convert_parameters_scale(allpar,par,m,R,P,a,e,w,mA,inc,lN,fit_scale)
+      call convert_parameters_scale(allpar,par,m,R,P,sma,ecc,w,mA,inc,lN,fit_scale)
     else
-!       call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar,.true.)
-      call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
+!       call convert_parameters(allpar,par,m,R,P,sma,ecc,w,mA,inc,lN,checkpar,.true.)
+      call convert_parameters(allpar,par,m,R,P,sma,ecc,w,mA,inc,lN,checkpar)
       if(.not.checkpar)then
         write(*,'(a)')' checkpar after convert_parameters is FALSE ... BAD'
   !       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
-!         return ! removed 2017-01-20 so the files can be written even if parameters are out of boundaries ...
       end if
     end if
 
@@ -1704,7 +1671,7 @@ module ode_run
     flush(6)
     
     ! write orbital elements into a file
-    call outElements(isim,wrtid,m,R,P,a,e,w,mA,inc,lN)
+    call outElements(isim,wrtid,m,R,P,sma,ecc,w,mA,inc,lN)
 
     ! it is needed to define the which is the alarm coordinate for the transit detection
     call lNset(lN,clN)
@@ -1713,7 +1680,7 @@ module ode_run
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
     
-    call initial_state(P,a,e,mA,ra0)
+    call initial_state(P,sma,ecc,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
     call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
 
@@ -1740,7 +1707,7 @@ module ode_run
     fmele=fmtele()
     if(wrtel.eq.1) call set_file_elem(cpuid,isim,wrtid,uele,flele)
     
-!     write(*,'(a,l)')' 0 ode_out Hc = ',Hc
+    write(*,'(a,l)')' 0 ode_out Hc = ',Hc
 
     dt1=tstart-tepoch
     dt2=dt1+tint
@@ -1767,8 +1734,8 @@ module ode_run
           &cntT0,T0_stat,T0_sim,Hc)
     end if
 
-!     write(*,'(a,l)')' 1 ode_out Hc = ',Hc
-    
+    write(*,'(a,l)')' 1 ode_out Hc = ',Hc
+
     write(*,*)
     if(.not.Hc) then
       write(*,'(a,l2,a)')' flag Hc = ',Hc,' : BAD ==> PROBLEM DURING INTEGRATION'
@@ -1888,7 +1855,7 @@ module ode_run
     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
     if(allocated(gamma)) deallocate(gamma)
     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
-    if(allocated(m))   deallocate(m,R,P,a,e,w,mA,inc,lN,clN)
+    if(allocated(m))   deallocate(m,R,P,sma,ecc,w,mA,inc,lN,clN)
     if(allocated(ra0)) deallocate(ra0,ra1)
 
     return
@@ -1896,9 +1863,9 @@ module ode_run
   
   ! ------------------------------------------------------------------ !
 
-    subroutine ode_integrates(cpuid,isim,wrtid,m,R,P,a,e,w,mA,inc,lN)
+    subroutine ode_integrates(cpuid,isim,wrtid,m,R,P,sma,ecc,w,mA,inc,lN)
     integer,intent(in)::cpuid,isim,wrtid
-    real(dp),dimension(:),intent(in)::m,R,P,a,e,w,mA,inc,lN
+    real(dp),dimension(:),intent(in)::m,R,P,sma,ecc,w,mA,inc,lN
 
     integer,dimension(:),allocatable::clN
     real(dp),dimension(:),allocatable::ra0,ra1
@@ -1923,7 +1890,7 @@ module ode_run
     Hc=.true.
     
     ! write orbital elements into a file
-    call outElements(isim,wrtid,m,R,P,a,e,w,mA,inc,lN)
+    call outElements(isim,wrtid,m,R,P,sma,ecc,w,mA,inc,lN)
 
     ! it is needed to define the which is the alarm coordinate for the transit detection
     call lNset(lN,clN)
@@ -1931,7 +1898,7 @@ module ode_run
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-    call initial_state(P,a,e,mA,ra0)
+    call initial_state(P,sma,ecc,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
     call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
 

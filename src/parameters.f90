@@ -20,7 +20,7 @@ module parameters
   ! FITNESS PARAMETERS
 !   logical::oc_fit=.false.
   integer::oc_fit=0
-  real(dp)::k_chi2r = one, k_chi2wr = zero
+  real(dp)::k_chi2r=one, k_chi2wr=zero
   real(dp)::k_a
   real(dp),dimension(:),allocatable::k_b
   

@@ -7,9 +7,9 @@ module celestial_mechanics
     module procedure dist_1,dist_2
   end interface dist
 
-  interface rHill
-    module procedure rHill_1,rHill_2
-  end interface rHill
+!   interface rHill
+!     module procedure rHill_1,rHill_2
+!   end interface rHill
   
   contains
 
@@ -59,22 +59,19 @@ module celestial_mechanics
   end subroutine semax_vec
   
 !   function to compute the period given the semi-major axis
-  subroutine period_vec(ms,mp,a,a2P)
+  subroutine period_vec(ms,mp,sma,a2P)
     real(dp),intent(IN)::ms
-    real(dp),dimension(:),intent(IN)::mp,a
+    real(dp),dimension(:),intent(in)::mp,sma
     real(dp),dimension(:),intent(out)::a2P
-    real(dp),dimension(:),allocatable::mu,a3
+    real(dp),dimension(:),allocatable::mu
 
-    allocate(mu(size(mp)),a3(size(a)))
+    allocate(mu(size(mp)))
     mu=Giau*(ms+mp)
-    a3=a**3
-    a2P=dpi*sqrt(a3/mu)
-    deallocate(mu,a3)
+    a2P=dpi*sqrt(sma**3/mu)
+    deallocate(mu)
 
     return
   end subroutine period_vec
-
-  
   
   ! time pericentre to mean anomaly
   function tau2mA(tau, t_ref, per) result(mA)
@@ -171,7 +168,7 @@ module celestial_mechanics
 !   calculate the module of a 3-D vector
   function dist_1(r) result(out)
     real(dp)::out
-    real(dp),intent(in)::r(3)
+    real(dp),dimension(3),intent(in)::r
     real(dp)::x,y,z
 
     x=r(1)
@@ -186,7 +183,7 @@ module celestial_mechanics
 !   function to compute the distance between to vectors
   function dist_2(r1,r2) result(out)
     real(dp)::out
-    real(dp),intent(in)::r1(3),r2(3)
+    real(dp),dimension(3),intent(in)::r1,r2
     real(dp)::dx,dy,dz
 
     dx=r1(1)-r2(1)
@@ -200,7 +197,7 @@ module celestial_mechanics
 !   module of a 2-D vector
   function rsky(r) result(out)
     real(dp)::out
-    real(dp),intent(in)::r(2)
+    real(dp),dimension(2),intent(in)::r
     real(dp)::x,y
 
     x=r(1)
@@ -232,17 +229,17 @@ module celestial_mechanics
 ! bad Hill radius check
   
 !   function to compute the Hill radius w/o eccentricity
-  function rHill_1(ms,mp,sma) result(rH)
+  function rHill_circ(ms,mp,sma) result(rH)
     real(dp)::rH
     real(dp),intent(in)::ms,mp,sma
 
     rH=sma*((onethird*(mp/ms))**onethird)
 
     return
-  end function rHill_1
+  end function rHill_circ
 
 !   function to compute the Hill radius w/ eccentricity
-  function rHill_2(ms,mp,sma,ecc) result(rH)
+  function rHill_ecc(ms,mp,sma,ecc) result(rH)
     real(dp)::rH
     real(dp),intent(in)::ms,mp,sma,ecc
     real(dp)::e1
@@ -251,7 +248,7 @@ module celestial_mechanics
     rH=sma*e1*((onethird*(mp/ms))**onethird)
 
     return
-  end function rHill_2
+  end function rHill_ecc
 
 !   given the state vector it check the Hill condition
   function Hillcheck(m,rin) result(rH)
@@ -313,8 +310,8 @@ module celestial_mechanics
         rH=.false.
         return
       end if
-      rH1=rHill(m(1),m(j),a1,e1)
-      rH2=rHill(m(1),m(j+1),a2,e1)
+      rH1=rHill_ecc(m(1),m(j),a1,e1)
+      rH2=rHill_ecc(m(1),m(j+1),a2,e1)
       dr=dist(rvec1,rvec2)
       if(dr.le.(rH1+rH2))then
         rH=.false.
@@ -473,26 +470,30 @@ module celestial_mechanics
     logical::hill_check
     real(dp),dimension(:),intent(in)::m,R,rin
     logical,intent(in)::do_Hr_check
-    real(dp)::sma_i, sma_j
+    real(dp)::rij,sma_i,sma_j
     real(dp)::Hill_radius_ij,delta_ij,stability_criterion
-    integer::i,j
+    integer::i,nci,j,ncj
     
     hill_check=.true.
     
     if(NB.gt.2)then
       do i=2,(NB-1)
+        
+        nci=(i-1)*6
         call rrdot_to_invsma(i,m,rin,sma_i,hill_check)
         if(.not.hill_check) return
         sma_i=one/sma_i
 
         j=i+1
+        ncj=(j-1)*6
         call rrdot_to_invsma(j,m,rin,sma_j,hill_check)
         if(.not.hill_check) return
         sma_j=one/sma_j
         
-!         if(abs(sma_j-sma_i).lt.1.05_dp*(R(i)+R(j))*RsunAU)then
-        if(abs(sma_j-sma_i).lt.(R(i)+R(j))*RsunAU)then
-          hill_check=.false.
+        rij=dist(rin(1+nci:3+nci), rin(1+ncj:3+ncj))
+!         if(abs(sma_j-sma_i).lt.(R(i)+R(j))*RsunAU)then
+        if(abs(rij).le.(R(i)+R(j))*RsunAU)then
+          hill_check=.false. ! if false is bad/unstable
           return
         end if
 
@@ -514,11 +515,11 @@ module celestial_mechanics
   
   ! ------------------------------------------------------------------ !
   ! computes the initial state vector in the orbital reference frame
-  subroutine initial_state(P,a,e,mA,output)
-    real(dp),dimension(:),intent(in)::P,a,e,mA
+  subroutine initial_state(P,sma,ecc,mA,output)
+    real(dp),dimension(:),intent(in)::P,sma,ecc,mA
     real(dp),dimension(:),intent(out)::output
     real(dp),parameter::circ=360._dp
-    real(dp)::EA,dEA,n,cosE,sinE,e2,rad1e2,mA_temp
+    real(dp)::EA,dEA,n,cosE,sinE,ecc2,rad1e2,mA_temp
     integer::i,nci
 
     output=zero
@@ -526,21 +527,21 @@ module celestial_mechanics
     do i=2,NB
       !computation of the anomalies of the bodies
 !       mA_temp=mod(mA(i),circ)+circ
-      mA_temp=mod(mA(i),circ)
-      if(mA_temp.lt.zero) mA_temp=mA_temp+circ
+      mA_temp=mod(mA(i)+circ,circ)
+!       if(mA_temp.lt.zero) mA_temp=mA_temp+circ
       n=dpi/P(i)
-      EA=EAnom(mA_temp,e(i))*deg2rad
-      e2=e(i)*e(i)
-      rad1e2=sqrt(one-e2)
+      EA=EAnom(mA_temp,ecc(i))*deg2rad
+      ecc2=ecc(i)*ecc(i)
+      rad1e2=sqrt(one-ecc2)
       cosE=cos(EA)
       sinE=sin(EA)
-      dEA=n/(one-e(i)*cosE)
+      dEA=n/(one-ecc(i)*cosE)
       !calculation of the radius vector and velocity of the bodies
       nci=(i-1)*6
-      output(1+nci)=a(i)*(cosE-e(i))  !! x
-      output(2+nci)=a(i)*rad1e2*sinE  !! y
-      output(4+nci)=-a(i)*sinE*dEA  !! vx
-      output(5+nci)=a(i)*rad1e2*cosE*dEA  !! vy
+      output(1+nci)=sma(i)*(cosE-ecc(i))  !! x
+      output(2+nci)=sma(i)*rad1e2*sinE  !! y
+      output(4+nci)=-sma(i)*sinE*dEA  !! vx
+      output(5+nci)=sma(i)*rad1e2*cosE*dEA  !! vy
     end do
 
     return
@@ -552,16 +553,17 @@ module celestial_mechanics
     integer::clN
     real(dp),intent(in)::lN
     real(dp)::lN1
+    real(dp),parameter::circ=360._dp
 
     clN=0
-    lN1=mod(lN,360._dp)
-    if(lN1.lt.zero) lN1=lN1+360._dp
+    lN1=mod(lN+circ,circ)
+!     if(lN1.lt.zero) lN1=lN1+circ
     ! IT DEFINES THE COORDINATES FOR ECLIPSE CONDITION DUE TO THE LONGITUDE OF NODES
     if((lN1.ge.zero.and.lN1.le.45._dp)&
         &.or.&
         &(lN1.gt.135._dp.and.lN1.le.225._dp)&
         &.or.&
-        &(lN1.ge.315._dp.and.lN1.le.360._dp))then
+        &(lN1.ge.315._dp.and.lN1.le.circ))then
       clN=0
     else
       clN=1
@@ -615,19 +617,20 @@ module celestial_mechanics
 
   ! ------------------------------------------------------------------ !
   ! move a body coordinates (x,y,z,vx,vy,vz) of time = dt using the
-  ! f and g functions (Murray and Dermont)
+  ! f and g functions (Murray and Dermott 1999)
   subroutine fgfunctions(mu,rout,dt,Hc)
     real(dp),intent(in)::mu,dt
     real(dp),dimension(:),intent(inout)::rout
     logical,intent(inout)::Hc
     
     real(dp),dimension(3)::rtemp,vtemp
-    real(dp)::r0,v0,reca,a,n,sinE,cosE,ecc
+    real(dp)::r0,v0,reca,sma,n,sinE,cosE,ecc
     real(dp)::Ek1,MAk1,MAk2,Ek2,dE
     real(dp)::ar0,art
     real(dp)::Ffunc,dFfunc,Gfunc,dGfunc
     real(dp)::h2,x,y,z,vx,vy,vz,hx,hy,hz
     real(dp)::e2
+    real(dp),parameter::circ=360._dp
 
     r0=dist(rout(1:3))
     v0=dist(rout(4:6))
@@ -637,21 +640,21 @@ module celestial_mechanics
       Hc=.false.
       return
     end if
-    a=one/reca
-    if((a.le.amin).or.(a.ge.amax))then
-!       write(*,*)" In fgfunctions a < amin or a > amax"
+    sma=one/reca
+    if((sma.le.amin).or.(sma.ge.amax))then
+!       write(*,*)" In fgfunctions sma < amin or sma > amax"
       Hc=.false.
       return
     end if
-    n=sqrt(mu/(a**3))
-    sinE=(sum(rout(1:3)*rout(4:6)))/(n*a**2)
+    n=sqrt(mu/(sma**3))
+    sinE=(sum(rout(1:3)*rout(4:6)))/(n*sma**2)
     cosE=((r0*v0**2)/mu)-one
 
     !hx = y*vz-z*vy
     !hy = z*vx-x*vz
     !hz = x*vy-y*vx
     !h2=hx*hx+hy*hy+hz*hz
-    !ecc=sqrt( 1 - h2/(a*mu))
+    !ecc=sqrt( 1 - h2/(sma*mu))
     x=rout(1)
     y=rout(2)
     z=rout(3)
@@ -662,54 +665,36 @@ module celestial_mechanics
     hy = z*vx-x*vz
     hz = x*vy-y*vx
     h2=hx*hx+hy*hy+hz*hz
-    e2=one-h2/(a*mu)
+    
+    e2=one-h2/(sma*mu)
     if((abs(e2).le.TOLERANCE).or.(e2.lt.zero)) e2=zero
-!     write(*,*)"e2 = ",e2
     ecc=sqrt(e2)
-
     !ecc=sqrt(sinE**2+cosE**2)
-    !write(*,'(10000(a,g25.15))')" ecc = ",ecc," a=",a," P = ",dpi/n
-    !write(*,'(10000(a,g25.15))')" h2 = ",h2," a*mu = ",a*mu,&
-    !     &" (one - h2/(a*mu)) = ",e2
-    !read(*,*)
-    Ek1=mod(atan2(sinE,cosE),dpi)
-    !write(*,'(a,g25.14,a,g25.14)',advance='no')" Ek1 1 r= ",Ek1," d= ",Ek1*rad2deg
-    if(Ek1.lt.zero) Ek1=Ek1+dpi
+    
+    Ek1=mod(atan2(sinE,cosE)+dpi,dpi)
+!     if(Ek1.lt.zero) Ek1=Ek1+dpi
 
-    !write(*,'(a,g25.14,a,g25.14)')" Ek1 2 r= ",Ek1," d= ",Ek1*rad2deg
 
     MAk1=Ek1-sinE
-    !write(*,'(a,g25.14,a,g25.14)')" MAk1 1 r= ",MAk1," d= ",MAk1*rad2deg
-    MAk1=mod(MAk1,dpi)
-    !write(*,'(a,g25.14,a,g25.14)')" MAk1 2 r= ",MAk1," d= ",MAk1*rad2deg
-    if(MAk1.lt.zero) MAk1=MAk1+dpi
-
-    !write(*,'(a,g25.14,a,g25.14)',advance='no')" MAk1 3 r= ",MAk1," d= ",MAk1*rad2deg
-    !write(*,'(a,g25.14,a,g25.14,a,g25.14)',advance='no')" n= ",n," dt= ",dt," n*dt= ",n*dt
+    MAk1=mod(MAk1+dpi,dpi)
 
     MAk2=(MAk1+n*dt)*rad2deg
-    !write(*,'(a,g25.14)')" MAk2 1 d= ",MAk2
-    MAk2=mod(MAk2,360._dp)
-    !write(*,'(a,g25.14)',advance='no')" MAk2 2 d= ",MAk2
-
-    if(MAk2.lt.zero) MAk2=MAk2+360._dp
-    !write(*,'(a,g25.14)')" MAk2 3 d= ",MAk2
+    MAk2=mod(MAk2+circ,circ)
+!     if(MAk2.lt.zero) MAk2=MAk2+circ
 
     Ek2=EAnom(MAk2,ecc)*deg2rad
-    !write(*,'(a,g25.14,a,g25.14)',advance='no')" Ek2 r= ",Ek2," d= ",Ek2*rad2deg
     dE=Ek2-Ek1
-    !write(*,'(a,g25.14,a,g25.14)')" dE 1 r= ",dE," d= ",dE*rad2deg
     if(dE.ge.pi)then
       dE=dE-dpi
     else if(dE.le.-pi)then
       dE=dE+dpi
     end if
-    !write(*,'(a,g25.14,a,g25.14)')" dE 2 r= ",dE," d= ",dE*rad2deg
-    ar0=a/r0
+
+    ar0=sma/r0
     Ffunc=ar0*(cos(dE)-one)+one
     Gfunc=dt+(sin(dE)-dE)/n
     rtemp=Ffunc*rout(1:3)+Gfunc*rout(4:6)
-    art=a/dist(rtemp)
+    art=sma/dist(rtemp)
     dFfunc=-ar0*art*n*sin(dE)
     dGfunc=art*(cos(dE)-one)+one
     vtemp=dFfunc*rout(1:3)+dGfunc*rout(4:6)
@@ -805,10 +790,10 @@ module celestial_mechanics
   ! ------------------------------------------------------------------ !
   ! from state vector (cartesian coordinates) to keplerian orbital elements
   ! for one body
-  subroutine eleMD(mu,svec,P,a,e,inc,mA,w,lN,f,dt)
+  subroutine eleMD(mu,svec,P,sma,ecc,inc,mA,w,lN,f,dt)
     real(dp),intent(in)::mu
     real(dp),intent(in),dimension(:)::svec
-    real(dp),intent(out)::P,a,e,inc,mA,w,lN,f,dt
+    real(dp),intent(out)::P,sma,ecc,inc,mA,w,lN,f,dt
     real(dp)::x,y,z,vx,vy,vz,R,R2,V,V2,rv,rd
     real(dp)::hx,hy,hz,h2,h
 !     real(dp)::Energy
@@ -849,26 +834,26 @@ module celestial_mechanics
     rd=sign(rd,rv)
 
 !     Energy=(half*V2)-(mu/R)
-!     a=-half*mu/Energy
+!     sma=-half*mu/Energy
     isma= (two/R) - (V2/mu)
     if(isma.le.TOLERANCE)then
-    ! out: P,a,e,inc,mA,w,lN,f,dt
+    ! out: P,sma,ecc,inc,mA,w,lN,f,dt
       P=9.e9_dp
-      a=P
-      e=one
+      sma=P
+      ecc=one
       inc=90.0_dp
       mA=zero
-      w=zero
+      w=90.0_dp
       lN=zero
       f=zero
       dt=zero
       return
     end if
-    a=one/isma
+    sma=one/isma
 
-    P=dpi*sqrt((a**3)/mu)
+    P=dpi*sqrt((sma**3)/mu)
 
-    mmotion=sqrt(mu/(a**3))
+    mmotion=sqrt(mu/(sma**3))
 
     lN=mod((atan2(hx,-hy)+dpi),dpi)
 !     if(hx.lt.zero) lN=lN+dpi
@@ -883,14 +868,13 @@ module celestial_mechanics
 !     sini=hx/(h*sinlN)
     
     inc=atan2(sini,cosi)
-!     write(*,*)'cosi = ',cosi,' sini = ',sini,' inc = ',inc
-!     flush(6)
 
 !     sinwf=z/(R*sini)
     !if(sini.eq.zero)then
-    if(abs(sini-zero).le.TOLERANCE)then
-      e=zero
-      w=zero
+!     if(abs(sini-zero).le.TOLERANCE)then
+    if(abs(sini).le.TOLERANCE)then
+      ecc=zero
+      w=90.0_dp
       f=zero
       lN=zero
       mA=zero
@@ -900,11 +884,11 @@ module celestial_mechanics
       sinwf=z/(R*sini)
     end if
 
-    arg1=h2/(a*mu)
+    arg1=h2/(sma*mu)
     arg2=one-arg1
     if(arg2.le.TOLERANCE)then
       ! circular orbit
-      e=zero
+      ecc=zero
       w=pi/two
       cpslN=coslN+sinlN
       cmslN=coslN-sinlN
@@ -915,7 +899,7 @@ module celestial_mechanics
       mA=f
     else
       ! elliptical orbit
-      e=sqrt(arg2)
+      ecc=sqrt(arg2)
       !if((abs(coslN).le.TOLERANCE).or.(coslN.eq.zero))then
       if((abs(coslN).le.TOLERANCE)&
           &.or.(abs(coslN-zero).le.TOLERANCE))then
@@ -925,38 +909,38 @@ module celestial_mechanics
       end if
       wf=atan2(sinwf,coswf)
       if(isnan(coswf))then
-        write(*,'(a,es23.16)')" coswf ",coswf
-        write(*,'(a,es23.16)')" sinwf = ",sinwf
-        write(*,'(a,es23.16)')" sinlN = ",sinlN
-        write(*,'(a,es23.16)')" coslN = ",coslN
-        write(*,'(a,es23.16)')" y = ",y
-        write(*,'(a,es23.16)')" x = ",x
-        write(*,'(a,es23.16)')" R = ",R
-        write(*,'(a,es23.16)')" cosi = ",cosi
-        write(*,'(a,es23.16)')" sini = ",sini
+!         write(*,'(a,es23.16)')" coswf ",coswf
+!         write(*,'(a,es23.16)')" sinwf = ",sinwf
+!         write(*,'(a,es23.16)')" sinlN = ",sinlN
+!         write(*,'(a,es23.16)')" coslN = ",coslN
+!         write(*,'(a,es23.16)')" y = ",y
+!         write(*,'(a,es23.16)')" x = ",x
+!         write(*,'(a,es23.16)')" R = ",R
+!         write(*,'(a,es23.16)')" cosi = ",cosi
+!         write(*,'(a,es23.16)')" sini = ",sini
 !         stop
         return
       end if
       if(sinwf.lt.zero) wf=wf+dpi
 
-      arg1=a*(one-e*e)
-      !sinf=rd*arg1/(h*e)
+      arg1=sma*(one-ecc*ecc)
+      !sinf=rd*arg1/(h*ecc)
       sinf=rd*arg1/h
       if(isnan(sinf))then
-        write(*,*)" WARNING: sinf is NaN"
-        write(*,'( "mu = ",es23.16)')mu
-        write(*,*)" a = ",a," e = ",e," h = ",h," h2 = ",h2
-        write(*,*)" rd = ",rd," rv = ",rv," V2 = ",V2," R2 = ",R2
-        write(*,*)" h2/R2 = ",(h2/R2)," V2 -(h2/R2) = ",V2-(h2/R2)
-        write(*,*)" rd[before sign(rd,rv)] = ",sqrt(V2-(h2/R2))
+!         write(*,*)" WARNING: sinf is NaN"
+!         write(*,'( "mu = ",es23.16)')mu
+!         write(*,*)" sma = ",sma," ecc = ",ecc," h = ",h," h2 = ",h2
+!         write(*,*)" rd = ",rd," rv = ",rv," V2 = ",V2," R2 = ",R2
+!         write(*,*)" h2/R2 = ",(h2/R2)," V2 -(h2/R2) = ",V2-(h2/R2)
+!         write(*,*)" rd[before sign(rd,rv)] = ",sqrt(V2-(h2/R2))
 !         stop
         return
       end if
-      !cosf=(one/e)*((arg1/R)-one)
+      !cosf=(one/ecc)*((arg1/R)-one)
       cosf=(arg1/R)-one
       if(isnan(cosf))then
-        write(*,*)" WARNING: cosf is NaN"
-        write(*,*)" a = ",a," e = ",e
+!         write(*,*)" WARNING: cosf is NaN"
+!         write(*,*)" sma = ",sma," ecc = ",ecc
 !         stop
         return
       end if
@@ -967,12 +951,12 @@ module celestial_mechanics
       w=wf-f
       if(w.lt.zero) w=w+dpi
 
-      arg1=sqrt((one-e)/(one+e))
+      arg1=sqrt((one-ecc)/(one+ecc))
       arg2=tan(half*f)
       Ea=two*atan(arg1*arg2)
       if(Ea.lt.zero) Ea=Ea+dpi
 
-      mA=Ea-e*sin(Ea)
+      mA=Ea-ecc*sin(Ea)
     end if
 
     dt=mA/mmotion
@@ -983,21 +967,21 @@ module celestial_mechanics
 
   ! from state vector (cartesian coordinates) to keplerian orbital elements
   ! for all the bodies
-  subroutine elements(m,rin,P,a,e,inc,mA,w,f,lN,dttau)
+  subroutine elements(m,rin,P,sma,ecc,inc,mA,argp,tA,lN,dttau)
     real(dp),dimension(:),intent(in)::m,rin
-    real(dp),dimension(:),intent(out)::P,a,e,inc,mA,w,f,lN,dttau
+    real(dp),dimension(:),intent(out)::P,sma,ecc,inc,mA,argp,tA,lN,dttau
     real(dp),dimension(6)::svec
     real(dp)::mu
     integer::j,ncj
 
     P=zero
-    a=zero
-    e=zero
+    sma=zero
+    ecc=zero
     inc=zero
-    mA=zero
-    w=zero
-    f=zero
-    lN=zero
+    mA=zero ! mean anomaly
+    argp=zero ! argument of pericentre
+    tA=zero ! true anomaly
+    lN=zero ! longitude of node
     dttau=zero
 
     cicle: do j=2,NB
@@ -1005,12 +989,12 @@ module celestial_mechanics
       mu=Giau*(m(1)+m(j))
       ! state vector j-th body
       svec=rin(1+ncj:6+ncj)
-      call eleMD(mu,svec,P(j),a(j),e(j),inc(j),mA(j),w(j),lN(j),f(j),dttau(j))
+      call eleMD(mu,svec,P(j),sma(j),ecc(j),inc(j),mA(j),argp(j),lN(j),tA(j),dttau(j))
       inc(j)=inc(j)*rad2deg
       mA(j)=mA(j)*rad2deg
       lN(j)=lN(j)*rad2deg
-      w(j)=w(j)*rad2deg
-      f(j)=f(j)*rad2deg
+      argp(j)=argp(j)*rad2deg
+      tA(j)=tA(j)*rad2deg
     end do cicle
 
     return

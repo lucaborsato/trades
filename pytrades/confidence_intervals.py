@@ -339,6 +339,7 @@ def main():
   # select n_samples from the posterior within the CI
   if(cli.n_samples > 0):
     anc.print_both(' Selecting %d samples from the posterior ...' %(cli.n_samples))
+    sys.stdout.flush()
     samples_fit_par = anc.take_n_samples(flatchain_posterior_0, ci_fitted[2:4,:], n_samples=cli.n_samples)
     samples_fit_par[0,:] = median_parameters # first sample as the median of the posterior
     anc.print_both(' Running TRADES and computing the T0s and RVs ...')
@@ -355,6 +356,7 @@ def main():
     rv_gr['time_rv_mod'].attrs['tepoch'] = pytrades_lib.pytrades.tepoch
     smp_h5.close()
     anc.print_both(' ... done')
+    sys.stdout.flush()
   #sys.exit()
   
   print
@@ -365,11 +367,17 @@ def main():
   ## take the mean of 5 bin centered to the higher bin
   #k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
   #if(k>50): k=50
-  k = anc.get_bins(flatchain_posterior_0, rule='doane')
+  #k = anc.get_bins(flatchain_posterior_0, rule='doane')
+  k = anc.get_bins(flatchain_posterior_0, rule='sturge')
+  anc.print_both('Kbins = %d' %(k))
+  sys.stdout.flush()
   mode_bin, mode_parameters = anc.get_mode_parameters(flatchain_posterior_0, k)
-  folder_3050 = get_intervals(cli.full_path, 3050, names_par, mode_parameters, flatchain_posterior_0, derived_type='mode', summary_file_hdf5=s_h5f)
-  ## MODE-LIKE PARAMETERS -> id 3051
-  folder_3051 = get_intervals(cli.full_path, 3051, names_par, mode_parameters, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
+  if(np.any(np.isnan(mode_parameters))):
+    print 'Some values are Nan, skip the mode parameters'
+  else:
+    folder_3050 = get_intervals(cli.full_path, 3050, names_par, mode_parameters, flatchain_posterior_0, derived_type='mode', summary_file_hdf5=s_h5f)
+    ## MODE-LIKE PARAMETERS -> id 3051
+    folder_3051 = get_intervals(cli.full_path, 3051, names_par, mode_parameters, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
   # ************************************
   
   print

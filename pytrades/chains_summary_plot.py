@@ -120,9 +120,13 @@ def main():
     max_lnprob_parameters = s_h5f['parameters/2050/fitted/parameters'][...]
     max_lgllhd = s_h5f['parameters/2050'].attrs['lgllhd']
     
-    mode_parameters = s_h5f['parameters/3051/fitted/parameters'][...]
-    mode_lgllhd = s_h5f['parameters/3051'].attrs['lgllhd']
-    
+    try:
+      mode_parameters = s_h5f['parameters/3051/fitted/parameters'][...]
+      mode_lgllhd = s_h5f['parameters/3051'].attrs['lgllhd']
+    except:
+      mode_parameters = None
+      mode_lgllhd = None
+      
     overp_par = s_h5f['parameters/%04d/fitted/parameters' %(overplot)][...]
     overp_lgllhd = s_h5f['parameters/%04d' %(overplot)].attrs['lgllhd']
   
@@ -166,8 +170,9 @@ def main():
 
 
     if(overplot is not None):
-      # plot of mode (mean of higher peak/bin)
-      axChain.axhline(mode_parameters[i]*conv_plot, color='red', ls='-', lw=2.1, alpha=1, label='mode')
+      if(mode_parameters is not None):
+        # plot of mode (mean of higher peak/bin)
+        axChain.axhline(mode_parameters[i]*conv_plot, color='red', ls='-', lw=2.1, alpha=1, label='mode')
       
       # plot of median
       axChain.axhline(median_parameters[i]*conv_plot, marker='None', c='blue',ls='-', lw=2.1, alpha=1.0, label='median fit')
@@ -218,10 +223,13 @@ def main():
     axHist.set_ylim([y_min, y_max])
 
     if(overplot is not None):
-      # plot mode
-      axHist.axhline(mode_parameters[i]*conv_plot, color='red', ls='-', lw=2.1, alpha=1, label='mode')
+      if(mode_parameters is not None):
+        # plot mode
+        axHist.axhline(mode_parameters[i]*conv_plot, color='red', ls='-', lw=2.1, alpha=1, label='mode')
+        
       # plot median
       axHist.axhline(median_parameters[i]*conv_plot, marker='None', c='blue',ls='-', lw=2.1, alpha=1.0, label='median fit')
+      
       # plot of max_lnprob
       axHist.axhline(max_lnprob_parameters[i]*conv_plot, marker='None', c='black',ls='-', lw=1.1, alpha=1.0, label='max lnprob')
       

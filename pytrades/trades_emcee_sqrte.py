@@ -415,13 +415,14 @@ def main():
 
   anc.print_both(' emcee chain: nwalkers = %d nruns = %d' %(nwalkers, nruns), of_run)
   anc.print_both(' sampler ... ',of_run)
+  
   # old version with threads
   #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, threads=nthreads)
-  
-  #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, threads=nthreads, args=[parameter_names])
+  #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, threads=nthreads, args=[parameter_names]) # needed to use sqrt(e) in emcee instead of e (in fortran)
   
   threads_pool = emcee.interruptible_pool.InterruptiblePool(nthreads)
-  sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, pool=threads_pool)
+  #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, pool=threads_pool)
+  sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, pool=threads_pool, args=[parameter_names]) # needed to use sqrt(e) in emcee instead of e (in fortran)
   
   anc.print_both(' ready to go', of_run)
   anc.print_both(' with nsave = %r' %(nsave), of_run)
