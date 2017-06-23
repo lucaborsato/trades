@@ -1522,9 +1522,6 @@ module ode_run
     integer,dimension(:),allocatable::RV_stat
     integer::cntT0,nTs
     integer,dimension(:,:),allocatable::T0_stat
-    logical::checkpar,gls_check
-    
-    integer::ii
     
     Hc=.true.
     
@@ -1636,8 +1633,6 @@ module ode_run
     integer,dimension(:),allocatable::uele,utra
     character(512),dimension(:),allocatable::flele,fltra
 
-    integer::i_par
-        
     write(*,'(a)')''
     write(*,'(a)')" EXECUTING SIMPLE INTEGRATION AND WRITING FINAL FILES"
 !     write(*,'(a,i3)')" LM on[1]/off[0] = ",wrtid
@@ -1707,7 +1702,7 @@ module ode_run
     fmele=fmtele()
     if(wrtel.eq.1) call set_file_elem(cpuid,isim,wrtid,uele,flele)
     
-    write(*,'(a,l)')' 0 ode_out Hc = ',Hc
+!     write(*,'(a,l)')' 0 ode_out Hc = ',Hc
 
     dt1=tstart-tepoch
     dt2=dt1+tint
@@ -1734,7 +1729,7 @@ module ode_run
           &cntT0,T0_stat,T0_sim,Hc)
     end if
 
-    write(*,'(a,l)')' 1 ode_out Hc = ',Hc
+!     write(*,'(a,l)')' 1 ode_out Hc = ',Hc
 
     write(*,*)
     if(.not.Hc) then
@@ -1871,7 +1866,6 @@ module ode_run
     real(dp),dimension(:),allocatable::ra0,ra1
     real(dp)::dt1,dt2
     logical::Hc
-    logical::checkpar
 
     ! units and file names to store and write to files
     integer::uorb,ucon
@@ -1879,8 +1873,6 @@ module ode_run
     integer,dimension(:),allocatable::uele,utra
     character(512),dimension(:),allocatable::flele,fltra
 
-    integer::i_par
-        
     write(*,'(a)')''
     write(*,'(a)')" EXECUTING SIMPLE INTEGRATION AND WRITING FINAL FILES"
 !     write(*,'(a,i3)')" LM on[1]/off[0] = ",wrtid

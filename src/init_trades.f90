@@ -401,14 +401,14 @@ module init_trades
   end subroutine read_lm_opt
 
   ! allocation and zero initialization of Keplerian elements
-  subroutine init_zero_par(m,R,P,a,e,w,mA,inc,lN,tau)
-    real(dp),dimension(:),allocatable,intent(out)::m,R,P,a,e,w,mA,inc,lN
+  subroutine init_zero_par(mass,R,P,a,e,w,mA,inc,lN,tau)
+    real(dp),dimension(:),allocatable,intent(out)::mass,R,P,a,e,w,mA,inc,lN
     real(dp),dimension(:),allocatable,intent(out)::tau
 
-    if(.not.allocated(m)) allocate(m(NB),R(NB),P(NB),a(NB),e(NB),&
+    if(.not.allocated(mass)) allocate(mass(NB),R(NB),P(NB),a(NB),e(NB),&
         &w(NB),mA(NB),inc(NB),lN(NB),tau(NB))
-    m=zero
-    m(2:NB)=9999._dp ! high values
+    mass=zero
+    mass(2:NB)=9999._dp ! high values
     R=zero
     R(2:NB)=9999._dp ! high values
     P=zero
