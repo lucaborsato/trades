@@ -170,10 +170,10 @@ mpi_omp_debug: constants_debug
 	$(CC) $(CFLAGS) $(CMPI) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_polychord.f90 -o $(TARGET_PC)
 
 mpi_omp_release: constants_release
-	$(CC) $(COPT) -c $(CONSTSRC)
 	$(CC) $(COPT) $(CMPI) $(COMP) -c $(addprefix $(POLYCHORD), $(PCSRC))
 	$(AR) $(LIBCHORD) $(PCOBJ)
-	$(CC) $(COPT) $(CMPI) $(COMP) $(CONSTOBJ) -I. $(CCHORD) -c $(SOURCES)
+# 	$(CC) $(COPT) $(CMPI) $(COMP) $(CONSTOBJ) -I. $(CCHORD) -c $(SOURCES)
+	$(CC) $(COPT) $(CMPI) $(COMP) -I. $(CCHORD) -c $(SOURCES)
 	$(CC) $(COPT) $(CMPI) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades.f90 -o $(TARGET_MPIOMP)
 	$(CC) $(COPT) $(CMPI) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_polychord.f90 -o $(TARGET_PC)
 
