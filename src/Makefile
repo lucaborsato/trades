@@ -30,7 +30,8 @@ F2PYCF = -fPIC
 TRADESLIB=pytrades_lib
 
 LIBCHORD = libchord.a
-AR = ar r
+# AR = ar r
+AR = ar -r
 CCHORD = -L. -lchord
 
 # executable
@@ -57,8 +58,8 @@ POLYCHORD = PolyChord/
 # PCOBJ = utils.o mpi_utils.o random_utils.o priors.o grades.o settings.o calculate.o evidence.o feedback.o read_write.o clustering.o chordal_sampling.o generate.o nested_sampling.o
 
 PCSRC = utils.f90 abort.F90 settings.f90 params.f90 array_utils.f90 priors.f90 mpi_utils.F90 calculate.f90 random_utils.F90 chordal_sampling.f90 run_time_info.f90 clustering.f90 read_write.f90 feedback.f90 generate.F90 ini.f90 nested_sampling.F90
-PCOBJ_1 = $(PCSRC:.f90=.o)
-PCOBJ = $(PCOBJ_1.F90=.o)
+# PCOBJ_1 = $(PCSRC:.f90=.o)
+# PCOBJ = $(PCOBJ_1.F90=.o)
 # FILES_OUT = $(patsubst %.xls,%.xlsx,$(patsubst %.doc,%.docx,$(FILES_IN)))
 PCOBJ = $(patsubst %.F90,%.o,$(patsubst %.f90,%.o, $(PCSRC)))
 
@@ -83,19 +84,19 @@ constants_release:
 
 polychord_debug: constants_debug
 	$(CC) $(CFLAGS) $(F2PYCF) -c $(addprefix $(POLYCHORD), $(PCSRC))
-	$(AR) $(LIBCHORD) $(PCCOBJ)
+	$(AR) $(LIBCHORD) $(PCOBJ)
 	
 polychord_omp_debug: constants_debug
 	$(CC) $(CFLAGS) $(COMP) $(F2PYCF) -c $(addprefix $(POLYCHORD), $(PCSRC))
-	$(AR) $(LIBCHORD) $(PCCOBJ)
+	$(AR) $(LIBCHORD) $(PCOBJ)
 	
 polychord_release: constants_release
 	$(CC) $(COPT) $(F2PYCF) -c $(addprefix $(POLYCHORD), $(PCSRC))
-	$(AR) $(LIBCHORD) $(PCCOBJ)
+	$(AR) $(LIBCHORD) $(PCOBJ)
 
 polychord_omp_release: constants_release
 	$(CC) $(COPT) $(COMP) $(F2PYCF) -c $(addprefix $(POLYCHORD), $(PCSRC))
-	$(AR) $(LIBCHORD) $(PCCOBJ)
+	$(AR) $(LIBCHORD) $(PCOBJ)
 
 serial_debug: constants_debug polychord_debug
 	$(CC) $(CFLAGS) $(F2PYCF) -I. $(CCHORD) -c $(SOURCES)
@@ -163,7 +164,7 @@ pyomp_release: omp_release only_pytrades_omp_release
 
 mpi_omp_debug: constants_debug
 	$(CC) $(CFLAGS) $(CMPI) $(COMP) -c $(addprefix $(POLYCHORD), $(PCSRC))
-	$(AR) $(LIBCHORD) $(PCCOBJ)
+	$(AR) $(LIBCHORD) $(PCOBJ)
 	$(CC) $(CFLAGS) $(CMPI) $(COMP) -I. $(CCHORD) -c $(SOURCES)
 	$(CC) $(CFLAGS) $(CMPI) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades.f90 -o $(TARGET_MPIOMP)
 	$(CC) $(CFLAGS) $(CMPI) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_polychord.f90 -o $(TARGET_PC)
@@ -171,7 +172,7 @@ mpi_omp_debug: constants_debug
 mpi_omp_release: constants_release
 	$(CC) $(COPT) -c $(CONSTSRC)
 	$(CC) $(COPT) $(CMPI) $(COMP) -c $(addprefix $(POLYCHORD), $(PCSRC))
-	$(AR) $(LIBCHORD) $(PCCOBJ)
+	$(AR) $(LIBCHORD) $(PCOBJ)
 	$(CC) $(COPT) $(CMPI) $(COMP) $(CONSTOBJ) -I. $(CCHORD) -c $(SOURCES)
 	$(CC) $(COPT) $(CMPI) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades.f90 -o $(TARGET_MPIOMP)
 	$(CC) $(COPT) $(CMPI) $(COMP) $(CONSTOBJ) $(PCOBJ) $(OBJECTS) -I. $(CCHORD) trades_polychord.f90 -o $(TARGET_PC)

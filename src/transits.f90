@@ -919,6 +919,7 @@ module transits
     real(dp),intent(in)::itime,hok
     integer,dimension(:,:),intent(out)::stat_tra
     real(dp),dimension(:,:),intent(out)::storetra
+    
     real(dp)::ttra,lte,Rs,Rp,Rmin,Rmax,r_sky
     real(dp),dimension(:),allocatable::rtra
     real(dp),dimension(4)::tcont
@@ -927,60 +928,41 @@ module transits
     
     real(dp)::mu,P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p,b_id_body
     
+    ttra=zero
+    lte=zero
+    tcont=zero
     Hc=.true.
     allocate(rtra(NBDIM))
     rtra=one
     call find_transit(id_body,mass,r1,r2,itime,hok,ttra,lte,rtra,Hc)
     
-    if(.not.Hc)then
-      ttra=zero
-      lte=zero
-      tcont=zero
-      rtra=zero
-      
-    else
+    if(Hc)then
     
+      call Rbounds(id_body,radii,Rs,Rp,Rmin,Rmax)
       sel_r=(id_body-1)*6
-      mu=Giau*(mass(1)+mass(id_body))
-      call eleMD(mu,rtra(1+sel_r:6+sel_r),P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p)
-      b_id_body = abs(impact_parameter(radii(1),sma_p,inc_p*rad2deg,ecc_p=ecc_p,arg_p=w_p*rad2deg))
+      r_sky=rsky(rtra(1+sel_r:2+sel_r))
       
-      if((b_id_body.lt.one).and.(.not.do_transit(id_body)))then ! planet should not transit
-!         write(*,'(a,i2,5(a,f23.10),a,l2)')' FOUND for planet ',id_body,&
-!           &' : i = ',inc_p*rad2deg,' a = ',sma_p,&
-!           &' e = ',ecc_p,' w = ',w_p*rad2deg,&
-!           &' ==> b = ',b_id_body,&
-!           &' < 1 && do_transit is ',do_transit(id_body)
-!         flush(6)
-        Hc=.false.
-        deallocate(rtra)
-        return
+      if(r_sky.le.Rmax)then ! planet transits the star (b <= 1)
       
-      else
-      
-        call Rbounds(id_body,radii,Rs,Rp,Rmin,Rmax)
-        r_sky=rsky(rtra(1+sel_r:2+sel_r))
-        if(r_sky.gt.Rmax) then ! it is not transiting
-          ttra=zero
-          lte=zero
-          tcont=zero
-          rtra=zero
+        if(do_transit(id_body))then ! planet has to transit!
+        
+          call find_contacts(id_body,mass,radii,rtra,ttra,tcont)
+          stat_tra(id_body,pos)=1
+          storetra(1,pos)=ttra
+          storetra(2,pos)=lte
+          storetra(3:6,pos)=tcont
+          storetra(7:,pos)=rtra
         
         else
         
-          call find_contacts(id_body,mass,radii,rtra,ttra,tcont)
-
-        end if
-
-      end if
-            
-    end if
+          Hc=.false.
+        
+        end if ! do_transit/transit_flag
+        
+      end if ! r_sky
     
-    stat_tra(id_body,pos)=1
-    storetra(1,pos)=ttra
-    storetra(2,pos)=lte
-    storetra(3:6,pos)=tcont
-    storetra(7:,pos)=rtra
+    end if ! Hc
+    
     deallocate(rtra)
 
     return
