@@ -334,7 +334,7 @@ module ode_run
     real(dp)::resw_max
     
     resw_max = sqrt(resmax/real(ndata,dp))
-    
+
     return
   end function set_max_residuals
   
@@ -343,9 +343,11 @@ module ode_run
     integer,intent(in)::ndata
     real(dp)::resw_max,resw_max_possible
     
-    resw_max=maxval(resw)
-    resw_max_possible=set_max_residuals(ndata)
-    if(resw_max.gt.resw_max_possible) resw=resw_max_possible
+    if(ndata.gt.0)then
+      resw_max=maxval(resw)
+      resw_max_possible=set_max_residuals(ndata)
+      if(resw_max.gt.resw_max_possible) resw=resw_max_possible
+    end if
   
     return
   end subroutine check_max_residuals
@@ -1640,8 +1642,10 @@ module ode_run
     
     resw=zero
     Hc=.true.
+    checkpar=.true.
     
-    write(*,'(a)')'fitting parameters'
+    write(*,'(a)')' fitting parameters'
+    write(*,'(a)')trim(paridlist)
     write(*,'(1000(1x,es23.16))')par
     
     allocate(m(NB),R(NB),P(NB),sma(NB),ecc(NB),w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
@@ -1656,7 +1660,7 @@ module ode_run
       if(.not.checkpar)then
         write(*,'(a)')' checkpar after convert_parameters is FALSE ... BAD'
   !       resw=sqrt(resmax)/real(ndata,dp)
-        resw=set_max_residuals(ndata)
+      if(ndata > 0) resw=set_max_residuals(ndata)
       end if
     end if
 
@@ -1745,114 +1749,124 @@ module ode_run
     if(wrtconst.eq.1) close(ucon)
     if(wrtel.eq.1) call close_elem(uele,flele)
 
-    if(.not.Hc) then
-!       resw=sqrt(resmax)/real(ndata,dp)
-      resw=set_max_residuals(ndata)
-    else
-      !call setval(RVobs,RV_sim,T0obs,T0_sim,resw)
-      !call setval_2(RVobs,RV_sim,eRVobs,T0obs,T0_sim,eT0obs,resw)
-!       call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
-!       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
-      call setval_5(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw,oc_fit)
-      if(present(fit_scale))then
-        if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
-        write(*,*)
-        write(*,'(a)')' CHECK GLS RESIDUALS-RV'
-        write(*,'(a,es23.16)')' gls_scale = ',gls_scale
-        write(*,*)
-        flush(6)
-        resw=resw*fit_scale*gls_scale
-      else
-        if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
-      end if
-      call check_max_residuals(resw,ndata)
-    end if
-
-    ! Reduced Chi Squares for report/summary
-    chi2r_RV=zero
-    chi2r_T0=zero
-    chi2wr_RV=zero
-    chi2wr_T0=zero
+    if(ndata.gt.0)then
     
-    if(cntRV.gt.0)then
-      write(*,*)""
-      write(*,'(a,i4)')" RADIAL VELOCITIES found: ",cntRV
-      write(*,*)""
-      if(present(to_screen)) call write_RV(gamma,RV_sim,RV_stat)
-      call write_RV(cpuid,isim,wrtid,gamma,RV_sim,RV_stat)
-      allocate(resw_temp(nRV))
-      call set_RV_resw(RVobs,RV_sim,eRVobs,gamma,resw_temp)
-      chi2r_RV=sum(resw_temp*resw_temp)*inv_dof
-      w_chi2r=real(ndata,dp)/real(nRV,dp)
-      chi2wr_RV=chi2r_RV*w_chi2r
-      deallocate(resw_temp)
-      ! 2016-04-08: added gls check
-      if(present(gls_scale))then
-        call check_and_write_periodogram(cpuid,isim,wrtid,jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
+      if(.not.Hc) then
+  !       resw=sqrt(resmax)/real(ndata,dp)
+        resw=set_max_residuals(ndata)
       else
-        call check_and_write_periodogram(cpuid,isim,wrtid,jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+        !call setval(RVobs,RV_sim,T0obs,T0_sim,resw)
+        !call setval_2(RVobs,RV_sim,eRVobs,T0obs,T0_sim,eT0obs,resw)
+  !       call setval_3(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
+  !       call setval_4(RVobs,RV_sim,eRVobs,gamma,T0obs,T0_sim,eT0obs,resw)
+        call setval_5(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw,oc_fit)
+        if(present(fit_scale))then
+          if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
+          write(*,*)
+          write(*,'(a)')' CHECK GLS RESIDUALS-RV'
+          write(*,'(a,es23.16)')' gls_scale = ',gls_scale
+          write(*,*)
+          flush(6)
+          resw=resw*fit_scale*gls_scale
+        else
+          if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+        end if
+        call check_max_residuals(resw,ndata)
       end if
-      if(.not.gls_check)resw=set_max_residuals(ndata)
-    else
-      write(*,*)
-      write(*,'(a)')' RADIAL VELOCITIES NOT FOUND'
-      write(*,*)
-    end if
 
-    if(cntT0.gt.0)then
-      write(*,*)
-      write(*,'(a,i5)')" T0 SIM found ",cntT0
-      write(*,*)
-      if(present(to_screen)) call write_T0(T0_sim,T0_stat)
-      call write_T0(cpuid,isim,wrtid,T0_sim,T0_stat)
-      allocate(resw_temp(sum(nT0)))
-      resw_temp=zero
-      call set_T0_resw(T0obs,T0_sim,eT0obs,resw_temp)
-!       resw_temp=(T0obs-T0_sim)/eT0obs
-      chi2r_T0=sum(resw_temp*resw_temp)*inv_dof
-      w_chi2r=real(ndata,dp)/real(sum(nT0),dp)
-      chi2wr_T0=chi2r_T0*w_chi2r
-!       deallocate(resw_temp)
-!       allocate(resw_temp(sum(nT0)))
-      resw_temp=zero
-      call set_oc_resw(epoT0obs,T0obs,eT0obs,T0_sim,resw_temp)
-      chi2r_oc=sum(resw_temp*resw_temp)*inv_dof
-      deallocate(resw_temp)
-    else
+      ! Reduced Chi Squares for report/summary
+      chi2r_RV=zero
       chi2r_T0=zero
-      chi2r_oc=zero
-      write(*,*)
-      write(*,'(a)')' TRANSIT TIMES NOT FOUND'
-      write(*,*)
-    end if
+      chi2wr_RV=zero
+      chi2wr_T0=zero
+      
+      if(cntRV.gt.0)then
+        write(*,*)""
+        write(*,'(a,i4)')" RADIAL VELOCITIES found: ",cntRV
+        write(*,*)""
+        if(present(to_screen)) call write_RV(gamma,RV_sim,RV_stat)
+        call write_RV(cpuid,isim,wrtid,gamma,RV_sim,RV_stat)
+        allocate(resw_temp(nRV))
+        call set_RV_resw(RVobs,RV_sim,eRVobs,gamma,resw_temp)
+        chi2r_RV=sum(resw_temp*resw_temp)*inv_dof
+        w_chi2r=real(ndata,dp)/real(nRV,dp)
+        chi2wr_RV=chi2r_RV*w_chi2r
+        deallocate(resw_temp)
+        ! 2016-04-08: added gls check
+        if(present(gls_scale))then
+          call check_and_write_periodogram(cpuid,isim,wrtid,jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
+        else
+          call check_and_write_periodogram(cpuid,isim,wrtid,jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
+        end if
+        if(.not.gls_check)resw=set_max_residuals(ndata)
+      else
+        write(*,*)
+        write(*,'(a)')' RADIAL VELOCITIES NOT FOUND'
+        write(*,*)
+      end if
 
-    if(.not.checkpar.or..not.Hc) resw=set_max_residuals(ndata)
-    fitness = sum(resw*resw)
+      if(cntT0.gt.0)then
+        write(*,*)
+        write(*,'(a,i5)')" T0 SIM found ",cntT0
+        write(*,*)
+        if(present(to_screen)) call write_T0(T0_sim,T0_stat)
+        call write_T0(cpuid,isim,wrtid,T0_sim,T0_stat)
+        allocate(resw_temp(sum(nT0)))
+        resw_temp=zero
+        call set_T0_resw(T0obs,T0_sim,eT0obs,resw_temp)
+  !       resw_temp=(T0obs-T0_sim)/eT0obs
+        chi2r_T0=sum(resw_temp*resw_temp)*inv_dof
+        w_chi2r=real(ndata,dp)/real(sum(nT0),dp)
+        chi2wr_T0=chi2r_T0*w_chi2r
+  !       deallocate(resw_temp)
+  !       allocate(resw_temp(sum(nT0)))
+        resw_temp=zero
+        call set_oc_resw(epoT0obs,T0obs,eT0obs,T0_sim,resw_temp)
+        chi2r_oc=sum(resw_temp*resw_temp)*inv_dof
+        deallocate(resw_temp)
+      else
+        chi2r_T0=zero
+        chi2r_oc=zero
+        write(*,*)
+        write(*,'(a)')' TRANSIT TIMES NOT FOUND'
+        write(*,*)
+      end if
+
+!     if(ndata.gt.0)then
+      if(.not.checkpar.or..not.Hc) resw=set_max_residuals(ndata)
+      fitness = sum(resw*resw)
+      
+      if(present(to_screen))then
+        if(present(fit_scale))then
+          call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
+            &chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale,to_screen=to_screen)
+        else
+          call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
+            chi2wr_T0,chi2r_oc,fitness,to_screen=to_screen)
+        end if
+      else
+        if(present(fit_scale))then
+          call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
+            &chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale)
+        else
+          call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
+            &chi2wr_T0,chi2r_oc,fitness)
+        end if
+      end if
+
+    else ! ndata <= 0
     
-    if(present(to_screen))then
-      if(present(fit_scale))then
-        call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
-          &chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale,to_screen=to_screen)
-      else
-        call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
-          chi2wr_T0,chi2r_oc,fitness,to_screen=to_screen)
-      end if
-    else
-      if(present(fit_scale))then
-        call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
-          &chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale)
-      else
-        call write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,&
-          &chi2wr_T0,chi2r_oc,fitness)
-      end if
-    end if
-
+      write(*,'(a)')' ndata == 0: NO FITNESS SUMMARY (SCREEN AND FILES)'
+      flush(6)
+      
+    end if  ! ndata
+    
     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
     if(allocated(gamma)) deallocate(gamma)
     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
     if(allocated(m))   deallocate(m,R,P,sma,ecc,w,mA,inc,lN,clN)
     if(allocated(ra0)) deallocate(ra0,ra1)
-
+      
     return
   end subroutine ode_out
   

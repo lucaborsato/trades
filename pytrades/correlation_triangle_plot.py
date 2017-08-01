@@ -107,8 +107,8 @@ def main():
   # print Memory occupation of ...
   anc.print_memory_usage(chains)
 
-  nfit, nwalkers, nruns, npost, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.npost, completed_steps)
-  logger.info('nfit(%d), nwalkers(%d), nruns(%d), npost(%d), nruns_sel(%d)' %(nfit, nwalkers, nruns, npost, nruns_sel))
+  nfit, nwalkers, nruns, nburnin, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.nburnin, completed_steps)
+  logger.info('nfit(%d), nwalkers(%d), nruns(%d), nburnin(%d), nruns_sel(%d)' %(nfit, nwalkers, nruns, nburnin, nruns_sel))
 
   # test label_separation
   #if (nfit <= 3): label_separation = -0.1
@@ -122,9 +122,9 @@ def main():
   # set label and legend names
   kel_plot_labels = anc.keplerian_legend(parameter_names_emcee, cli.m_type)
 
-  chains_T_full, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
+  chains_T_full, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, nburnin, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
 
-  chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False)
+  chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, nburnin, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False)
 
   if(cli.boot_id > 0):
     flatchain_posterior_msun = anc.posterior_back_to_msun(m_factor,parameter_names_emcee,flatchain_posterior_0)
@@ -144,7 +144,9 @@ def main():
   #k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
   ##if(k>50): k=50
   #if(k>20): k=20
-  k = anc.get_bins(flatchain_posterior_0, rule='doane')
+  
+  #k = anc.get_bins(flatchain_posterior_0, rule='doane')
+  k = anc.get_auto_bins(flatchain_posterior_0)
   
   #mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
 

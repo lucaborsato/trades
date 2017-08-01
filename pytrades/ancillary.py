@@ -113,7 +113,8 @@ def get_args():
   parser.add_argument('-p', '--path', action='store', dest='full_path', required=True,
                       help='The path (absolute or relative) with simulation files for TRADES.')
 
-  parser.add_argument('-nb', '--nburn', '-np', '--npost', action='store', dest='npost', required=True,
+  parser.add_argument('-nb', '--nb', '--nburn', '-nburn', '--nburnin', '-nburnin',
+                      action='store', dest='nburnin', required=True,
                       help='The number of posterior/burn in steps to discard at the beginning of each chain. It has to be > 0')
 
   parser.add_argument('-m', '--mtype', '--mass-type', action='store', dest='m_type', default='e',
@@ -616,23 +617,25 @@ def compute_acor_time(sampler, steps_done=None):
 
 # -------------------------------------
 
-def get_emcee_parameters(chains, temp_status, npost_input, completed_steps):
-  # determine nwalkers, nruns, npost (nburn), and nfit parameters
+def get_emcee_parameters(chains, temp_status, nburnin_in, completed_steps):
+  # determine nwalkers, nruns, nburnin, and nfit parameters
   # nwalkers = chains.shape[0]
   # nruns = chains.shape[1]
   nwalkers, nruns, nfit = np.shape(chains)
   if (temp_status):
     nruns = int(completed_steps)
   # select posterior chains, without burn in steps
-  npost = 0
-  if (npost_input < 0):
-    # print ' WARNING: npost <= 0. It will be set to: npost = nruns * 10% = %d * 10% = %d' %(nruns, nruns*0.1)
-    npost = 0
+  nburnin = 0
+  if (nburnin_in < 0):
+    # print ' WARNING: nburnin <= 0. It will be set to: nburnin = nruns * 10% = %d * 10% = %d' %(nruns, nruns*0.1)
+    nburnin = 0
+  elif(nburnin_in >= nruns):
+    nburnin = np.rint(0.5*nruns).astype(int)
   else:
-    npost = int(npost_input)
-  nruns_sel = nruns - npost
+    nburnin = int(nburnin_in)
+  nruns_sel = nruns - nburnin
 
-  return nfit, nwalkers, nruns, npost, nruns_sel
+  return nfit, nwalkers, nruns, nburnin, nruns_sel
 
 
 # -------------------------------------
@@ -747,17 +750,17 @@ def compute_limits(vec_a, delta=0.05):
 
 # -------------------------------------
 
-def thin_the_chains(use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False,
+def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False,
                     full_chains_thinned=False):
   nr, nw, nfit = np.shape(chains_T_full)
-  print ' npost = ', npost
+  print ' nburnin = ', nburnin
   print ' nruns = ', nruns
   print ' nruns_sel = ', nruns_sel
   # print ' np.shape(lnprobability) = ',np.shape(lnprobability)
 
   if (not burnin_done):
-    chains_T_posterior = chains_T_full[npost:nruns, :, :].copy()
-    lnprob_posterior = lnprobability[:, npost:nruns].copy()
+    chains_T_posterior = chains_T_full[nburnin:nruns, :, :].copy()
+    lnprob_posterior = lnprobability[:, nburnin:nruns].copy()
   else:
     chains_T_posterior = chains_T_full[:, :nruns, :].copy()
     lnprob_posterior = lnprobability[:, :nruns].copy()
@@ -1613,6 +1616,7 @@ def get_fitted(full_path):
 # -------------------------------------
 
 def compute_intervals(flatchain, parameters, percentiles):
+  
   sigma_par = np.percentile(np.subtract(flatchain, parameters), percentiles, axis=0,
                             interpolation='midpoint')  # (n_percentile x nfit)
   sigma_par[0] = np.percentile(np.abs(np.subtract(flatchain, parameters)), percentiles[0], axis=0,
@@ -1625,6 +1629,86 @@ def compute_intervals(flatchain, parameters, percentiles):
 
   return sigma_par
 
+# -------------------------------------
+
+def compute_hdi_full(flatchains, mode_output=False):
+  
+  alpha=[0.3173, 0.0456, 0.0026]
+  npost, npar = np.shape(flatchains)
+  #print '\n^^^\nIN compute_hdi_full WITH (npost , npar) = (%d , %d)' %(npost, npar)
+  
+  nbins = get_auto_bins(flatchains)
+  #print 'nbins = ',nbins
+  
+  #print 'Computing hdi_full ....',
+  hdi_full = [(calculate_hdi(flatchains[:,ipar],
+               nbins,
+               alpha,
+               mode_output=mode_output
+               )
+               ) for ipar in range(npar)
+             ]
+  #print 'done with shape ', np.shape(hdi_full), ' and type ',type(hdi_full)
+  #print hdi_full
+  
+  #print 'Reformatting hdi_full to hdi_l:'
+  hdi_l = [[hdi_full[ipar][0][0], hdi_full[ipar][0][1],
+            hdi_full[ipar][1][0], hdi_full[ipar][1][1],
+            hdi_full[ipar][2][0], hdi_full[ipar][2][1]
+          ] for ipar in range(npar)]
+  #print 'hdi_l with shape ',np.shape(hdi_l), ' and type ',type(hdi_l)
+  
+  hdi_a = np.array(hdi_l, dtype=np.float64)
+  #print 'hdi_a with shape ',np.shape(hdi_a), ' and type ',type(hdi_a)
+  
+  hdi = np.reshape(hdi_a, newshape=((npar,-1)))
+  #print 'hdi   with shape ',np.shape(hdi), ' and type ',type(hdi)
+  
+  if(mode_output):
+    mode = np.array([hdi_full[ipar][3] for ipar in range(npar)], dtype=np.float64)
+    #print '^^^\n'
+    return hdi, mode
+  
+  #print '^^^\n'
+  
+  return hdi
+
+# -------------------------------------
+
+def compute_sigma_hdi(flatchains, parameters):
+  
+  alpha=[0.3173, 0.0456, 0.0026]
+  
+  npost, npar = np.shape(flatchains)
+  #print '\n^^^\nIN compute_sigma_hdi WITH (npost , npar) = (%d , %d)\n^^^\n' %(npost, npar)
+  nbins = get_auto_bins(flatchains)
+  
+  hdi_full = [(calculate_hdi(flatchains[:,ipar],
+                            nbins, alpha, 
+                            mode_output=False
+                            )
+                      ) for ipar in range(npar)]
+  
+  sigma_par = np.array([[hdi_full[ipar][0][0] - parameters[ipar],
+                         hdi_full[ipar][0][1] - parameters[ipar],
+                         hdi_full[ipar][1][0] - parameters[ipar], 
+                         hdi_full[ipar][1][1] - parameters[ipar],
+                         hdi_full[ipar][2][0] - parameters[ipar], 
+                         hdi_full[ipar][2][1] - parameters[ipar]
+                      ] for ipar in range(npar)]
+                    ).reshape((npar,-1))
+  
+  delta_flat_T = np.abs([flatchains[:,ipar] - parameters[ipar] for ipar in range(npar)]).T
+  
+  sigma_r68p = np.percentile(delta_flat_T, 68.27,
+                             axis=0, interpolation='midpoint')  # 68.27th
+  
+  sigma_mad = np.percentile(delta_flat_T, 50.,
+                            axis=0, interpolation='midpoint')  # MAD
+  
+  sigma_par = np.column_stack((sigma_r68p, sigma_mad, sigma_par))
+  
+  return sigma_par
 
 # -------------------------------------
 
@@ -2283,9 +2367,9 @@ def adjust_derived_parameters(derived_names, derived_par, derived_post):
 # -------------------------------------
 
 def get_header(perc_val):
-  top_header = '%1s %15s %20s %23s %23s %23s %23s %23s %23s %23s %23s %23s' % (
-  '#', '', '', '', '+/-1sigma', 'MAD', '-1sigma', '+1sigma', '-2sigma', '+2sigma', '-3sigma', '+3sigma')
-  header = '%1s %15s %20s %23s' % ('#', 'name', 'unit', 'parameter')
+
+  top_header = '# %15s %20s %23s %23s %23s %23s %23s %23s %23s %23s %23s' % (' ', ' ', ' ', '+/-1sigma', 'MAD', '-1sigma', '+1sigma', '-2sigma', '+2sigma', '-3sigma', '+3sigma')
+  header = '# %15s %20s %23s' % ('name', 'unit', 'parameter')
   perc_str = ' '.join(['%23s' % ('%4.2f-th' % (perc_val[i_p])) for i_p in range(len(perc_val))])
   header = '%s %s' % (header, perc_str)
 
@@ -2294,19 +2378,22 @@ def get_header(perc_val):
 
 # -------------------------------------
 
-def print_parameters(top_header, header, name_parameters, unit_parameters, parameters, sigma_parameters=None,
-                     output=None):
+def print_parameters(top_header, header, name_parameters, unit_parameters, parameters, sigma_parameters=None, output=None):
+  
   print_both(top_header, output)
   print_both(header, output)
   # n_par = parameters.shape[0]
-  n_par = len(name_parameters)
-  for i_p in range(0, n_par):
-    if (sigma_parameters is None):
-      sigma_line = ' '
-    else:
-      sigma_line = ' '.join(['%23.16e' % (sigma_parameters[ii, i_p]) for ii in range(0, len(percentile_val))])
-    line = '%17s %20s %23.16e %s' % (name_parameters[i_p], unit_parameters[i_p], parameters[i_p], sigma_line)
-    print_both(line, output)
+  #n_par = len(name_parameters)
+  if(sigma_parameters is not None):
+    n_sig, n_par = np.shape(sigma_parameters)
+    for i_p in range(0, n_par):
+      sigma_line = ' '.join(['%23.16e' % (sigma_parameters[ii, i_p]) for ii in range(n_sig)])
+      line = ' %15s %20s %23.16e %s' % (name_parameters[i_p],
+                                        unit_parameters[i_p].strip(),
+                                        parameters[i_p], sigma_line)
+      print_both(line, output)
+  else:
+    print_both('PARAMETERS NOT AVAILABLE', output)
 
   return
 
@@ -2314,16 +2401,17 @@ def print_parameters(top_header, header, name_parameters, unit_parameters, param
 # -------------------------------------
 
 def print_confidence_intervals(percentiles, conf_interv=None, name_parameters=None, unit_parameters=None, output=None):
+  
   if (conf_interv is not None):
-    header = '%1s %15s %20s' % ('#', 'name', 'unit')
-    perc_str = ' '.join(['%23s' % ('%4.2f-th' % (percentiles[i_p])) for i_p in range(len(percentiles))])
+    header = '# %15s %20s' % ('name', 'unit')
+    perc_str = ' '.join(['%23s' %('%4.2f-th' % (percentiles[i_p])) for i_p in range(len(percentiles))])
     header = '%s %s' % (header, perc_str)
     print_both(header, output)
 
     n_par = len(name_parameters)
     for i_p in range(0, n_par):
       ci_line = ' '.join(['%23.16e' % (conf_interv[ii, i_p]) for ii in range(0, len(percentiles))])
-      line = '%17s %23s %s' % (name_parameters[i_p], unit_parameters[i_p], ci_line)
+      line = '  %15s %23s %s' % (name_parameters[i_p], unit_parameters[i_p], ci_line)
       print_both(line, output)
 
   else:
@@ -2331,6 +2419,32 @@ def print_confidence_intervals(percentiles, conf_interv=None, name_parameters=No
 
   return
 
+# -------------------------------------
+
+def print_hdi(conf_interv=None, name_parameters=None, unit_parameters=None, output=None):
+  
+  if (conf_interv is not None):
+    header = '# %15s %20s %23s %23s %23s %23s %23s %23s' % ('name', 'unit',
+                                                              'HDI(68.27%)lower',
+                                                              'HDI(68.27%)upper',
+                                                              'HDI(95.44%)lower',
+                                                              'HDI(95.44%)upper',
+                                                              'HDI(99.74%)lower',
+                                                              'HDI(99.74%)upper'
+                                                              )
+    print_both(header, output)
+
+    #n_par, n_hdi = np.shape(conf_interv)
+    n_hdi, n_par = np.shape(conf_interv)
+    for i_p in range(0, n_par):
+      ci_line = ' '.join(['%23.16e' % (conf_interv[ii, i_p]) for ii in range(n_hdi)])
+      line = '  %15s %23s %s' % (name_parameters[i_p], unit_parameters[i_p], ci_line)
+      print_both(line, output)
+
+  else:
+    print_both('EMPTY', output)
+
+  return
 
 # =============================================================================
 
@@ -2349,43 +2463,171 @@ def read_fitted_file(fitted_file):
 
   return names, np.array(fitted_par, dtype=np.float64)
 
+# ==============================================================================
+# STURGES RULE TO COMPUTE THE NUMBER OF BINS FOR HISTOGRAM
+# ==============================================================================
 
-# =============================================================================
+def sturges_nbins(npost):
+  '''
+    Following Sturges' rule:
+    nbins = log2(n) + 1
+  '''
+  nbins = np.ceil(np.log2(np.float64(npost))).astype(int) + 1
+  
+  return nbins
+
+# ==============================================================================
+# FREEDMAN-DIACONIS RULE TO COMPUTE THE NUMBER OF BINS FOR HISTOGRAM
+# ==============================================================================
+
+def freedman_diaconis_nbins(x):
+  '''
+    Following Freedman-Diaconis rule:
+    width = 2 * IRQ / n^1/3
+    nbins = [ (max-min) / width ]
+  '''
+  q75 = np.percentile(x, 75., interpolation='midpoint')
+  q25 = np.percentile(x, 25., interpolation='midpoint')
+  irq = np.abs(q75-q25)
+  nx = np.float64(np.shape(x)[0])
+  width = 2. * irq / np.power(nx,1./3.)
+  nbins = np.ceil(np.abs(np.max(x)-np.min(x))/width).astype(int)
+  
+  return nbins
+
+# ==============================================================================
+# DOANE'S FORMULA TO COMPUTE THE NUMBER OF BINS FOR HISTOGRAM
+# ==============================================================================
+
+def doane_nbins(x):
+  '''
+   Doane's formula:
+     nbins = 1 + lon2(n) + log2(1 + |g1|/s_g1)
+     n: number of points/sample
+     g1 = 3rd-moment-skewness
+     s_g1 = sqrt( (6 x (n-2)) / ((n+1) x (n+3)) )
+  '''
+  nxf = np.float64(np.shape(x)[0])
+  mux = np.mean(x)
+  stdx = np.std(x, ddof=1)
+  g1 = np.mean(((x - mux) / stdx) ** 3)  # skew
+  s_g1 = np.sqrt(6. * (nxf - 2.) / ((nxf + 1.) * (nxf + 3.)))
+  nbins = int(1. + np.log2(nxf) + np.log2(1. + np.abs(g1) / s_g1))
+
+  return nbins
+
+# ==============================================================================
+# GIVEN THE POSTERIOR IT SELECT THE PROPER NBINS FOR ALL THE PARAMETER DISTRIBUTIONS
+# ==============================================================================
+
+def get_auto_bins(posterior):
+  
+  npost, nfit = np.shape(posterior)
+  # call Freedman-Diaconis rule
+  nbins_fd = [freedman_diaconis_nbins(posterior[:,ifit]) for ifit in range(nfit)]
+  # doane's formula
+  nbins_doa = [doane_nbins(posterior[:,ifit]) for ifit in range(nfit)]
+  # and Sturges' rule
+  nbins = int(np.mean([min(nbins_fd), min(nbins_doa), sturges_nbins(npost)]))
+  
+  #print 'fd:',nbins_fd
+  #print 'do:',nbins_doa
+  #print 'st:',sturges_nbins(npost)
+  #print 'nb:',nbins
+  
+  return nbins
+
+# ==============================================================================
+# GIVEN THE POSTERIOR AND THE RULE IT COMPUTES THE NBINS
+# ==============================================================================
 
 def get_bins(x, rule='rice'):
+  
   nx = np.shape(x)[0]
   nxf = np.float64(nx)
 
   # if (rule.lower() == 'sqrt'):
   if ('sq' in rule.lower()):
 
-    k_bins = int(np.sqrt(np.float64(nx)))
+    nbins = int(np.sqrt(np.float64(nx)))
 
   # elif (rule.lower() == 'sturges'):
   elif ('stu' in rule.lower()):
 
-    k_bins = int(1. + np.log2(np.float64(nx)))
+    #nbins = int(1. + np.log2(np.float64(nx)))
+    nbins = sturges_nbins(nxf)
 
   # elif (rule.lower() == 'doane'):
   elif ('doa' in rule.lower()):
 
-    mux = np.mean(x, axis=0)
-    stdx = np.std(x, ddof=1, axis=0)
-    g1 = np.max(np.mean(((x - mux) / stdx) ** 3, axis=0))  # skew
-    # g1 = np.min(np.mean( ((x-mux)/stdx)**3 , axis=0)) # skew
-    s_g1 = np.sqrt(6. * (nxf - 2) / ((nxf + 1.) * (nxf + 3.)))
-    k_bins = int(1. + np.log2(nxf) + np.log2(1. + np.abs(g1) / s_g1))
+    #mux = np.mean(x, axis=0)
+    #stdx = np.std(x, ddof=1, axis=0)
+    #g1 = np.max(np.mean(((x - mux) / stdx) ** 3, axis=0))  # skew
+    ## g1 = np.min(np.mean( ((x-mux)/stdx)**3 , axis=0)) # skew
+    #s_g1 = np.sqrt(6. * (nxf - 2) / ((nxf + 1.) * (nxf + 3.)))
+    #nbins = int(1. + np.log2(nxf) + np.log2(1. + np.abs(g1) / s_g1))
+    nbins = doane_nbins(x)
+
+  elif('fd' in rule.lower()):
+    
+    nbins = freedman_diaconis_nbins(x)
 
   else:  # rice
 
-    k_bins = int(np.ceil(2. * nxf ** (1. / 3.)))
+    nbins = int(np.ceil(2. * np.power(nxf, 1./3.)))
 
-  # if(k_bins > 20):  k_bins = 20
+  # if(nbins > 20):  nbins = 20
 
-  return k_bins
+  return nbins
 
+# ==============================================================================
+# HIGH DENSITY INTERVALS - DOING BAYESIAN DATA ANALYSIS by Kruschke
+# ==============================================================================
 
-# =============================================================================
+def calculate_hdi(x, nbins, alpha=[0.05], mode_output=False):
+  
+  # 68.27% (15.87th-84.13th) ==> alpha = 1. - 0.6827 = 0.3173
+  # 95.44% ( 2.28th-97.72th) ==> alpha = 1. - 0.9544 = 0.0456
+  # 99.74% ( 0.13th-99.87th) ==> alpha = 1. - 0.9974 = 0.0026
+  
+  counts, bin_edges = np.histogram(x, bins=nbins)
+  #nbins = len(counts)
+  
+  bin_width = bin_edges[1] - bin_edges[0]
+  hwidth = 0.5*bin_width
+  bin_mid = [bin_edges[ibin]+hwidth for ibin in range(nbins)]
+  
+  # probability mass distribution = (counts / ndata)
+  # probability density = probability mass distribution / bin_width
+  pmd = np.asarray(counts)/np.float64(np.shape(x)[0])
+  #pdd = pmd / bin_width
+  spmd = np.sort(pmd)[::-1]
+  hdi_ci = []
+  for ialpha in alpha:
+    lowestHeightIdx = np.min(np.where(np.cumsum(spmd) > (1. - ialpha)))
+    lowestHeight = spmd[lowestHeightIdx]
+    bin_sel = np.asarray(bin_mid)[pmd >= lowestHeight]
+    hdi_l = np.min(bin_sel) - hwidth
+    hdi_u = np.max(bin_sel) + hwidth
+    hdi_ci.append([hdi_l, hdi_u])
+  
+  if(mode_output):
+    max_bin = np.argmax(np.array(counts))
+    if (max_bin == 0 or max_bin == nbins):
+      ext_bin = 0
+    elif (max_bin == 1 or max_bin == nbins-1):
+      ext_bin = 1
+    else:
+      ext_bin = 2
+    sel_bin = np.logical_and(x >= bin_edges[max_bin-ext_bin],
+                             x < bin_edges[max_bin+ext_bin+1])
+    mode = np.mean(x[sel_bin])
+    hdi_ci.append(mode)
+  
+  return hdi_ci
+
+# ==============================================================================
+# ==============================================================================
 
 # use in emcee script sqrt(e)cos(w),sqrt(e)sin(w), while in trades use (e)cos(w),(e)sin(w)
 
@@ -2592,6 +2834,7 @@ def sqrte_to_e_parameters(fitting_in, names_par):
 
 # RV semi-amplitude K in m/s
 def compute_Kms(Ms_sun, Mp_jup, inc_deg, P_day, ecc):
+  
   Ms_jup = Ms_sun * cst.Msjup
   sini = np.sin(inc_deg * cst.deg2rad)
   G_m_mj_s = cst.Gsi * cst.Mjup

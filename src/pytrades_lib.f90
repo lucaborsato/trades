@@ -178,7 +178,7 @@ module pytrades
     dof=ndata-nfit-nfree
     if(dof.le.0)then
       write(*,'(a,a)')' FOUND dof <= 0 SO IT IS FORCE TO 1 IN CASE',&
-         &'THE USER WANT TO SIMULATE/INTEGRATE AND NOT CHECK THE FIT.'
+         &' THE USER WANT TO SIMULATE/INTEGRATE AND NOT CHECK THE FIT.'
          dof=1
     end if
     

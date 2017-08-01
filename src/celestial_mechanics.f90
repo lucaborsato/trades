@@ -523,7 +523,7 @@ module celestial_mechanics
     integer::i,nci
 
     output=zero
-
+    
     do i=2,NB
       !computation of the anomalies of the bodies
 !       mA_temp=mod(mA(i),circ)+circ

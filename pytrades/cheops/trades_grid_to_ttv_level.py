@@ -38,7 +38,7 @@ import gc
 
 import matplotlib as mpl
 #from matplotlib import use as mpluse
-mpl.use("Agg")
+mpl.use("Agg", warn=False)
 #mpluse("Qt4Agg")
 #mpluse("TkAgg")
 import matplotlib.pyplot as plt
@@ -61,6 +61,7 @@ from pytrades_lib import pytrades
 #import pytrades_lib.pytrades as pytrades
 
 import emcee.interruptible_pool as emcee_pool
+#import multiprocessing as mp
 
 # ==============================================================================
 
@@ -127,7 +128,8 @@ def set_err_T0(err_T0_in):
   elif('s' in err_T0_in):
     err_T0 = np.float64(err_T0_in.split('s')[0])/86400.
   else:
-    err_T0 = 0.
+    anc.print_both('WARNING: wrong mean err_T0: set to 30s')
+    err_T0 = 30./86400.
     
   return err_T0
 
@@ -238,14 +240,17 @@ def dirty_transits(T0, err_T0):
   dirty = []
   ierr = 0
   while True:
-    eee = np.random.normal(loc=0., scale=sig_err)
-    if(eee < min_err):
+    #eee = np.random.normal(loc=0., scale=sig_err)
+    eee = np.random.normal(loc=err_T0, scale=sig_err)
+    if(np.abs(eee) > min_err):
       dirty.append(eee)
       ierr += 1
       if(ierr == nT0):
         break
       
-  eT0 = np.array(dirty, dtype=np.float64) + err_T0
+  #eT0 = np.array(dirty, dtype=np.float64) + err_T0
+  eT0 = np.abs(np.array(dirty, dtype=np.float64))
+  eT0[eT0 == 0.] = err_T0
   T0dirty = T0 + np.array(dirty, dtype=np.float64)
   
   return T0dirty, eT0
@@ -323,9 +328,22 @@ def compute_rms_mc(oc, nT0_sel, nMC):
 
 # -------------------------------------
 
-def do_chi2r(res, err, dof):
+def do_chi2r(res_in, err_in, dof):
   
-  chi2r = np.sum(np.power(res/err, 2)) / np.float64(dof)
+  if(np.shape(res_in)[0] == 0 or np.shape(err_in)[0]):
+    
+    chi2r = -1.
+  
+  else:
+    
+    if(np.any(err_in == 0.)):
+      err = err_in[err_in != 0.]
+      res = res_in[err_in != 0.]
+      werr = res/err
+    else:
+      werr = res_in/err_in
+    
+    chi2r = np.sum(np.power(werr, 2)) / np.float64(dof)
   
   return chi2r
 
@@ -337,6 +355,9 @@ def compute_chi2r_mc(oc, eoc, nT0_sel, nMC):
   dof = nT0_sel - 2
   if(noc < nT0_sel):
     return -1., -1.
+  if(dof <= 0):
+    print 'WARNING dof <= 0! Set to dof = 1'
+    dof = 1
   for imc in range(0, nMC):
     id_sel = np.sort(np.random.choice(noc, nT0_sel, replace=False))
     chi2r_all = do_chi2r(oc[id_sel], eoc[id_sel], dof)
@@ -463,6 +484,7 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
   #anc.print_both(' - Select transit times:', of_log)
   ttra_all, nttra_all, sel_pre, nttra_pre, sel_cheops, nttra_cheops = select_and_sort_ttra(ttra_full, id_ttra_full, stats_ttra.astype(bool), id_transiting=transit_id,  t_min_sel=t_launch, t_max_sel=t_end, of_log=of_log)
   #print ' | Selected and sorted TTs and RVs'
+  sel_kel = perturber_id-1
   rms_rv = anc.compute_Kms(mass[0],mass[sel_kel]*cst.Msjup,inc[sel_kel],period[sel_kel],ecc[sel_kel])
   
   if(ttra_all is not None):
@@ -471,6 +493,7 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
     epo_pre, Tref_pre, Pref_pre = compute_lin_ephem(T0[sel_pre], eT0[sel_pre])
     epo_cheops, oc_cheops, rms_cheops = compute_oc(Tref_pre, Pref_pre, T0[sel_cheops])
     dof = np.shape(oc_cheops)[0]-2
+    if(dof <= 0): dof = 1
 
     #print ' | OK TT'
     #print ' | shape(sel_cheops) = ', np.shape(sel_cheops)
@@ -537,6 +560,12 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
   
   #anc.print_both('\n | sim %06d: COMPLETED\n' %(sim_num), of_log)
   
+  del sim_num, names_lst, units, perturber_par, dof 
+  del mass, radius, period, sma, ecc, argp, mean_an, inc, long_n
+  del ttra_all, sel_pre, sel_cheops, T0_eT0, time_rv, rms_rv, Tref_pre, Pref_pre
+  del rms_cheops, nT0_sel, nMC, rms_mc, chi2r_cheops, chi2r_mc
+  gc.collect()
+  
   return results_sim
 
 # -------------------------------------
@@ -546,16 +575,27 @@ def run_the_simulation(sim_args):
   i_grid = sim_args['i_grid']
   transit_id = sim_args['transit_id']
   perturber_id = sim_args['perturber_id']
+  perturber_par = sim_args['perturber_par']
   n_bodies = sim_args['n_bodies']
   t_launch = sim_args['t_launch']
   t_end = sim_args['t_end']
   err_T0 = sim_args['err_T0']
   nT0_sel = sim_args['nT0_sel']
   names_lst = sim_args['names_lst']
-  mr_type = sim_args['units']
+  units = sim_args['units']
+  mr_type = sim_args['mr_type']
   nMC = sim_args['nMC']
   
+  pid = os.getpid()
+  print ' Process %d RUNNING sim %d ...' %(pid, i_grid+1)
+  
   results_sim = simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, perturber_par, t_launch, t_end, err_T0, nT0_sel, names_lst, units, mr_type, nMC, of_log=None)
+  
+  del i_grid, transit_id, perturber_id, perturber_par, n_bodies, t_launch, t_end
+  del err_T0, nT0_sel, names_lst, units, mr_type, nMC
+  gc.collect()
+  
+  print ' Process %d COMPLETED sim %d' %(pid, i_grid+1)
   
   return results_sim
 
@@ -1397,8 +1437,16 @@ def plot_m_vs_p_vs_chi2r(plot_file, mass, period, chi2r_MP, rms_oc_MP, rms_oc_ma
   # contour levels
   cmap_get = cm.get_cmap('viridis')
   
-  clev = [np.float(ilev) for ilev in range(0,6)] + [ilev for ilev in np.power(10., np.linspace(np.log10(6.), np.log10(np.max(np.max(chi2r_MP))), num=4, endpoint=True))]
-  levcols = cmap_get(np.linspace(0.,1.,num=np.shape(clev)[0],endpoint=True))
+  clev05 = [0., 1., 2., 3., 4., 5.]
+  #clev = [np.float(ilev) for ilev in range(0,6)] + [ilev for ilev in np.power(10., np.linspace(np.log10(6.), np.log10(np.max(np.max(chi2r_MP))), num=4, endpoint=True))]
+  maxchi2r = np.max(np.max(chi2r_MP))
+  if(maxchi2r <= 6.):
+    clev = clev05 + [6.]
+  else:
+    lval6max = np.linspace(np.log10(6.), np.log10(maxchi2r), num=4, endpoint=True)
+    clev = clev05 + [np.power(10., lval6max[ic]) for ic in range(4)]
+  nlev = np.shape(clev)[0]
+  levcols = cmap_get(np.linspace(0.,1.,num=nlev,endpoint=True))
 
   lev_minutes = [1., 5., 10.]
   rms_lev = [ilev/1400. for ilev in lev_minutes]
@@ -1462,30 +1510,34 @@ def plot_m_vs_p_vs_chi2r(plot_file, mass, period, chi2r_MP, rms_oc_MP, rms_oc_ma
     print(' | mesh/contour rms done')
     
     
-    # to be removed!!
-    #mesh_rv = anc.compute_Kms(1.030, mesh_m*cst.Mears*cst.Msjup, 88.55, mesh_p, 0.)
+    # to be removed or use at my will!!
+    mesh_rv = anc.compute_Kms(1.030, mesh_m*cst.Mears*cst.Msjup, 88.55, mesh_p, 0.)
     
     #mesh_rv = np.swapaxes(mesh_rv, 0, 1)
+    
+    # inverted Greys cmap with alpha from 0 (transparent) to 1 (opaque)
+    greys_r_t = cm.Greys_r(np.arange(cm.Greys_r.N))
+    greys_r_t[:,-1] = np.linspace(0, 1., cm.Greys_r.N)
+    greys_r_t = mpl.colors.ListedColormap(greys_r_t)
+    
     v_rvmin = np.min(np.min(mesh_rv))
+    if(v_rvmin < 0.): v_rvmin = 0.
     v_rvmax = np.max(np.max(mesh_rv))
     #mesh_rv[mesh_rv < 3.] = np.ma.masked
+    print(' | RV min = %.6f m/s max = %.6f m/s' %(v_rvmin, v_rvmax))
     cnrv = ax.contourf(mesh_p, mesh_m, mesh_rv, 
-                       #levels=[0., K_rv],
-                       #levels=[np.min(np.min(mesh_rv)), 0., K_rv, np.max(np.max(mesh_rv))],
-                       #levels=[K_rv, np.max(np.max(mesh_rv))],
-                       #levels=[1., 2., 3., 4., 5., 6., np.max(np.max(mesh_rv))],
-                       levels=[3., 5., np.max(np.max(mesh_rv))],
-                       colors=['lightgray', 'gray'], alpha=0.8,
+                       #levels=[3., 5., np.max(np.max(mesh_rv))],
+                       #colors=['lightgray', 'gray'], alpha=0.8,
+                       levels=[1., 2., 3., 5., v_rvmax],
+                       #cmap=cm.Greys_r, alpha=0.444,
+                       cmap=greys_r_t,
                        #cmap=cm.Greys, alpha=0.7,
-                       #colors='white',
-                       #linewidths=1.,
-                       #linestyles='solid',
                        #linestyles=[(0.,(1.,1.)), (0.,(3.,2.)),'-'],
-                       origin=origin_mesh,
+                       #origin=origin_mesh,
                        vmin=v_rvmin, vmax=v_rvmax,
-                       zorder=6
+                       zorder=7
                        )
-    print(' | mesh/contour rv done')
+    print(' | mesh/contourf rv done')
     
     # plot reference masses in M_Earth
     #for imass in [1., 5., 10.]:
@@ -1687,9 +1739,8 @@ def main():
     ##get_rms_from_results(results_sim, rms_oc_grid, above_threshold, nT0_sel, err_T0, rms_rv_grid)
     #get_chi2r_rms_from_results(results_sim, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, err_T0, rms_rv_grid)
     #anc.print_both(' - Saved sim %06d into hdf5 file.' %(results_sim['sim_num']), of_log)
-    
-    
-    
+  
+  print ' - Creating sim_args list ...',
   
   list_sim_args = []
   for igrid in range(0, niter):
@@ -1697,25 +1748,43 @@ def main():
     sim_args['i_grid'] = igrid
     sim_args['transit_id'] = transit_id
     sim_args['perturber_id'] = cli.perturber_id
+    sim_args['perturber_par'] = perturber_grid[igrid,:]
     sim_args['n_bodies'] = n_bodies
-    sim_args['t_launch'] = t_launch
+    sim_args['t_launch'] = t_launch.jd
     sim_args['t_end'] = t_end
     sim_args['err_T0'] = err_T0
     sim_args['nT0_sel'] = nT0_sel
     sim_args['names_lst'] = names_lst
-    sim_args['units'] = cli.mr_type
+    sim_args['units'] = units
+    sim_args['mr_type'] = cli.mr_type
     sim_args['nMC'] = nMC
     list_sim_args.append(sim_args)
+  print 'done'
+  
+  print ' - RUN THEM ALL ...',
+  #list_results_sim = [run_the_simulation(list_sim_args[igrid]) for igrid in range(niter)]
   
   # try InterruptiblePool from emcee to reduce process spawn...
   threads_pool = emcee_pool.InterruptiblePool(cli.nthreads)
   list_results_sim = threads_pool.map(run_the_simulation, list_sim_args)
   
   # close the pool of threads
-  threads_pool.close()
+  #threads_pool.close()
   threads_pool.terminate()
   threads_pool.join()
   
+  print 'done\n'
+  
+  # save results of each sim in hdf5 file
+  for igrid in range(0, niter):
+    results_sim = list_results_sim[igrid]
+    print ' - Saving results for sim #%06d ... into hdf5 file ...' %(results_sim['sim_num']),
+    f_h5 = save_results_sim(f_h5, results_sim, cli.mr_type)
+    print ' | and populating the chi2r and rms grid ...',
+    get_chi2r_rms_from_results(results_sim, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, err_T0, rms_rv_grid)
+    print ' | done'
+  print
+    
   f_h5 = save_chi2r_rms_analysis(f_h5, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, rms_rv_grid)
   #f_h5 = save_rms_analysis(f_h5, rms_oc_grid, above_threshold, nT0_sel, rms_rv_grid)
   f_h5.close()

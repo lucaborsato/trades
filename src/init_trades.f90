@@ -846,7 +846,11 @@ module init_trades
           all_parameters(5+j1)=P(j)
           par_min(5+j1)=max(min(temp1,temp2),TOLERANCE)
           par_max(5+j1)=min(max(temp1,temp2),1000._dp*365.25_dp)
-          if(par_max(5+j1).le.TOLERANCE) par_max(5+j1)=1000._dp*365.25_dp
+          if(par_max(5+j1).le.TOLERANCE)then
+            par_max(5+j1)=1000._dp*365.25_dp
+          else
+            if(P(j).ge.par_max(5+j1)) par_max(5+j1)=two*P(j)
+          end if
           
           Pvec(j-1)=par_max(5+j1)
           
@@ -1419,7 +1423,7 @@ module init_trades
     call read_fullpar(cpuid,m,R,P,a,e,w,mA,inc,lN,system_parameters)
     
     if(progtype.gt.1)then
-      write(*,'(a)')'Initial-input Keplerian orbital elements'
+      write(*,'(a)')'Initial-input Keplerian orbital elements: val'
       write(*,'(a, 1000(1x,es23.16))')"m   [Msun] = ", m(1),m(2:)
       write(*,'(a, 1000(1x,es23.16))')"R   [Rsun] = ", R
       write(*,'(a, 1000(1x,es23.16))')"P   [days] = ", P
@@ -1481,7 +1485,7 @@ module init_trades
     dof=(ndata-nfit-nfree) ! I have to take into account the number of RV offsets even if they are not fitted
     if(dof.le.0)then
       write(*,'(a)')' FOUND dof <= 0 SO IT IS FORCE TO 1 IN CASE'&
-         &'THE USER WANT TO SIMULATE/INTEGRATE AND NOT CHECK THE FIT.'
+         &' THE USER WANT TO SIMULATE/INTEGRATE AND NOT CHECK THE FIT.'
          dof=1
     end if
     inv_dof = one / real(dof,dp)

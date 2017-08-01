@@ -40,18 +40,22 @@ module driver
     ! integrates and write RVs and T0s
     if(present(to_screen))then
       call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,to_screen=to_screen)
-      call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,to_screen=to_screen)
+      if(ndata.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,to_screen=to_screen)
     else
   !     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,fit_scale,gls_scale)
   !     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,fit_scale,gls_scale)
       call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw)
-      call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
+      if(ndata.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
     end if
-      
-    fitness=sum(resw*resw)
-    deallocate(resw)
-    if(fitness.ge.resmax)then
-      fitness=resmax
+    
+    if(ndata.gt.0)then
+      fitness=sum(resw*resw)
+      deallocate(resw)
+      if(fitness.ge.resmax)then
+        fitness=resmax
+      end if
+    else
+      fitness=one
     end if
     
     flush(6)
@@ -81,20 +85,24 @@ module driver
     ! integrates and write RVs and T0s
     if(present(to_screen))then 
       call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,to_screen=to_screen)
-      call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,to_screen=to_screen)
+      if(ndata.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,to_screen=to_screen)
     else
 !     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,fit_scale,gls_scale)
 !     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,fit_scale,gls_scale)
     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw)
-    call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
+    if(ndata.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
     end if
 !     call write_par(cpuid,fit_parameters,sigma_parameters,resw)
 !     call write_par(cpuid,sim_id,lm_flag,fit_parameters,sigma_parameters,resw)
     
-    fitness=sum(resw*resw)
-    deallocate(resw)
-    if(fitness.ge.resmax)then
-      fitness=resmax
+    if(ndata.gt.0)then
+      fitness=sum(resw*resw)
+      deallocate(resw)
+      if(fitness.ge.resmax)then
+        fitness=resmax
+      end if
+    else
+      fitness=one
     end if
     
     flush(6)

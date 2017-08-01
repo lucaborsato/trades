@@ -661,19 +661,24 @@ module parameters_conversion
     
 !     checkpar=.true.
     checkpar=checkbounds_fit(par,wrt_info)
+!     write(*,*)' checkbounds_fit: ',checkpar
     if(present(wrt_info).and.wrt_info)then
       if(wrt_info) write(*,*)' checkbounds_fit: ',checkpar
       flush(6)
     end if
+    
     if(checkpar)then
       call par2kel_fit(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar,wrt_info)
+!       write(*,*)' checkbounds_fit: ',checkpar
       if(present(wrt_info))then
-        if(wrt_info) write(*,*)' par2kel_fit: ',checkpar
+        if(wrt_info) write(*,*)' checkbounds_fit: ',checkpar
         flush(6)
       end if
     end if
+    
     if(checkpar)then
       checkpar=checkbounds_kel(m,R,P,e,w,mA,inc,lN)
+!       write(*,*)' checkbounds_kel: ',checkpar
       if(present(wrt_info))then
         if(wrt_info) write(*,*)' checkbounds_kel: ',checkpar
         flush(6)

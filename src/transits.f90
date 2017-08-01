@@ -926,7 +926,7 @@ module transits
     logical::Hc
     integer::sel_r
     
-    real(dp)::mu,P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p,b_id_body
+!     real(dp)::mu,P_p,sma_p,ecc_p,inc_p,mA_p,w_p,lN_p,f_p,dtau_p,b_id_body
     
     ttra=zero
     lte=zero

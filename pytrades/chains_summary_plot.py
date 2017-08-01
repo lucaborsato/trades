@@ -47,20 +47,20 @@ def main():
   # set label and legend names
   kel_labels = anc.keplerian_legend(parameter_names_emcee, cli.m_type)
 
-  nfit, nwalkers, nruns, npost, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.npost, completed_steps)
+  nfit, nwalkers, nruns, nburnin, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.nburnin, completed_steps)
 
   anc.print_memory_usage(chains)
 
-  chains_T_full, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
+  chains_T_full, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, nburnin, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
   
   if(cli.use_thin):
-    chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps, chains_T_full_thinned = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False, full_chains_thinned=True)
-    npost_plt = np.rint(npost / thin_steps).astype(int)
+    chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps, chains_T_full_thinned = anc.thin_the_chains(cli.use_thin, nburnin, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False, full_chains_thinned=True)
+    nburnin_plt = np.rint(nburnin / thin_steps).astype(int)
     nend = np.rint(nruns / thin_steps).astype(int)
   
   else:
-    chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, npost, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False, full_chains_thinned=False)
-    npost_plt = npost
+    chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, nburnin, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False, full_chains_thinned=False)
+    nburnin_plt = nburnin
     nend = nruns
   
   #name_par, name_excluded = anc.get_sample_list(cli.sample_str, parameter_names_emcee)
@@ -78,7 +78,10 @@ def main():
 
   #k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
   #if(k>50): k=50
-  k = anc.get_bins(flatchain_posterior_0, rule='doane')
+  
+  #k = anc.get_bins(flatchain_posterior_0, rule='doane')
+  k = anc.get_auto_bins(flatchain_posterior_0)
+  
   #mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
   
   # max lnprob
@@ -165,8 +168,8 @@ def main():
     else:
       axChain.plot(chains_T_full[:,:,i], '-', alpha=0.3)
 
-    axChain.axvspan(0, npost_plt, color='gray', alpha=0.45)
-    axChain.axvline(npost_plt, color='gray', ls='-', lw=1.5)
+    axChain.axvspan(0, nburnin_plt, color='gray', alpha=0.45)
+    axChain.axvline(nburnin_plt, color='gray', ls='-', lw=1.5)
 
 
     if(overplot is not None):

@@ -35,7 +35,7 @@ def chains(cli):
   
   print 'RUN chains_summary_plot.py'
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'chains_summary_plot.py')
-  run = sp.Popen(['python', pyscript, '-p',cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p',cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED chains_summary_plot.py'
   
@@ -45,7 +45,7 @@ def correlation(cli):
   
   print 'RUN correlation_triangle_plot.py'
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'correlation_triangle_plot.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '-c', str(cli.cumulative), '--overplot', str(cli.overplot) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '-c', str(cli.cumulative), '--overplot', str(cli.overplot) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED correlation_triangle_plot.py'
   
@@ -55,7 +55,7 @@ def derived_correlation(cli):
   
   print 'RUN derived_correlation_plot.py'
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'derived_correlation_plot.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED derived_correlation_plot.py'
   
@@ -65,7 +65,7 @@ def ci_chains_correlation(cli):
   
   print 'RUN confidence_intervals.py'
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'confidence_intervals.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.npost), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--sample', str(cli.sample_str), '--seed', str(cli.seed), '--overplot', str(cli.overplot), '--ad-hoc', str(cli.adhoc), '--n-samples', str(cli.n_samples) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--sample', str(cli.sample_str), '--seed', str(cli.seed), '--overplot', str(cli.overplot), '--ad-hoc', str(cli.adhoc), '--n-samples', str(cli.n_samples) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
   sout, serr = run.communicate()  
   print 'COMPLETED confidence_intervals.py'
   
