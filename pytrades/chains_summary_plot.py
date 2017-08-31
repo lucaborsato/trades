@@ -97,8 +97,9 @@ def main():
   
   ## OPEN summary_parameters.hdf5 FILE
   s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
+  
   if(overplot is not None):
-    # sample_parameters
+  # sample_parameters
     ci_fitted = s_h5f['confidence_intervals/fitted/ci'][...]
     sample_parameters = s_h5f['parameters/0666/fitted/parameters'][...]
     sample_lgllhd = s_h5f['parameters/0666'].attrs['lgllhd']

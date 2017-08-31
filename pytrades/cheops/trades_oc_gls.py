@@ -165,7 +165,8 @@ def main():
   printlog('\n%s\nREAD FILE: %s' %(target, full_file), olog)
   
   # cheops launch date
-  t_launch = atime.Time('2018-06-30T06:00:00.0', format='isot', scale='tdb')
+  #t_launch = atime.Time('2018-06-30T06:00:00.0', format='isot', scale='tdb')
+  t_launch = atime.Time('2019-01-01T00:00:00.0', format='isot', scale='tdb')
   # cheops end nominal mission
   t_end = t_launch.jd + 365.25*3.5
   cheops_dur = t_end - t_launch.jd

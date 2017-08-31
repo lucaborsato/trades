@@ -2613,14 +2613,17 @@ def calculate_hdi(x, nbins, alpha=[0.05], mode_output=False):
   
   if(mode_output):
     max_bin = np.argmax(np.array(counts))
-    if (max_bin == 0 or max_bin == nbins):
-      ext_bin = 0
-    elif (max_bin == 1 or max_bin == nbins-1):
-      ext_bin = 1
-    else:
-      ext_bin = 2
-    sel_bin = np.logical_and(x >= bin_edges[max_bin-ext_bin],
-                             x < bin_edges[max_bin+ext_bin+1])
+    #if (max_bin == 0 or max_bin == nbins):
+      #ext_bin = 0
+    #elif (max_bin == 1 or max_bin == nbins-1):
+      #ext_bin = 1
+    #else:
+      #ext_bin = 2
+    #sel_bin = np.logical_and(x >= bin_edges[max_bin-ext_bin],
+                             #x < bin_edges[max_bin+ext_bin+1])
+    sel_bin = np.logical_and(x >= bin_edges[max_bin],
+                             x < bin_edges[max_bin+1])
+    
     mode = np.mean(x[sel_bin])
     hdi_ci.append(mode)
   

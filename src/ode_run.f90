@@ -646,9 +646,11 @@ module ode_run
       ! ===============================
 
       Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
-      if(.not.Hc) write(*,'(a,l)')' INLOOP Hc: ',Hc
-      if(.not.Hc) return
-
+      if(.not.Hc)then
+        write(*,'(a,l)')' INLOOP Hc: ',Hc
+        return
+      end if
+        
       ! RV check
       if(cntRV.lt.nRV) call check_RV(m,r1,dr,itime,hok,cntRV,RV_stat,RV_sim)
 
@@ -1754,6 +1756,9 @@ module ode_run
       if(.not.Hc) then
   !       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
+        ! needed to add the allocation of gamma offset otherwise it returns a segfault
+        if(.not.allocated(gamma)) allocate(gamma(nRVset,2))
+        gamma=zero
       else
         !call setval(RVobs,RV_sim,T0obs,T0_sim,resw)
         !call setval_2(RVobs,RV_sim,eRVobs,T0obs,T0_sim,eT0obs,resw)
@@ -1833,7 +1838,7 @@ module ode_run
       end if
 
 !     if(ndata.gt.0)then
-      if(.not.checkpar.or..not.Hc) resw=set_max_residuals(ndata)
+!       if(.not.checkpar.or..not.Hc) resw=set_max_residuals(ndata)
       fitness = sum(resw*resw)
       
       if(present(to_screen))then

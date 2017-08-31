@@ -63,13 +63,13 @@ def main():
   # print Memory occupation of ...
   anc.print_memory_usage(chains)
 
-  nfit, nwalkers, nruns, npost, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.npost, completed_steps)
-  logger.info('nfit(%d), nwalkers(%d), nruns(%d), npost(%d), nruns_sel(%d)' %(nfit, nwalkers, nruns, npost, nruns_sel))
+  nfit, nwalkers, nruns, nburnin, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.nburnin, completed_steps)
+  logger.info('nfit(%d), nwalkers(%d), nruns(%d), nburnin(%d), nruns_sel(%d)' %(nfit, nwalkers, nruns, nburnin, nruns_sel))
 
   # set label and legend names
   kel_labels= anc.keplerian_legend(parameter_names_emcee, cli.m_type)
 
-  chains_T, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
+  chains_T, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, nburnin, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
 
   if(cli.temp_status):
     n_steps = completed_steps
