@@ -137,20 +137,20 @@ def init_folder(working_path, sub_folder):
 
 
 
-def compute_ln_err_const(dof, e_RVo, e_T0o, ln_flag=False):
+#def compute_ln_err_const(dof, e_RVo, e_T0o, ln_flag=False):
   
-  if (ln_flag):
-    eRV = e_RVo[e_RVo > 0.]
-    eT0 = e_T0o[e_T0o > 0.]
+  #if (ln_flag):
+    #eRV = e_RVo[e_RVo > 0.]
+    #eT0 = e_T0o[e_T0o > 0.]
     
-    ln_e_RVo = np.sum(np.log(eRV*eRV))
-    ln_e_T0o = np.sum(np.log(eT0*eT0))
+    #ln_e_RVo = np.sum(np.log(eRV*eRV))
+    #ln_e_T0o = np.sum(np.log(eT0*eT0))
 
-    ln_err_const = - 0.5 * dof * np.log(2.*np.pi) - 0.5 * ( ln_e_RVo + ln_e_T0o)
-  else:
-    ln_err_const = 0.
+    #ln_err_const = - 0.5 * dof * np.log(2.*np.pi) - 0.5 * ( ln_e_RVo + ln_e_T0o)
+  #else:
+    #ln_err_const = 0.
     
-  return ln_err_const
+  #return ln_err_const
 
 
 def get_emcee_arguments(cli,nfit):
@@ -361,7 +361,7 @@ def main():
     e_T0o = np.array(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
   except:
     e_T0o = np.array([0.], dtype=np.float64)
-  ln_err_const = compute_ln_err_const(dof, e_RVo, e_T0o, cli.ln_flag)
+  ln_err_const = anc.compute_ln_err_const(dof, e_RVo, e_T0o, cli.ln_flag)
 
   # SET EMCEE PARAMETERS:
   nwalkers, nruns, nsave, npost = get_emcee_arguments(cli,nfit)

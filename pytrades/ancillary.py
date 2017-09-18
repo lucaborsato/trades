@@ -204,6 +204,23 @@ def copy_simulation_files(dir_src, dir_dest):
 
 # -------------------------------------
 
+def compute_ln_err_const(dof, e_RVo, e_T0o, ln_flag=False):
+  
+  if (ln_flag):
+    eRV = e_RVo[e_RVo > 0.]
+    eT0 = e_T0o[e_T0o > 0.]
+    
+    ln_e_RVo = np.sum(np.log(eRV*eRV))
+    ln_e_T0o = np.sum(np.log(eT0*eT0))
+
+    ln_err_const = - 0.5 * dof * np.log(2.*np.pi) - 0.5 * ( ln_e_RVo + ln_e_T0o)
+  else:
+    ln_err_const = 0.
+  
+  return ln_err_const
+
+# -------------------------------------
+
 # given the mass flag letter it computes the proper mass conversion factor
 def mass_type_factor(Ms=1.0, mtype='earth', mscale=True):
   if (mtype.lower() in ['s', 'su', 'sun']):

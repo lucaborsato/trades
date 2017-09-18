@@ -8,6 +8,11 @@ import time
 import os
 import numpy as np # array
 import h5py
+
+# custom modules
+script_path = os.path.realpath(__file__)
+module_path = os.path.abspath(os.path.join(os.path.dirname(script_path), '../'))
+sys.path.append(module_path)
 import constants as cst # local constants module
 import ancillary as anc
 import pytrades_lib
