@@ -208,8 +208,8 @@ module parameters_conversion
           ! fit mA(8) ==> lambda[0,360]
           else if(id(ifit).eq.8)then
 !             minpar(ifit)=zero
-!             maxpar(ifit)=360._dp
-            minpar(ifit)=-360._dp
+!             maxpar(ifit)=circ
+            minpar(ifit)=-circ
             maxpar(ifit)=720._dp
             done(ifit)=.true.
           
@@ -329,7 +329,7 @@ module parameters_conversion
 
           ! mA(8) ==> lambda=mA(j)+w(j-1)+lN(j+2)
           else if(id(cnt).eq.8)then
-            par(cnt)=mod(mod(allpar(j)+allpar(j-1)+allpar(j+2),360._dp)+360._dp,360._dp)
+            par(cnt)=mod(mod(allpar(j)+allpar(j-1)+allpar(j+2),circ)+circ,circ)
             done(cnt)=.true.
           
           ! i(9),lN(10)==>(icoslN,isinlN)
@@ -410,7 +410,6 @@ module parameters_conversion
     logical,intent(out)::checkpar
     logical,intent(in),optional::wrt_info
     real(dp)::temp2
-    real(dp),parameter::circ=360._dp
     
 !     checkpar=.true.
     m=zero
@@ -601,10 +600,10 @@ module parameters_conversion
 
 !       write(*,*)'w',j,': ',w(j),par_min(j1+7),par_max(j1+7)
       ! argument of pericentre
-      temp=w(j)-360._dp
+      temp=w(j)-circ
       if(w(j).lt.par_min(j1+7).or.w(j).gt.par_max(j1+7))then
         check=.false.
-!         temp=w(j)-360._dp
+!         temp=w(j)-circ
         if(temp.ge.par_min(j1+7).and.temp.le.par_max(j1+7))then
           check=.true.
         end if
@@ -614,10 +613,10 @@ module parameters_conversion
 
 !       write(*,*)'mA',j,': ',mA(j),par_min(j1+8),par_max(j1+8)
       ! mean anomaly
-      temp=mA(j)-360._dp
+      temp=mA(j)-circ
       if(mA(j).lt.par_min(j1+8).or.ma(j).gt.par_max(j1+8))then
         check=.false.
-!         temp=mA(j)-360._dp
+!         temp=mA(j)-circ
         if(temp.ge.par_min(j1+8).and.temp.le.par_max(j1+8))then
           check=.true.
         end if
@@ -634,10 +633,10 @@ module parameters_conversion
       
 !       write(*,*)'lN',j,': ',lN(j),par_min(j1+10),par_max(j1+10)
       ! longitude of node
-      temp=lN(j)-360._dp
+      temp=lN(j)-circ
       if(lN(j).lt.par_min(j1+10).or.lN(j).gt.par_max(j1+10))then
         check=.false.
-!         temp=lN(j)-360._dp
+!         temp=lN(j)-circ
         if(temp.ge.par_min(j1+10).and.temp.le.par_max(j1+10))then
           check=.true.
         end if
@@ -820,7 +819,7 @@ module parameters_conversion
       kel_scale=kel_scale+xscale
 
       ! argument of pericentre
-      temp=w(j)-360._dp
+      temp=w(j)-circ
       xtemp1=get_fit_scale(temp,par_min(j1+7),par_max(j1+7))
       xtemp2=get_fit_scale(w(j),par_min(j1+7),par_max(j1+7))
       if(xtemp1.gt.zero.and.xtemp2.gt.zero)then
@@ -831,7 +830,7 @@ module parameters_conversion
       kel_scale=kel_scale+xscale
       
       ! mean anomaly
-      temp=mA(j)-360._dp
+      temp=mA(j)-circ
       xtemp1=get_fit_scale(temp,par_min(j1+8),par_max(j1+8))
       xtemp2=get_fit_scale(mA(j),par_min(j1+8),par_max(j1+8))
       if(xtemp1.gt.zero.and.xtemp2.gt.zero)then
@@ -846,7 +845,7 @@ module parameters_conversion
       kel_scale=kel_scale+xscale
       
       ! longitude of node
-      temp=lN(j)-360._dp
+      temp=lN(j)-circ
       xtemp1=get_fit_scale(temp,par_min(j1+10),par_max(j1+10))
       xtemp2=get_fit_scale(lN(j),par_min(j1+10),par_max(j1+10))
       if(xtemp1.gt.zero.and.xtemp2.gt.zero)then
@@ -907,7 +906,7 @@ module parameters_conversion
   subroutine param_adj(par,sigpar)
     real(dp),dimension(:),intent(inout)::par,sigpar
     integer::j1
-    real(dp),parameter::circ=360._dp,hcirc=180._dp
+    real(dp),parameter::hcirc=180._dp
 
     do j1=1,nfit
 

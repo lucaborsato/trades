@@ -178,8 +178,9 @@ def main():
                      cli.tref, cli.pref, 
                      t_launch.jd, t_end)
   
-  transits.tref, transits.pref, epo_sel = refine_linephem(transits.ttra_sel,
-                                                 transits.tref, transits.pref)
+  #transits.tref, transits.pref, epo_sel = refine_linephem(transits.ttra_sel,
+                                                 #transits.tref, transits.pref)
+  epo_sel, transits.tref, transits.pref = anc.compute_lin_ephem(transits.ttra_sel)
   printlog('LINEAR EPHEMERIS: %.6f + N x %.6f' %(transits.tref, transits.pref), olog)
   printlog('FOUND %d TRANSIT DURING CHEOPS ON A TOTAL OF %d' %(transits.nttra_sel, transits.nttra), olog)
   

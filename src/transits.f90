@@ -1,15 +1,12 @@
 module transits
   use constants
   use parameters
-  use celestial_mechanics,only:rsky,barycenter,fgfunctions,eleMD
-  use lin_fit,only:linfit
+  use celestial_mechanics,only:rsky,barycenter,fgfunctions,eleMD=>elem_mer
+  use linear_ephem
   use convert_type,only:string
+!   use numerical_integrator,only:rkck_a
   implicit none
 
-  
-  interface set_ephem
-    module procedure set_ephem_noinput,set_ephem_winput
-  end interface set_ephem
   
   interface assign_T0
     module procedure assign_T0_byTime,assign_T0_byNumber
@@ -21,73 +18,6 @@ module transits
   
   contains
 
-  ! ------------------------------------------------------------------ !
-  ! given the T0 data it does a linear fit to the data and it finds the
-  ! ephemeris T and P: tn = Tref + Pref*n
-  subroutine set_ephem_noinput()
-    integer,dimension(:),allocatable::x
-    real(dp),dimension(:),allocatable::y,ey
-    integer::j
-    character(80)::fmt
-
-    write(*,'(a)')" COMPUTING LINEAR EPHEMERIS OF: "
-    if(.not.allocated(Tephem))&
-        &allocate(Tephem(NB),Pephem(NB),eTephem(NB),ePephem(NB))
-    Tephem=zero
-    Pephem=zero
-    eTephem=zero
-    ePephem=zero
-    do j=2,NB
-      if(nT0(j).gt.0)then
-        allocate(x(nT0(j)),y(nT0(j)),ey(nT0(j)))
-        x=epoT0obs(1:nT0(j),j)
-        y=T0obs(1:nT0(j),j)
-        ey=eT0obs(1:nT0(j),j)
-        call linfit(x,y,ey,Pephem(j),ePephem(j),Tephem(j),eTephem(j))
-        fmt=adjustl("(a,i3,a,4("//trim(sprec)//",a))")
-        write(*,trim(fmt))" body ",j,": t_N = (",&
-            &Tephem(j),"+/-",eTephem(j),") + (",&
-            &Pephem(j),"+/-",ePephem(j),") x N"
-        deallocate(x,y,ey)
-      end if
-    end do
-
-    return
-  end subroutine set_ephem_noinput
-  
-  subroutine set_ephem_winput(n_body,n_t0,t0_num,t0_obs,et0_obs)
-    integer,intent(in)::n_body
-    integer,dimension(:),intent(in)::n_t0
-    integer,dimension(:,:),intent(in)::t0_num
-    real(dp),dimension(:,:),intent(in)::t0_obs,et0_obs
-    
-    integer,dimension(:),allocatable::x
-    real(dp),dimension(:),allocatable::y,ey
-    integer::j
-
-    if(.not.allocated(Tephem))&
-        &allocate(Tephem(n_body),Pephem(n_body),eTephem(n_body),ePephem(n_body))
-    Tephem=zero
-    Pephem=zero
-    eTephem=zero
-    ePephem=zero
-    do j=2,n_body
-      if(n_T0(j).gt.0)then
-        allocate(x(n_T0(j)),y(n_T0(j)),ey(n_T0(j)))
-        x=t0_num(1:n_t0(j),j)
-        y=t0_obs(1:n_t0(j),j)
-        ey=et0_obs(1:n_t0(j),j)
-        call linfit(x,y,ey,Pephem(j),ePephem(j),Tephem(j),eTephem(j))
-        deallocate(x,y,ey)
-      end if
-    end do
-
-    return
-  end subroutine set_ephem_winput
-  
-  
-  
-  
   ! ------------------------------------------------------------------ !
 
   !
@@ -119,8 +49,8 @@ module transits
     return
   end function impact_parameter
   
-  
-  ! move the complete state vectors (for all the bodies) of time = dt
+  ! ------------------------------------------------------------------ !
+  ! move the whole state vectors (for all the bodies) of time = dt
   ! using fgfunctions subroutine
   subroutine advancefg(m,rw,dt,Hc)
     real(dp),dimension(:),intent(in)::m
@@ -131,9 +61,16 @@ module transits
     integer::j1,j2,i1,i6
     real(dp)::mu
     
+!     ! TEST: SPLIT IN 3 SUB-STEPS
+!     real(dp)::dtx
+!     real(dp),dimension(6)::rtemp
+    
     integer::n_body
     n_body=size(m)
 
+!     ! TEST
+!     dtx=dt*onethird
+    
 !     do j1=2,NB
     do j1=2,n_body
       j2=(j1-1)*6
@@ -141,12 +78,21 @@ module transits
       i6=6+j2
       mu=Giau*(m(1)+m(j1))
       call fgfunctions(mu,rw(i1:i6),dt,Hc)
+!       ! TEST
+!       rtemp=rw(i1:i6)
+!       call fgfunctions(mu,rtemp,dtx,Hc)
+!       call fgfunctions(mu,rtemp,dtx,Hc)
+!       call fgfunctions(mu,rtemp,(dt-2*dtx),Hc)
+!       rw(i1:i6)=rtemp
+      
+      if(.not.Hc) exit
     end do
 
     return
   end subroutine advancefg
   ! ------------------------------------------------------------------ !
 
+  
   ! ------------------------------------------------------------------ !
   ! a bisection step, it updates a boundary and the step for the next iteration
   ! - transit -
@@ -156,19 +102,22 @@ module transits
     real(dp),intent(inout)::A,B,dt
     real(dp),dimension(:),intent(inout)::rw
     logical,intent(inout)::Hc
-!     logical::Hc
     
-    !real(dp),dimension(:),allocatable::rin,drdt,err
-    !real(dp),parameter::half=0.5_dp
-    integer::i1,i2,i4,i5
+    real(dp),dimension(:),allocatable::rin,drdt,err
+    integer::i1,i2,i4,i5,dim_rin
     real(dp)::C
 
-    call advancefg(m,rw,dt,Hc) ! let's use the integrator to get closer to the transit
+    ! let's use the F&G functions to get closer to the transit
+    call advancefg(m,rw,dt,Hc)
     if(.not.Hc) return
-    !allocate(rin(size(rw)),drdt(size(rw)),err(size(rw)))
-    !rin=rw
-    !call rkck_a(m,rin,drdt,dt,rw,err)
-    !deallocate(rin,drdt,err)
+    
+    ! let's use the integrator to get closer to the transit
+!     dim_rin=size(rw)
+!     allocate(rin(dim_rin),drdt(dim_rin),err(dim_rin))
+!     rin=rw
+!     call rkck_a(m,rin,drdt,dt,rw,err)
+!     deallocate(rin,drdt,err)
+    
     i1=1+(itra-1)*6
     i2=2+(itra-1)*6
     i4=4+(itra-1)*6
@@ -272,17 +221,21 @@ module transits
     logical,intent(inout)::Hc
 !     logical::Hc
     
-    !real(dp),dimension(:),allocatable::rin,drdt,err
-!     real(dp),parameter::half=0.5_dp
-    integer::i1,i2,i4,i5
+    real(dp),dimension(:),allocatable::rin,drdt,err
+    integer::i1,i2,i4,i5,dim_rin
     real(dp)::C
 
+    ! let's use the F&G functions to get closer to the transit
     call advancefg(m,rw,dt,Hc)
     if(.not.Hc) return
-    !allocate(rin(size(rw)),drdt(size(rw)),err(size(rw)))
-    !rin=rw
-    !call rkck_a(m,rin,drdt,dt,rw,err)
-    !deallocate(rin,drdt,err)
+    
+    ! let's use the integrator to get closer to the transit
+!     dim_rin=size(rw)
+!     allocate(rin(dim_rin),drdt(dim_rin),err(dim_rin))
+!     rin=rw
+!     call rkck_a(m,rin,drdt,dt,rw,err)
+!     deallocate(rin,drdt,err)
+    
     i1=1+(itra-1)*6
     i2=2+(itra-1)*6
     i4=4+(itra-1)*6
@@ -311,12 +264,12 @@ module transits
     real(dp),dimension(:),intent(inout)::ro
     logical,intent(inout)::Hc
     
-    real(dp),dimension(:),allocatable::rw,rwbar
+    real(dp),dimension(:),allocatable::rw,rwbar,rwx,drdt,err
     real(dp),dimension(6)::bar
     real(dp)::A,B,dt1,dt2
     integer::ix,iy,ivx,ivy
     integer::loop,many_iter
-    integer::n_body, nb_dim
+    integer::n_body,nb_dim
     
     if(.not.Hc)return
     
@@ -334,11 +287,12 @@ module transits
     n_body=size(m)
     nb_dim=n_body*6
     allocate(rw(nb_dim),rwbar(nb_dim))
+!     allocate(rwx(nb_dim),drdt(nb_dim),err(nb_dim))
     ro=zero
     rw=r1
     loop=0
     
-    many_iter=1000
+    many_iter=10000
 
     traloop: do
       loop=loop+1
@@ -353,8 +307,14 @@ module transits
         ! continue with N-R
         dt1=dt2
         call advancefg(m,rw,dt1,Hc)
-!         if(.not.Hc) write(*,'(a)')' find_transit: advancefg ==> Hc == False'
+! !         if(.not.Hc) write(*,'(a)')' find_transit: advancefg ==> Hc == False'
         if(.not.Hc) return
+        ! 2017-11-22 use the integrator...
+!         rwx=zero
+!         drdt=zero
+!         err=zero
+!         call rkck_a(m,rw,drdt,dt1,rwx,err)
+!         rw=rwx
         tmidtra=tmidtra+dt1
       else
         ! dt2 >= dt1 so use Bisection
@@ -372,6 +332,7 @@ module transits
     ro=rw
     tmidtra=tmidtra+tepoch+itime+lte
     deallocate(rw,rwbar)
+!     deallocate(rwx,drdt,err)
 
     return
   end subroutine find_transit
@@ -449,8 +410,8 @@ module transits
     contloop: do
       loop=loop+1
       if(abs(dt1).le.TOLERANCE) exit contloop
-      if(loop.ge.500)then
-        write(*,'(a)')" Reached 500-th iteration in one_contact"
+      if(loop.ge.10000)then
+        write(*,'(a)')" Reached 10000-th iteration in one_contact"
         exit contloop
       end if
       call onecont_nr(itra,Rcheck,rw,dt2)

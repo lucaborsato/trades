@@ -8,13 +8,20 @@ module constants
   public
   integer,parameter::sp=selected_real_kind(6) ! single precision
   integer,parameter::dp=selected_real_kind(8) !define the KIND, the precision of all the constants
+  
+  ! FOR TESTING: QUAD PRECISION
+  integer,parameter::qp=selected_real_kind(32) !define the KIND, the precision of all the constants
+!   integer,parameter::dp=selected_real_kind(32) !define the KIND, the precision of all the constants
+  
   integer,parameter::prec=precision(0._dp)
   character(8)::sprec='es23.16'
 
   !various
   real(dp),parameter::s24h=86400._dp !seconds in a day = 24h = 86400s
   real(dp),parameter::zero=0._dp,one=1._dp,two=2._dp,three=3._dp
+  real(dp),parameter::TOL_sp=epsilon(0._sp)
   real(dp),parameter::TOLERANCE=epsilon(zero)
+  real(dp),parameter::TOL_qp=epsilon(0._qp)
   real(dp),parameter::half=0.5_dp
   real(dp),parameter::sqrt_half=sqrt(half)
   real(dp),parameter::sqrt2=sqrt(two)
@@ -26,6 +33,7 @@ module constants
   real(dp),parameter::dpi=two*pi
   real(dp),parameter::deg2rad=pi/180._dp
   real(dp),parameter::rad2deg=180._dp/pi
+  real(dp),parameter::circ=360._dp
 
   
   ! Constants from USNO 2013

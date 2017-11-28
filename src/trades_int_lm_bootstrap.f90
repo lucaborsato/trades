@@ -17,7 +17,7 @@ program main_int_lm_bootstrap
   use parameters_conversion
   use init_trades
 !   use bootstrap
-  use transits,only:set_ephem
+  use linear_ephem
   use derived_parameters_mod
   use driver
   integer::cpuid

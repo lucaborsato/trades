@@ -1,8 +1,8 @@
 module parameters
 !   use constants,only:dp,TOLERANCE,zero,one,parameter_grid
   use constants
-  use settings_module,only:program_settings
-  use priors_module,only:prior
+!   use settings_module,only:program_settings ! from POLYCHORD OLD VERSION
+!   use priors_module,only:prior
   implicit none
 
   character(512)::path_0,path
@@ -98,8 +98,8 @@ module parameters
   real(dp),dimension(:,:),allocatable::pso_best_evolution
 
   
-  ! for PolyChord
-  type(program_settings)::settings
+!   ! for PolyChord
+!   type(program_settings)::settings
   
   ! other boundaries
   real(dp),dimension(:,:),allocatable::e_bounds

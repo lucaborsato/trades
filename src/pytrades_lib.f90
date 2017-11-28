@@ -8,7 +8,7 @@ module pytrades
   use convert_type,only:string
   use init_trades
   use derived_parameters_mod
-  use transits,only:set_ephem
+  use linear_ephem
   use fitness_module
   use ode_run,only:orbits_to_data,ode_all_ttra_rv
   use grid_search
@@ -19,7 +19,7 @@ module pytrades
   !f2py character(512)::path
   !f2py integer::ndata,npar,nfit,nfree,dof
   !f2py real(dp),parameter::resmax=1.e10_dp
-  !f2py real(dp)::tepoch
+  !f2py real(dp)::tepoch,tint
   
   !f2py integer::nRV,nRVset
   !f2py real(dp),dimension(:),allocatable::eRVobs ! it will be exposed in python as ervobs
@@ -177,7 +177,7 @@ module pytrades
     nfree=nRVset
     dof=ndata-nfit-nfree
     if(dof.le.0)then
-      write(*,'(a,a)')' FOUND dof <= 0 SO IT IS FORCE TO 1 IN CASE',&
+      write(*,'(a,a)')' FOUND dof <= 0 SO IT IS FORCED TO 1 IN CASE',&
          &' THE USER WANT TO SIMULATE/INTEGRATE AND NOT CHECK THE FIT.'
          dof=1
     end if

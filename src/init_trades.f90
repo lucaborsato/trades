@@ -5,7 +5,7 @@ module init_trades
   use parameters
   use parameters_conversion
   use convert_type,only:string
-  use transits,only:set_ephem
+  use linear_ephem
   implicit none
 
 !   interface init_random_seed
@@ -1271,106 +1271,106 @@ module init_trades
     return
   end subroutine get_character_fields
  
-! read and set settings for PolyChord
-  subroutine read_PC_opt(cpuid)
-    integer,intent(in)::cpuid
-    logical::fstat
-    integer::upc,istat
-    character(512)::line
-    integer::idh,idx
-    
-    ! type(program_settings)::settings HAS BEEN DEFINED IN parameters.f90
-    settings%nDims = nfit ! number of dimensions of PolyChord is the number of parameters to fit
-    settings%nDerived = 0 ! none derived parameters to pass now
-    
-    inquire(file=trim(path)//'PolyChord.opt',exist=fstat)
-    
-    if(fstat)then
-      upc=get_unit(cpuid)
-      open(upc,file=trim(path)//'PolyChord.opt',status='OLD')
-        
-        reading:do
-          read(upc,'(a512)',IOSTAT=istat)line
-          if(IS_IOSTAT_END(istat)) exit reading
-      
-          if(len(trim(line)).ne.0)then ! look for non empty line
-            
-            if(line(1:1).ne."#")then ! if not commented line with a #
-              idh=index(line,"#") ! find a # in the line, not at the beginning, further comment
-              if(idh.eq.0) idh=len(trim(line))+1 ! if there are none # use the whole trimmed line
-              
-              idx=index(line,"=") ! find the = to distinguish keyword (left) and value (right)
-              if(idx.ne.0)then
-              
-                if(line(1:idx-1).eq.'nlive')then
-                  read(line(idx+1:idh),*) settings%nlive
-                else if(line(1:idx-1).eq.'num_repeats')then
-                  read(line(idx+1:idh),*) settings%num_repeats
-                else if(line(1:idx-1).eq.'do_clustering')then
-                  read(line(idx+1:idh),*) settings%do_clustering
-
-                else if(line(1:idx-1).eq.'precision_criterion')then
-                  read(line(idx+1:idh),*) settings%precision_criterion
-                else if(line(1:idx-1).eq.'max_ndead')then
-                  read(line(idx+1:idh),*) settings%max_ndead
-                else if(line(1:idx-1).eq.'feedback')then
-                  read(line(idx+1:idh),*) settings%feedback
-
-                else if(line(1:idx-1).eq.'posteriors')then
-                  read(line(idx+1:idh),*) settings%posteriors
-                else if(line(1:idx-1).eq.'equals')then
-                  read(line(idx+1:idh),*) settings%equals
-                else if(line(1:idx-1).eq.'cluster_posteriors')then
-                  read(line(idx+1:idh),*) settings%cluster_posteriors
-                else if(line(1:idx-1).eq.'update_posterior')then
-                  read(line(idx+1:idh),*) settings%update_posterior
-                else if(line(1:idx-1).eq.'boost_posterior')then
-                  read(line(idx+1:idh),*) settings%boost_posterior
-
-                else if(line(1:idx-1).eq.'read_resume')then
-                  read(line(idx+1:idh),*) settings%read_resume
-                else if(line(1:idx-1).eq.'write_resume')then
-                  read(line(idx+1:idh),*) settings%write_resume
-                else if(line(1:idx-1).eq.'write_live')then
-                  read(line(idx+1:idh),*) settings%write_live
-                else if(line(1:idx-1).eq.'write_stats')then
-                  read(line(idx+1:idh),*) settings%write_stats
-
-                else if(line(1:idx-1).eq.'base_dir')then
-                  read(line(idx+1:idh),*) settings%base_dir
-                else if(line(1:idx-1).eq.'file_root')then
-                  read(line(idx+1:idh),*) settings%file_root
-                
-                else if(line(1:idx-1).eq.'grade_frac')then
-                  call get_character_fields(line(idx+1:idh), settings%grade_frac)
-                
-                end if
-                      
-              end if
-              
-            end if
-          
-          end if
-          
-        end do reading
-      close(upc)
-      
-    else
-    
-      write(*,'(a,a,a)')" CANNOT FIND SETTINGS FILE ",trim(path),"PolyChord.opt"
-      write(*,'(a,a,a)')" DEFAULT SETTINGS WILL BE USED"
-    end if
-    
-    settings%update_resume = settings%nlive
-    ! add absolute path 'path' to base_dir
-    settings%base_dir=trim(path)//settings%base_dir
-    ! create recursively the base_dir and the base_dir/'clusters' folder
-    call execute_command_line('mkdir -p '//trim(settings%base_dir)//"/clusters")
-  
-    call set_minmax()
-  
-    return
-  end subroutine read_PC_opt
+! ! read and set settings for PolyChord
+!   subroutine read_PC_opt(cpuid)
+!     integer,intent(in)::cpuid
+!     logical::fstat
+!     integer::upc,istat
+!     character(512)::line
+!     integer::idh,idx
+!     
+!     ! type(program_settings)::settings HAS BEEN DEFINED IN parameters.f90
+!     settings%nDims = nfit ! number of dimensions of PolyChord is the number of parameters to fit
+!     settings%nDerived = 0 ! none derived parameters to pass now
+!     
+!     inquire(file=trim(path)//'PolyChord.opt',exist=fstat)
+!     
+!     if(fstat)then
+!       upc=get_unit(cpuid)
+!       open(upc,file=trim(path)//'PolyChord.opt',status='OLD')
+!         
+!         reading:do
+!           read(upc,'(a512)',IOSTAT=istat)line
+!           if(IS_IOSTAT_END(istat)) exit reading
+!       
+!           if(len(trim(line)).ne.0)then ! look for non empty line
+!             
+!             if(line(1:1).ne."#")then ! if not commented line with a #
+!               idh=index(line,"#") ! find a # in the line, not at the beginning, further comment
+!               if(idh.eq.0) idh=len(trim(line))+1 ! if there are none # use the whole trimmed line
+!               
+!               idx=index(line,"=") ! find the = to distinguish keyword (left) and value (right)
+!               if(idx.ne.0)then
+!               
+!                 if(line(1:idx-1).eq.'nlive')then
+!                   read(line(idx+1:idh),*) settings%nlive
+!                 else if(line(1:idx-1).eq.'num_repeats')then
+!                   read(line(idx+1:idh),*) settings%num_repeats
+!                 else if(line(1:idx-1).eq.'do_clustering')then
+!                   read(line(idx+1:idh),*) settings%do_clustering
+! 
+!                 else if(line(1:idx-1).eq.'precision_criterion')then
+!                   read(line(idx+1:idh),*) settings%precision_criterion
+!                 else if(line(1:idx-1).eq.'max_ndead')then
+!                   read(line(idx+1:idh),*) settings%max_ndead
+!                 else if(line(1:idx-1).eq.'feedback')then
+!                   read(line(idx+1:idh),*) settings%feedback
+! 
+!                 else if(line(1:idx-1).eq.'posteriors')then
+!                   read(line(idx+1:idh),*) settings%posteriors
+!                 else if(line(1:idx-1).eq.'equals')then
+!                   read(line(idx+1:idh),*) settings%equals
+!                 else if(line(1:idx-1).eq.'cluster_posteriors')then
+!                   read(line(idx+1:idh),*) settings%cluster_posteriors
+!                 else if(line(1:idx-1).eq.'update_posterior')then
+!                   read(line(idx+1:idh),*) settings%update_posterior
+!                 else if(line(1:idx-1).eq.'boost_posterior')then
+!                   read(line(idx+1:idh),*) settings%boost_posterior
+! 
+!                 else if(line(1:idx-1).eq.'read_resume')then
+!                   read(line(idx+1:idh),*) settings%read_resume
+!                 else if(line(1:idx-1).eq.'write_resume')then
+!                   read(line(idx+1:idh),*) settings%write_resume
+!                 else if(line(1:idx-1).eq.'write_live')then
+!                   read(line(idx+1:idh),*) settings%write_live
+!                 else if(line(1:idx-1).eq.'write_stats')then
+!                   read(line(idx+1:idh),*) settings%write_stats
+! 
+!                 else if(line(1:idx-1).eq.'base_dir')then
+!                   read(line(idx+1:idh),*) settings%base_dir
+!                 else if(line(1:idx-1).eq.'file_root')then
+!                   read(line(idx+1:idh),*) settings%file_root
+!                 
+!                 else if(line(1:idx-1).eq.'grade_frac')then
+!                   call get_character_fields(line(idx+1:idh), settings%grade_frac)
+!                 
+!                 end if
+!                       
+!               end if
+!               
+!             end if
+!           
+!           end if
+!           
+!         end do reading
+!       close(upc)
+!       
+!     else
+!     
+!       write(*,'(a,a,a)')" CANNOT FIND SETTINGS FILE ",trim(path),"PolyChord.opt"
+!       write(*,'(a,a,a)')" DEFAULT SETTINGS WILL BE USED"
+!     end if
+!     
+!     settings%update_resume = settings%nlive
+!     ! add absolute path 'path' to base_dir
+!     settings%base_dir=trim(path)//settings%base_dir
+!     ! create recursively the base_dir and the base_dir/'clusters' folder
+!     call execute_command_line('mkdir -p '//trim(settings%base_dir)//"/clusters")
+!   
+!     call set_minmax()
+!   
+!     return
+!   end subroutine read_PC_opt
 
   ! calls all the read subroutines necessary to initialize all the variables/vectors/arrays
   subroutine read_first(cpuid,m,R,P,a,e,w,mA,inc,lN)
@@ -1454,9 +1454,9 @@ module init_trades
       call read_pso_opt(cpuid)
       write(*,'(a,a,a)')" READ ",trim(path),"pso.opt"
 !         call set_minmax() ! it modifies minpar and maxpar to be used with pso
-    else if(progtype.eq.5)then
-      call read_PC_opt(cpuid)
-      write(*,'(a,a,a)')" READ ",trim(path),"PolyChord.opt"
+!     else if(progtype.eq.5)then
+!       call read_PC_opt(cpuid)
+!       write(*,'(a,a,a)')" READ ",trim(path),"PolyChord.opt"
     end if
       
 !     end if
@@ -1484,7 +1484,7 @@ module init_trades
 !     dof=(ndata-nfit)
     dof=(ndata-nfit-nfree) ! I have to take into account the number of RV offsets even if they are not fitted
     if(dof.le.0)then
-      write(*,'(a)')' FOUND dof <= 0 SO IT IS FORCE TO 1 IN CASE'&
+      write(*,'(a)')' FOUND dof <= 0 SO IT IS FORCED TO 1 IN CASE'&
          &' THE USER WANT TO SIMULATE/INTEGRATE AND NOT CHECK THE FIT.'
          dof=1
     end if

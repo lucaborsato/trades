@@ -3,7 +3,7 @@ module ode_run
   use parameters
   use parameters_conversion
   use celestial_mechanics
-  use rotations,only:orb2obs
+!   use rotations,only:orb2obs
   use eq_motion,only:eqmastro
   use numerical_integrator,only:int_rk_a,rkck_a
   use transits
@@ -376,14 +376,8 @@ module ode_run
     real(dp)::hw,hok,hnext,itime
     integer::j,j1 !,nj
 
-    !real(dp)::tmid
-
-!     Hc=.true.
     
-!     Hc=Hillcheck(m,rin)
-!     if(do_hill_check) Hc=mutual_Hill_check(m,rin)
     Hc = separation_mutual_Hill_check(m,R,rin,do_hill_check)
-!     if(Hc) return
     if(.not.Hc) return
 
     allocate(X(NB),Y(NB),Z(NB),cX(NB),cY(NB),cR(NB),rmean(NB))
@@ -647,6 +641,7 @@ module ode_run
 
       Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
       if(.not.Hc)then
+!         write(*,'(a,l)')'do_hill_check = ',do_hill_check
         write(*,'(a,l)')' INLOOP Hc: ',Hc
         return
       end if
@@ -1044,11 +1039,18 @@ module ode_run
 
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
+    
+    ! OLD VERSION
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-    call initial_state(P,a,e,mA,ra0)
+!     call initial_state(P,a,e,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-    call orb2obs(ra0,-lN,-inc,-w,ra1)
+!     call orb2obs(ra0,-lN,-inc,-w,ra1)
 
+    ! NEW VERSION 2017-11-21
+    call kepelements2statevector(m,a,e,mA,w,inc,lN,ra0)
+    ra1=ra0
+    
+    
     cntRV=0
     if(nRV.gt.0)then
       allocate(RV_stat(nRV),RV_sim(nRV))
@@ -1177,11 +1179,17 @@ module ode_run
 
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
+    
+    ! OLD VERSION
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-    call initial_state(P,a,e,mA,ra0)
+!     call initial_state(P,a,e,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-    call orb2obs(ra0,-lN,-inc,-w,ra1)
+!     call orb2obs(ra0,-lN,-inc,-w,ra1)
 
+    ! NEW VERSION 2017-11-21
+    call kepelements2statevector(m,a,e,mA,w,inc,lN,ra0)
+    ra1=ra0
+    
     cntRV=0
     if(nRV.gt.0)then
       allocate(RV_stat(nRV),RV_sim(nRV))
@@ -1290,10 +1298,16 @@ module ode_run
 
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
+    
+    ! OLD VERSION
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-    call initial_state(P,a,e,mA,ra0)
+!     call initial_state(P,a,e,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-    call orb2obs(ra0,-lN,-inc,-w,ra1)
+!     call orb2obs(ra0,-lN,-inc,-w,ra1)
+
+    ! NEW VERSION 2017-11-21
+    call kepelements2statevector(m,a,e,mA,w,inc,lN,ra0)
+    ra1=ra0
 
     cntRV=0
     if(nRV.gt.0)then
@@ -1529,7 +1543,7 @@ module ode_run
     
     Hc=.true.
     
-    ! it is needed to define the which is the alarm coordinate for the transit detection
+    ! it is needed to define which is the alarm coordinate for the transit detection
     call lNset(lN,clN)
     
     n_body=size(m)
@@ -1539,10 +1553,16 @@ module ode_run
     
     nb_dim=6*n_body
     if(.not.allocated(ra0)) allocate(ra0(nb_dim),ra1(nb_dim))
+    
+    ! OLD VERSION
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-    call initial_state(P,sma,ecc,mA,ra0)
+!     call initial_state(P,sma,ecc,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-    call orb2obs(ra0,-lN,-inc,-argp,ra1)
+!     call orb2obs(ra0,-lN,-inc,-argp,ra1)
+
+    ! NEW VERSION 2017-11-21
+    call kepelements2statevector(m,sma,ecc,mA,argp,inc,lN,ra0)
+    ra1=ra0
 
     cntRV=0
     n_rv=size(tRV)
@@ -1679,12 +1699,17 @@ module ode_run
 
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
-    ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
     
-    call initial_state(P,sma,ecc,mA,ra0)
+    ! OLD VERSION
+    ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
+!     call initial_state(P,sma,ecc,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-    call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
+!     call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
 
+    ! NEW VERSION 2017-11-21
+    call kepelements2statevector(m,sma,ecc,mA,w,inc,lN,ra0)
+    ra1=ra0
+    
     cntRV=0
     if(nRV.gt.0)then
       allocate(RV_stat(nRV),RV_sim(nRV))
@@ -1908,10 +1933,16 @@ module ode_run
 
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
+    
+    ! OLD VERSION
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-    call initial_state(P,sma,ecc,mA,ra0)
+!     call initial_state(P,sma,ecc,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-    call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
+!     call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
+
+    ! NEW VERSION 2017-11-21
+    call kepelements2statevector(m,sma,ecc,mA,w,inc,lN,ra0)
+    ra1=ra0
 
     if((idtra.ge.1).and.(idtra.le.NB)) call set_file_tra(cpuid,isim,wrtid,utra,fltra)
 
@@ -2192,11 +2223,17 @@ module ode_run
 
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
+    
+    ! OLD VERSION
     ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-    call initial_state(P,a,e,mA,ra0)
+!     call initial_state(P,a,e,mA,ra0)
     ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-    call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
+!     call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
 
+    ! NEW VERSION 2017-11-21
+    call kepelements2statevector(m,a,e,mA,w,inc,lN,ra0)
+    ra1=ra0
+    
     ! prepare rv arrays
 !     allocate(time_rv_nmax(n_rv_nmax),rv_nmax(n_rv_nmax),stats_rv(n_rv_nmax))
     time_rv_nmax=zero

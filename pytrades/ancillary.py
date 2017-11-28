@@ -14,6 +14,8 @@ import constants as cst  # local constants module
 # from emcee import autocorr as acor
 # import acor
 
+import scipy.optimize as sciopt
+import sklearn.linear_model as sklm
 import scipy.stats as scits
 import glob
 import shutil
@@ -2871,3 +2873,99 @@ def compute_Kms(Ms_sun, Mp_jup, inc_deg, P_day, ecc):
 # -------------------------------------
 
 # ==============================================================================
+
+# epoch or transit number for each T0 given a T0ref and a Pref
+def calculate_epoch(T0, Tref, Pref):
+  
+  epo = np.rint((T0-Tref)/Pref).astype(int)
+  
+  return epo
+
+# -------------------------------------
+
+# 2) linear fit function with errors on y-axis.
+# It returns also the errors.
+# y = b_ls + m_ls * x
+def lstsq_fit(x, y, yerr):
+  
+  A = np.vstack((np.ones_like(x), x)).T
+  C = np.diag(yerr * yerr)
+  cov = np.linalg.inv(np.dot(A.T, np.linalg.solve(C, A)))
+  b_ls, m_ls = np.dot(cov, np.dot(A.T, np.linalg.solve(C, y)))
+  coeff_err = np.sqrt(np.diag(cov))
+  
+  return b_ls, m_ls, coeff_err
+
+# -------------------------------------
+
+def compute_lin_ephem_lstsq(T0, eT0):
+  
+  nT0 = np.shape(T0)[0]
+  Tref0 = T0[0]
+  dT = [np.abs(T0[i+1]-T0[i]) for i in range(nT0-1)]
+  Pref0 = np.percentile(np.array(dT), 50., interpolation='midpoint')
+  
+  epo = calculate_epoch(T0, Tref0, Pref0)
+  Tref, Pref, coeff_err = lstsq_fit(epo, T0, eT0)
+  epo = calculate_epoch(T0, Tref, Pref)
+
+  return epo, Tref, Pref
+
+# -------------------------------------
+
+def linear_model(par, x):
+  
+  linmod = par[0] + x * par[1]
+  
+  return linmod
+
+# -------------------------------------
+
+def res_linear_model(par, x, y, ey=None):
+  
+  linmod = linear_model(par, x)
+  if(ey is not None):
+    wres = (y-linmod)/ey
+  else:
+    wres = y-linmod
+  
+  return wres
+
+# -------------------------------------
+
+def chi2r_linear_model(par, x, y, ey=None):
+  
+  wres = res_linear_model(par, x, y, ey)
+  nfit = np.shape(par)[0]
+  ndata = np.shape(x)[0]
+  dof = ndata - nfit
+  chi2r = np.sum(np.power(wres,2))/ np.float64(dof)
+
+# -------------------------------------
+
+def compute_lin_ephem(T0, eT0=None):
+  
+  nT0 = np.shape(T0)[0]
+  
+  Tref0 = T0[0]
+  #Tref0 = np.percentile(T0, 50., interpolation='midpoint')
+  dT = [np.abs(T0[i+1]-T0[i]) for i in range(nT0-1)]
+  Pref0 = np.percentile(np.array(dT), 50., interpolation='midpoint')
+  epo = calculate_epoch(T0, Tref0, Pref0)
+  
+  # SCIPY.OPTIMIZE.MINIMIZE
+  #Tref, Pref, coeff_err = lstsq_fit(epo, T0, eT0)
+  #optres = sciopt.minimize(chi2r_linear_model, [Tref0, Pref0], method='nelder-mead', args=(epo, T0, eT0))
+  #Tref, Pref = optres.x[0], optres.x[1]
+  
+  # SKLEARN.LINEAR_MODEL
+  sk_mod = sklm.LinearRegression()
+  sk_mod.fit(epo.reshape((-1,1)), T0)
+  Tref, Pref = np.asscalar(np.array(sk_mod.intercept_)), np.asscalar(np.array(sk_mod.coef_))
+  epo = calculate_epoch(T0, Tref, Pref)
+
+  return epo, Tref, Pref
+
+# -------------------------------------
+# ==============================================================================
+

@@ -1,24 +1,20 @@
 # TRADES
     
-**`TRADES` v2.13.6 by Luca Borsato - 2016/2017**    
+**`TRADES` v2.14.1 by Luca Borsato - 2016/2017**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
 Feel free to use or modify the code, but please cite [Borsato et al. (2014)][Borsato2014].    
 Comments are welcome!    
-[TRADES@github](https://github.com/lucaborsato/trades)    
 
 
 **WARNING:**     
 **only tested on a Unix/Linux machine (i.e., Centos Rocks 5.3, Ubuntu > 12.04 and derivatives)**    
 **Please use `gfortran` version greater than `4.8.1`. Previous versions could fail to compile.**    
-**`MPI/open-MPI` required in order to compile the PolyChord library. In the future this will be fixed.**    
 **`openMP` required to compile parallel versions `TRADES`**    
 **Required `python` packages: `numpy`, `sys`, `argparse`, `os`, `scipy.stats`, `random`, `logging`, `warnings`, `glob`, `matplotlib`, [`veusz`][veusz] `h5py`, [`acor`][acor], [`emcee`][emcee], `subprocess`, `multiprocessing`, `time`, `shutil`**    
-
-[acor]: https://github.com/dfm/acor    
-[emcee]: http://dan.iel.fm/emcee/current/    
-[veusz]: http://home.gna.org/veusz/
+**`pyPolyChord` required to use in combination with `pyTRADES`. 
+Follow `pyPolyChord` instructions to install it.**    
 
 ---
 
@@ -151,15 +147,6 @@ for each fitted parameter.
 
 For the mathematical and computational description see  [Borsato et al. (2014)][Borsato2014].    
 
-[Borsato2014]: http://adsabs.harvard.edu/abs/2014A%26A...571A..38B
-[TRADESESPG]: http://groups.dfa.unipd.it/ESPG/trades.html
-[MINPACK]: http://www.netlib.org/minpack/
-[Moré1980]: http://www.mcs.anl.gov/~more/ANL8074a.pdf
-[PIKAIA]: http://www.hao.ucar.edu/modeling/pikaia/pikaia.php
-[PSO]: http://www.nda.ac.jp/cc/users/tada/
-[PC]: http://arxiv.org/abs/1502.01856
-[PolyChord-CCPForge]: http://ccpforge.cse.rl.ac.uk/gf/project/polychord/
-
 ---
 
 ### Install and Compile
@@ -171,14 +158,10 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
 2. Extract the .zip file in your drive or enter the cloned repository. 
     It should contain a `README.md` file, `bin/`, `src/`, and `pytrades/` folders.    
     The `src/` folder should countains the following f90 source files:    
-    - **Module source files:** `parameters.f90 random_trades.f90 convert_type.f90 lin_fit.f90 celestial_mechanics.f90 init_trades.f90 statistics.f90 timing.f90 rotations.f90 sort.f90 gls_module.f90 eq_motion.f90 output_files.f90 numerical_integrator.f90 radial_velocities.f90 transits.f90 ode_run.f90 derived_parameters_mod.f90 fitness_module.f90 grid_search.f90 lm.f90 pikaia.f90 util_sort.f90 util_qmc.f90 opti_pso.f90 gaussian.f90 bootstrap.f90 PolyChord_driver.f90 driver.f90`    
-    - **PolyChord folder** `PolyChord/` with source files:
-        `utils.f90 abort.F90 settings.f90 params.f90 array_utils.f90 priors.f90 mpi_utils.F90 calculate.f90 random_utils.F90 chordal_sampling.f90 run_time_info.f90 clustering.f90 read_write.f90 feedback.f90 generate.F90 ini.f90 nested_sampling.F90`
-    - **Old main `TRADES` file (DO NOT USED IT, to be converted into a library asap):** `trades.f90`    
+    - **Module source files:** see `Makefile`
     - **simple integration+`LM`+bootstrap main:** `trades_int_lm_bootstrap.f90`
     - **simple grid main:** `trades_grid.f90`     
     - **simple `PIK` and `PSO` main:** `trades_pik_pso.f90`     
-    - **simple `PC` main:** `trades_polychord.f90`     
     - **Makefile:** `Makefile`    
     - **python script to create example simulation folder:** `createSimFile.py`    
     Look at section 6. for the `pytrades/` folder (install and execution).    
@@ -193,31 +176,14 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
     * flag `CFLAGS2` for the opemMP version    
     * flag `TARGET_SER_X` is relative path and executable name for the serial program   
     * flag `TARGET_OMP_X` is relative path and executable name for the `openMP` parallel program    
-    * flag `TARGET_MPIOMP` is relative path and executable name for the `MPI+openMP` parallel program (it compiles only old `trades.f90`)    
-    * flag `TARGET_PC` is relative path and executable name for the `PC` program    
     
 4. To compile:    
+    in the `src/` folder type `make` and with `Tab` the user can see all the possible compile options. Check the `Makefile` for more information.    
     
-    - serial-debug mode, type: `make serial_debug`    
-      It creates a executable file `trades_s_xxx` and `trades_polychord` in the `bin/` folder.    
-    - serial-release mode, type: `make serial_release`    
-      It creates a executable file `trades_s_xxx` and `trades_polychord` in the `bin/` folder.    
-    - openMP-debug mode, type: `make omp_debug`    
-      It creates a executable file `trades_o_xxx` and `trades_polychord` in the `bin/` folder.    
-    - openMP-release mode, type: `make omp_release`    
-      It creates a executable file `trades_o_xxx` and `trades_polychord` in the `bin/` folder.    
-    - openMP-MPI-debug mode, type: `make mpi_omp_debug`    
-      It creates a executable file `trades_mo` and `trades_polychord` in the `bin/` folder.    
-    - openMP-MPI-release mode, type: `make mpi_omp_release`    
-      It creates a executable file `trades_mo` and `trades_polychord` in the `bin/` folder.    
-
   **Remember to type `make clean` to remove `*.o` and `*.mod` files before re-compiling `TRADES`.**    
-  **Remember to type `make clean_libchord` to remove PolyChord files and library.**    
   **Remember to type `make cleanall` to remove `*.o`, `*.mod`, and all the executable files before re-compiling `TRADES`.**    
-  **To compile in parallel mode the `openMP` libraries must be properly installed (as suggested by your Linux distribution) and the `MPI` (`Open-MPI`) libraries and compilers.**    
-  **2016-01-28 WARNING:**    
-  If the `MPI` compiler is different from the compiler used for the module `mpi.mod`, the program will fail to compile.    
-  Please, change properly your `Fortran-MPI` in the `Makefile`.    
+  **To compile in parallel mode the `openMP` libraries must be properly installed (as suggested by your Linux distribution).**    
+  Please, change properly your `Fortran` compiler in the `Makefile`.    
     
 ---
 
@@ -229,16 +195,13 @@ Different ways to launch TRADES:
 - it is possible to execute trades from the `bin/` folder by typing:    
     > `./trades_s_xxx`    
     > `./trades_o_xxx`    
-    > `./trades_polychord`    
-    > `./trades_mo`    
 
 **WARNING:**    
-Before running TRADES in parallel with `open-MP` (`trades_o_xxx`) remember to set the number of cpus (`Ncpu`) to use by exporting:    
+Before running TRADES in parallel with `open-MP` (`trades_o_xxx`) remember to set the number of cpus (`Ncpu`) to use in the `arg.in` file or by exporting:    
 `OMP_NUM_THREADS=Ncpu`    
 `export OMP_NUM_THREADS`    
-Put this in a script or type it in a terminal; in short way:    
+and type it in a terminal; in short way:    
 `export OMP_NUM_THREADS=Ncpu`    
-In order to use trades with `MPI+openMP` remember to specify the `OMP_NUM_THREADS` and the MPI processes `mpiexec -n N_mpi_process trades_mo ...`    
 
 If TRADES has been launched without any arguments, it will search for the needed files in the current folder:    
 e.g.:   
@@ -265,7 +228,6 @@ Algorithm selection in `arg.in`:
   2.  integration + `LM` + bootstrap    
   3.  `PIKAIA` (+ `LM` + bootstrap)    
   4.  `PSO` (+ `LM` + bootstrap)    
-  5.  PolyChord    
 
 ---
 
@@ -333,10 +295,7 @@ List of the files with explanation:
     (6pso) row 6 is the same as (3pik) row 13 in `pikaia.opt`.    
     Example file [`pso.opt`](trades_example/pso.opt)     
 
-6.  `PolyChord.opt`: parameter options for the `PC` algorithm. It is quite well self explained; for further information check the `PolyChord` webpage.    
-    Example file [`PolyChord.opt`](trades_example/PolyChord.opt)     
-
-7.  `obsRV.dat`: list of radial velocities (RVs) data.    
+6.  `obsRV.dat`: list of radial velocities (RVs) data.    
     Columns description:    
     (1) RV observation time (JD, or time in same units of the integration time);    
     (2) observed RVs in meter per seconds;    
@@ -344,17 +303,17 @@ List of the files with explanation:
     (4) ID of the RV dataset, so if you have only one dataset set all column to `1`, else increas value untill the number of different datasets, i.e., `1`, `2` for 2 datasets (2 different facilities, or one facility before and after upgrade).    
     Example file [`obsRV.dat`](trades_example/obsRV.dat)     
 
-8.  `NB2_observations.dat`: list of transit times (`$T_0$s`) observed for planet in the second row of `bodies.lst`, i.e., `b.dat` is planet 2.     
+7.  `NB2_observations.dat`: list of transit times (`$T_0$s`) observed for planet in the second row of `bodies.lst`, i.e., `b.dat` is planet 2.     
     Columns description:    
     (1) transit epoch (N), an integer number that identifies the transit w.r.t. a reference transit time `$T_\textrm{ref}$` and refined by a linear ephemeris of kind: `$T_N = T_\textrm{ref} + P_\textrm{ref} \times N$`;    
     (2) the transit time (`$T_0$`) in JD or the same time unit of the integration/epoch/start time;    
     (3) the uncertainty on the `$T_0$`.
     Example file [`NB2_observations.dat`](trades_example/NB2_observations.dat)     
 
-9.  `NB3_observations.dat`: same kind of file `NB2_observations.dat`, but for the planet in the third row of `bodies.lst`, i.e., `c.dat` is planet 3.     
+8.  `NB3_observations.dat`: same kind of file `NB2_observations.dat`, but for the planet in the third row of `bodies.lst`, i.e., `c.dat` is planet 3.     
     Example file [`NB3_observations.dat`](trades_example/NB3_observations.dat)     
     
-10. `derived_boundaries.dat`: this file a special file.    
+9. `derived_boundaries.dat`: this file a special file.    
     If you have some derived parameters (or other values) that can reduce your parameter space you have to create this file in your simulation folder.    
     if the argument `secondary_parameters` in `arg.in` file is set to `0`, this file will not be used.    
     If `secondary_parameters = 1`, but the file does not exist it will not be used (no derived parameters will be checked).     
@@ -393,10 +352,7 @@ Each file _should_ have an self-explaning header.
 
 `TRADES` can now be used in python scripts, thanks to `f2py`.    
 In the `src/` folder there is the `pytrades_lib.f90` that is the library that interface `TRADES` to python.    
-**Compile:**    
--   `cd src/`    
--   debug mode: `make pyomp_debug`    
--   release mode: `make pyomp_release`    
+**Compile:** see `Makefile`    
     
 It creates the `pytrades_lib.so` and it copies it into the folder `../pytrades/`    
 Check if in the `src/` folder there is an hidden file `.f2py_f2cmap` that contains one row: `dict(real=dict(sp='float', dp='double'))`    
@@ -404,11 +360,11 @@ Check if in the `src/` folder there is an hidden file `.f2py_f2cmap` that contai
 <!--In folder `pytrades/`: `pytrades_lib.so`, `constants.py`, `ancillary.py`, `trades_pso2emcee.py`.    
 The script to run is `trades_pso2emcee.py`, that shows how to call the `pytrades_lib` and how to combine `PSO` algorithm with `emcee`.    
 Run as `python trades_pso2emcee.py -h` for instruction on the all the command line arguments to provide.    -->
-In folder `pytrades/`: `pytrades_lib.so`, `constants.py`, `ancillary.py`, `trades_emcee.py`.    
-The script to run is `trades_emcee.py` or `trades_emcee_sqrte.py`, that shows how to call the `pytrades_lib` and how to combine with `emcee`. The two scripts fit `$e\cos\omega,e\sin\omega$` and `$\sqrt{e}\cos\omega,\sqrt{e}\sin\omega$`, respectively.     
-The script `trades_pso2emcee.py` has been updated and `trades_pso2emcee_sqrte.py` has been created. They are under testing (2017-12-14).    
-Run as `python trades_emcee.py -h` for instruction on the all the command line arguments to provide.    
+In folder `pytrades/` there are different scripts, look for the script to run beginning with `trades_`, that shows how to call the `pytrades_lib` and how to combine with `emcee` or `pyPolyChord`.    
+Run as `python trades_XXX.py -h` for instruction on the all the command line arguments to provide.    
 The `ancillary.py` file has different functions to write and read output files from `PSO` and `emcee` and other stuff helpful to manage the output of the simulations.    
+The `full_emcee_analysis.py` script is able to create all the summary reports and 
+images of a `TRADES+EMCEE` analysis; it works also on a running simulation.    
 Check also other files in the `pytrades` folder to understand how to use the python library.
     
     
@@ -418,6 +374,18 @@ Check also other files in the `pytrades` folder to understand how to use the pyt
 
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
+
+#### `TRADES 2.14.1`
+Updated computation of the initial state vector from the Keplerian orbital elements,
+and implemented the subroutine adapted from [`MERCURY`][MERCURY] to compute the 
+Keplerian orbital elements from the state vector.    
+
+#### `TRADES 2.14`
+Old `PolyChord` version has been removed, now the 1.10 version can be used.
+Follow the `PolyChord` compile and install instruction, with python support.
+It will be available as python module and used in the script ``.    
+    
+Checking the conversion of the state vector to orbital elements during integration.    
 
 #### `TRADES 2.13.6`
 
@@ -525,4 +493,20 @@ During `RV` fit, `TRADES` will run a `GLS` periodogram [(Zechmeister and Kurster
 In case of a positive signal, it means the period has been induced (bad `RV` fit) and the fitness (`$\chi^{2}_\textrm{r}$`) will be set to max value (bad fit).    
 
 
-[GLS]: http://adsabs.harvard.edu/abs/2009A%26A...496..577Z
+[acor]: https://github.com/dfm/acor    
+[emcee]: http://dan.iel.fm/emcee/current/    
+[veusz]: http://home.gna.org/veusz/    
+
+[TRADES@github](https://github.com/lucaborsato/trades)    
+[Borsato2014]: http://adsabs.harvard.edu/abs/2014A%26A...571A..38B    
+[TRADESESPG]: http://groups.dfa.unipd.it/ESPG/trades.html    
+
+[MINPACK]: http://www.netlib.org/minpack/    
+[Moré1980]: http://www.mcs.anl.gov/~more/ANL8074a.pdf    
+[PIKAIA]: http://www.hao.ucar.edu/modeling/pikaia/pikaia.php    
+[PSO]: http://www.nda.ac.jp/cc/users/tada/    
+[PC]: http://arxiv.org/abs/1502.01856    
+[PolyChord-CCPForge]: http://ccpforge.cse.rl.ac.uk/gf/project/polychord/    
+
+[GLS]: http://adsabs.harvard.edu/abs/2009A%26A...496..577Z    
+[MERCURY]: http://www.arm.ac.uk/~jec/    

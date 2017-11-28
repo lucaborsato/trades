@@ -3,7 +3,7 @@
 ! ************************* !
 
 module rotations
-  use constants,only:dp,deg2rad,zero,one
+  use constants,only:dp,deg2rad,zero,one,TOLERANCE
   implicit none
 
   contains
@@ -17,40 +17,61 @@ module rotations
     ang=angle*deg2rad
     cosa=cos(ang)
     sina=sin(ang)
+    if(abs(cosa).le.TOLERANCE)then
+      cosa=zero
+      sina=sign(one,sina)
+    else if(abs(sina).le.TOLERANCE)then
+      sina=zero
+      cosa=sign(one,cosa)
+    end if
+    
+    !        (0 0     1   )
+    !mat(3x)=(0 cosa -sina)
+    !        (0 sina  cosa)
+
     matrix(1,1)=one
     matrix(1,2)=zero
     matrix(1,3)=zero
     matrix(2,1)=zero
     matrix(2,2)=cosa
-    matrix(2,3)=sina
+!     matrix(2,3)=sina ! OLD
+    matrix(2,3)=-sina
     matrix(3,1)=zero
-    matrix(3,2)=-sina
+!     matrix(3,2)=-sina ! OLD
+    matrix(3,2)=sina
     matrix(3,3)=cosa
 
     return
   end subroutine rotmat1
 
-  ! rotation around axis 2 (y)
-  subroutine rotmat2(angle,matrix)
-    real(dp),intent(in)::angle
-    real(dp),dimension(:,:),intent(out)::matrix
-    real(dp)::ang,cosa,sina
-
-    ang=angle*deg2rad
-    cosa=cos(ang)
-    sina=sin(ang)
-    matrix(1,1)=cosa
-    matrix(1,2)=zero
-    matrix(1,3)=-sina
-    matrix(2,1)=zero
-    matrix(2,2)=one
-    matrix(2,3)=zero
-    matrix(3,1)=sina
-    matrix(3,2)=zero
-    matrix(3,3)=cosa
-
-    return
-  end subroutine rotmat2
+!   ! rotation around axis 2 (y)
+!   subroutine rotmat2(angle,matrix)
+!     real(dp),intent(in)::angle
+!     real(dp),dimension(:,:),intent(out)::matrix
+!     real(dp)::ang,cosa,sina
+! 
+!     ang=angle*deg2rad
+!     cosa=cos(ang)
+!     sina=sin(ang)
+!     if(abs(cosa).le.TOLERANCE)then
+!       cosa=zero
+!       sina=sign(one,sina)
+!     else if(abs(sina).le.TOLERANCE)then
+!       sina=zero
+!       cosa=sign(one,cosa)
+!     end if
+!     matrix(1,1)=cosa
+!     matrix(1,2)=zero
+!     matrix(1,3)=-sina
+!     matrix(2,1)=zero
+!     matrix(2,2)=one
+!     matrix(2,3)=zero
+!     matrix(3,1)=sina
+!     matrix(3,2)=zero
+!     matrix(3,3)=cosa
+! 
+!     return
+!   end subroutine rotmat2
 
   ! rotation around axis 3 (z)
   subroutine rotmat3(angle,matrix)
@@ -61,10 +82,24 @@ module rotations
     ang=angle*deg2rad
     cosa=cos(ang)
     sina=sin(ang)
+    if(abs(cosa).le.TOLERANCE)then
+      cosa=zero
+      sina=sign(one,sina)
+    else if(abs(sina).le.TOLERANCE)then
+      sina=zero
+      cosa=sign(one,cosa)
+    end if
+    
+    !        (cosa -sina 0)
+    !mat(3x)=(sina  cosa 0)
+    !        (0     0    1)
+    
     matrix(1,1)=cosa
-    matrix(1,2)=sina
+!     matrix(1,2)=sina ! OLD
+    matrix(1,2)=-sina
     matrix(1,3)=zero
-    matrix(2,1)=-sina
+!     matrix(2,1)=-sina ! OLD
+    matrix(2,1)=sina
     matrix(2,2)=cosa
     matrix(2,3)=zero
     matrix(3,1)=zero
@@ -90,7 +125,7 @@ module rotations
   end subroutine rotmat313
 
   ! rotate the orbital state vectors to observational state vectors
-  ! User must pass -ang1, -ang2, -ang3 to obtain the right transformation
+  ! User must pass -ang1, -ang2, -ang3 to obtain the right transformation..TESTING
   subroutine orb2obs(rin,ang1,ang2,ang3,rout)
     use parameters,only:NB
     real(dp),dimension(:),intent(in)::rin
