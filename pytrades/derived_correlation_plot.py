@@ -99,7 +99,7 @@ def set_yaxis(ax, label_size, label_separation, label_pad, ticklabel_size, kel_l
         #hist2d_counts_2, xedges_2, yedges_2 = np.histogram2d(x_data, y_data, bins=new_k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], normed=True)
         #x_bins = [0.5*(xedges_2[i]+xedges_2[i+1]) for i in range(0, new_k)]
         #y_bins = [0.5*(yedges_2[i]+yedges_2[i+1]) for i in range(0, new_k)]
-        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, colors=('forestgreen', 'royalblue', 'red'), linestyle='solid', linewidths=(0.5, 0.5, 0.5))
+        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, colors=('forestgreen', 'royalC0', 'red'), linestyle='solid', linewidths=(0.5, 0.5, 0.5))
         
         #ax.axvline(x_med, color='dimgrey', ls='-', lw=0.5)
         #ax.axhline(y_med, color='dimgrey', ls='-', lw=0.5)
@@ -413,8 +413,21 @@ def main():
         
         if(cli.overplot is not None):
           # plot selected overplot sample
-          ax.axvline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
-          ax.axhline(overp_der[iy], color='blue', ls='--', lw=1.1, alpha=0.7)
+          # check angle and plot %360 and %-360...
+          if('w' in derived_names[ix] or 
+             'lN' in derived_names[ix] or 
+             'mA' in derived_names[ix]):
+            ax.axvline(overp_der[ix]%360., color='C0', ls='--', lw=1.1, alpha=0.7)
+            ax.axvline(overp_der[ix]%-360., color='C0', ls='--', lw=1.1, alpha=0.7)
+          else:
+            ax.axvline(overp_der[ix], color='C0', ls='--', lw=1.1, alpha=0.7)
+          if('w' in derived_names[iy] or 
+             'lN' in derived_names[iy] or 
+             'mA' in derived_names[iy]):
+            ax.axhline(overp_der[iy]%360., color='C0', ls='--', lw=1.1, alpha=0.7)
+            ax.axhline(overp_der[iy]%-360., color='C0', ls='--', lw=1.1, alpha=0.7)
+          else:
+            ax.axhline(overp_der[iy], color='C0', ls='--', lw=1.1, alpha=0.7)
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -461,16 +474,28 @@ def main():
   
         #print parameter_names_emcee[ix], overp_der[ix]
         if (ix == n_der-1):
+          if(cli.overplot is not None):
+            # check angle and plot %360 and %-360...
+            if('w' in derived_names[ix] or 
+               'lN' in derived_names[ix] or 
+               'mA' in derived_names[ix]):
+              ax.axhline(overp_der[ix]%360., color='C0', ls='--', lw=1.1, alpha=0.7)
+              ax.axhline(overp_der[ix]%-360., color='C0', ls='--', lw=1.1, alpha=0.7)
+            else:
+              # plot selected overplot sample
+              ax.axhline(overp_der[ix], color='C0', ls='--', lw=1.1, alpha=0.7)
           ax.set_ylim([y_min, y_max])
-          if(cli.overplot is not None):
-            # plot selected overplot sample
-            ax.axhline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
         else:
-          ax.set_xlim([x_min, x_max])
           if(cli.overplot is not None):
-            # plot selected overplot sample
-            ax.axvline(overp_der[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
-        
+            if('w' in derived_names[ix] or 
+               'lN' in derived_names[ix] or 
+               'mA' in derived_names[ix]):
+              ax.axvline(overp_der[ix]%360., color='C0', ls='--', lw=1.1, alpha=0.7)
+              ax.axvline(overp_der[ix]%-360., color='C0', ls='--', lw=1.1, alpha=0.7)
+            else:
+              # plot selected overplot sample
+              ax.axvline(overp_der[ix], color='C0', ls='--', lw=1.1, alpha=0.7)
+          ax.set_xlim([x_min, x_max])
         if(cli.overplot is not None):
           print derived_names[ix], ' overplot val = ', overp_der[ix], ' min = ', x_data.min(), ' max = ', x_data.max()
         

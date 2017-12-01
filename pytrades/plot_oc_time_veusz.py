@@ -9,16 +9,19 @@ import glob # glob: globbing file...loading multiple files as *.pippa
 import sys # sys: system...boh
 import numpy as np # array
 import veusz.embed as vsz
-import constants as cst
+
 #import numpy.polynomial.polynomial as poly
 import h5py
 
-# --------------------------------------------------------------------------
+# custom modules
+import constants as cst
+import ancillary as anc
 
-# --------------------------------------------------------------------------
+# ==============================================================================
+# ==============================================================================
 # THIS SCRIPT PLOTS THE O-C DIAGRAMS OF SELECTED BODIES (IN RANGE) AND
 # IT PLOTS THE COMPARISON OBS-SIM RV AT THE BOTTOM.
-# --------------------------------------------------------------------------
+# ==============================================================================
 
 def get_bool(bool_in):
   true_list = 'true tru tr t yes ye y 1'.split()
@@ -27,6 +30,8 @@ def get_bool(bool_in):
   else:
     bool_out = False
   return bool_out
+
+# ==============================================================================
 
 def get_args():
   
@@ -62,6 +67,8 @@ def get_args():
   #return full_path, cli.idsim, cli.lmflag, int(cli.nbI), int(cli.nbF), cli.RVset, cli.xscale, cli.oc_fit
   return cli
 
+# ==============================================================================
+
 def intro(fullpath, nbI, nbF):
   print ""
   print "--- O-C plot ---"
@@ -71,74 +78,116 @@ def intro(fullpath, nbI, nbF):
   print "Bodies to plot, from %d to %d"%(nbI,nbF)
   print ""
 
+# ==============================================================================
 
-def calculate_epoch(T0, Tref, Pref):
-
-  epo = np.rint((T0-Tref)/Pref).astype(int)
-
-  return epo
-
-
-# linear fit function with errors on y-axis.
-# It returns also the errors.
-# y = b_ls + m_ls * x
-def lstsq_fit(x, y, yerr):
-  A = np.vstack((np.ones_like(x), x)).T
-  C = np.diag(yerr * yerr)
-  cov = np.linalg.inv(np.dot(A.T, np.linalg.solve(C, A)))
-  b_ls, m_ls = np.dot(cov, np.dot(A.T, np.linalg.solve(C, y)))
-  coeff_err = np.sqrt(np.diag(cov))
-  return b_ls, m_ls, coeff_err
-
-
-def read_samples(samples_file = None, nbI = 2, nbF = 2):
+class sample:
   
+  def __init__(self, tepoch, time_rv_mod, rv_mod):
+    self.tepoch = tepoch
+    self.time_rv_mod = time_rv_mod
+    self.rv_mod = rv_mod
+    self.nplanets = 0
+    self.oc_samples = []
+    
+# ==============================================================================
+
+class oc_sample:
+  
+  def __init__(self, idnum, TTs):
+    self.idplanet = int(idnum)
+    self.TTs = np.array(TTs)
+    self.TTs_scaled = self.TTs
+    self.nTTs = np.shape(self.TTs)[0]
+    self.epo = np.arange(0,self.nTTs,1)
+    self.oc = np.zeros((self.nTTs, 3))
+  
+  def update(self, Tref, Pref, t_subtract):
+    self.TTs_scaled = self.TTs - t_subtract
+    self.epo = anc.calculate_epoch(self.TTs, Tref, Pref)
+    self.oc[:,0] = self.TTs - (Tref + self.epo*Pref)
+    self.oc[:,1] = self.oc[:,0] * 1440.
+    self.oc[:,2] = self.oc[:,0] * 86400.
+
+# ==============================================================================
+
+def read_samples(samples_file = None):
+  
+  #print 'read_samples'
   if(samples_file is not None):
     
-    rv_samples = {}
-    t0_samples = {}
+    #rv_samples = {}
+    #oc_samples = []
     
     sh5 = h5py.File(samples_file, 'r')
-    # read RV
-    rv_samples['time_rv_mod'] = sh5['RV/time_rv_mod'][...]
-    rv_samples['tepoch'] = sh5['RV/time_rv_mod'].attrs['tepoch']
-    rv_samples['rv_mod'] = sh5['RV/rv_mod'][...]
-    # read T0
-    for inb in range(nbI, nbF+1):
-      ipl = '%d' %(inb)
-      t0_samples[ipl] = sh5['T0/%s' %(ipl)][...]
-    sh5.close()
-    
-  else:
-    
-    return None, None
-  
-  return rv_samples, t0_samples # dictionaries
 
-def ttra_samples_to_oc(ttra_samples=None, Teph=None, Peph=None, t_subtract=0.):
-  
-  if(ttra_samples is not None):
-    n_t0, n_samples = np.shape(ttra_samples)
-    oc_samples = np.zeros((n_t0, 5, n_samples))
+    # read RV
+    #rv_samples['time_rv_mod'] = sh5['RV/time_rv_mod'][...]
+    #rv_samples['tepoch'] = sh5['RV/time_rv_mod'].attrs['tepoch']
+    #rv_samples['rv_mod'] = sh5['RV/rv_mod'][...]
+    # read T0
+    #for inb in range(nbI, nbF+1):
+      #ipl = '%d' %(inb)
+      #oc_samples[ipl] = sh5['T0/%s' %(ipl)][...]
+    #oc_samples = [oc_sample(inb, sh5['T0/%d' %(inb)][...]) for inb in range(nbI, nbF+1)]
     
-    epo_smp = calculate_epoch(ttra_samples, Teph, Peph)
-    ttra_smp = ttra_samples - t_subtract
-    oc_smp = ttra_samples - (Teph + epo_smp*Peph)
+    n_samples = len(sh5.keys())
+    samples = []
+    for igr in sh5.keys():
+      tepoch = sh5[igr].attrs['tepoch']
+      trv = sh5['%s/time_rv_mod' %(igr)][...]
+      rv = sh5['%s/rv_mod' %(igr)][...]
+      osmp = sample(tepoch, trv, rv)
+      TTfield = sh5[igr].keys()
+      #osmp.nplanets = len(TTfield)
+      npl = 0
+      for kk in TTfield:
+        if('TTs_' in kk):
+          npl += 1
+          idpl = int(kk.split('_')[1])
+          osmp.oc_samples.append(oc_sample(idpl, sh5['%s/%s' %(igr, kk)][...]))
+      osmp.nplanets = npl
     
-    for ismp in range(0, n_samples):
-      oc_samples[:,0,ismp] = epo_smp[:,ismp] # epoch
-      oc_samples[:,1,ismp] = ttra_smp[:,ismp] # T0-t_subtract
-      oc_samples[:,2,ismp] = oc_smp[:,ismp] # O-C days
-      oc_samples[:,3,ismp] = oc_smp[:,ismp] * 1440. # O-C minutes
-      oc_samples[:,4,ismp] = oc_smp[:,ismp] * 86400. # O-C seconds
-  
+      samples.append(osmp)
+    sh5.close()
+    #print 'len(samples) = ',len(samples)
+    
   else:
+    
     return None
   
-  return oc_samples
+  return samples # list of objects 'sample'
 
+# ==============================================================================
 
-def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, ttra_samples=None):
+#def ttra_samples_to_oc(ttra_samples=None, Teph=None, Peph=None, t_subtract=0.):
+  
+  #print 'ttra_samples_to_oc'
+  
+  #if(ttra_samples is not None):
+    #print np.shape(ttra_samples),type(ttra_samples)
+    ##n_t0, n_samples = np.shape(ttra_samples)
+    #n_samples = len(ttra_samples)
+    #oc_samples = np.zeros((n_t0, 5, n_samples))
+    
+    #epo_smp = anc.calculate_epoch(ttra_samples, Teph, Peph)
+    #ttra_smp = ttra_samples - t_subtract
+    #oc_smp = ttra_samples - (Teph + epo_smp*Peph)
+    
+    #for ismp in range(0, n_samples):
+      #oc_samples[:,0,ismp] = epo_smp[:,ismp] # epoch
+      #oc_samples[:,1,ismp] = ttra_smp[:,ismp] # T0-t_subtract
+      #oc_samples[:,2,ismp] = oc_smp[:,ismp] # O-C days
+      #oc_samples[:,3,ismp] = oc_smp[:,ismp] * 1440. # O-C minutes
+      #oc_samples[:,4,ismp] = oc_smp[:,ismp] * 86400. # O-C seconds
+  
+  #else:
+    #return None
+  
+  #return oc_samples
+
+# ==============================================================================
+
+def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, samples=None):
   
   if(ibd >= 2):
     #simT0 = ssim + "_" + str(lmf) + "_NB" + str(ibd) + "_simT0.dat"
@@ -151,8 +200,8 @@ def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, ttra_samples=N
         print "Reading file %s" %(simT0)
         data = np.genfromtxt(fT0) # epoT0obs T0obs eT0obs T0_sim T0obs-T0_sim T0_stat
 
-        epo = data[:,0].astype(int)
-        nt = epo.shape[0]
+        epo = np.array(data[:,0]).astype(int)
+        nt = np.shape(epo)[0]
     
         t_obs_subtract = data[:,1]-t_subtract
     
@@ -169,7 +218,10 @@ def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, ttra_samples=N
           res[:,2] = res[:,0] * 86400.
 
           #Teph, Peph = poly.polyfit(epo, data[:,1], deg=1, w=1./err[:,0])
-          Teph, Peph, TP_err = lstsq_fit(epo, data[:,1], err[:,0])
+          #Teph, Peph, TP_err = lstsq_fit(epo, data[:,1], err[:,0])
+          epo, Teph, Peph, TP_err = anc.compute_lin_ephem(data[:,1], eT0=err[:,0],
+                                                          epoin=epo, 
+                                                          modefit='odr')
           tc = Teph + Peph * epo
           print "Linear ephemeris:"
           print "T_ephem [JD] = %20.7f +/- %9.7f" %(Teph, TP_err[0])
@@ -186,15 +238,22 @@ def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, ttra_samples=N
         else:
           
           #Teph_obs, Peph_obs = poly.polyfit(epo, data[:,1], deg=1, w=1./err[:,0])
-          Teph_obs, Peph_obs, TP_err_obs = lstsq_fit(epo, data[:,1], err[:,0])
+          #Teph_obs, Peph_obs, TP_err_obs = lstsq_fit(epo, data[:,1], err[:,0])
+          epo, Teph, Peph, TP_err = anc.compute_lin_ephem(data[:,1], err[:,0],
+                                                          epoin=epo, 
+                                                          modefit='odr')
           tc_o = Teph_obs + Peph_obs * epo
           print "Linear ephemeris observed:"
           print "T_ephem [JD] = %20.7f +/- %9.7f" %(Teph_obs, TP_err_obs[0])
           print "P_ephem [d]  = %20.7f +/- %9.7f" %(Peph_obs, TP_err_obs[1])
           
           #Teph_sim, Peph_sim = poly.polyfit(epo, data[:,3], deg=1, w=np.ones((nt))/err[:,0].mean())
-          Teph_sim, Peph_sim, TP_err_sim = lstsq_fit(epo, data[:,3], np.ones((nt))*err[:,0].mean())
-          tc_s = Teph_sim + Peph_sim * epo
+          #Teph_sim, Peph_sim, TP_err_sim = lstsq_fit(epo, data[:,3], np.ones((nt))*err[:,0].mean())
+          eposim, Teph, Peph, TP_err = anc.compute_lin_ephem(data[:,3],
+                                                          np.ones((nt))*err[:,0].mean(),
+                                                          epoin=epo, 
+                                                          modefit='odr')
+          tc_s = Teph_sim + Peph_sim * eposim
           print "Linear ephemeris simulated:"
           print "T_ephem [JD] = %20.7f +/- %9.7f" %(Teph_sim, TP_err_sim[0])
           print "P_ephem [d]  = %20.7f +/- %9.7f" %(Peph_sim, TP_err_sim[1])
@@ -211,18 +270,31 @@ def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, ttra_samples=N
           res[:,1] = oc[:,1] - oc[:,4]
           res[:,2] = oc[:,2] - oc[:,5]
           
-        oc_samples = ttra_samples_to_oc(ttra_samples=ttra_samples, Teph=Teph, Peph=Peph, t_subtract=t_subtract)
+        #oc_samples = ttra_samples_to_oc(ttra_samples=ttra_samples, Teph=Teph, Peph=Peph, t_subtract=t_subtract)
+        if(samples is not None):
+          nsmp = len(samples)
+          for ismp in range(0, nsmp):
+            #print 'sample ', ismp, ' check ... '
+            for inp in range(0, samples[ismp].nplanets):
+              #print '| %d vs %s' %(samples[ismp].oc_samples[inp].idplanet, ibd)
+              if(samples[ismp].oc_samples[inp].idplanet == ibd):
+                samples[ismp].oc_samples[inp].update(Teph, Peph, t_subtract)
+                #print '|| planet ', inp, ' oc (d) min max: ',
+                #print np.min(samples[ismp].oc_samples[inp].oc[:,0]),
+                #print np.max(samples[ismp].oc_samples[inp].oc[:,0])
 
     except IOError:
       print '%s does not exist ... closing script' %(simT0)
       sys.exit()
 
-  return epo, t_obs_subtract, oc, res, err, oc_samples
+  return epo, t_obs_subtract, oc, res, err, samples
 
-def plot_oc_samples(win_plot, graph_plot, xname, yname, oc_samples, letters, id_body=2):
+# ==============================================================================
+
+def plot_oc_samples(win_plot, graph_plot, xname, yname, samples, letters, id_body=2):
   
-  n_t0, n_cols, n_samples = np.shape(oc_samples)
-  
+  #n_t0, n_cols, n_samples = np.shape(oc_samples)
+  n_samples = len(samples)
   for ismp in range(0, n_samples):
     xyname = "oc_d_%s_smp_%d" %(letters[id_body-2], ismp)
     xy_smp = graph_plot.Add('xy', name = xyname, autoadd = False,
@@ -241,9 +313,17 @@ def plot_oc_samples(win_plot, graph_plot, xname, yname, oc_samples, letters, id_
     #epoName = 'epo_' + letters[id_body-2]
     #win_plot.SetData(epoName, epo)
     time_name = 'xtime_%s_smp %d' %(letters[id_body-2], ismp)
-    win_plot.SetData(time_name, oc_samples[:,1,ismp])
+    #win_plot.SetData(time_name, oc_samples[:,1,ismp])
+    npl = samples[ismp].nplanets
+    for ipl in range(0, npl):
+      if(samples[ismp].oc_samples[ipl].idplanet == id_body):
+        win_plot.SetData(time_name, samples[ismp].oc_samples[ipl].TTs_scaled)
+    
     dataYname = "oc_d_%s_smp_%d" %(letters[id_body-2], ismp)
-    win_plot.SetData(dataYname, oc_samples[:,2,ismp])
+    #win_plot.SetData(dataYname, oc_samples[:,2,ismp])
+    for ipl in range(0, npl):
+      if(samples[ismp].oc_samples[ipl].idplanet == id_body):
+        win_plot.SetData(dataYname, samples[ismp].oc_samples[ipl].oc[:,0])
     #xy_d_sim.xData.val = epoName
     xy_smp.xData.val = time_name
     xy_smp.yData.val = dataYname
@@ -251,6 +331,8 @@ def plot_oc_samples(win_plot, graph_plot, xname, yname, oc_samples, letters, id_
       #xy_smp.key.val = 'MCMC samples'
   
   return
+
+# ==============================================================================
 
 # define the scaling of the rows
 def scalingRows(gRows):
@@ -262,6 +344,7 @@ def scalingRows(gRows):
   
   return scRows
 
+# ==============================================================================
 
 def lims(v1, v2, inc=0.05):
   
@@ -278,6 +361,8 @@ def lims(v1, v2, inc=0.05):
   
   return min4, max4
 
+# ==============================================================================
+
 def read_obsRV(fullpath):
   
   obsRV = os.path.join(fullpath, "obsRV.dat")
@@ -288,6 +373,8 @@ def read_obsRV(fullpath):
     stat = True
     
   return RV_o, stat
+
+# ==============================================================================
 
 # read #_simRV_1.dat with columns:
 # jd RVobs eRVobs rv_sim RV_sim gamma e_gamma RVsetID RV_stat
@@ -309,6 +396,8 @@ def read_simRV(fullpath, sim, lmf):
     
   return RV, gamma, nRV_set, stat
 
+# ==============================================================================
+
 def read_orbit(fullpath, sim, lmf):
   
   #orbit = sim + "_" + str(lmf) + "_rotorbit.dat"
@@ -326,15 +415,19 @@ def read_orbit(fullpath, sim, lmf):
     
   return jd_lte, rv, stat
 
-def plot_rv_samples(win_plot, graph_plot, xname, yname, rv_samples, t_subtract=0., t_rv_min=None, t_rv_max=None):
+# ==============================================================================
+
+def plot_rv_samples(win_plot, graph_plot, xname, yname, samples, t_subtract=0., t_rv_min=None, t_rv_max=None):
   
-  time_rv_mod = rv_samples['time_rv_mod'] + rv_samples['tepoch'] - t_subtract
-  rv_smp = rv_samples['rv_mod']
-  n_rv, n_samples = np.shape(rv_smp)
-  if(t_rv_min is not None and t_rv_max is not None):
-    rv_sel = np.logical_and(time_rv_mod >= t_rv_min, time_rv_mod <= t_rv_max)
-  else:
-    rv_sel = np.ones((n_rv)).astype(bool)
+  #time_rv_mod = rv_samples['time_rv_mod'] + rv_samples['tepoch'] - t_subtract
+  #rv_smp = rv_samples['rv_mod']
+  #n_rv, n_samples = np.shape(rv_smp)
+  #if(t_rv_min is not None and t_rv_max is not None):
+    #rv_sel = np.logical_and(time_rv_mod >= t_rv_min, time_rv_mod <= t_rv_max)
+  #else:
+    #rv_sel = np.ones((n_rv)).astype(bool)
+    
+  n_samples = len(samples)
   
   for ismp in range(0, n_samples):
     xyname = 'rv_smp_%d' %(ismp)
@@ -352,15 +445,19 @@ def plot_rv_samples(win_plot, graph_plot, xname, yname, rv_samples, t_subtract=0
                           color= 'white',
                           )
     jdName = "time_rv_mod"
-    win_plot.SetData(jdName, time_rv_mod[rv_sel])
+    #win_plot.SetData(jdName, time_rv_mod[rv_sel])
+    win_plot.SetData(jdName, samples[ismp].time_rv_mod+samples[ismp].tepoch)
     dataYname = "rv_smp_%d" %(ismp)
-    win_plot.SetData(dataYname, rv_smp[rv_sel,ismp])
+    #win_plot.SetData(dataYname, rv_smp[rv_sel,ismp])
+    win_plot.SetData(dataYname, samples[ismp].rv_mod)
     xy_rvsamples.xData.val = jdName
     xy_rvsamples.yData.val = dataYname
     if(ismp == 0):
       xy_rvsamples.key.val = 'MCMC samples'
   
   return
+
+# ==============================================================================
 
 # x-axis of O-C
 def xOC(ocPlot, xname, xlab, min_time, max_time, font, sizeLab, LabHide, sizeTL):
@@ -385,6 +482,8 @@ def xOC(ocPlot, xname, xlab, min_time, max_time, font, sizeLab, LabHide, sizeTL)
   
   return x_oc
 
+# ==============================================================================
+
 # x-axis of RV
 def xRV(ocPlot, xname, xlab, min_time, max_time, font, sizeLab, LabHide, sizeTL):
   
@@ -407,6 +506,7 @@ def xRV(ocPlot, xname, xlab, min_time, max_time, font, sizeLab, LabHide, sizeTL)
                     )
   return x_oc
 
+# ==============================================================================
 
 # y-axis of O-C ... position: 0=left, 1=right
 def yOC(ocPlot, yname, ylab, oPosition, rotation, sizeLab, minOC, maxOC, lPos, uPos, font, sizeTL):
@@ -443,6 +543,8 @@ def yOC(ocPlot, yname, ylab, oPosition, rotation, sizeLab, minOC, maxOC, lPos, u
   
   return y_oc
 
+# ==============================================================================
+
 def yRES(plot, yname, ylab, oPosition, rotation, sizeLab, minOC, maxOC, lPos, uPos, font, sizeTL):
   
   if oPosition == 0:
@@ -477,9 +579,7 @@ def yRES(plot, yname, ylab, oPosition, rotation, sizeLab, minOC, maxOC, lPos, uP
   
   return y_res
 
-
-# --------------------------------------------------------------------------
-
+# ==============================================================================
 
 def main():
   
@@ -567,7 +667,8 @@ def main():
     
     
   # read samples_file if provided
-  rv_samples, t0_samples = read_samples(samples_file=cli.samples_file, nbI=cli.nbI, nbF=cli.nbF)
+  #rv_samples, oc_samples = read_samples(samples_file=cli.samples_file, nbI=cli.nbI, nbF=cli.nbF)
+  samples = read_samples(samples_file=cli.samples_file)
   
   xoc_list = [] # xaxis of O-C and res plots <-> T0
 
@@ -577,11 +678,11 @@ def main():
     for inb in range(cli.nbI,cli.nbF+1):
       
       #epo, oc, res, err = read_simT0(cli.full_path, cli.idsim, cli.lmflag, inb)
-      if(t0_samples is None):
-        ttra_samples = None
-      else:
-        ttra_samples=t0_samples['%d' %(inb)]
-      epo, t_obs_base, oc, res, err, oc_samples = read_simT0(cli.full_path, cli.idsim, cli.lmflag, inb, t_subtract, cli.oc_fit, ttra_samples=ttra_samples)
+      #if(t0_samples is None):
+        #ttra_samples = None
+      #else:
+        #ttra_samples=t0_samples['%d' %(inb)]
+      epo, t_obs_base, oc, res, err, samples = read_simT0(cli.full_path, cli.idsim, cli.lmflag, inb, t_subtract, cli.oc_fit, samples=samples)
       print ""
 
       keyObs = ""
@@ -703,9 +804,9 @@ def main():
       xy_d_sim.xData.val = time_name
       xy_d_sim.yData.val = dataYname
       
-      # add oc_samples plot for current body!
-      if(oc_samples is not None):
-        plot_oc_samples(ocWin, ocPlot, xname, yname, oc_samples, letters, id_body=inb)
+      # add samples plot for current body!
+      if(samples is not None):
+        plot_oc_samples(ocWin, ocPlot, xname, yname, samples, letters, id_body=inb)
 
       zeroLine = ocPlot.Add('function', name = 'zeroLine', autoadd = False,
                             function = '0.',
@@ -1129,6 +1230,9 @@ def main():
   
   return
 
+# ==============================================================================
+# ==============================================================================
 
 if __name__ == '__main__':
   main()
+# ==============================================================================

@@ -13,61 +13,128 @@ import time
 
 def geweke(cli):
 
+  log_folder = os.path.join(cli.full_path, 'logs')
+  if(not os.path.isdir(log_folder)):
+    os.makedirs(log_folder)
+  log_file = os.path.join(log_folder, 'log_geweke.txt')
+  olog = open(log_file, 'w')
+  
   print 'RUN geweke.py'
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'geweke.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', '0', '-m', str(cli.m_type), '-t', str(cli.temp_status), '-s', str(cli.sel_steps)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
-  sout, serr = run.communicate()  
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', '0', '-m', str(cli.m_type), '-t', str(cli.temp_status), '-s', str(cli.sel_steps)], 
+                 #stdout = sp.PIPE, stderr = sp.PIPE,
+                 stdout = olog, stderr = olog,
+                 bufsize=1
+                 )
+  sout, serr = run.communicate()
   print 'COMPLETED geweke.py'
+  olog.close()
   
   return
 
 def gelman_rubin(cli):
   
+  log_folder = os.path.join(cli.full_path, 'logs')
+  if(not os.path.isdir(log_folder)):
+    os.makedirs(log_folder)
+  log_file = os.path.join(log_folder, 'log_gelman_rubin.txt')
+  olog = open(log_file, 'w')
+  
   print 'RUN gelman_rubin.py'
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'gelman_rubin.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', '0', '-m', str(cli.m_type), '-t', str(cli.temp_status), '-s', str(cli.sel_steps)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', '0', '-m', str(cli.m_type), '-t', str(cli.temp_status), '-s', str(cli.sel_steps)],
+                 #stdout = sp.PIPE, stderr = sp.PIPE,
+                 stdout = olog, stderr = olog,
+                 bufsize=1
+                 )
+  
   sout, serr = run.communicate()  
   print 'COMPLETED gelman_rubin.py'
+  olog.close()
   
   return
 
 def chains(cli):
   
+  log_folder = os.path.join(cli.full_path, 'logs')
+  if(not os.path.isdir(log_folder)):
+    os.makedirs(log_folder)
+  log_file = os.path.join(log_folder, 'log_chains.txt')
+  olog = open(log_file, 'w')
+  
   print 'RUN chains_summary_plot.py'
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'chains_summary_plot.py')
-  run = sp.Popen(['python', pyscript, '-p',cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p',cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)],
+                 #stdout = sp.PIPE, stderr = sp.PIPE,
+                 stdout = olog, stderr = olog,
+                 bufsize=1
+                 )
   sout, serr = run.communicate()  
   print 'COMPLETED chains_summary_plot.py'
+  olog.close()
   
   return
 
 def correlation(cli):
   
+  log_folder = os.path.join(cli.full_path, 'logs')
+  if(not os.path.isdir(log_folder)):
+    os.makedirs(log_folder)
+  log_file = os.path.join(log_folder, 'log_corr_plot_fitted.txt')
+  olog = open(log_file, 'w')
+  
   print 'RUN correlation_triangle_plot.py'
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'correlation_triangle_plot.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '-c', str(cli.cumulative), '--overplot', str(cli.overplot) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '-c', str(cli.cumulative), '--overplot', str(cli.overplot) ],
+                 #stdout = sp.PIPE, stderr = sp.PIPE,
+                 stdout = olog, stderr = olog,
+                 bufsize=1
+                 )
   sout, serr = run.communicate()  
   print 'COMPLETED correlation_triangle_plot.py'
+  olog.close()
   
   return
 
 def derived_correlation(cli):
   
+  log_folder = os.path.join(cli.full_path, 'logs')
+  if(not os.path.isdir(log_folder)):
+    os.makedirs(log_folder)
+  log_file = os.path.join(log_folder, 'log_corr_plot_derived.txt')
+  olog = open(log_file, 'w')
+  
   print 'RUN derived_correlation_plot.py'
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'derived_correlation_plot.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)],
+                 #stdout = sp.PIPE, stderr = sp.PIPE,
+                 stdout = olog, stderr = olog,
+                 bufsize=1
+                 )
   sout, serr = run.communicate()  
   print 'COMPLETED derived_correlation_plot.py'
+  olog.close()
   
   return
 
 def ci_chains_correlation(cli):
   
+  log_folder = os.path.join(cli.full_path, 'logs')
+  if(not os.path.isdir(log_folder)):
+    os.makedirs(log_folder)
+  log_file = os.path.join(log_folder, 'log_confidence_intervals.txt')
+  olog = open(log_file, 'w')
+  
   print 'RUN confidence_intervals.py'
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'confidence_intervals.py')
-  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--sample', str(cli.sample_str), '--seed', str(cli.seed), '--overplot', str(cli.overplot), '--ad-hoc', str(cli.adhoc), '--n-samples', str(cli.n_samples) ], stdout = sp.PIPE, stderr = sp.PIPE, bufsize=1)
+  run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--sample', str(cli.sample_str), '--seed', str(cli.seed), '--overplot', str(cli.overplot), '--ad-hoc', str(cli.adhoc), '--n-samples', str(cli.n_samples) ],
+                 #stdout = sp.PIPE, stderr = sp.PIPE,
+                 stdout = olog, stderr = olog,
+                 bufsize=1
+                 )
   sout, serr = run.communicate()  
   print 'COMPLETED confidence_intervals.py'
+  olog.close()
   
   sub_th = []
   

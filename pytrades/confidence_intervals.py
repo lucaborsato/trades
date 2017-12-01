@@ -17,6 +17,7 @@ import constants as cst # local constants module
 import ancillary as anc
 import pytrades_lib
 
+# ==============================================================================
 
 def ttra_and_rv_from_samples(samples_fit_par, emcee_par_names, NB):
   
@@ -31,8 +32,8 @@ def ttra_and_rv_from_samples(samples_fit_par, emcee_par_names, NB):
   
   #init transit times dictionary
   ttra_samples = {}
-  for ipl in range(0, NB-1):
-    ttra_samples['%d' %(ipl+2)] = []
+  #for ipl in range(0, NB-1):
+    #ttra_samples['%d' %(ipl+2)] = []
   
   # rv dictionary
   rv_samples = {'rv_mod': []}
@@ -49,6 +50,8 @@ def ttra_and_rv_from_samples(samples_fit_par, emcee_par_names, NB):
       id_pl = ipl+2
       ttra = np.sort(ttra_full[np.logical_and(id_ttra_full == id_pl, stats_ttra)])
       ttra_samples['%d' %(id_pl)].append(ttra)
+      #ttra_samples['%d' %(id_pl)] = ttra
+      print id_pl, np.shape(ttra)
   
     #print('\ntime rv[0:10]:')
     #print(time_rv_nmax[0:10])
@@ -62,10 +65,45 @@ def ttra_and_rv_from_samples(samples_fit_par, emcee_par_names, NB):
     rv_samples['rv_mod'].append(rv)
   rv_samples['rv_mod'] = np.array(rv_samples['rv_mod'], dtype=np.float64).T
   
-  for key in ttra_samples.keys():
-    ttra_samples[key] = np.array(ttra_samples[key], dtype=np.float64).T
+  print '\n', ttra_samples.keys(), '\n'
+  #for key in ttra_samples.keys():
+    #ttra_samples[key] = np.array(ttra_samples[key], dtype=np.float64).T
   
   return ttra_samples, rv_samples
+
+# ==============================================================================
+
+def save_ttra_and_rv_from_samples(samples_fit_par, names_par, NB, n_samples, smp_h5):
+  
+  n_samples, nfit = np.shape(samples_fit_par)
+  Pephem = pytrades_lib.pytrades.pephem
+  nt0_full, nrv_nmax = pytrades_lib.pytrades.get_max_nt0_nrv(Pephem,NB)
+  
+  for ismp in range(0, n_samples):
+    smp_name = '%04d' %(ismp)
+    gr = smp_h5.create_group(smp_name)
+    gr.attrs['tepoch'] = pytrades_lib.pytrades.tepoch
+    trades_fit_par = anc.sqrte_to_e_fitting(samples_fit_par[ismp], names_par)
+    ttra_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = pytrades_lib.pytrades.fit_par_to_ttra_rv(trades_fit_par, nt0_full, nrv_nmax)
+    
+    stats_rv = np.array(stats_rv).astype(bool)
+    time_rvx, rvx = time_rv_nmax[stats_rv], rv_nmax[stats_rv]
+    id_rv = np.argsort(time_rvx)
+    time_rv, rv = time_rvx[id_rv], rvx[id_rv]
+    gr.create_dataset('time_rv_mod', data=time_rv,
+                      dtype=np.float64, compression='gzip')
+    gr.create_dataset('rv_mod', data=rv,
+                      dtype=np.float64, compression='gzip')
+    
+    stats_ttra = np.array(stats_ttra).astype(bool)
+    for ipl in range(2, NB+1):
+      ttra = np.sort(ttra_full[np.logical_and(id_ttra_full == ipl, stats_ttra)])
+      gr.create_dataset('TTs_%d' %(ipl), data=ttra,
+                        dtype=np.float64, compression='gzip')
+      
+  return
+
+# ==============================================================================
 
 # main
 
@@ -177,16 +215,20 @@ def main():
     #der_posterior_T = der_posterior
     der_posterior_T = anc.derived_posterior_check(names_derived, der_posterior)
 
+    par_type = ''
+    descr = ''
     if(str(derived_type).strip().lower() == 'median'):
       # MEDIAN PARAMETERS ID == 1050
       derived_par = np.percentile(der_posterior_T, 50., axis=0, interpolation='midpoint')
-      par_type = 'MEDIAN'
+      par_type = 'MEDIAN:'
+      descr = 'median of posterior and median of derived posterior'
     elif(str(derived_type).strip().lower() == 'mode'):
       # MODE-LIKE PARAMETERS -> id 3050
       #k = anc.get_bins(flatchain_posterior, rule='doane')
       
       der_bin, derived_par = anc.get_mode_parameters(der_posterior_T, nbins)
       par_type = 'MODE'
+      descr = 'mode of posterior and mode of derived posterior'
     else:      
       # ORIGINAL FITTING PARAMETERS ID == 0
       # or
@@ -194,15 +236,18 @@ def main():
       names_derived, derived_par = anc.compute_derived_parameters(names_par, kep_elem, id_fit, case_list, cols_list, parameters, conv_factor=m_factor)
       derived_par, der_posterior_T = anc.adjust_derived_parameters(names_derived, derived_par, der_posterior_T)
       if(id_sim == 0):
-        par_type = 'ORIGINAL FIT'
+        par_type = 'ORIGINAL FIT:'
+        descr = 'initial set of parameters'
       elif(id_sim == 1051):
-        par_type = 'MEDIAN PARAMETERS TO DERIVED'
+        par_type = 'MEDIAN PARAMETERS TO DERIVED:'
+        descr = 'median of posterior and converted to derived parameter'
       elif(id_sim == 2050):
         par_type = 'MAX LNPROB'
       elif(id_sim == 3051):
-        par_type = 'MODE PARAMETERS TO DERIVED'
+        par_type = 'MODE PARAMETERS TO DERIVED:'
+        descr = 'mode of posterior and converted to derived parameter'
       elif(id_sim == 666):
-        par_type = 'SELECTED SAMPLE'
+        par_type = 'SELECTED SAMPLE WITHIN HDI'
         # ***COMMENTED 2017-02-02: TO CHECK IF REALLY NEEDED
         #if(idx_sample is not None):
           #par_type = '%s <-> idx = %d' %(par_type, idx_sample)
@@ -213,12 +258,16 @@ def main():
               ##print 'doing'
               #derived_par[ider] = der_posterior_T[idx_sample, ider]*m_factor/m_factor_boot[idx_sample]
       elif(id_sim == 667):
-        par_type = 'SELECTED SAMPLE CLOSE TO MEDIAN LGLLHD WITHIN POSTERIOR CI'
+        par_type = 'SELECTED SAMPLE CLOSE TO MEDIAN LGLLHD WITHIN POSTERIOR HDI'
+        descr = ""
       elif(id_sim == 668):
-        par_type = 'SELECTED SAMPLE CLOSE TO MEDIAN OF PAR AND LGLLHD WITHIN POSTERIOR CI'
+        par_type = 'MAX LGLLHD WITHIN POSTERIOR HDI:'
+        descr = "Select posterior within HDI and take the parameter set with higher loglikelihood."
       else:
         par_type = 'AD HOC'
+        descr = "from input file"
     
+    par_type = '%s %s' %(par_type, descr)
     #sigma_derived = anc.compute_intervals(der_posterior_T, derived_par, anc.percentile_val)
     sigma_derived = anc.compute_sigma_hdi(der_posterior_T, derived_par)
     sigma_derived = sigma_derived.T
@@ -285,6 +334,8 @@ def main():
   nbins = anc.get_auto_bins(flatchain_posterior_0)
   hdi_ci, mode_parameters = anc.compute_hdi_full(flatchain_posterior_0, mode_output=True)
   ci_fitted = hdi_ci.T
+  #print np.shape(hdi_ci), np.shape(ci_fitted)
+  #sys.exit()
   
   units_par = anc.get_units(names_par, mass_unit)
   
@@ -385,17 +436,18 @@ def main():
     samples_fit_par = anc.take_n_samples(flatchain_posterior_0, ci_fitted[2:4,:], n_samples=cli.n_samples)
     samples_fit_par[0,:] = median_parameters # first sample as the median of the posterior
     anc.print_both(' Running TRADES and computing the T0s and RVs ...')
-    ttra_samples, rv_samples = ttra_and_rv_from_samples(samples_fit_par, names_par, NB)
+    #ttra_samples, rv_samples = ttra_and_rv_from_samples(samples_fit_par, names_par, NB)
     samples_file = os.path.join(cli.full_path, 'samples_ttra_rv.hdf5')
     anc.print_both(' Saving into %s' %(samples_file))
     smp_h5 = h5py.File(samples_file, 'w')
-    tra_gr = smp_h5.create_group('T0')
-    for key in ttra_samples.keys():
-      tra_gr.create_dataset(key, data=ttra_samples[key], dtype=np.float64, compression='gzip')
-    rv_gr =  smp_h5.create_group('RV')
-    for key in rv_samples.keys():
-      rv_gr.create_dataset(key, data=rv_samples[key], dtype=np.float64, compression='gzip')
-    rv_gr['time_rv_mod'].attrs['tepoch'] = pytrades_lib.pytrades.tepoch
+    save_ttra_and_rv_from_samples(samples_fit_par, names_par, NB, cli.n_samples, smp_h5)
+    #tra_gr = smp_h5.create_group('T0')
+    #for key in ttra_samples.keys():
+      #tra_gr.create_dataset(key, data=ttra_samples[key], dtype=np.float64, compression='gzip')
+    #rv_gr =  smp_h5.create_group('RV')
+    #for key in rv_samples.keys():
+      #rv_gr.create_dataset(key, data=rv_samples[key], dtype=np.float64, compression='gzip')
+    #rv_gr['time_rv_mod'].attrs['tepoch'] = pytrades_lib.pytrades.tepoch
     smp_h5.close()
     anc.print_both(' ... done')
     sys.stdout.flush()
@@ -430,7 +482,11 @@ def main():
 # ONE SAMPLE PARAMETER SET --> 666
 # ==============================================================================
   name_par, name_excluded = anc.get_sample_list(cli.sample_str, names_par)
-  sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0, names_par, name_par = name_par, name_excluded = name_excluded)
+  sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0,
+                                                             names_par, 
+                                                             name_par = name_par,
+                                                             name_excluded = name_excluded,
+                                                             post_ci=ci_fitted[0:2,:])
   if(sample_parameters is not None):
     folder_666 = get_intervals(cli.full_path, 666, names_par, sample_parameters, flatchain_posterior_0, idx_sample=idx_sample, summary_file_hdf5=s_h5f)
     s_h5f['parameters/%04d' %(666)].attrs['par_selection'] = name_par
@@ -465,14 +521,19 @@ def main():
 # ==============================================================================
   
 # ==============================================================================
-# another kind of selection: by a parameter but limited around MAD(LGLLHD-LGLLHDMEDIAN) -> 668
+# another kind of selection: parameter set withi HDI, then take the max(loglikelihood) --> 668
 # ==============================================================================
   name_par, name_excluded = anc.get_sample_list(cli.sample_str, names_par)
-  sample3_parameters, sample3_lgllhd = anc.get_sample_by_par_and_lgllhd(flatchain_posterior_0,
-                                       lnprob_burnin.T, 
-                                       names_par, 
-                                       post_ci = ci_fitted[0:2,:], 
-                                       name_par= name_par)
+  #sample3_parameters, sample3_lgllhd = anc.get_sample_by_par_and_lgllhd(flatchain_posterior_0,
+                                       #lnprob_burnin.T, 
+                                       #names_par, 
+                                       #post_ci = ci_fitted[0:2,:], 
+                                       #name_par= name_par)
+  sample3_parameters, sample3_lgllhd = \
+                             anc.select_maxlglhd_with_hdi(flatchain_posterior_0,
+                                                          ci_fitted[0:2,:],
+                                                          lnprob_burnin.T
+                                                          )
   folder_668 = get_intervals(cli.full_path, 668, names_par, sample3_parameters, flatchain_posterior_0, derived_type=668, summary_file_hdf5=s_h5f)
 # ==============================================================================
 

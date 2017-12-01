@@ -225,8 +225,8 @@ def main():
         
         if(cli.overplot is not None):
           # plot selected overplot sample
-          ax.axvline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
-          ax.axhline(overp_par[iy], color='blue', ls='--', lw=1.1, alpha=0.7)
+          ax.axvline(overp_par[ix], color='C0', ls='--', lw=1.1, alpha=0.5)
+          ax.axhline(overp_par[iy], color='C0', ls='--', lw=1.1, alpha=0.5)
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -277,12 +277,12 @@ def main():
           ax.set_ylim([y_min, y_max])
           if(cli.overplot is not None):
             # plot selected overplot sample
-            ax.axhline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+            ax.axhline(overp_par[ix], color='C0', ls='--', lw=1.1, alpha=0.5)
         else:
           ax.set_xlim([x_min, x_max])
           if(cli.overplot is not None):
             # plot selected overplot sample
-            ax.axvline(overp_par[ix], color='blue', ls='--', lw=1.1, alpha=0.7)
+            ax.axvline(overp_par[ix], color='C0', ls='--', lw=1.1, alpha=0.5)
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
