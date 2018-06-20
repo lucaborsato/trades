@@ -1,11 +1,13 @@
 module linear_ephem
   use constants
+  use custom_type
   use parameters
   use lin_fit,only:linfit
   implicit none
 
   interface set_ephem
-    module procedure set_ephem_noinput,set_ephem_winput
+    module procedure set_ephem_noinput,set_ephem_winput_dataT0,&
+      &set_ephem_winput_dataObs
   end interface set_ephem
 
     contains
@@ -14,65 +16,87 @@ module linear_ephem
   ! given the T0 data it does a linear fit to the data and it finds the
   ! ephemeris T and P: tn = Tref + Pref*n
   subroutine set_ephem_noinput()
-    integer,dimension(:),allocatable::x
-    real(dp),dimension(:),allocatable::y,ey
-    integer::j
-    character(80)::fmt
+
+!     integer::j
+!     real(dp)::Teph,eTeph,Peph,ePeph
 
     write(*,'(a)')" COMPUTING LINEAR EPHEMERIS OF: "
-    if(.not.allocated(Tephem))&
-        &allocate(Tephem(NB),Pephem(NB),eTephem(NB),ePephem(NB))
-    Tephem=zero
-    Pephem=zero
-    eTephem=zero
-    ePephem=zero
-    do j=2,NB
-      if(nT0(j).gt.0)then
-        allocate(x(nT0(j)),y(nT0(j)),ey(nT0(j)))
-        x=epoT0obs(1:nT0(j),j)
-        y=T0obs(1:nT0(j),j)
-        ey=eT0obs(1:nT0(j),j)
-        call linfit(x,y,ey,Pephem(j),ePephem(j),Tephem(j),eTephem(j))
-        fmt=adjustl("(a,i3,a,4("//trim(sprec)//",a))")
-        write(*,trim(fmt))" body ",j,": t_N = (",&
-            &Tephem(j),"+/-",eTephem(j),") + (",&
-            &Pephem(j),"+/-",ePephem(j),") x N"
-        deallocate(x,y,ey)
-      end if
-    end do
+
+    call set_ephem_winput_dataObs(obsData)
 
     return
   end subroutine set_ephem_noinput
-  
-  subroutine set_ephem_winput(n_body,n_t0,t0_num,t0_obs,et0_obs)
-    integer,intent(in)::n_body
-    integer,dimension(:),intent(in)::n_t0
-    integer,dimension(:,:),intent(in)::t0_num
-    real(dp),dimension(:,:),intent(in)::t0_obs,et0_obs
-    
-    integer,dimension(:),allocatable::x
-    real(dp),dimension(:),allocatable::y,ey
+
+  subroutine set_ephem_winput_dataT0(oT0)
+    type(dataT0),intent(inout)::oT0
+
+    real(dp)::Teph,eTeph,Peph,ePeph
+
+    if(oT0%nT0.gt.0)then
+      Peph=zero
+      ePeph=zero
+      Teph=zero
+      eTeph=zero
+      call linfit(oT0%epo,oT0%T0,oT0%eT0,Peph,ePeph,Teph,eTeph)
+      oT0%Tephem=Teph
+      oT0%eTephem=eTeph
+      oT0%Pephem=Peph
+      oT0%ePephem=ePeph
+    end if
+
+    return
+  end subroutine set_ephem_winput_dataT0
+
+  subroutine set_ephem_winput_dataObs(oDataIn)
+    type(dataObs)::oDataIn
+
     integer::j
 
-    if(.not.allocated(Tephem))&
-        &allocate(Tephem(n_body),Pephem(n_body),eTephem(n_body),ePephem(n_body))
-    Tephem=zero
-    Pephem=zero
-    eTephem=zero
-    ePephem=zero
-    do j=2,n_body
-      if(n_T0(j).gt.0)then
-        allocate(x(n_T0(j)),y(n_T0(j)),ey(n_T0(j)))
-        x=t0_num(1:n_t0(j),j)
-        y=t0_obs(1:n_t0(j),j)
-        ey=et0_obs(1:n_t0(j),j)
-        call linfit(x,y,ey,Pephem(j),ePephem(j),Tephem(j),eTephem(j))
-        deallocate(x,y,ey)
-      end if
+    do j=1,NB-1
+      call set_ephem_winput_dataT0(oDataIn%obsT0(j))
     end do
 
     return
-  end subroutine set_ephem_winput
+  end subroutine set_ephem_winput_dataObs
 
+  subroutine set_ephem_simT0(oT0)
+    type(dataT0),intent(inout)::oT0
+
+    real(dp)::Teph,Peph
+
+    if(oT0%nT0.gt.0)then
+      Peph=zero
+      Teph=zero
+      call linfit(oT0%epo,oT0%T0,Peph,Teph)
+      oT0%Tephem=Teph
+      oT0%Pephem=Peph
+    end if
+
+    return
+  end subroutine set_ephem_simT0
+
+  subroutine compute_oc_one_planet(oT0)
+    type(dataT0),intent(inout)::oT0
+
+    if(oT0%nT0.gt.0)then
+      if(.not.allocated(oT0%oc)) allocate(oT0%oc(oT0%nT0))
+      oT0%oc=oT0%T0-(oT0%Tephem+oT0%Pephem*oT0%epo)
+    end if
+
+    return
+  end subroutine compute_oc_one_planet
+
+  subroutine compute_oc(oT0s)
+    type(dataT0),dimension(:),intent(inout)::oT0s
+
+    integer::npl,ipl
+
+    npl=size(oT0s)
+    do ipl=1,npl
+      call compute_oc_one_planet(oT0s(ipl))
+    end do
+
+    return
+  end subroutine compute_oc
 
 end module linear_ephem

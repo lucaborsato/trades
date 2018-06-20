@@ -80,6 +80,8 @@ def main():
   if (sel_steps == 0):
     sel_steps = n_steps
 
+  cols=1 + int(np.rint(nwalkers/40.))
+
   for ifit in range(0, nfit):
     logger.info('Parameter: %13s' %(parameter_names_emcee[ifit]))
     fig = plt.figure(figsize=(12,12))
@@ -95,7 +97,7 @@ def main():
     ax.set_xlabel('steps (%s)' %(parameter_names_emcee[ifit].strip()))
     
     #plt.legend(loc='best',fontsize=9)
-    ax.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5), ncol=int(np.rint(nwalkers/40)))
+    ax.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5), ncol=cols)
     
     fig.savefig(os.path.join(emcee_plots, 'geweke_%03d_%s.png' %(ifit+1, parameter_names_emcee[ifit])), bbox_inches='tight', dpi=300)
     plt.close(fig)

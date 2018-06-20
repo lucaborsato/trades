@@ -1,5 +1,6 @@
 module output_files
   use constants
+  use custom_type
   use parameters
   use parameters_conversion
   use init_trades,only:get_unit,state2string
@@ -10,7 +11,7 @@ module output_files
   interface write_RV
     module procedure write_RV_s,write_RV_f
   end interface write_RV
-  
+
   interface write_T0
     module procedure write_T0_s,write_T0_f
   end interface write_T0
@@ -34,6 +35,9 @@ module output_files
     integer::ulst,j
     character(512)::fllst
     character(80)::fmt
+    real(dp)::rdof
+
+    rdof=real(obsData%dof,dp)
 
     fllst=trim(path)//"sim.lst"
     fllst=trim(adjustl(fllst))
@@ -47,31 +51,31 @@ module output_files
         &"fitness","fitness*dof"
     fmt=adjustl("(i6,1x,i3,1x,1000("//trim(sprec)//",1x))")
     do j=1,Ngrid
-      write(ulst,trim(fmt))j,infos(j),grid(:,j),(grid(6,j)*real(dof,dp))
-      write(*,trim(fmt))j,infos(j),grid(:,j),(grid(6,j)*real(dof,dp))
+      write(ulst,trim(fmt))j,infos(j),grid(:,j),(grid(6,j)*rdof)
+      write(*,trim(fmt))j,infos(j),grid(:,j),(grid(6,j)*rdof)
     end do
     close(ulst)
 
     return
   end subroutine write_simlst
-  
-  
+
+
   ! GOOD GRID WRITE SUMMARY
   subroutine write_grid_summary(cpuid,n_grid,lm_flag,grid_summary)
     integer,intent(in)::cpuid,n_grid,lm_flag
     real(dp),dimension(:,:),intent(in)::grid_summary
-    
+
     character(512)::output_file,header
     character(80)::fmt_wrt
     integer::u_wrt,i_sim
-    
+
     u_wrt=get_unit(cpuid)
-    
+
     fmt_wrt = "(i6,1x,1000("//trim(adjustl(sprec))//",1x))"
     output_file=trim(path)//"summary_grid_sims_"//&
       &trim(adjustl(string(lm_flag)))//".dat"
     header="# id_sim "//trim(adjustl(all_names_str))//" fitness_x_dof fitness"
-    
+
     open(u_wrt,file=trim(output_file))
     write(u_wrt,'(a)')trim(header)
     do i_sim=1,n_grid
@@ -80,7 +84,7 @@ module output_files
     close(u_wrt)
     write(*,'(a,a)')" WRITTEN FILE:",trim(output_file)
     flush(6)
-  
+
     return
   end subroutine write_grid_summary
 
@@ -421,93 +425,111 @@ module output_files
     real(dp),dimension(:,:),intent(in)::gammaIn
     real(dp),dimension(:,:),intent(out)::gammaOut
     integer::j,aRV,bRV
+
     aRV=0
     bRV=0
-    do j=1,nRVset
+    do j=1,obsData%obsRV%nRVset
       aRV=bRV+1
-      bRV=bRV+nRVsingle(j)
+      bRV=bRV+obsData%obsRV%nRVsingle(j)
       gammaOut(aRv:bRV,1)=gammaIn(j,1)
       gammaOut(aRv:bRV,2)=gammaIn(j,2)
     end do
+
     return
   end subroutine setGammaWrt
-  
+
   subroutine setRVok(RV_sim,gamma,RVok)
     real(dp),dimension(:),intent(in)::RV_sim
     real(dp),dimension(:,:),intent(in)::gamma
     real(dp),dimension(:),intent(out)::RVok
     integer::j,aRV,bRV
+
     aRV=0
     bRV=0
-    do j=1,nRVset
+    do j=1,obsData%obsRV%nRVset
       aRV=bRV+1
-      bRV=bRV+nRVsingle(j)
+      bRV=bRV+obsData%obsRV%nRVsingle(j)
       RVok(aRv:bRV)=RV_sim(aRv:bRV)+gamma(j,1)
-!       write(*,*)" SELECTED RV INTERVALS: ",aRV," -- ",bRV," adding gamma = ",gamma(j,1)
-!       write(*,*)" RV_sim: "
-!       write(*,*)RV_sim(aRv:bRV)
-!       write(*,*)" RVok: "
-!       write(*,*)RVok(aRv:bRV)
-!       write(*,*)
     end do
+
     return
   end subroutine setRVok
-  
+
   ! set RV data and gamma to write to screen and files
-  subroutine setWriteRV(RV_sim,gamma,RV_simwrt,gamma_wrt)
-    real(dp),dimension(:),intent(in)::RV_sim
-    real(dp),dimension(:,:),intent(in)::gamma
+!   subroutine setWriteRV(RV_sim,gamma,RV_simwrt,gamma_wrt)
+  subroutine setWriteRV(simRV,RV_simwrt,gamma_wrt)
+!     real(dp),dimension(:),intent(in)::RV_sim
+!     real(dp),dimension(:,:),intent(in)::gamma
+    type(dataRV),intent(in)::simRV
     real(dp),dimension(:),intent(out)::RV_simwrt
     real(dp),dimension(:,:),intent(out)::gamma_wrt
+
     RV_simwrt=zero
     gamma_wrt=zero
-    call setGammaWrt(gamma,gamma_wrt)!use this subroutine to set gamma_wrt
-    call setRVok(RV_sim,gamma,RV_simwrt)
+
+    call setGammaWrt(simRV%gamma,gamma_wrt)!use this subroutine to set gamma_wrt
+
+    call setRVok(simRV%RV,simRV%gamma,RV_simwrt)
+
     return
   end subroutine setWriteRV
-  
+
   ! ------------------------------------------------------------------ !
   ! write to screen the RV simulated compared to the RV observated
-  subroutine write_RV_s(gamma,RV_sim,RV_stat)
-    real(dp),dimension(:,:),intent(in)::gamma
-    real(dp),dimension(:),intent(in)::RV_sim
-    integer,dimension(:),intent(in)::RV_stat
+!   subroutine write_RV_s(gamma,RV_sim,RV_stat)
+  subroutine write_RV_s(simRV)
+!     real(dp),dimension(:,:),intent(in)::gamma
+!     real(dp),dimension(:),intent(in)::RV_sim
+!     integer,dimension(:),intent(in)::RV_stat
+    type(dataRV),intent(in)::simRV
+
     real(dp),dimension(:),allocatable::RV_simwrt
     real(dp),dimension(:,:),allocatable::gamma_wrt
-    integer::j
+    integer::j,nRV
     character(80)::fmt
 
+    nRV=simRV%nRV
     allocate(RV_simwrt(nRV),gamma_wrt(nRV,2))
-    call setWriteRV(RV_sim,gamma,RV_simwrt,gamma_wrt)
+!     call setWriteRV(RV_sim,gamma,RV_simwrt,gamma_wrt)
+    call setWriteRV(simRV,RV_simwrt,gamma_wrt)
 !     write(*,'(2(a,es23.16))')" RV -> gamma = ",gamma(1),&
 !         &" +/- ",gamma(2)
     write(*,'(a)')"# JD RVobs eRVobs rv_sim RV_sim gamma e_gamma RVsetID &
     &RV_stat"
     fmt=adjustl("(7("//trim(sprec)//",1x),i3,1x,i3)")
     do j=1,nRV
-      write(*,trim(fmt))jdRV(j),RVobs(j),eRVobs(j),RV_sim(j),&
-      &RV_simwrt(j),gamma_wrt(j,1),gamma_wrt(j,2),RVsetID(j),&
-      &RV_stat(j)
+!       write(*,trim(fmt))jdRV(j),RVobs(j),eRVobs(j),RV_sim(j),&
+!       &RV_simwrt(j),gamma_wrt(j,1),gamma_wrt(j,2),RVsetID(j),&
+!       &RV_stat(j)
+      write(*,trim(fmt))obsData%obsRV%jd(j),obsData%obsRV%RV(j),&
+        &obsData%obsRV%eRV(j),simRV%RV(j),RV_simwrt(j),&
+        &gamma_wrt(j,1),gamma_wrt(j,2),obsData%obsRV%RVsetID(j),&
+        &simRV%RV_stat(j)
     end do
     deallocate(RV_simwrt,gamma_wrt)
 
     return
   end subroutine write_RV_s
 
+  ! --------------
   ! write into file the RV simulated compared to the RV observated
-  subroutine write_RV_f(cpuid,isim,wrtid,gamma,RV_sim,RV_stat)
+!   subroutine write_RV_f(cpuid,isim,wrtid,gamma,RV_sim,RV_stat)
+  subroutine write_RV_f(cpuid,isim,wrtid,simRV)
     integer,intent(in)::cpuid,isim,wrtid ! wrtid = if 0 original parameters before LM, 1 parameters after LM
-    real(dp),dimension(:,:),intent(in)::gamma
-    real(dp),dimension(:),intent(in)::RV_sim
-    integer,dimension(:),intent(in)::RV_stat
+!     real(dp),dimension(:,:),intent(in)::gamma
+!     real(dp),dimension(:),intent(in)::RV_sim
+!     integer,dimension(:),intent(in)::RV_stat
+    type(dataRV),intent(in)::simRV
     real(dp),dimension(:),allocatable::RV_simwrt
     real(dp),dimension(:,:),allocatable::gamma_wrt
     integer::uRV,j
     character(512)::flRV
     character(80)::fmt
+    integer::nRV
 
+    nRV=simRV%nRV
     allocate(RV_simwrt(nRV),gamma_wrt(nRV,2))
-    call setWriteRV(RV_sim,gamma,RV_simwrt,gamma_wrt)
+    call setWriteRV(simRV,RV_simwrt,gamma_wrt)
 
     uRV=get_unit(cpuid)
     flRV=""
@@ -521,9 +543,13 @@ module output_files
     fmt=""
     fmt=adjustl("(7("//trim(sprec)//",1x),i3,1x,i3)")
     do j=1,nRV
-      write(uRV,trim(fmt))jdRV(j),RVobs(j),eRVobs(j),RV_sim(j),&
-      &RV_simwrt(j),gamma_wrt(j,1),gamma_wrt(j,2),RVsetID(j),&
-      &RV_stat(j)
+!       write(uRV,trim(fmt))jdRV(j),RVobs(j),eRVobs(j),RV_sim(j),&
+!       &RV_simwrt(j),gamma_wrt(j,1),gamma_wrt(j,2),RVsetID(j),&
+!       &RV_stat(j)
+      write(uRV,trim(fmt))obsData%obsRV%jd(j),obsData%obsRV%RV(j),&
+        &obsData%obsRV%eRV(j),simRV%RV(j),RV_simwrt(j),&
+        &gamma_wrt(j,1),gamma_wrt(j,2),obsData%obsRV%RVsetID(j),&
+        &simRV%RV_stat(j)
     end do
     close(uRV)
     deallocate(RV_simwrt,gamma_wrt)
@@ -533,25 +559,57 @@ module output_files
   end subroutine write_RV_f
   ! ------------------------------------------------------------------ !
 
+  !=++=
+  !=++= HERE
+  !=++=
+
   ! ------------------------------------------------------------------ !
   ! write to screen the T0 simulated compared to the T0 observated
-  subroutine write_T0_s(T0_sim,T0_stat)
-    real(dp),dimension(:,:),intent(in)::T0_sim
-    integer,dimension(:,:),intent(in)::T0_stat
-    integer::j,j1
+  subroutine write_T0_s(simT0)
+    type(dataT0),dimension(:),intent(in)::simT0
+!     real(dp),dimension(:,:),intent(in)::T0_sim
+!     integer,dimension(:,:),intent(in)::T0_stat
+    integer::j,j1,nT0
     character(80)::fmt
 
-    fmt=adjustl("(i6,4("//trim(sprec)//",1x),i3)")
-    do j=2,NB
-      if(nT0(j).ne.0)then
-        write(*,'(a,1x,a,19x,a,18x,a,18x,a,5x,a)')&
+    fmt=adjustl("(i6,2(4("//trim(sprec)//",1x),i3))")
+    do j=1,NB-1
+      nT0=simT0(j)%nT0
+      if(nT0.gt.0)then
+
+        if(durcheck.eq.0)then ! do not check duration
+          write(*,'(a,1x,a,19x,a,18x,a,18x,a,5x,a)')&
             "# epoT0obs "," T0obs "," eT0obs "," T0_sim ",&
             &" T0obs-T0_sim "," T0_stat "
-        do j1=1,nT0(j)
-          write(*,trim(fmt))epoT0obs(j1,j),T0obs(j1,j),eT0obs(j1,j),&
-              &T0_sim(j1,j),(T0obs(j1,j)-T0_sim(j1,j)),T0_stat(j1,j)
-        end do
+          do j1=1,nT0
+            write(*,trim(fmt))obsData%obsT0(j)%epo(j1),&
+              &obsData%obsT0(j)%T0(j1),obsData%obsT0(j)%eT0(j1),&
+              &simT0(j)%T0(j1),&
+              &(obsData%obsT0(j)%T0(j1)-simT0(j)%T0(j1)),&
+              &simT0(j)%T0_stat(j1)
+          end do
+
+        else ! do check duration
+
+          write(*,'(a,2(1x,a,19x,a,18x,a,18x,a,5x,a))')&
+            &"# epoT0obs "," T0obs "," eT0obs "," T0_sim ",&
+            &" T0obs-T0_sim "," T0_stat ",&
+            &" Dur_obs "," eDur_obs "," Dur_sim "," Dur_obs-Dur_sim",&
+            &" Dur_stat "
+          do j1=1,nT0
+            write(*,trim(fmt))obsData%obsT0(j)%epo(j1),&
+              &obsData%obsT0(j)%T0(j1),obsData%obsT0(j)%eT0(j1),&
+              &simT0(j)%T0(j1),&
+              &(obsData%obsT0(j)%T0(j1)-simT0(j)%T0(j1)),&
+              &simT0(j)%T0_stat(j1),&
+              &obsData%obsT0(j)%dur(j1),obsData%obsT0(j)%edur(j1),&
+              &simT0(j)%dur(j1),obsData%obsT0(j)%dur(j1)-simT0(j)%dur(j1),&
+              &simT0(j)%dur_stat(j1)
+          end do
+
+        end if
         write(*,*)""
+
       end if
     end do
 
@@ -559,36 +617,65 @@ module output_files
   end subroutine write_T0_s
 
   ! write into file the T0 simulated compared to the T0 observated
-  subroutine write_T0_f(cpuid,isim,wrtid,T0_sim,T0_stat)
+  subroutine write_T0_f(cpuid,isim,wrtid,simT0)
     integer,intent(in)::cpuid,isim,wrtid ! wrtid = if 0 original parameters before LM, 1 parameters after LM
-    real(dp),dimension(:,:),intent(in)::T0_sim
-    integer,dimension(:,:),intent(in)::T0_stat
+    type(dataT0),dimension(:),intent(in)::simT0
+!     real(dp),dimension(:,:),intent(in)::T0_sim
+!     integer,dimension(:,:),intent(in)::T0_stat
     character(512)::flT0
-    integer::uT0,j,j1
+    integer::uT0,j,j1,nT0
     character(80)::fmt
 
-    fmt=adjustl("(i6,4("//trim(sprec)//",1x),i3)")
-    do j=2,NB
-      if(nT0(j).ne.0)then
+    fmt=adjustl("(i6,2(4("//trim(sprec)//",1x),i3))")
+    do j=1,NB-1
+      nT0=simT0(j)%nT0
+      if(nT0.gt.0)then
+
         uT0=get_unit(cpuid)
         flT0=""
         flT0=trim(path)//trim(adjustl(string(isim)))//"_"//&
           &trim(adjustl(string(wrtid)))//"_NB"//&
-          &trim(adjustl(string(j)))//"_simT0.dat"
+          &trim(adjustl(string(j+1)))//"_simT0.dat"
         flT0=trim(adjustl(flT0))
         open(uT0,file=trim(flT0))
-        write(uT0,'(a,1x,a,19x,a,18x,a,18x,a,5x,a)')&
+
+        if(durcheck.eq.0)then ! do not check duration
+          write(uT0,'(a,1x,a,19x,a,18x,a,18x,a,5x,a)')&
+              &"# epoT0obs "," T0obs "," eT0obs "," T0_sim ",&
+              &" T0obs-T0_sim "," T0_stat "
+          do j1=1,nT0
+            write(uT0,trim(fmt))obsData%obsT0(j)%epo(j1),&
+              &obsData%obsT0(j)%T0(j1),obsData%obsT0(j)%eT0(j1),&
+              &simT0(j)%T0(j1),&
+              &(obsData%obsT0(j)%T0(j1)-simT0(j)%T0(j1)),&
+              &simT0(j)%T0_stat(j1)
+          end do
+
+         else ! do check duration
+
+         write(uT0,'(a,2(1x,a,19x,a,18x,a,18x,a,5x,a))')&
             &"# epoT0obs "," T0obs "," eT0obs "," T0_sim ",&
-            &" T0obs-T0_sim "," T0_stat "
-        do j1=1,nT0(j)
-          write(uT0,trim(fmt))epoT0obs(j1,j),T0obs(j1,j),&
-              &eT0obs(j1,j),T0_sim(j1,j),(T0obs(j1,j)-T0_sim(j1,j)),&
-              &T0_stat(j1,j)
-        end do
+            &" T0obs-T0_sim "," T0_stat ",&
+            &" Dur_obs "," eDur_obs "," Dur_sim "," Dur_obs-Dur_sim",&
+            &" Dur_stat "
+          do j1=1,nT0
+            write(uT0,trim(fmt))obsData%obsT0(j)%epo(j1),&
+              &obsData%obsT0(j)%T0(j1),obsData%obsT0(j)%eT0(j1),&
+              &simT0(j)%T0(j1),&
+              &(obsData%obsT0(j)%T0(j1)-simT0(j)%T0(j1)),&
+              &simT0(j)%T0_stat(j1),&
+              &obsData%obsT0(j)%dur(j1),obsData%obsT0(j)%edur(j1),&
+              &simT0(j)%dur(j1),obsData%obsT0(j)%dur(j1)-simT0(j)%dur(j1),&
+              &simT0(j)%dur_stat(j1)
+          end do
+
+         end if
+
         flush(uT0)
         close(uT0)
         write(*,'(a,a)')" WRITTEN T0 INTO FILE: ",trim(flT0)
 !         flush(6)
+
       end if
     end do
 
@@ -619,8 +706,8 @@ module output_files
     write(*,*)""
     fmt=adjustl("(2(a,"//trim(sprec)//"),a,i6)")
     write(*,trim(fmt))" Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",&
-      &sum(resw*resw)," => Fitness*dof = ",(sum(resw*resw)*real(dof,dp)),&
-      &" dof = ",dof
+      &sum(resw*resw)," => Fitness*dof = ",(sum(resw*resw)*real(obsData%dof,dp)),&
+      &" dof = ",obsData%dof
     write(*,*)""
 
     return
@@ -652,8 +739,8 @@ module output_files
     fmt=adjustl("(2(a,"//trim(sprec)//"),a,i6)")
     write(upar,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",&
       &sum(resw*resw),&
-      &" => Fitness*dof = ",(sum(resw*resw)*real(dof,dp)),&
-      &" dof = ",dof
+      &" => Fitness*dof = ",(sum(resw*resw)*real(obsData%dof,dp)),&
+      &" dof = ",obsData%dof
     write(upar,'(a,5x,a,24x,a)')"# parameter "," value "," sigma "
     fmt=adjustl("(a7,4x,"//trim(sprec)//",6x,"//trim(sprec)//")")
     do j=1,nfit
@@ -681,17 +768,17 @@ module output_files
     real(dp)::fitness,fitxdof,bic,chi2,chi2r,lnL
 
     fitness = sum(resw*resw)
-    fitxdof = fitness*real(dof,dp)
+    fitxdof = fitness*real(obsData%dof,dp)
     if(present(fit_scale))then
       chi2r=fitness/((fit_scale*fit_scale)*(gls_scale*gls_scale))
     else
       chi2r=fitness
     end if
-    chi2=chi2r*real(dof,dp)
+    chi2=chi2r*real(obsData%dof,dp)
 !     bic=fitness*real(dof,dp) + real(nfit,dp)*log(real(ndata,dp))
-    bic=chi2+real(nfit+nfree,dp)*log(real(ndata,dp))
+    bic=chi2+real(nfit+obsData%nfree,dp)*log(real(obsData%ndata,dp))
     lnL = -(half*chi2)+ln_err_const
-    
+
     upar=get_unit(cpuid)
     flpar=""
     flpar=trim(path)//trim(adjustl(string(isim)))//"_"//&
@@ -702,54 +789,54 @@ module output_files
 !     write(*,'(a,i4,a,a)')" IN write_par_f => upar = ",upar," flpar = ",&
 !         &trim(flpar)
     write(upar,'(a,i3a)')"# CPU ",cpuid," PARAMETERS "
-    
+
     fmt=adjustl("(2(a,"//trim(sprec)//"),a,i6)")
     if(present(fit_scale))then
-    
+
       if(present(to_screen))then
         write(*,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",&
           &fitness,&
           &" => Fitness_x_dof = ",fitxdof,&
-          &" dof = ",dof
+          &" dof = ",obsData%dof
         write(*,'(2(a,es23.16))')"# fit_scale = ",fit_scale," gls_scale = ",gls_scale
       end if
-    
+
       write(upar,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",&
         &fitness,&
         &" => Fitness_x_dof = ",fitxdof,&
-        &" dof = ",dof    
+        &" dof = ",obsData%dof
       write(upar,'(2(a,es23.16))')"# fit_scale = ",fit_scale," gls_scale = ",gls_scale
-    
+
     else
 
       if(present(to_screen))then
         write(*,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",&
           &fitness,&
           &" => Fitness_x_dof = ",fitxdof,&
-          &" dof = ",dof
+          &" dof = ",obsData%dof
       end if
-      
+
       write(upar,trim(fmt))"# Fitness(Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",&
         &fitness,&
         &" => Fitness_x_dof = ",fitxdof,&
-        &" dof = ",dof
-        
+        &" dof = ",obsData%dof
+
     end if
-    
+
     if(present(to_screen))then
       write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')"# BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
-        &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
+        &chi2," + ",nfit+obsData%nfree," x ln(",obsData%ndata,") = ",bic
       write(*,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 - Fitness_x_dof / 2 = ",lnL
       write(*,'(a,es23.16)')"# ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
       write(*,'(a,5x,a)')"# parameter "," value "
     end if
-    
+
     write(upar,'(a,es23.16,a,i4,a,i5,a,es23.16)')"# BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
-      &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
+      &chi2," + ",nfit+obsData%nfree," x ln(",obsData%ndata,") = ",bic
     write(upar,'(a,es23.16)')"# LogLikelihood = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 - Fitness_x_dof / 2 = ", lnL
     write(upar,'(a,es23.16)')"# ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
     write(upar,'(a,5x,a)')"# parameter "," value "
-    
+
     fmt=adjustl("(a10,4x,"//trim(sprec)//")")
     do j=1,nfit
       if(present(to_screen)) write(*,trim(fmt))trim(parid(j)),par(j)
@@ -762,57 +849,71 @@ module output_files
     return
   end subroutine write_parameters
   ! ---
-  
+
   ! write Fitness/Chi2r/Chi2wr to screen and file
-  subroutine write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale,to_screen)
+  subroutine write_fitness_summary(cpuid,isim,wrtid,chi2r_RV,chi2wr_RV,chi2r_T0,chi2r_dur,chi2wr_T0,chi2r_oc,fitness,fit_scale,gls_scale,to_screen)
     integer,intent(in)::cpuid,isim,wrtid
-    real(dp),intent(in)::chi2r_RV,chi2r_T0,chi2wr_RV,chi2wr_T0,chi2r_oc,fitness
+    real(dp),intent(in)::chi2r_RV,chi2r_T0,chi2r_dur
+    real(dp),intent(in)::chi2wr_RV,chi2wr_T0,chi2r_oc,fitness
     real(dp),optional,intent(in)::fit_scale,gls_scale
     logical,optional,intent(in)::to_screen
-    real(dp)::chi2wr_oc,chi2r,chi2wr,chi2,bic,lnL
+    real(dp)::chi2wr_oc,chi2wr_dur,chi2r,chi2wr,chi2,bic,lnL
     character(512)::summary_file
-    integer::uwrt
-    
-    if(sum(nT0).gt.0)then
-      chi2wr_oc=chi2r_oc*real(ndata,dp)/real(sum(nT0),dp)
-      
+    integer::uwrt,ndata,nTTs,nfree,dof
+
+    ndata=obsData%ndata
+    nTTs=obsData%nTTs
+    nfree=obsData%nfree
+    dof=obsData%dof
+
+    chi2wr_oc=zero
+    chi2wr_dur=zero
+    if(nTTs.gt.0)then
+      chi2wr_oc=chi2r_oc*real(ndata,dp)/real(nTTs,dp)
+      if(durcheck.eq.1) chi2wr_dur=chi2r_dur*real(ndata,dp)/real(obsData%nDurs,dp)
+
       if(oc_fit.eq.2)then
-        chi2r=chi2r_RV+half*(chi2r_T0+chi2r_oc)
-        chi2wr=chi2wr_RV+half*(chi2wr_T0+chi2wr_oc)
+        chi2r=chi2r_RV+half*(chi2r_T0+chi2r_oc)+chi2r_dur
+        chi2wr=chi2wr_RV+half*(chi2wr_T0+chi2wr_oc)+chi2wr_dur
+
       else if(oc_fit.eq.1)then
-        chi2r=chi2r_RV+chi2r_oc
-        chi2wr=chi2wr_RV+chi2wr_oc
+        chi2r=chi2r_RV+chi2r_oc+chi2r_dur
+        chi2wr=chi2wr_RV+chi2wr_oc+chi2wr_dur
+
       else
-        chi2r=chi2r_RV+chi2r_T0
-        chi2wr=chi2wr_RV+chi2wr_T0
+        chi2r=chi2r_RV+chi2r_T0+chi2r_dur
+        chi2wr=chi2wr_RV+chi2wr_T0+chi2wr_dur
+
       end if
+
     else
-      chi2wr_oc=zero
+!       chi2wr_oc=zero
       chi2r=chi2r_RV
       chi2wr=chi2wr_RV
+
     end if
-    
+
     chi2 = chi2r*real(dof,dp)
     bic= chi2+real(nfit+nfree,dp)*log(real(ndata,dp))
     lnL = -(half*chi2)+ln_err_const
-    
+
     summary_file=trim(path)//trim(adjustl(string(isim)))//"_"//&
       &trim(adjustl(string(wrtid)))//"_fitness_summary.log"
     summary_file=trim(adjustl(summary_file))
     uwrt=get_unit(cpuid)
     open(uwrt,file=trim(summary_file))
-    
+
     if(present(to_screen)) write(*,'(a,i2)')"# FITNESS SUMMARY: oc_fit == ",oc_fit
     write(uwrt,'(a,i2)')"# FITNESS SUMMARY: oc_fit == ",oc_fit
-    
+
     if(ndata.gt.0)then
-    
+
       ! print to screen
       if(present(to_screen))then
   !       write(*,'(3(a,i4))')" dof = ndata - nfit = ",ndata," - ",nfit," = ",dof
         write(*,'(10(a,i4))')" dof = ndata - nfit - nfree = ",&
           &ndata," - ",nfit," - ",nfree," = ",dof ! I have to take into account RV offsets
-        
+
         if(present(fit_scale))then
           write(*,'(100(a,es23.16))')&
             &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",fitness
@@ -821,7 +922,7 @@ module output_files
           write(*,'(100(a,es23.16))')&
             &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",fitness
         end if
-        
+
         write(*,'(a,es23.16)')' Chi2 = ',chi2
         write(*,'(a,es23.16,a,i4,a,i5,a,es23.16)')" BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
           &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
@@ -829,24 +930,26 @@ module output_files
           &lnL
         write(*,'(a,es23.16)')" ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
         write(*,'(a)')''
-        write(*,'(a,es23.16)')" k_chi2r   = ",k_chi2r
-        write(*,'(a,es23.16)')" Chi2r     = ",chi2r
-        write(*,'(a,es23.16)')" Chi2r_RV  = ",chi2r_RV
-        write(*,'(a,es23.16)')" Chi2r_T0  = ",chi2r_T0
-        write(*,'(a,es23.16)')" Chi2r_oc  = ",chi2r_oc
+        write(*,'(a,es23.16)')" k_chi2r    = ",k_chi2r
+        write(*,'(a,es23.16)')" Chi2r      = ",chi2r
+        write(*,'(a,es23.16)')" Chi2r_RV   = ",chi2r_RV
+        write(*,'(a,es23.16)')" Chi2r_T0   = ",chi2r_T0
+        write(*,'(a,es23.16)')" Chi2r_dur  = ",chi2r_dur
+        write(*,'(a,es23.16)')" Chi2r_oc   = ",chi2r_oc
         write(*,'(a)')''
-        write(*,'(a,es23.16)')" k_chi2wr  = ",k_chi2wr
-        write(*,'(a,es23.16)')" Chi2wr    = ",chi2wr
-        write(*,'(a,es23.16)')" Chi2wr_RV = ",chi2wr_RV
-        write(*,'(a,es23.16)')" Chi2wr_T0 = ",chi2wr_T0
-        write(*,'(a,es23.16)')" Chi2wr_oc = ",chi2wr_oc
+        write(*,'(a,es23.16)')" k_chi2wr   = ",k_chi2wr
+        write(*,'(a,es23.16)')" Chi2wr     = ",chi2wr
+        write(*,'(a,es23.16)')" Chi2wr_RV  = ",chi2wr_RV
+        write(*,'(a,es23.16)')" Chi2wr_T0  = ",chi2wr_T0
+        write(*,'(a,es23.16)')" Chi2wr_dur = ",chi2wr_dur
+        write(*,'(a,es23.16)')" Chi2wr_oc  = ",chi2wr_oc
       end if
-      
+
       ! write into file
 !       write(uwrt,'(3(a,i4))')" dof = ndata - nfit = ",ndata," - ",nfit," = ",dof
       write(uwrt,'(10(a,i4))')" dof = ndata - nfit - nfree = ",&
         &ndata," - ",nfit," - ",nfree," = ",dof
-        
+
       if(present(fit_scale))then
         write(uwrt,'(100(a,es23.16))')&
           &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) x fit_scale^2 x gls_scale^2 = ",fitness
@@ -855,7 +958,7 @@ module output_files
         write(uwrt,'(100(a,es23.16))')&
           &" Fitness (Chi2r*k_chi2r + Chi2wr*k_chi2wr) = ",fitness
       end if
-      
+
       write(uwrt,'(a,es23.16)')' Chi2 = ',chi2
       write(uwrt,'(a,es23.16,a,i4,a,i5,a,es23.16)')" BIC = Chi2 + (nfit + nfree) x ln(ndata) = ",&
         &chi2," + ",nfit+nfree," x ln(",ndata,") = ",bic
@@ -863,26 +966,28 @@ module output_files
         &lnL
       write(uwrt,'(a,es23.16)')" ln_err_const = - (dof/2)*ln(2pi) - sum(ln(sigma**2))/2 = ", ln_err_const
       write(uwrt,'(a)')''
-      write(uwrt,'(a,es23.16)')" k_chi2r   = ",k_chi2r
-      write(uwrt,'(a,es23.16)')" Chi2r     = ",chi2r
-      write(uwrt,'(a,es23.16)')" Chi2r_RV  = ",chi2r_RV
-      write(uwrt,'(a,es23.16)')" Chi2r_T0  = ",chi2r_T0
-      write(uwrt,'(a,es23.16)')" Chi2r_oc  = ",chi2r_oc
+      write(uwrt,'(a,es23.16)')" k_chi2r    = ",k_chi2r
+      write(uwrt,'(a,es23.16)')" Chi2r      = ",chi2r
+      write(uwrt,'(a,es23.16)')" Chi2r_RV   = ",chi2r_RV
+      write(uwrt,'(a,es23.16)')" Chi2r_T0   = ",chi2r_T0
+      write(uwrt,'(a,es23.16)')" Chi2r_dur  = ",chi2r_dur
+      write(uwrt,'(a,es23.16)')" Chi2r_oc   = ",chi2r_oc
       write(uwrt,'(a)')''
-      write(uwrt,'(a,es23.16)')" k_chi2wr  = ",k_chi2wr
-      write(uwrt,'(a,es23.16)')" Chi2wr    = ",chi2wr
-      write(uwrt,'(a,es23.16)')" Chi2wr_RV = ",chi2wr_RV
-      write(uwrt,'(a,es23.16)')" Chi2wr_T0 = ",chi2wr_T0
-      write(uwrt,'(a,es23.16)')" Chi2wr_oc = ",chi2wr_oc
+      write(uwrt,'(a,es23.16)')" k_chi2wr   = ",k_chi2wr
+      write(uwrt,'(a,es23.16)')" Chi2wr     = ",chi2wr
+      write(uwrt,'(a,es23.16)')" Chi2wr_RV  = ",chi2wr_RV
+      write(uwrt,'(a,es23.16)')" Chi2wr_T0  = ",chi2wr_T0
+      write(uwrt,'(a,es23.16)')" Chi2wr_dur = ",chi2wr_dur
+      write(uwrt,'(a,es23.16)')" Chi2wr_oc  = ",chi2wr_oc
     else
       write(*,'(a)')" NOT ENOUGH DATA"
       write(uwrt,'(a)')" NOT ENOUGH DATA"
     end if
-    
+
     flush(uwrt)
     close(uwrt)
     flush(6)
-  
+
     return
   end subroutine write_fitness_summary
 

@@ -133,7 +133,8 @@ def main():
   nfree  = pytrades.nfree # NUMBER OF FREE PARAMETERS (ie nrvset)
   dof   = pytrades.dof # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
   global inv_dof
-  inv_dof = np.float64(1.0 / dof)
+  #inv_dof = np.float64(1.0 / dof)
+  inv_dof = pytrades_lib.pytrades.inv_dof
   
   # READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
   str_len = pytrades.str_len
@@ -154,24 +155,25 @@ def main():
 
   # TRANSITS SET
   n_t0 = pytrades_lib.pytrades.nt0
-  n_t0_sum = np.sum(n_t0)
+  n_t0_sum = pytrades_lib.pytrades.ntts
   n_set_t0 = 0
-  for i in range(0, n_bodies):
-    if (np.sum(n_t0[i]) > 0): n_set_t0 += 1
+  for i in range(0, n_bodies-1):
+    if (n_t0[i] > 0): n_set_t0 += 1
 
   # compute global constant for the loglhd
   global ln_err_const
 
-  try:
-    # fortran variable RV in python will be rv!!!
-    e_RVo = np.array(pytrades_lib.pytrades.ervobs[:], dtype=np.float64)
-  except:
-    e_RVo = np.array([0.], dtype=np.float64)
-  try:
-    e_T0o = np.array(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
-  except:
-    e_T0o = np.array([0.], dtype=np.float64)
-  ln_err_const = anc.compute_ln_err_const(dof, e_RVo, e_T0o, True)
+  #try:
+    ## fortran variable RV in python will be rv!!!
+    #e_RVo = np.array(pytrades_lib.pytrades.ervobs[:], dtype=np.float64)
+  #except:
+    #e_RVo = np.array([0.], dtype=np.float64)
+  #try:
+    #e_T0o = np.array(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
+  #except:
+    #e_T0o = np.array([0.], dtype=np.float64)
+  #ln_err_const = anc.compute_ln_err_const(dof, e_RVo, e_T0o, True)
+  ln_err_const = pytrades_lib.pytrades.ln_err_const
 
   # INITIALISE SCRIPT FOLDER/LOG FILE
   working_folder, run_log, of_run = init_folder(working_path, cli.sub_folder)

@@ -32,7 +32,7 @@ TARGET_OMP_2=../bin/trades_o_int_lm_bootstrap
 TARGET_OMP_3=../bin/trades_o_pik_pso
 TARGET_OMP_4=../bin/trades_o_grid
 
-FSRCS = constants.f90 parameters.f90 random_trades.f90 convert_type.f90 lin_fit.f90 rotations.f90 celestial_mechanics.f90 eq_motion.f90 parameters_conversion.f90 linear_ephem.f90 init_trades.f90 statistics.f90 timing.f90 sort.f90 gls_module.f90 output_files.f90 numerical_integrator.f90 transits.f90 radial_velocities.f90 ode_run.f90 derived_parameters_mod.f90 fitness_module.f90 grid_search.f90 lm.f90 pikaia.f90 util_sort.f90 util_qmc.f90 opti_pso.f90 gaussian.f90 bootstrap.f90 driver.f90
+FSRCS = constants.f90 custom_type.f90 parameters.f90 random_trades.f90 convert_type.f90 lin_fit.f90 rotations.f90 celestial_mechanics.f90 eq_motion.f90 parameters_conversion.f90 linear_ephem.f90 init_trades.f90 statistics.f90 timing.f90 sort.f90 gls_module.f90 output_files.f90 numerical_integrator.f90 transits.f90 radial_velocities.f90 ode_run.f90 derived_parameters_mod.f90 fitness_module.f90 grid_search.f90 lm.f90 pikaia.f90 util_sort.f90 util_qmc.f90 opti_pso.f90 gaussian.f90 bootstrap.f90 driver.f90
 FOBJS = $(FSRCS:.f90=.o)
 
 # .PHONY: print_obj
@@ -82,7 +82,7 @@ trades_parallel_debug: obj_parallel_debug
 	$(CC) $(CFLAGS) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
 	$(CC) $(CFLAGS) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_OMP_3)
 
-trades_parallel_release: obj_serial_release
+trades_parallel_release: obj_parallel_release
 	$(CC) $(COPT) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_OMP_4)
 	$(CC) $(COPT) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_OMP_2)
 	$(CC) $(COPT) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)

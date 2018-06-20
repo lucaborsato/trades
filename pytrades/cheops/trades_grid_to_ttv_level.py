@@ -36,6 +36,10 @@ import sys
 #import emcee.interruptible_pool as emcee_pool
 import gc
 
+import gls
+
+import pp
+
 import matplotlib as mpl
 #from matplotlib import use as mpluse
 mpl.use("Agg", warn=False)
@@ -61,7 +65,13 @@ from pytrades_lib import pytrades
 #import pytrades_lib.pytrades as pytrades
 
 import emcee.interruptible_pool as emcee_pool
+
 import multiprocessing as mp
+from multiprocessing.pool import ThreadPool
+
+#import threading
+import thread
+
 import time
 
 # ==============================================================================
@@ -385,9 +395,15 @@ def create_hdf5_file(full_path, seed, id_body, perturber_grid, mr_type, t_sel_mi
   file_name = os.path.join(full_path, 'rms_analysis_summary.hdf5')
   f_h5 = h5py.File(file_name, 'w')
   
-  f_h5.create_dataset('grid/grid_names', data=names_lst, dtype='S20', compression="gzip")
-  f_h5.create_dataset('grid/grid_units', data=units, dtype='S20', compression="gzip")
-  f_h5.create_dataset('grid/perturber_grid', data=write_grid, dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('grid/grid_names',
+                      data=names_lst,
+                      dtype='S20', compression="gzip")
+  f_h5.create_dataset('grid/grid_units',
+                      data=units,
+                      dtype='S20', compression="gzip")
+  f_h5.create_dataset('grid/perturber_grid',
+                      data=write_grid,
+                      dtype=np.float64, compression="gzip")
   
   f_h5['grid'].attrs['ngrid'] = ngrid
   f_h5['grid'].attrs['seed'] = seed
@@ -409,14 +425,29 @@ def save_results_sim(f_h5, results_sim, mr_type):
   temp_par[1] = temp_par[1]*mr_convert[1]
   
   sim_num = results_sim['sim_num']
-  f_h5.create_dataset('sim_%06d/perturber_par_names' %(sim_num), data=np.array(results_sim['perturber_par_names'], dtype='S10'), dtype='S20', compression="gzip")
-  f_h5.create_dataset('sim_%06d/perturber_par_units' %(sim_num), data=np.array(results_sim['perturber_par_units'], dtype='S10'), dtype='S20', compression="gzip")
-  f_h5.create_dataset('sim_%06d/perturber_par'%(sim_num), data=temp_par, dtype=np.float64, compression="gzip")
-  f_h5.create_dataset('sim_%06d/MR_sun2unit'%(sim_num), data=np.array(mr_convert), dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('sim_%06d/perturber_par_names' %(sim_num),
+                      data=np.array(results_sim['perturber_par_names'],
+                                    dtype='S10'),
+                      dtype='S20', compression="gzip")
+  f_h5.create_dataset('sim_%06d/perturber_par_units' %(sim_num),
+                      data=np.array(results_sim['perturber_par_units'],
+                                    dtype='S10'),
+                      dtype='S20', compression="gzip")
+  f_h5.create_dataset('sim_%06d/perturber_par'%(sim_num),
+                      data=temp_par,
+                      dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('sim_%06d/MR_sun2unit'%(sim_num),
+                      data=np.array(mr_convert),
+                      dtype=np.float64, compression="gzip")
   
 
-  f_h5.create_dataset('sim_%06d/keplerian_elements_header' %(sim_num), data=np.array(results_sim['keplerian_elements_header'], dtype='S10'), dtype='S20', compression="gzip")
-  f_h5.create_dataset('sim_%06d/keplerian_elements'%(sim_num), data=results_sim['keplerian_elements'], dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('sim_%06d/keplerian_elements_header' %(sim_num),
+                      data=np.array(results_sim['keplerian_elements_header'], 
+                                    dtype='S10'),
+                      dtype='S20', compression="gzip")
+  f_h5.create_dataset('sim_%06d/keplerian_elements'%(sim_num),
+                      data=results_sim['keplerian_elements'],
+                      dtype=np.float64, compression="gzip")
   
   #f_h5.create_dataset('sim_%06d/ttra_all'%(sim_num), data=results_sim['ttra_all'], dtype=np.float64, compression="gzip")
   #f_h5.create_dataset('sim_%06d/sel_pre_cheops'%(sim_num), data=results_sim['sel_pre_cheops'], dtype=bool, compression="gzip")
@@ -424,24 +455,44 @@ def save_results_sim(f_h5, results_sim, mr_type):
   #f_h5.create_dataset('sim_%06d/T0_eT0'%(sim_num), data=results_sim['T0_eT0'], dtype=np.float64, compression="gzip")
   sel_cheops = results_sim['sel_cheops']
   if(np.sum(sel_cheops.astype(int)) > 0):
-    f_h5.create_dataset('sim_%06d/T0_eT0'%(sim_num), data=results_sim['T0_eT0'][sel_cheops,:], dtype=np.float64, compression="gzip")
+    f_h5.create_dataset('sim_%06d/T0_eT0'%(sim_num),
+                        data=results_sim['T0_eT0'][sel_cheops,:],
+                        dtype=np.float64, compression="gzip")
   else:
-    f_h5.create_dataset('sim_%06d/T0_eT0'%(sim_num), data=np.zeros((2)), dtype=np.float64, compression="gzip")
+    f_h5.create_dataset('sim_%06d/T0_eT0'%(sim_num),
+                        data=np.zeros((2)),
+                        dtype=np.float64, compression="gzip")
   
   #f_h5.create_dataset('sim_%06d/time_rv'%(sim_num), data=results_sim['time_rv'], dtype=np.float64, compression="gzip")
-  f_h5.create_dataset('sim_%06d/rms_rv'%(sim_num), data=np.array([results_sim['rms_rv']]), dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('sim_%06d/rms_rv'%(sim_num),
+                      data=np.array([results_sim['rms_rv']]),
+                      dtype=np.float64, compression="gzip")
   
-  f_h5.create_dataset('sim_%06d/linear_ephem' %(sim_num), data=results_sim['linear_ephem'] , dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('sim_%06d/linear_ephem' %(sim_num),
+                      data=results_sim['linear_ephem'],
+                      dtype=np.float64, compression="gzip")
   
-  f_h5.create_dataset('sim_%06d/rms_ttv' %(sim_num), data=np.array([results_sim['rms_ttv']]) , dtype=np.float64, compression="gzip")
-  f_h5.create_dataset('sim_%06d/nT0_sel' %(sim_num), data=results_sim['nT0_sel'] , dtype=np.int, compression="gzip")
-  f_h5.create_dataset('sim_%06d/rms_mc' %(sim_num), data=results_sim['rms_mc'] , dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('sim_%06d/rms_ttv' %(sim_num),
+                      data=np.array([results_sim['rms_ttv']]),
+                      dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('sim_%06d/nT0_sel' %(sim_num),
+                      data=results_sim['nT0_sel'],
+                      dtype=np.int, compression="gzip")
+  f_h5.create_dataset('sim_%06d/rms_mc' %(sim_num),
+                      data=results_sim['rms_mc'], 
+                      dtype=np.float64, compression="gzip")
 
-  f_h5.create_dataset('sim_%06d/chi2r_cheops' %(sim_num), data=np.array([results_sim['chi2r_cheops']]) , dtype=np.float64, compression="gzip")
-  f_h5.create_dataset('sim_%06d/chi2r_mc' %(sim_num), data=results_sim['chi2r_mc'] , dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('sim_%06d/chi2r_cheops' %(sim_num), 
+                      data=np.array([results_sim['chi2r_cheops']]),
+                      dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('sim_%06d/chi2r_mc' %(sim_num),
+                      data=results_sim['chi2r_mc'],
+                      dtype=np.float64, compression="gzip")
 
   f_h5['sim_%06d' %(sim_num)].attrs['sim_num'] = results_sim['sim_num']
   f_h5['sim_%06d' %(sim_num)].attrs['nMC'] = results_sim['nMC']
+  f_h5['sim_%06d' %(sim_num)].attrs['A_TTV'] = results_sim['A_TTV']
+  f_h5['sim_%06d' %(sim_num)].attrs['P_TTV'] = results_sim['P_TTV']
   
   return f_h5
 
@@ -452,13 +503,21 @@ def save_rms_analysis(f_h5, rms_grid, above_threshold, nT0_sel, rms_rv):
   rms_header_str = 'rms_ttv_d %s' %(' '.join(['rms_mean_N%d_d rms_median_N%d_d' %(nT0_sel[i_n], nT0_sel[i_n]) for i_n in range(len(nT0_sel))]))
   rms_header_lst = rms_header_str.split()
   
-  f_h5.create_dataset('grid/rms_grid', data=rms_grid, dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('grid/rms_grid',
+                      data=rms_grid,
+                      dtype=np.float64, compression="gzip")
   
-  f_h5.create_dataset('grid/rms_header', data=np.array(rms_header_lst, dtype='S20'), dtype='S20', compression="gzip")
+  f_h5.create_dataset('grid/rms_header', 
+                      data=np.array(rms_header_lst, dtype='S20'),
+                      dtype='S20', compression="gzip")
   
-  f_h5.create_dataset('grid/above_threshold', data=above_threshold, dtype=bool, compression="gzip")
+  f_h5.create_dataset('grid/above_threshold', 
+                      data=above_threshold, 
+                      dtype=bool, compression="gzip")
   
-  f_h5.create_dataset('grid/rms_rv', data=rms_rv, dtype=np.float64, compression="gzip")
+  f_h5.create_dataset('grid/rms_rv', 
+                      data=rms_rv, 
+                      dtype=np.float64, compression="gzip")
   
   return f_h5
 
@@ -471,11 +530,14 @@ def save_rms_analysis(f_h5, rms_grid, above_threshold, nT0_sel, rms_rv):
 def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, perturber_par, t_launch, t_end, err_T0, nT0_sel, names_lst, units, mr_type, nMC=1000, of_log=None):
   
   pid = os.getpid()
+  tid = thread.get_ident()
   results_sim = {}
   sim_num = i_grid + 1
   
   kel_header = 'Mass_Msun Radius_Rsun Period_d sma_au ecc argp_deg meanA_deg inc_deg longN_deg'.split()
   #anc.print_both('\n - sim %06d: START\n' %(sim_num), of_log)
+
+  dof = 1
 
   try:
     #mass, radius, period, sma, ecc, argp, mean_an, inc, long_n, nt0_full, nrv_nmax = pytrades.wrapper_set_grid_orbelem(sim_num, perturber_id, perturber_grid, n_bodies)
@@ -483,7 +545,7 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
     #print ' | Set grid keplerian elements'
     kep_elem = np.column_stack((mass, radius, period, sma, ecc, argp, mean_an, inc, long_n))
   except:
-    print ' | PID %d sim %d: error setting grip par' %(pid, sim_num)
+    print ' | PID %d || TID %d sim %d: error setting grip par' %(pid, tid, sim_num)
     kep_elem = np.zeros((n_bodies, 9))
     
   results_sim['sim_num']             = sim_num
@@ -498,6 +560,8 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
   #print results_sim
   #print
   
+  # 2018-03-08 ADDING GLS AMPLITUDE AND PERIOD OF TTV/OC
+  
   try:
     #anc.print_both(' - Run integration ...', of_log)
     ttra_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = pytrades.wrapper_run_grid_combination(mass, radius, period, sma, ecc, argp, mean_an, inc, long_n, nt0_full, nrv_nmax)
@@ -508,26 +572,37 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
     #print ' | Selected and sorted TTs and RVs'
   except:
     ttra_all = None
-    print ' | PID %d sim %d: error integrating' %(pid, sim_num)
+    print ' | PID %d || TID %d sim %d: error integrating' %(pid, tid, sim_num)
   
   sel_kel = perturber_id-1
-  rms_rv = anc.compute_Kms(mass[0],mass[sel_kel]*cst.Msjup,inc[sel_kel],period[sel_kel],ecc[sel_kel])
+  rms_rv = anc.compute_Kms(mass[0], mass[sel_kel]*cst.Msjup, 
+                           inc[sel_kel], period[sel_kel], ecc[sel_kel])
   
   if(ttra_all is not None):
     T0, eT0 = dirty_transits(ttra_all, err_T0)
     T0_eT0 = np.column_stack((T0, eT0))
     epo_pre, Tref_pre, Pref_pre = compute_lin_ephem(T0[sel_pre], eT0[sel_pre])
     epo_cheops, oc_cheops, rms_cheops = compute_oc(Tref_pre, Pref_pre, T0[sel_cheops])
+    T0cheops = T0[sel_cheops]
+    eT0cheops = eT0[sel_cheops]
+    ogls = gls.Gls((T0cheops, oc_cheops, eT0cheops),
+                   Pbeg=3.*Pref_pre, Pend=2.*(T0cheops[-1]-T0cheops[0]),
+                   ofac=10, verbose = False
+                   )
+    attv = ogls.hpstat['amp']*1440.
+    pttv = 1./ogls.hpstat['fbest']
+    
     dof = np.shape(oc_cheops)[0]-2
     if(dof <= 0): dof = 1
 
-    print ' | PID %d sim %d OK TT' %(pid, sim_num)
+    print ' | PID %d || TID %d sim %d OK TT' %(pid, tid, sim_num)
     chi2r_cheops = do_chi2r(oc_cheops, eT0[sel_cheops], dof)
     
     rms_mc = [list(compute_rms_mc(oc_cheops, nT0_sel[i_n], nMC)) for i_n in range(len(nT0_sel))]
     chi2r_mc = [list(compute_chi2r_mc(oc_cheops, eT0[sel_cheops], nT0_sel[i_n], nMC)) for i_n in range(len(nT0_sel))]
     
     time_rv_all, rv_all = select_and_sort_rv(time_rv_nmax, rv_nmax, stats_rv.astype(bool))
+    
     if(time_rv_all is None):
       time_rv = np.zeros((1,2))
       #rms_rv = -1.
@@ -544,19 +619,24 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
     T0_eT0 = np.zeros((1,2))
     Tref_pre = 0.
     Pref_pre = 0.
+    attv = 0.
+    pttv = 0.
     rms_cheops = -1.
     rms_mc = -np.ones((len(nT0_sel), 2))
     chi2r_cheops = -1.
     chi2r_mc = -np.ones((len(nT0_sel), 2))    
     time_rv = np.zeros((1,2))
-    #rms_rv = anc.compute_Kms(mass[0],mass[sel_kel]*cst.Msjup,inc[sel_kel],period[sel_kel],ecc[sel_kel])
-    print ' | pid %d sim %d NO TT' %(pid, sim_num)
+    #rms_rv = anc.compute_Kms(mass[0],mDass[sel_kel]*cst.Msjup,inc[sel_kel],period[sel_kel],ecc[sel_kel])
+    print ' | PID %d || TID %d sim %d NO TT' %(pid, tid, sim_num)
 
   
   results_sim['ttra_all']            = ttra_all
   results_sim['sel_pre_cheops']      = sel_pre
   results_sim['sel_cheops']          = sel_cheops
   results_sim['T0_eT0']              = T0_eT0
+  
+  results_sim['A_TTV']              = attv
+  results_sim['P_TTV']              = pttv
   
   results_sim['time_rv'] = time_rv
   results_sim['rms_rv']  = rms_rv
@@ -576,6 +656,8 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, pert
   del mass, radius, period, sma, ecc, argp, mean_an, inc, long_n
   del ttra_all, sel_pre, sel_cheops, T0_eT0, time_rv, rms_rv, Tref_pre, Pref_pre
   del rms_cheops, nT0_sel, nMC, rms_mc, chi2r_cheops, chi2r_mc
+  if('ogls' in locals()):
+    del ogls
   gc.collect()
   
   return results_sim
@@ -599,11 +681,12 @@ def run_the_simulation(sim_args):
   nMC = sim_args['nMC']
   
   pid = os.getpid()
-  print ' Process %d RUNNING sim %d ...' %(pid, i_grid+1)
+  tid = thread.get_ident()
+  print ' PID %d || TID %d RUNNING sim %d ...' %(pid, tid, i_grid+1)
   
   results_sim = simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, perturber_par, t_launch, t_end, err_T0, nT0_sel, names_lst, units, mr_type, nMC, of_log=None)
   
-  print ' Process %d COMPLETED sim %d' %(pid, i_grid+1)
+  print ' PID %d || TID %d COMPLETED sim %d' %(pid, tid, i_grid+1)
 
   del i_grid, transit_id, perturber_id, perturber_par, n_bodies, t_launch, t_end
   del err_T0, nT0_sel, names_lst, units, mr_type, nMC
@@ -1178,7 +1261,7 @@ def get_chi2r_rms_from_results(results_sim, chi2r_oc_grid, rms_oc_grid, above_th
 
 # -------------------------------------
 
-def save_chi2r_rms_analysis(f_h5, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, rms_rv):
+def save_chi2r_rms_analysis(f_h5, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, rms_rv, attv_grid=None, pttv_grid=None):
   
   # save chi2r_oc_grid
   chi2r_header_str = 'chi2r_oc %s' %(' '.join(['chi2r_mean_N%d_d chi2r_median_N%d_d' %(nT0_sel[i_n], nT0_sel[i_n]) for i_n in range(len(nT0_sel))]))
@@ -1198,6 +1281,18 @@ def save_chi2r_rms_analysis(f_h5, chi2r_oc_grid, rms_oc_grid, above_threshold, n
   
   # save rms_RV
   f_h5.create_dataset('grid/rms_rv', data=rms_rv, dtype=np.float64, compression="gzip")
+  
+  if(not attv_grid is None):
+    f_h5.create_dataset('grid/A_TTV',
+                        data=attv_grid,
+                        dtype=np.float64,
+                        compression="gzip"
+                        )
+    f_h5.create_dataset('grid/P_TTV',
+                        data=pttv_grid,
+                        dtype=np.float64,
+                        compression="gzip"
+                        )
   
   return f_h5
 
@@ -1420,37 +1515,31 @@ def plot_MMR(ax, P_tra):
 
 # ==============================================================================
 
+# THE GOOD PLOT ONE!!
+# THE GOOD PLOT ONE!!
+# THE GOOD PLOT ONE!!
+# THE GOOD PLOT ONE!!
+
 def plot_m_vs_p_vs_chi2r(plot_file, mass, period, chi2r_MP, rms_oc_MP, rms_oc_max=5./1440., K_rv=5., rv_MP=None, P_tra=None, n_label = 'all 3 5 6 10 15'.split()):
 
-  #nplt = 6 # plot rms mean or median
   nplt = len(n_label)
   
   fig = plt.figure(figsize=(12,12))
   fig.subplots_adjust(hspace=0.25, wspace=0.08)
   
-  #log_p = np.log10(period)  
-  #pp = np.unique(log_p)
-  #pp = np.unique(period)
-  #n_p = np.shape(pp)[0]
   n_p = np.shape(np.unique(period))[0]
   
-  #log_m = np.log10(mass)
-  #mm = np.unique(log_m)
-  #mm = np.unique(mass)
-  #n_m = np.shape(mm)[0]
   n_m = np.shape(np.unique(mass))[0]
   
   mesh_p = period.reshape((n_m, n_p))
+  if(P_tra is not None):
+    mesh_p = mesh_p / P_tra
   mesh_m = mass.reshape((n_m, n_p))
 
-  #mesh_p, mesh_m = np.meshgrid(pp, mm, indexing='ij')
-  #mesh_p, mesh_m = np.meshgrid(pp, mm, indexing='xy')
-  
   # contour levels
   cmap_get = cm.get_cmap('viridis')
   
   clev05 = [0., 1., 2., 3., 4., 5.]
-  #clev = [np.float(ilev) for ilev in range(0,6)] + [ilev for ilev in np.power(10., np.linspace(np.log10(6.), np.log10(np.max(np.max(chi2r_MP))), num=4, endpoint=True))]
   maxchi2r = np.max(np.max(chi2r_MP))
   if(maxchi2r <= 6.):
     clev = clev05 + [6.]
@@ -1464,9 +1553,6 @@ def plot_m_vs_p_vs_chi2r(plot_file, mass, period, chi2r_MP, rms_oc_MP, rms_oc_ma
   rms_lev = [ilev/1400. for ilev in lev_minutes]
   
   origin_mesh = None
-  #origin_mesh = 'lower'
-  #origin_mesh = 'upper'
-  #origin_mesh = 'image'
 
   ix = 0
   iy = 0
@@ -1476,24 +1562,11 @@ def plot_m_vs_p_vs_chi2r(plot_file, mass, period, chi2r_MP, rms_oc_MP, rms_oc_ma
     ax = plt.subplot2grid((nplt, 2), (ix,iy))
     print(' Plot n. %d: ' %(iplt))
               
-    #mesh_chi2r_im = np.zeros((n_p, n_m))
-    #mesh_rms_oc = np.zeros((n_p, n_m))
-    #if(rv_MP is not None and K_rv is not None): mesh_rv = np.zeros((n_p, n_m))
-    #ipm = 0
-    #for i_m in range(0, n_m): # first cycle on mass <-> mass vector definition
-      #for i_p in range(0, n_p):
-
-        #mesh_chi2r_im[i_p, i_m] = chi2r_MP[ipm, iplt] # they will be swapped later!
-        #mesh_rms_oc[i_p, i_m] = rms_oc_MP[ipm, iplt]
-        #if(rv_MP is not None and K_rv is not None): mesh_rv[i_p, i_m] = rv_MP[ipm]
-        #ipm += 1
-    
     # testing withou cycle:
     mesh_chi2r_im = chi2r_MP[:, iplt].reshape((n_m, n_p))
     mesh_rms_oc = rms_oc_MP[:, iplt].reshape((n_m, n_p))
     mesh_rv = rv_MP.reshape((n_m, n_p))
     
-    #mesh_chi2r_im =np.swapaxes(mesh_chi2r_im, 0, 1)
     scax = ax.contourf(mesh_p, mesh_m, mesh_chi2r_im,
                        #linestyles='solid',
                        #levels=clev, cmap=cm.viridis, zorder=4)
@@ -1507,8 +1580,6 @@ def plot_m_vs_p_vs_chi2r(plot_file, mass, period, chi2r_MP, rms_oc_MP, rms_oc_ma
     cbar.ax.set_ylabel('$\chi^{2}_\\textrm{r}(O-C)$', size=5)
     cbar.ax.tick_params(labelsize=5)
     
-    #mesh_rms_oc = np.swapaxes(mesh_rms_oc, 0, 1)
-    #mesh_rms_oc[mesh_rms_oc < 0.] = np.ma.masked
     cnrms = ax.contour(mesh_p, mesh_m, mesh_rms_oc, 
                        levels=rms_lev, 
                        #colors='black',
@@ -1524,8 +1595,6 @@ def plot_m_vs_p_vs_chi2r(plot_file, mass, period, chi2r_MP, rms_oc_MP, rms_oc_ma
     
     # to be removed or use at my will!!
     mesh_rv = anc.compute_Kms(1.030, mesh_m*cst.Mears*cst.Msjup, 88.55, mesh_p, 0.)
-    
-    #mesh_rv = np.swapaxes(mesh_rv, 0, 1)
     
     # inverted Greys cmap with alpha from 0 (transparent) to 1 (opaque)
     greys_r_t = cm.Greys_r(np.arange(cm.Greys_r.N))
@@ -1551,30 +1620,40 @@ def plot_m_vs_p_vs_chi2r(plot_file, mass, period, chi2r_MP, rms_oc_MP, rms_oc_ma
                        )
     print(' | mesh/contourf rv done')
     
-    # plot reference masses in M_Earth
-    #for imass in [1., 5., 10.]:
-      #ax.axhline(imass , color='lightgray', ls='-', lw=0.8, alpha=0.66, zorder=7)
-      #ax.axhline(np.log10(imass) , color='lightgray', ls='-', lw=0.8, alpha=0.66, zorder=7)
-      
-    ## plot reference periods in days
-    #for iperiod in [1., 5., 10., 15., 30., 50., 100.]:
-      #ax.axvline(np.log10(iperiod) , color='lightgray', ls='-', lw=0.8, alpha=0.66, zorder=7)
-    # plot MMR
-    if(P_tra is not None):
-      ax = plot_MMR(ax, P_tra)
-    
-    ax.set_xlim([np.min(period), np.max(period)])
-    ax.set_ylim([np.min(mass), np.max(mass)])
-
     ax.xaxis.set_tick_params(labelsize=6)
-    #ax.set_xlabel('$\log P [\\textrm{days}] , N_{T_0} = \\textrm{%s}$' %(n_label[iplt]), fontsize=6)
-    ax.set_xlabel('$P [\\textrm{days}] , N_{T_0} = \\textrm{%s}$' %(n_label[iplt]), fontsize=6)
-    
     ax.yaxis.set_tick_params(labelsize=6)
     #ax.set_ylabel('$\log M [M_\oplus]$', fontsize=6)
-    ax.set_ylabel('$M [M_\oplus]$', fontsize=6)
-    
+    ax.set_ylabel('$M (M_\oplus)$', fontsize=6)
     ax.tick_params(direction='in')
+    #plt.draw()
+
+    if(P_tra is not None):
+      #ax = plot_MMR(ax, P_tra)
+      ax = plot_MMR(ax, 1.) # P_tra / P_tra
+      ax.set_xlim([np.min(period)/P_tra, np.max(period)/P_tra])
+      xlab = '$P_\\textrm{per}/P_\\textrm{tra} , N_{T_0} = \\textrm{%s}$' %(n_label[iplt])
+      
+      #ll = [item.get_text() for item in ax.get_xticklabels()]
+      #print '0', ll
+      #tlabels = [ill.replace(u'\u2212', '-').replace('$','') for ill in ll]
+      #print '1', tlabels
+      #tlfloats = [u'%.2f' %(np.float64(ill)/P_tra) if ill != u'' else ill \
+                  #for ill in tlabels
+                 #]
+      #print '2', tlfloats
+      #ax.set_xticklabels(tlfloats)
+      
+    else:
+      ax.set_xlim([np.min(period), np.max(period)])
+      xlab = '$P (\\textrm{days}) , N_{T_0} = \\textrm{%s}$' %(n_label[iplt])
+      
+    ax.set_ylim([np.min(mass), np.max(mass)])
+    
+
+    #ax.set_xlabel('$\log P [\\textrm{days}] , N_{T_0} = \\textrm{%s}$' %(n_label[iplt]), fontsize=6)
+    
+    
+    ax.set_xlabel(xlab, fontsize=6)
     
     # use only if log-scale
     plt.draw()
@@ -1596,9 +1675,6 @@ def plot_m_vs_p_vs_chi2r(plot_file, mass, period, chi2r_MP, rms_oc_MP, rms_oc_ma
   return
 
 # ==============================================================================
-
-# ==============================================================================
-
 def read_and_plot_p_vs_m_vs_chi2r(out_folder, hdf5_file, rms_oc_max=5./1440., K_rv=None, P_tra=None, of_log=None):
   
   print ' - Read hdf5 file ... ',
@@ -1683,6 +1759,25 @@ def read_and_plot_p_vs_m_vs_chi2r(out_folder, hdf5_file, rms_oc_max=5./1440., K_
 # ==============================================================================
 # ==============================================================================
 
+# needed by pp
+class object_sim:
+  def __init__(self, sim_args):
+    self.sim_args=sim_args
+
+class object_res:
+  def __init(self, sim_res):
+    self.results_sim = sim_res
+    
+
+def run_the_simulation_pp(osim):
+  
+  sim_res = run_the_simulation(osim.sim_args)
+  
+  out_res = object_res(sim_res)
+  
+  return out_res
+
+
 # ==============================================================================
 
 # ==============================================================================
@@ -1743,6 +1838,10 @@ def main():
   above_threshold = np.zeros((niter, n_rms)).astype(bool)
   rms_rv_grid = -np.ones((niter))
   
+  # 2018-03-08 ADDING GLS AMPLITUDE AND PERIOD OF TTV/OC
+  attv_grid = np.zeros((niter))
+  pttv_grid = np.zeros((niter))
+  
   ## WORKING IN SERIAL
   #for igrid in range(0, niter):
     
@@ -1758,6 +1857,7 @@ def main():
   # mp Queue
   qq = mp.Queue()
   oo = mp.Queue()
+  list_osim_args = []
   
   for igrid in range(0, niter):
     sim_args = {}
@@ -1775,70 +1875,105 @@ def main():
     sim_args['mr_type'] = cli.mr_type
     sim_args['nMC'] = nMC
     list_sim_args.append(sim_args)
+    list_osim_args.append(object_sim(sim_args))
     qq.put(sim_args)
   print 'done'
   
-  print ' - RUN THEM ALL ...\n'
+  print ' - *** RUN THEM ALL *** ...\n'
+  
+  if(cli.nthreads <= 1):
   # serial
-  #list_results_sim = [run_the_simulation(list_sim_args[igrid]) for igrid in range(niter)]
+    list_results_sim = [run_the_simulation(list_sim_args[igrid])
+                        for igrid in range(niter)
+                        ]
+  else:
+    
+    ## **POOL** ##
+    ## try InterruptiblePool from emcee to reduce process spawn...
+    #threads_pool = emcee_pool.InterruptiblePool(cli.nthreads)
+    ## TRY ThreadPool
+    threads_pool = ThreadPool(processes=cli.nthreads)
+    
+    list_results_sim = threads_pool.map(run_the_simulation, list_sim_args)
   
-  ## try InterruptiblePool from emcee to reduce process spawn...
-  #threads_pool = emcee_pool.InterruptiblePool(cli.nthreads)
-  #list_results_sim = threads_pool.map(run_the_simulation, list_sim_args)
+    # close the pool of threads
+    threads_pool.close()
+    threads_pool.terminate()
+    threads_pool.join()
   
-  ## close the pool of threads
-  #threads_pool.terminate()
-  #threads_pool.join()
-  
-  # try queue and process
-  def run_the_queue(in_q, out_q):
-    while in_q.qsize() != 0:
-      sim_args = in_q.get()
-      results_sim = run_the_simulation(sim_args)
-      out_q.put(results_sim)
-  
-  # Define the function for checking the process status
-  def status(proc):
-    if proc.is_alive==True:
-      return 'alive'
-    elif proc.is_alive==False:
-      return 'dead'
-    else:
-      return proc.is_alive()
+    ## **QUEUE** ##
+    ## try queue and process
+    #def run_the_queue(in_q, out_q):
+      #while in_q.qsize() != 0:
+        #sim_args = in_q.get()
+        #results_sim = run_the_simulation(sim_args)
+        #out_q.put(results_sim)
+    
+    ## Define the function for checking the process status
+    #def status(proc):
+      #if proc.is_alive==True:
+        #return 'alive'
+      #elif proc.is_alive==False:
+        #return 'dead'
+      #else:
+        #return proc.is_alive()
 
-  procs = []
-  for ith in range(cli.nthreads):
-    pp = mp.Process(target=run_the_queue, args=(qq, oo))
-    pp.start()
-    procs.append(pp)
+    #procs = []
+    #for ith in range(cli.nthreads):
+      #pp = mp.Process(target=run_the_queue, args=(qq, oo))
+      #pp.start()
+      #procs.append(pp)
 
-  for pp in procs:
-    pp.join()
-  
-  for pp in procs:
-    print ' || PID ', pp.pid, ' is ', status(pp)
-  while len(procs) != 0:
-    for pp in procs:
-      if (status(pp) == 'dead'):
-        procs.pop(procs.index(pp))
-    time.sleep(5)
-  
-  list_results_sim = [result in iter(oo.get, None)]
+    #for pp in procs:
+      #pp.join()
+    
+    #for pp in procs:
+      #print ' || PID ', pp.pid, ' is ', status(pp)
+    #while len(procs) != 0:
+      #for pp in procs:
+        #if (status(pp) == 'dead'):
+          #procs.pop(procs.index(pp))
+      ##time.sleep(5)
+      #time.sleep(1)
+    
+    ##list_results_sim = [result in iter(oo.get, None)]
+    #list_results_sim = [oo.get for pp in procs]
+    
+    ## **PP** ##
+    #ppservers = ("*",)
+    #job_server = pp.Server(cli.nthreads, ppservers=ppservers)
+
+    #jobsf = [job_server.submit(run_the_simulation_pp,
+                               #(sim_o,),
+                               #(object_sim,)
+                               #) 
+             #for sim_o in list_osim_args]
+    #list_oresults_sim = [jf() for jf in jobsf]
+    #job_server.print_stats()
+    #list_results_sim = [ores.results_sim for ores in list_oresults_sim]
+    
   
   print 'done\n'
   
   # save results of each sim in hdf5 file
   for igrid in range(0, niter):
     results_sim = list_results_sim[igrid]
+    attv_grid[igrid] = results_sim['A_TTV']
+    pttv_grid[igrid] = results_sim['P_TTV']
+    
     print ' - Saving results for sim #%06d ... into hdf5 file ...' %(results_sim['sim_num']),
     f_h5 = save_results_sim(f_h5, results_sim, cli.mr_type)
+    
     print ' | and populating the chi2r and rms grid ...',
     get_chi2r_rms_from_results(results_sim, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, err_T0, rms_rv_grid)
     print ' | done'
   print
     
-  f_h5 = save_chi2r_rms_analysis(f_h5, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, rms_rv_grid)
+  #f_h5 = save_chi2r_rms_analysis(f_h5, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, rms_rv_grid)
+  f_h5 = save_chi2r_rms_analysis(f_h5, chi2r_oc_grid, rms_oc_grid, above_threshold, nT0_sel, rms_rv_grid, attv_grid, pttv_grid)
+  
   #f_h5 = save_rms_analysis(f_h5, rms_oc_grid, above_threshold, nT0_sel, rms_rv_grid)
+  
   f_h5.close()
     
   anc.print_both(' ', of_log)
@@ -1850,7 +1985,15 @@ def main():
 
   for imin in [15.]:
     rms_threshold = np.float64(imin) / 1440.
-    plt_file_mean, plt_file_median = read_and_plot_p_vs_m_vs_chi2r(out_folder, hdf5_name, rms_oc_max=rms_threshold , K_rv = cli.K_rv, P_tra=cli.period_transiting, of_log=of_log)
+    plt_file_mean, plt_file_median = \
+      read_and_plot_p_vs_m_vs_chi2r(out_folder,
+                                    hdf5_name,
+                                    rms_oc_max=rms_threshold , 
+                                    K_rv = cli.K_rv, 
+                                    P_tra=cli.period_transiting, 
+                                    of_log=of_log
+                                    )
+    
   of_log.close()
   
   gc.collect()

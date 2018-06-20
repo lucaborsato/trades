@@ -135,6 +135,7 @@ def read_samples(samples_file = None):
     for igr in sh5.keys():
       tepoch = sh5[igr].attrs['tepoch']
       trv = sh5['%s/time_rv_mod' %(igr)][...]
+      #trv = sh5['%s/time_rv_mod' %(igr)][...] + tepoch
       rv = sh5['%s/rv_mod' %(igr)][...]
       osmp = sample(tepoch, trv, rv)
       TTfield = sh5[igr].keys()
@@ -446,7 +447,9 @@ def plot_rv_samples(win_plot, graph_plot, xname, yname, samples, t_subtract=0., 
                           )
     jdName = "time_rv_mod"
     #win_plot.SetData(jdName, time_rv_mod[rv_sel])
-    win_plot.SetData(jdName, samples[ismp].time_rv_mod+samples[ismp].tepoch)
+    win_plot.SetData(jdName,
+                     samples[ismp].time_rv_mod+samples[ismp].tepoch-t_subtract
+                     )
     dataYname = "rv_smp_%d" %(ismp)
     #win_plot.SetData(dataYname, rv_smp[rv_sel,ismp])
     win_plot.SetData(dataYname, samples[ismp].rv_mod)
@@ -1090,9 +1093,10 @@ def main():
       else:
         print "I did not find the orbit file to plot RV model. Skipping."
 
-      if(rv_samples is not None):
+      #if(rv_samples is not None):
+      if(samples is not None):
         print '\nPlotting rv samples ... it would take some time ...',
-        plot_rv_samples(ocWin, RVPlot, xname, yname, rv_samples, t_subtract=t_subtract, t_rv_min=minJD, t_rv_max=maxJD)
+        plot_rv_samples(ocWin, RVPlot, xname, yname, samples, t_subtract=t_subtract, t_rv_min=minJD, t_rv_max=maxJD)
         print 'done'
       
       legend = RVPlot.Add('key', name = 'legendRV', autoadd = False,

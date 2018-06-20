@@ -54,6 +54,10 @@ def get_args():
   # HOW TO RUN PSO OR SKIP
   parser.add_argument('-r', '--pso', '--pso-type', action='store', dest='pso_type', default='run', help='Define PSO run type: "skip" = do not run PSO, only emcee with random walkers; "run" = run PSO normally; "exists" = do not run PSO, but read previous PSO (pso_run.hdf5) file and start emcee from its population')
 
+  parser.add_argument('-seed', '--seed', 
+                      action='store', dest='seed', default='None', 
+                      help='Seed for random number generator. Default is None.'
+                      )
   
   cli = parser.parse_args()
   
@@ -70,6 +74,13 @@ def get_args():
 
   if (cli.pso_type not in ['skip', 'run', 'exists']):
     cli.pso_type = 'run'
+   
+  try:
+    cli.seed = int(cli.seed)
+    if(cli.seed <= 0): cli.seed = None
+  except:
+    cli.seed = None
+  
     
   return cli
 
@@ -318,6 +329,7 @@ def main():
   # RENAME 
   working_path = cli.full_path
   nthreads=cli.nthreads
+  np.random.RandomState(cli.seed)
 
   # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
   pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
@@ -333,7 +345,8 @@ def main():
   nfree  = pytrades_lib.pytrades.nfree # NUMBER OF FREE PARAMETERS (ie nrvset)
   dof   = pytrades_lib.pytrades.dof # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
   global inv_dof
-  inv_dof = np.float64(1.0 / dof)
+  #inv_dof = np.float64(1.0 / dof)
+  inv_dof = pytrades_lib.pytrades.inv_dof
   
   # READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
 
@@ -357,23 +370,24 @@ def main():
 
   # TRANSITS SET
   n_t0 = pytrades_lib.pytrades.nt0
-  n_t0_sum = np.sum(n_t0)
+  n_t0_sum = pytrades_lib.pytrades.ntts
   n_set_t0 = 0
-  for i in range(0, n_bodies):
-    if (np.sum(n_t0[i]) > 0): n_set_t0 += 1
+  for i in range(0, n_bodies-1):
+    if (n_t0[i] > 0): n_set_t0 += 1
 
   # compute global constant for the loglhd
   global ln_err_const
 
-  try:
-    e_RVo = np.asarray(pytrades_lib.pytrades.ervobs[:], dtype=np.float64) # fortran variable RV in python will be rv!!!
-  except:
-    e_RVo = np.asarray([0.], dtype=np.float64)
-  try:
-    e_T0o = np.asarray(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
-  except:
-    e_T0o = np.asarray([0.], dtype=np.float64)
-  ln_err_const = anc.compute_ln_err_const(ndata, dof, e_RVo, e_T0o, cli.ln_flag)
+  #try:
+    #e_RVo = np.asarray(pytrades_lib.pytrades.ervobs[:], dtype=np.float64) # fortran variable RV in python will be rv!!!
+  #except:
+    #e_RVo = np.asarray([0.], dtype=np.float64)
+  #try:
+    #e_T0o = np.asarray(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
+  #except:
+    #e_T0o = np.asarray([0.], dtype=np.float64)
+  #ln_err_const = anc.compute_ln_err_const(ndata, dof, e_RVo, e_T0o, cli.ln_flag)
+  ln_err_const = pytrades_lib.pytrades.ln_err_const
 
   # SET EMCEE PARAMETERS:
   nwalkers, nruns, nsave, npost = get_emcee_arguments(cli,nfit)
@@ -393,6 +407,7 @@ def main():
   anc.print_both(' Total N_T0 = %d for %d out of %d planet(s)' %(n_t0_sum, n_set_t0, n_planets),of_run)
   anc.print_both(' %s = %.7f' %('log constant error = ', ln_err_const),of_run)
   anc.print_both(' %s = %.7f' %('IN FORTRAN log constant error = ', pytrades_lib.pytrades.ln_err_const),of_run)
+  anc.print_both(' seed = %s' %(str(cli.seed)), of_run)
 
   # INITIALISE PSO ARGUMENTS FROM pso.opt FILE
   pytrades_lib.pytrades.init_pso(1,working_path) # read PSO options

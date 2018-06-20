@@ -1,6 +1,7 @@
 ! collection of most of the drivers needed to run the different algorithms and summary
 module driver
   use constants
+  use custom_type
   use parameters
   use parameters_conversion
   use timing,only:timer
@@ -32,23 +33,27 @@ module driver
     logical,optional,intent(in)::to_screen
   
     real(dp),dimension(:),allocatable::resw
+    integer::nobs ! == obsData%ndata == ndata
     
 !     real(dp)::fit_scale,gls_scale
     
-    allocate(resw(ndata))
+    ! substitude ndata -> obsData%ndata -> nobs
+    
+    nobs = obsData%ndata
+    allocate(resw(nobs))
     resw=zero
     ! integrates and write RVs and T0s
     if(present(to_screen))then
       call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,to_screen=to_screen)
-      if(ndata.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,to_screen=to_screen)
+      if(nobs.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,to_screen=to_screen)
     else
   !     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,fit_scale,gls_scale)
   !     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,fit_scale,gls_scale)
       call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw)
-      if(ndata.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
+      if(nobs.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
     end if
     
-    if(ndata.gt.0)then
+    if(nobs.gt.0)then
       fitness=sum(resw*resw)
       deallocate(resw)
       if(fitness.ge.resmax)then
@@ -77,25 +82,30 @@ module driver
   
     real(dp),dimension(:),allocatable::resw
     
+    integer::nobs ! == obsData%ndata == ndata
+    nobs = obsData%ndata
+    
 !     real(dp)::fit_scale,gls_scale
     
 !     call param_adj(fit_parameters,sigma_parameters) ! adjust parameters and sigma (i.e., angle [0-360]deg
-    allocate(resw(ndata))
+
+
+    allocate(resw(nobs))
     resw=zero
     ! integrates and write RVs and T0s
     if(present(to_screen))then 
       call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,to_screen=to_screen)
-      if(ndata.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,to_screen=to_screen)
+      if(nobs.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,to_screen=to_screen)
     else
 !     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw,fit_scale,gls_scale)
 !     call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw,fit_scale,gls_scale)
     call ode_out(cpuid,sim_id,lm_flag,all_parameters,fit_parameters,resw)
-    if(ndata.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
+    if(nobs.gt.0) call write_parameters(cpuid,sim_id,lm_flag,fit_parameters,resw)
     end if
 !     call write_par(cpuid,fit_parameters,sigma_parameters,resw)
 !     call write_par(cpuid,sim_id,lm_flag,fit_parameters,sigma_parameters,resw)
     
-    if(ndata.gt.0)then
+    if(nobs.gt.0)then
       fitness=sum(resw*resw)
       deallocate(resw)
       if(fitness.ge.resmax)then
@@ -130,14 +140,17 @@ module driver
     integer::j1
     logical::check_lm
     
-    allocate(resw(ndata),iwa(nfit),covariance_parameters(nfit),&
+    integer::nobs ! == obsData%ndata == ndata
+    nobs = obsData%ndata
+    
+    allocate(resw(nobs),iwa(nfit),covariance_parameters(nfit),&
       &sigma_parameters(nfit))
     
     write(*,'(a)')''
     write(*,'(a)')' STARTING LM FIT'
     flush(6)
     
-    call lm_driver(cpuid,sim_id,ode_lm,all_parameters,ndata,nfit,&
+    call lm_driver(cpuid,sim_id,ode_lm,all_parameters,nobs,nfit,&
       &fit_parameters,resw,covariance_parameters,sigma_parameters,&
       &info,iwa) ! IT CALLS L-M
     
@@ -154,7 +167,7 @@ module driver
     write(*,'(a)')'WRITE SUMMARY'
     write(*,'(a)')''
     flush(6)    
-!     call lm_driver(cpuid,jgrid,ode_lm,allpar,ndata,nfit,par,&
+!     call lm_driver(cpuid,jgrid,ode_lm,allpar,nobs,nfit,par,&
 !             &resw,copar,sigpar,info,iwa)
     
     if(present(to_screen))then
@@ -226,7 +239,8 @@ module driver
 !     end do
     
     ! create/build the full grid, with all the combination of the parameters of perturber body
-    call build_grid(MR_star(1,1),perturber_parameters_grid,perturber_grid,fitness_grid,n_grid)
+    call build_grid(MR_star(1,1),perturber_parameters_grid,&
+      &perturber_grid,fitness_grid,n_grid)
   
     ! print to screen to debug
 !     write(*,*)
@@ -302,7 +316,7 @@ module driver
     
       ! 3. integrates and calculates the fitness -> updated fitness_grid
       fitness=base_fitness_function(cpu_all_parameters,cpu_fit_parameters)
-      fitness_x_dof=fitness*real(dof,dp)
+      fitness_x_dof=fitness*real(obsData%dof,dp)
       fitness_grid(sim_id,1)=fitness_x_dof
       fitness_grid(sim_id,2)=fitness
       
@@ -333,7 +347,7 @@ module driver
         call update_parameters_fit2all(cpu_fit_parameters,cpu_all_parameters)
         ! TODO save cpu_all_parameters
         fitness=base_fitness_function(cpu_all_parameters,cpu_fit_parameters)
-        fitness_x_dof=fitness*real(dof,dp)
+        fitness_x_dof=fitness*real(obsData%dof,dp)
         fitted_grid_summary(sim_id,1:npar) = cpu_all_parameters
         fitted_grid_summary(sim_id,npar+1) = fitness_x_dof
         fitted_grid_summary(sim_id,npar+2) = fitness
@@ -390,7 +404,8 @@ module driver
   
     inv_fitness=zero
     allocate(uniform_parameters(nfit))
-    call ga_driver(sim_id,fpik,nfit,all_parameters,uniform_parameters,inv_fitness) ! GA DRIVER
+    call ga_driver(sim_id,fpik,nfit,all_parameters,uniform_parameters,&
+      &inv_fitness) ! GA DRIVER
 !     call norm2par(uniform_parameters,fit_parameters,all_parameters) ! from [0-1] parameter values to physical values
     call norm2par(uniform_parameters,fit_parameters) ! from [0-1] parameter values to physical values
     ! norm2par in module 'parameters'
@@ -415,7 +430,8 @@ module driver
     real(dp)::inv_fitness
     
     inv_fitness=one
-    call pso_driver(sim_id,evaluate_pso,nfit,all_parameters,minpar,maxpar,fit_parameters,inv_fitness)
+    call pso_driver(sim_id,evaluate_pso,nfit,all_parameters,&
+      &minpar,maxpar,fit_parameters,inv_fitness)
     ! minpar,maxpar in module 'parameters'
   
 !     call write_summary_nosigma(1,sim_id,0,all_parameters,fit_parameters)

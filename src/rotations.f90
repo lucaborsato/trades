@@ -3,7 +3,7 @@
 ! ************************* !
 
 module rotations
-  use constants,only:dp,deg2rad,zero,one,TOLERANCE
+  use constants,only:dp,deg2rad,zero,one,TOLERANCE,TOL_dp
   implicit none
 
   contains

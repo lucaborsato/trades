@@ -211,14 +211,20 @@ def main():
   ndata = pytrades_lib.pytrades.ndata # TOTAL NUMBER OF DATA AVAILABLE
   npar  = pytrades_lib.pytrades.npar # NUMBER OF TOTAL PARAMATERS ~n_planets X 6
   nfit  = pytrades_lib.pytrades.nfit # NUMBER OF PARAMETERS TO FIT
+  nfree  = pytrades_lib.pytrades.nfree # NUMBER OF FREE PARAMETERS (ie nrvset)
   dof   = pytrades_lib.pytrades.dof # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
   global inv_dof
-  inv_dof = np.float64(1.0 / dof)
+  #inv_dof = np.float64(1.0 / dof)
+  inv_dof = pytrades_lib.pytrades.inv_dof
 
   # READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
-  reshaped_names = pytrades_lib.pytrades.parameter_names.reshape((10,nfit), order='F').T
-  parameter_names = [''.join(reshaped_names[i,:]).strip() for i in range(0,nfit)]
-
+  #reshaped_names = pytrades_lib.pytrades.parameter_names.reshape((10,nfit), order='F').T
+  #parameter_names = [''.join(reshaped_names[i,:]).strip() for i in range(0,nfit)]
+  str_len = pytrades_lib.pytrades.str_len
+  temp_names = pytrades_lib.pytrades.get_parameter_names(nfit,str_len)
+  trades_names = anc.convert_fortran_charray2python_strararray(temp_names)
+  parameter_names = anc.trades_names_to_emcee(trades_names)
+  
   # INITIALISE SCRIPT FOLDER/LOG FILE
   working_folder, run_log, of_run = init_folder(working_path, cli.sub_folder)
   copy_src_files(working_path, working_folder, of_run)

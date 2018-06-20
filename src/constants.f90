@@ -8,26 +8,28 @@ module constants
   public
   integer,parameter::sp=selected_real_kind(6) ! single precision
   integer,parameter::dp=selected_real_kind(8) !define the KIND, the precision of all the constants
-  
+
   ! FOR TESTING: QUAD PRECISION
   integer,parameter::qp=selected_real_kind(32) !define the KIND, the precision of all the constants
 !   integer,parameter::dp=selected_real_kind(32) !define the KIND, the precision of all the constants
-  
+
   integer,parameter::prec=precision(0._dp)
   character(8)::sprec='es23.16'
 
   !various
   real(dp),parameter::s24h=86400._dp !seconds in a day = 24h = 86400s
+  real(dp),parameter::m24h=1440._dp !minutes in a day = 24h = 1440m
   real(dp),parameter::zero=0._dp,one=1._dp,two=2._dp,three=3._dp
   real(dp),parameter::TOL_sp=epsilon(0._sp)
-  real(dp),parameter::TOLERANCE=epsilon(zero)
+  real(dp),parameter::TOL_dp=epsilon(zero)
   real(dp),parameter::TOL_qp=epsilon(0._qp)
+  real(dp),parameter::TOLERANCE=1.e-9_dp
   real(dp),parameter::half=0.5_dp
   real(dp),parameter::sqrt_half=sqrt(half)
   real(dp),parameter::sqrt2=sqrt(two)
   real(dp),parameter::sqrt_12=sqrt(12._dp) ! = 2*sqrt(3) needed for stability criterion with the mutual R_Hill
   real(dp),parameter::onethird=one/three
-  
+
   !radiants, degrees conversions etc.
   real(dp),parameter::pi=4._dp*atan(one)
   real(dp),parameter::dpi=two*pi
@@ -35,7 +37,7 @@ module constants
   real(dp),parameter::rad2deg=180._dp/pi
   real(dp),parameter::circ=360._dp
 
-  
+
   ! Constants from USNO 2013
   ! http://asa.usno.navy.mil/
   ! http://maia.usno.navy.mil/NSFA/
@@ -103,16 +105,6 @@ module constants
   integer::ncpu=1
   integer,dimension(:,:),allocatable::unit2
 
-  ! define new data type for grid search
-  type parameter_grid
-    character(15)::name ! name/id of the parameter
-    real(dp),dimension(3)::input_values=zero ! min, max, step as read from input file
-    character(2)::step_type='rn' ! input step type as read from the input file: 'ss/rn/sn'
-    real(dp)::step_grid=one ! calculated step size of the parameter
-    integer::n_steps=1 ! number of steps calculated, it take into account the min and max values
-    real(dp),dimension(:),allocatable::grid_values ! values of the grid parameter with dimension n_steps
-  end type parameter_grid
 
-  
-  
+
 end module constants

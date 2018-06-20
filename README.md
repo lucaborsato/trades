@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.14.1 by Luca Borsato - 2016/2017**    
+**`TRADES` v2.15.0 by Luca Borsato - 2016-2018**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -113,7 +113,7 @@ To solve the inverse problem, `TRADES` can be run in different modes:
     and all iterations).    
     
     
-*  **PolyChord ([`PC`][PC], Handley et al., 2015):**    
+*  **PolyChord ([`PC`][PC], Handley et al., 2015) - TESTING PYPOLYCHORD available [`pyPolyChord`][pyPolyChord]:**    
     PolyChord is a novel nested sampling algorithm tailored for high dimensional parameter spaces.
     In addition, it can fully exploit a hierarchy of parameter speeds such as is found in CosmoMC and CAMB.
     It utilises slice sampling at each iteration to sample within the hard likelihood constraint of nested sampling.
@@ -375,6 +375,15 @@ Check also other files in the `pytrades` folder to understand how to use the pyt
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
 
+#### `TRADES 2.15.0`
+Changed how TRADES stores and manages the observed and simulated data (Transit Times and Radial Velocities) 
+and it uses new data type.    
+TRADES can now fit the transit duration in minutes defined as the difference between 
+the last (T4) and the first (t1) contact time.    
+Improved the T0 and the T4/T1 determination, and now it uses the integrator in the Bisection-Newton-Raphson,
+in this way it avoids numericals issues with analytical f and g function when 
+assuming constants keplerian orbital elements during transit.     
+
 #### `TRADES 2.14.1`
 Updated computation of the initial state vector from the Keplerian orbital elements,
 and implemented the subroutine adapted from [`MERCURY`][MERCURY] to compute the 
@@ -507,6 +516,7 @@ In case of a positive signal, it means the period has been induced (bad `RV` fit
 [PSO]: http://www.nda.ac.jp/cc/users/tada/    
 [PC]: http://arxiv.org/abs/1502.01856    
 [PolyChord-CCPForge]: http://ccpforge.cse.rl.ac.uk/gf/project/polychord/    
+[pyPolyChord]: https://github.com/grburgess/PolyChord
 
 [GLS]: http://adsabs.harvard.edu/abs/2009A%26A...496..577Z    
 [MERCURY]: http://www.arm.ac.uk/~jec/    

@@ -8,10 +8,11 @@
 !
 !----------------------------------------------------------------------
 module opti_pso
-  use constants,only:dp,sprec,zero,half,one,two,three,TOLERANCE
+  use constants,only:dp,sprec,zero,half,one,two,three,TOLERANCE,TOL_dp
 !   use parameters,only:path,wrtAll,seed_pso,ndata,nfit,dof,inv_dof,npar,parid,np_pso,nit_pso,wrt_pso,minpar,maxpar,population,population_fitness,pso_best_evolution,ncpu_in
-  use parameters,only:path,seed_pso,np_pso,nit_pso,wrt_pso,wrtAll,nGlobal,dof,minpar,maxpar,population,population_fitness,pso_best_evolution,inertia_in,self_in,swarm_in,randsearch_in,vmax_in,vrand_in
-!   use parameters
+!   use parameters,only:path,seed_pso,np_pso,nit_pso,wrt_pso,wrtAll,nGlobal,dof,minpar,maxpar,population,population_fitness,pso_best_evolution,inertia_in,self_in,swarm_in,randsearch_in,vmax_in,vrand_in
+  use custom_type
+  use parameters
   use parameters_conversion
   use init_trades,only:get_unit
   use random_trades
@@ -334,6 +335,8 @@ module opti_pso
     integer::wrt_it,uall,ubest !it_c
     !-------------------------------------------
 
+    write(*,'(a,i4)')' RUNNING PSO WITH NCPU = ',ncpu_in
+    
     !===== Print PSO parameters =====
     if(flag_off(flag, f_quiet)) then
       call print_param(n, np, w, c1, c2, c3, vmax, it, ie, flag)
@@ -473,7 +476,7 @@ module opti_pso
             & infeasible(np, p), evcount
           write(*,'(10(a,es23.16))')&
             &" Best parameters: <-> inv_fitness = ",gebest,&
-            &" fitness_x_dof = ",(real(dof,dp)/gebest),&
+            &" fitness_x_dof = ",(real(obsData%dof,dp)/gebest),&
             &" fitness = ",(one/gebest)
           write(*,'(10000(es23.16,1x))') unscaling(n, gxbest)
           write(*,'(a)')" "
@@ -1165,7 +1168,7 @@ module opti_pso
     deallocate(x_unsc)
 
     fitness=one/inv_fitness
-    fitness_x_dof=real(dof,dp)*fitness
+    fitness_x_dof=fitness*real(obsData%dof,dp)
 
     bestpso(nfit+1,ipos)=inv_fitness
     bestpso(nfit+2,ipos)=fitness_x_dof
@@ -1265,7 +1268,7 @@ module opti_pso
     do j=1,np
       inv_fitness=pp(j)%ev
       fitness=one/inv_fitness
-      fitness_x_dof=real(dof,dp)*fitness
+      fitness_x_dof=fitness*real(obsData%dof,dp)
       xpar=zero
       xpar=unscaling(nfit,pp(j)%x(:))
       write(uall,trim(wfmt))it,ip(j),xpar,inv_fitness,fitness_x_dof,fitness

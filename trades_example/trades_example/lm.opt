@@ -1,6 +1,0 @@
--1    # max function evaluation (if <=0 it will be set to 200*(n+1), where n=number of parameters to be fitted)
-1.e-8    # ftol (must be > 0., if <=0 it will be setted with an internal TOLERANCE) DETERMINED IN THE PROGRAM
-1.e-8    # xtol (must be > 0., if <=0 it will be setted with an internal TOLERANCE) DETERMINED IN THE PROGRAM
-1.e-8    # gtol (must be >= 0., if <0 it will be setted to zero)
--1.    # value that multiply the parameters to detect a parameter step in lmdif (usually to be setted to sqrt( machine precision ), if <0 it will be set to this value) DETERMINED IN THE PROGRAM
-0    # nprint: it prints some results every nprint function evaluations (if <0 it will be set to 0)

@@ -1,8 +1,6 @@
 module parameters
-!   use constants,only:dp,TOLERANCE,zero,one,parameter_grid
   use constants
-!   use settings_module,only:program_settings ! from POLYCHORD OLD VERSION
-!   use priors_module,only:prior
+  use custom_type
   implicit none
 
   character(512)::path_0,path
@@ -36,15 +34,19 @@ module parameters
   character(128)::paridlist,sig_paridlist
   character(10),dimension(:),allocatable::all_names_list
   character(1024)::all_names_str
-  integer::ndata,npar,nfit,nfree,dof
-  real(dp)::inv_dof
-
+  ! ---
+  ! old to be removed
+  !integer::ndata,npar,nfit,nfree,dof
+  !real(dp)::inv_dof
+  ! ---
+  integer::npar,nfit
+  
   ! complete list of all the parameters for the whole system: M1,R1,M2,P2,a2,e2,...and so on
   real(dp),dimension(:),allocatable::system_parameters ! needed by ode_lm -> dimension == npar
   
   ! single maximum values for the weighted residuals
 !   real(dp),parameter::resmax=1.e20_dp
-  real(dp),parameter::resmax=1.e10_dp
+  real(dp),parameter::resmax=1.e30_dp
 
   ! save initial parameters of the star
   real(dp),dimension(2,2)::MR_star
@@ -54,23 +56,28 @@ module parameters
   real(dp)::epsfcn,ftol,gtol,xtol
   real(dp),dimension(:,:),allocatable::lmtols
 
-  ! RV data
-  integer::nRV,nRVset
-  real(dp),dimension(:),allocatable::jdRV,RVobs,eRVobs
-  integer,dimension(:),allocatable::RVsetID,nRVsingle
+!   ! RV data -> in obsData
+!   integer::nRV,nRVset
+!   real(dp),dimension(:),allocatable::jdRV,RVobs,eRVobs
+!   integer,dimension(:),allocatable::RVsetID,nRVsingle
+! 
+!   ! T0 data -> in obsData
+!   integer,dimension(:),allocatable::nT0
+!   real(dp),dimension(:,:),allocatable::T0obs,eT0obs
+!   ! adding duration dtot=T4-T1 variables
+!   real(dp),dimension(:,:),allocatable::durobs,edurobs
+!   integer,dimension(:,:),allocatable::epoT0obs
+  type(dataObs)::obsData
 
-  ! T0 data
-  integer,dimension(:),allocatable::nT0
-  real(dp),dimension(:,:),allocatable::T0obs,eT0obs
-  integer,dimension(:,:),allocatable::epoT0obs
   logical,dimension(:),allocatable::do_transit ! it needs to determine if a planet should transit or not
+
+! ---------------------
+!   ! ephemeris: Tephem, Pephem
+!   real(dp),dimension(:),allocatable::Tephem,eTephem,Pephem,ePephem
 
   ! loglikelihood constant: - 1/2 * dof * ln(2 * pi) - 1/2 sum(ln(sigma**2)
   real(dp)::ln_err_const
   
-  ! ephemeris: Tephem, Pephem
-  real(dp),dimension(:),allocatable::Tephem,eTephem,Pephem,ePephem
-
   ! dynamical parameters
   real(dp)::amin,amax
 
@@ -97,10 +104,6 @@ module parameters
   real(dp),dimension(:,:),allocatable::population_fitness
   real(dp),dimension(:,:),allocatable::pso_best_evolution
 
-  
-!   ! for PolyChord
-!   type(program_settings)::settings
-  
   ! other boundaries
   real(dp),dimension(:,:),allocatable::e_bounds
   
@@ -114,15 +117,21 @@ module parameters
 
   contains
 
+! ==============================================================================
+  
   ! deallocate all variables in 'parameters' module
   subroutine deallocate_all()
   
     if(allocated(bnames))   deallocate(bnames,bfiles)
     if(allocated(tofit))    deallocate(tofit)
     if(allocated(e_bounds)) deallocate(e_bounds)
-    if(allocated(jdRV))     deallocate(jdRV,RVobs,eRVobs)
-    if(allocated(epoT0obs)) deallocate(epoT0obs,T0obs,eT0obs,do_transit)
-    if(allocated(nT0))      deallocate(nT0)
+
+!     if(allocated(jdRV))     deallocate(jdRV,RVobs,eRVobs)
+!     if(allocated(epoT0obs)) deallocate(epoT0obs,T0obs,eT0obs,do_transit)
+!     if(allocated(durobs))   deallocate(durobs, edurobs)
+!     if(allocated(nT0))      deallocate(nT0)
+    call deallocate_dataObs(obsData)
+
     if(allocated(id))       deallocate(id,idall,parid,all_names_list)
     if(allocated(system_parameters)) deallocate(system_parameters)
     if(allocated(par_min))  deallocate(par_min,par_max)

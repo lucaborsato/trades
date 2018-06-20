@@ -1,5 +1,5 @@
 module numerical_integrator
-  use constants,only:dp,zero,one,two,three,TOLERANCE
+  use constants,only:dp,zero,one,two,three,TOLERANCE,TOL_dp
   use parameters
   use eq_motion
   implicit none
@@ -79,8 +79,8 @@ module numerical_integrator
     ertemp=zero
     ertemp(7:NBDIM)=abs(err(7:NBDIM))/rscal(7:NBDIM)
     do i=7,NBDIM
-      !if(rscal(i).eq.zero)ertemp(i)=TOLERANCE
-      if(abs(rscal(i)-zero).le.TOLERANCE)ertemp(i)=TOLERANCE
+      !if(rscal(i).eq.zero)ertemp(i)=TOL_dp
+      if(abs(rscal(i)-zero).le.TOL_dp)ertemp(i)=TOL_dp
     end do
     maxtemp=maxval(ertemp(7:NBDIM))
     emax=max(emold,maxtemp)
@@ -108,7 +108,7 @@ module numerical_integrator
     rscal=abs(rin)+abs(hh*drdt)
     sel: do
 !       emax=0._dp
-      emax=TOLERANCE
+      emax=TOL_dp
       call rkck_a(m,rin,drdt,hh,rout,err)
       emax=get_emax(emax,err,rscal)
       scale_factor=sfac*((tol_int/emax)**(exp1))
@@ -122,5 +122,49 @@ module numerical_integrator
     return
   end subroutine int_rk_a
   ! ------------------------------------------------------------------ !
+  
+  
+  subroutine integrates_rk(m,rin,dt,rout)
+    real(dp),dimension(:),intent(in)::m,rin
+    real(dp),intent(in)::dt
+    real(dp),dimension(:),intent(out)::rout
+    
+    real(dp)::itime,hw,hok,hnext
+    real(dp),dimension(:),allocatable::r1,r2,drdt,err
+    
+    
+    rout=zero
+    allocate(r1(NBDIM),r2(NBDIM),drdt(NBDIM),err(NBDIM))
+    r1=rin
+    r2=rin
+    
+    hw=half*dt
+    itime = zero
+    
+    
+    loopint: do
+      call eqmastro(m,r1,drdt)
+      if(abs(itime+hw).gt.abs(dt))then
+
+        hw=dt-itime
+        call rkck_a(m,r1,drdt,hw,r2,err)
+        itime=dt
+
+      else
+      
+        call int_rk_a(m,r1,drdt,hw,hok,hnext,r2,err)
+        itime=itime+hok
+        hw=hnext
+      
+      end if
+      if(abs(itime-dt).le.TOL_dp) exit loopint
+      r1=r2
+    end do loopint
+    rout=r2
+    deallocate(r1,r2,drdt,err)
+    
+
+    return
+  end subroutine integrates_rk
 
 end module numerical_integrator

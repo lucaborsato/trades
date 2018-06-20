@@ -9,7 +9,7 @@ module fitness_module
   use derived_parameters_mod
   implicit none
 
-contains
+  contains
 
   function base_fitness_function(run_all_parameters,fit_parameters) result(fitness)
     real(dp)::fitness
@@ -18,9 +18,12 @@ contains
     real(dp),dimension(:),allocatable::resw
     integer::iflag
   
-    allocate(resw(ndata))
+    integer::nobs ! == obsData%ndata == ndata
+    nobs = obsData%ndata
+    
+    allocate(resw(nobs))
     resw=zero
-    call ode_lm(run_all_parameters,ndata,nfit,fit_parameters,resw,iflag)
+    call ode_lm(run_all_parameters,nobs,nfit,fit_parameters,resw,iflag)
     fitness=sum(resw*resw)
     ! resw t.c. sum(resw^2) = fitness = Chi2r*K_chi2r + Chi2wr*K_chi2wr
     deallocate(resw)

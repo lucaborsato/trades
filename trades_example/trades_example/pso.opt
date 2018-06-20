@@ -1,6 +1,0 @@
-10     # number of particle
-10     # number of iterations to do
-0      # counter to write to screen PSO run...if 0 = no write
-0      # wrtAll = 0 [not writing all individuals for each iteration] 1 [writing all individuals for each iteration]
-1      # nGlobal = number of global search, number of times that PSO will be run, i.e., Npart x Niter x nGlobal
-123456  # seed

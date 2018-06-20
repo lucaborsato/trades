@@ -1,14 +1,15 @@
 module Levenberg_Marquardt
   use constants
+  use custom_type
   use parameters
   ! Luca Borsato 2014
-  ! Levenberg-Marquardt by MINPACK converted to Fortran90
+  ! Levenberg-Marquardt by MinPACK converted to Fortran90
   ! I left some original code commented.
   ! Some subroutines have been duplicated and modified for different purposes
-  ! MINPACK routines which are used by both LMDIF & LMDER
+  ! MinPACK routines which are used by both LMDIF & LMDER
 
   implicit none
-  !INTEGER,PARAMETER::dp = SELECTED_REAL_KIND(12,60)
+  !inTEGER,PARAMETER::dp = SELECTED_REAL_KinD(12,60)
 
   !dpIVATE
   !PUBLIC::dp,lmdif1,lmdif,lmder1,lmder,enorm
@@ -93,11 +94,11 @@ module Levenberg_Marquardt
     diag=zero
     sig=zero
     cntsig=0
-    call covar(n,r,ldr,ipvt,TOLERANCE,wa2)
+    call covar(n,r,ldr,ipvt,TOL_dp,wa2)
     do j=1,n
       diag(j)=r(j,j)
       sig(j)=sqrt(diag(j))
-      if(sig(j).le.TOLERANCE)cntsig=cntsig+1
+      if(sig(j).le.TOL_dp)cntsig=cntsig+1
     end do
 
     deallocate(r,ipvt,wa2)
@@ -109,38 +110,53 @@ module Levenberg_Marquardt
   ! (needed for bootstrap analysis)
   ! USED BY:
   ! BOOTSTRAP
-  subroutine lm_driver_3(fcn,allpar,m,n,x,RV_obs,T0_obs,fvec,diag,sig,info,iwa)
+  subroutine lm_driver_3(fcn,allpar,m,n,x,oDataIn,fvec,diag,sig,info,iwa)
 !     use parameters,only:maxfev,nprint,lmtols
     use parameters_conversion,only:param_adj
     use init_trades,only:get_unit
     use convert_type,only:string
     !$ use omp_lib
-    integer,intent(IN)::m
-    integer,intent(IN)::n
-    real(dp),dimension(:),intent(in)::RV_obs
-    real(dp),dimension(:,:),intent(in)::T0_obs
+    integer,intent(in)::m
+    integer,intent(in)::n
+!     real(dp),dimension(:),intent(in)::RV_obs
+!     real(dp),dimension(:,:),intent(in)::T0_obs
+    type(dataObs),intent(in)::oDataIn
     real(dp),dimension(:),intent(inout)::allpar
-    real(dp),dimension(:),intent(INOUT)::x
-    real(dp),dimension(:),intent(OUT)::fvec,diag,sig
-    integer,intent(OUT)::info
-    integer,dimension(:),intent(OUT)::iwa
+    real(dp),dimension(:),intent(inout)::x
+    real(dp),dimension(:),intent(out)::fvec,diag,sig
+    integer,intent(out)::info
+    integer,dimension(:),intent(out)::iwa
 
     real(dp),dimension(:),allocatable::wallpar
     !integer::it,itmax,cpuid,iflag
     integer::cpuid,iflag
     real(dp)::wftol,wxtol,wgtol,wepsfcn,fitness
 
+!     interface
+!       subroutine fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+!         use constants
+!         implicit none
+!         integer,intent(in)::m,n
+!         real(dp),dimension(:),intent(in)::allpar,x,RV_obs
+!         real(dp),dimension(:,:),intent(in)::T0_obs
+!         real(dp),dimension(:),intent(out)::fvec
+!         integer,intent(inout)::iflag
+!       end subroutine fcn
+!     end interface
     interface
-      subroutine fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+      subroutine fcn(allpar,m,n,x,oDataIn,fvec,iflag)
         use constants
+        use custom_type
         implicit none
-        integer,intent(IN)::m,n
-        real(dp),dimension(:),intent(IN)::allpar,x,RV_obs
-        real(dp),dimension(:,:),intent(in)::T0_obs
-        real(dp),dimension(:),intent(OUT)::fvec
+        real(dp),dimension(:),intent(in)::allpar
+        integer,intent(in)::m,n
+        real(dp),dimension(:),intent(in)::x
+        type(dataObs),intent(in)::oDataIn
+        real(dp),dimension(:),intent(out)::fvec
         integer,intent(inout)::iflag
       end subroutine fcn
     end interface
+
 
     real(dp),parameter::factor = 100._dp
 
@@ -190,7 +206,7 @@ module Levenberg_Marquardt
 !     !write(*,'(2(a,g25.14))') "  setted ftol = ",wftol," xtol = ",wxtol
 !     write(*,'(a,1000g25.14)')"  Input parameters:  ",x
     ! LM call
-    call lmdif(fcn,wallpar,m,n,x,RV_obs,T0_obs,fvec,wftol,wxtol,wgtol,&
+    call lmdif(fcn,wallpar,m,n,x,oDataIN,fvec,wftol,wxtol,wgtol,&
         &maxfev,wepsfcn,wa,&
         &mode,factor,nprint,info,nfev,fjac,iwa,wa(n+1:))
 
@@ -315,7 +331,7 @@ module Levenberg_Marquardt
   end function get_best_2
 
   
-  ! SUBROUTINE lm_driver_4 WITH SEMI-AUTOMATIC SELECTION OF TOLERANCES
+  ! SUBRoutinE lm_driver_4 WITH SEMI-AUTOMATIC SELECTION OF TOLERANCES
   ! varying epsfcn
   ! to use in GRID Search
   ! USED BY:
@@ -328,12 +344,12 @@ module Levenberg_Marquardt
     use convert_type,only:string
     !$ use omp_lib
     integer,intent(in)::cpuid,isim
-    integer,intent(IN)::m
-    integer,intent(IN)::n
-    real(dp),dimension(:),intent(INOUT)::allpar,x
-    real(dp),dimension(:),intent(OUT)::fvec,diag,sig
-    integer,intent(OUT)::info
-    integer,dimension(:),intent(OUT)::iwa
+    integer,intent(in)::m
+    integer,intent(in)::n
+    real(dp),dimension(:),intent(inout)::allpar,x
+    real(dp),dimension(:),intent(out)::fvec,diag,sig
+    integer,intent(out)::info
+    integer,dimension(:),intent(out)::iwa
 
     integer::iflag
 
@@ -366,14 +382,15 @@ module Levenberg_Marquardt
     integer,dimension(:),allocatable::lmstat,infos
     
     integer::best
-
+    integer::ndata,dof
+    
     interface
       subroutine fcn(allpar,m,n,x,fvec,iflag)
         use constants
         implicit none
-        integer,intent(IN)::m,n
-        real(dp),dimension(:),intent(IN)::allpar,x
-        real(dp),dimension(:),intent(OUT)::fvec
+        integer,intent(in)::m,n
+        real(dp),dimension(:),intent(in)::allpar,x
+        real(dp),dimension(:),intent(out)::fvec
         integer,intent(inout)::iflag
       end subroutine fcn
     end interface
@@ -383,6 +400,8 @@ module Levenberg_Marquardt
     write(*,'(a)')' ***************************'
     flush(6)
 
+    ndata=obsData%ndata
+    dof=obsData%dof
 
     info = 0
     iflag = 0 ! added by Luca, avoid negative value
@@ -463,7 +482,7 @@ module Levenberg_Marquardt
           info = 4
       end if
 !       write(*,'(2(a,i3))')" subCPU ",cpuid2," of CPU ",cpuid,&
-!             &" END LM. INFO = ",info
+!             &" END LM. inFO = ",info
 !       write(*,*)"" 
 
       ! calculates sigmas and adjust parameters
@@ -536,7 +555,7 @@ module Levenberg_Marquardt
     !     last card of subroutine lmdif1.
   end subroutine lm_driver_4s
 
-  ! SUBROUTINE lm_driver_4 WITH SEMI-AUTOMATIC SELECTION OF TOLERANCES
+  ! SUBRoutinE lm_driver_4 WITH SEMI-AUTOMATIC SELECTION OF TOLERANCES
   ! varying epsfcn
   ! parallel version, to use with only LM, after PIKAIA or PSO
   subroutine lm_driver_4p(isim,fcn,allpar,m,n,x,fvec,diag,sig,info,iwa)
@@ -548,12 +567,12 @@ module Levenberg_Marquardt
     use ode_run,only:ode_lm
     !$ use omp_lib
     integer,intent(in)::isim
-    integer,intent(IN)::m
-    integer,intent(IN)::n
-    real(dp),dimension(:),intent(INOUT)::allpar,x
-    real(dp),dimension(:),intent(OUT)::fvec,diag,sig
-    integer,intent(OUT)::info
-    integer,dimension(:),intent(OUT)::iwa
+    integer,intent(in)::m
+    integer,intent(in)::n
+    real(dp),dimension(:),intent(inout)::allpar,x
+    real(dp),dimension(:),intent(out)::fvec,diag,sig
+    integer,intent(out)::info
+    integer,dimension(:),intent(out)::iwa
 
     integer::iflag
 
@@ -584,14 +603,16 @@ module Levenberg_Marquardt
     integer,dimension(:),allocatable::lmstat,infos
     
     integer::best
+    integer::ndata,dof
 
+   
     interface
       subroutine fcn(allpar,m,n,x,fvec,iflag)
         use constants
         implicit none
-        integer,intent(IN)::m,n
-        real(dp),dimension(:),intent(IN)::allpar,x
-        real(dp),dimension(:),intent(OUT)::fvec
+        integer,intent(in)::m,n
+        real(dp),dimension(:),intent(in)::allpar,x
+        real(dp),dimension(:),intent(out)::fvec
         integer,intent(inout)::iflag
       end subroutine fcn
     end interface
@@ -601,6 +622,9 @@ module Levenberg_Marquardt
     write(*,'(a)')' ***************************'
     flush(6)
 
+    ndata=obsData%ndata
+    dof=obsData%dof
+    
     info = 0
     iflag = 0 ! added by Luca, avoid negative value
     !     check the input parameters for errors.
@@ -609,7 +633,7 @@ module Levenberg_Marquardt
     allocate(inpar(n))
     inpar=x
     
-!     write(*,'(a)')" READY TO INITIALIZE EACH EPSFCN VALUE"
+!     write(*,'(a)')" READY TO inITIALIZE EACH EPSFCN VALUE"
     lmepsfcn=initEpsfcn(neps)
     
     fitness_x_dof=zero
@@ -689,7 +713,7 @@ module Levenberg_Marquardt
           write(*,'(a)')"** info = 8 will be set to 4 **"
           info = 4
       end if
-!       write(*,'(2(a,i3))')" -- CPU ",cpuid," END LM. INFO = ",info
+!       write(*,'(2(a,i3))')" -- CPU ",cpuid," END LM. inFO = ",info
 !       write(*,*)"" 
 
       wdiag=zero
@@ -773,22 +797,22 @@ module Levenberg_Marquardt
     ! Code converted using TO_F90 by Alan Miller
     ! Date: 1999-12-09  Time: 12:45:59
 
-    integer,intent(IN)::m,n
-    real(dp),dimension(:),intent(INOUT)::allpar,x
-    real(dp),dimension(:),intent(OUT)::fvec
-    real(dp),intent(IN)::ftol,xtol
-    real(dp),intent(INOUT)::gtol
-    integer,intent(INOUT)::maxfev
-    real(dp),intent(INOUT)::epsfcn
-    real(dp),dimension(:),intent(OUT)::diag
-    integer,intent(IN)::mode
-    real(dp),intent(IN)::factor
-    integer,intent(IN)::nprint
-    integer,intent(OUT)::info
-    integer,intent(OUT)::nfev
-    real(dp),dimension(:,:),intent(OUT)::fjac   ! fjac(ldfjac,n)
-    integer,dimension(:),intent(OUT)::ipvt
-    real(dp),dimension(:),intent(OUT)::qtf
+    integer,intent(in)::m,n
+    real(dp),dimension(:),intent(inout)::allpar,x
+    real(dp),dimension(:),intent(out)::fvec
+    real(dp),intent(in)::ftol,xtol
+    real(dp),intent(inout)::gtol
+    integer,intent(inout)::maxfev
+    real(dp),intent(inout)::epsfcn
+    real(dp),dimension(:),intent(out)::diag
+    integer,intent(in)::mode
+    real(dp),intent(in)::factor
+    integer,intent(in)::nprint
+    integer,intent(out)::info
+    integer,intent(out)::nfev
+    real(dp),dimension(:,:),intent(out)::fjac   ! fjac(ldfjac,n)
+    integer,dimension(:),intent(out)::ipvt
+    real(dp),dimension(:),intent(out)::qtf
 
     ! EXTERNAL fcn
 
@@ -796,9 +820,9 @@ module Levenberg_Marquardt
       subroutine fcn(allpar,m,n,x,fvec,iflag)
         use constants
         implicit none
-        integer,intent(IN)::m,n
-        real(dp),dimension(:),intent(IN)::allpar,x
-        real(dp),dimension(:),intent(OUT)::fvec
+        integer,intent(in)::m,n
+        real(dp),dimension(:),intent(in)::allpar,x
+        real(dp),dimension(:),intent(out)::fvec
         integer,intent(inout)::iflag
       end subroutine fcn
     end interface
@@ -998,7 +1022,7 @@ module Levenberg_Marquardt
     allocate(wa4(m))
 
 !     write(*,'(a)')""
-!     write(*,'(a)')" -- IN lmdif_2 --"
+!     write(*,'(a)')" -- in lmdif_2 --"
 !     write(*,'(a,g25.15)')" ftol = ",ftol
 !     write(*,'(a,g25.15)')" xtol = ",xtol
 !     write(*,'(a,g25.15)')" gtol = ",gtol
@@ -1299,13 +1323,13 @@ module Levenberg_Marquardt
     ! ! call fcn(allpar,m,n,x,fvec,iflag)
     !call callodeout(allpar,x,fvec)
     !write(*,'(a)')""
-    !write(*,'(a)')" ================IN lmdif_2======================="
+    !write(*,'(a)')" ================in lmdif_2======================="
     !write(*,'(a,i6,a)')" called fcn ",nfev," times"
     !write(*,'(a)')" parameters:"
     !write(*,'(1000g25.15)')x(1:n)
     !write(*,'(2(a,g25.15))')" fitness_x_dof = ",sum(fvec*fvec),&
     !     " fitness = ",sum(fvec*fvec)/real((m-n),dp)
-    !write(*,'(a)')" ================IN lmdif_2======================="
+    !write(*,'(a)')" ================in lmdif_2======================="
     !write(*,'(a)')""
 
     !
@@ -1323,7 +1347,8 @@ module Levenberg_Marquardt
   end subroutine lmdif_2
 
   ! as lmdif_2 but with more arguments needed by the fcn to use
-  subroutine lmdif_3(fcn,allpar,m,n,x,RV_obs,T0_obs,fvec,&
+!   subroutine lmdif_3(fcn,allpar,m,n,x,RV_obs,T0_obs,fvec,&
+  subroutine lmdif_3(fcn,allpar,m,n,x,oDataIn,fvec,&
       &ftol,xtol,gtol,maxfev,epsfcn,&
       &diag,mode,factor,nprint,info,nfev,fjac,ipvt,qtf)
 
@@ -1332,35 +1357,48 @@ module Levenberg_Marquardt
 
     ! N.B. Arguments LDFJAC,WA1,WA2,WA3 & WA4 have been removed.
 
-    integer,intent(IN)::m,n
-    real(dp),dimension(:),intent(INOUT)::allpar,x
-    real(dp),dimension(:),intent(in)::RV_obs
-    real(dp),dimension(:,:),intent(in)::T0_obs
-    real(dp),dimension(:),intent(OUT)::fvec
-    real(dp),intent(IN)::ftol,xtol
-    real(dp),intent(INOUT)::gtol
-    integer,intent(INOUT)::maxfev
-    real(dp),intent(INOUT)::epsfcn
-    real(dp),dimension(:),intent(OUT)::diag
-    integer,intent(IN)::mode
-    real(dp),intent(IN)::factor
-    integer,intent(IN)::nprint
-    integer,intent(OUT)::info
-    integer,intent(OUT)::nfev
-    real(dp),dimension(:,:),intent(OUT)::fjac   ! fjac(ldfjac,n)
-    integer,dimension(:),intent(OUT)::ipvt
-    real(dp),dimension(:),intent(OUT)::qtf
+    integer,intent(in)::m,n
+    real(dp),dimension(:),intent(inout)::allpar,x
+!     real(dp),dimension(:),intent(in)::RV_obs
+!     real(dp),dimension(:,:),intent(in)::T0_obs
+    type(dataObs),intent(in)::oDataIn
+    real(dp),dimension(:),intent(out)::fvec
+    real(dp),intent(in)::ftol,xtol
+    real(dp),intent(inout)::gtol
+    integer,intent(inout)::maxfev
+    real(dp),intent(inout)::epsfcn
+    real(dp),dimension(:),intent(out)::diag
+    integer,intent(in)::mode
+    real(dp),intent(in)::factor
+    integer,intent(in)::nprint
+    integer,intent(out)::info
+    integer,intent(out)::nfev
+    real(dp),dimension(:,:),intent(out)::fjac   ! fjac(ldfjac,n)
+    integer,dimension(:),intent(out)::ipvt
+    real(dp),dimension(:),intent(out)::qtf
 
     ! EXTERNAL fcn
 
+!     interface
+!       subroutine fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+!         use constants
+!         implicit none
+!         integer,intent(in)::m,n
+!         real(dp),dimension(:),intent(in)::allpar,x,RV_obs
+!         real(dp),dimension(:,:),intent(in)::T0_obs
+!         real(dp),dimension(:),intent(out)::fvec
+!         integer,intent(inout)::iflag
+!       end subroutine fcn
+!     end interface
     interface
-      subroutine fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+      subroutine fcn(allpar,m,n,x,oDataIn,fvec,iflag)
         use constants
+        use custom_type
         implicit none
-        integer,intent(IN)::m,n
-        real(dp),dimension(:),intent(IN)::allpar,x,RV_obs
-        real(dp),dimension(:,:),intent(in)::T0_obs
-        real(dp),dimension(:),intent(OUT)::fvec
+        integer,intent(in)::m,n
+        real(dp),dimension(:),intent(in)::allpar,x
+        type(dataObs),intent(in)::oDataIn
+        real(dp),dimension(:),intent(out)::fvec
         integer,intent(inout)::iflag
       end subroutine fcn
     end interface
@@ -1388,7 +1426,7 @@ module Levenberg_Marquardt
     allocate(wa4(m))
 
 !     write(*,'(a)')""
-!     write(*,'(a)')" -- IN lmdif_3 --"
+!     write(*,'(a)')" -- in lmdif_3 --"
 !     write(*,'(a,g25.15)')" ftol = ",ftol
 !     write(*,'(a,g25.15)')" xtol = ",xtol
 !     write(*,'(a,g25.15)')" gtol = ",gtol
@@ -1425,7 +1463,8 @@ module Levenberg_Marquardt
     !  Evaluate the function at the starting point and calculate its norm.
     !
     iflag=1
-    call fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+!     call fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+    call fcn(allpar,m,n,x,oDataIn,fvec,iflag)
     nfev = 1
 
     if (iflag < 0) go to 300
@@ -1445,7 +1484,8 @@ module Levenberg_Marquardt
     !  Calculate the jacobian matrix.
     !
     iflag=2
-    call fdjac2(fcn,allpar,m,n,x,RV_obs,T0_obs,fvec,fjac,iflag,epsfcn)
+!     call fdjac2(fcn,allpar,m,n,x,RV_obs,T0_obs,fvec,fjac,iflag,epsfcn)
+    call fdjac2(fcn,allpar,m,n,x,oDataIn,fvec,fjac,iflag,epsfcn)
     nfev = nfev + n
     if (iflag < 0) go to 300
     !
@@ -1454,7 +1494,8 @@ module Levenberg_Marquardt
     if ( 0 < nprint ) then
       iflag = 0
       if (mod(iter-1,nprint) == 0) &
-            &call fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+!             &call fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+        &call fcn(allpar,m,n,x,oDataIn,fvec,iflag)
       if ( iflag < 0 ) go to 300
     end if
     !
@@ -1565,7 +1606,8 @@ module Levenberg_Marquardt
     !  Evaluate the function at X + P and calculate its norm.
     !
     iflag = 1
-    call fcn(allpar,m,n,wa2,RV_obs,T0_obs,wa4,iflag)
+!     call fcn(allpar,m,n,wa2,RV_obs,T0_obs,wa4,iflag)
+    call fcn(allpar,m,n,wa2,oDataIn,wa4,iflag)
     nfev = nfev + 1
     if ( iflag < 0 ) go to 300
     !fnorm1 = enorm ( m, wa4 )
@@ -1679,7 +1721,8 @@ module Levenberg_Marquardt
     deallocate(wa1,wa2,wa3)
     deallocate(wa4)
 
-    if (nprint > 0) call fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+!     if (nprint > 0) call fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+    if (nprint > 0) call fcn(allpar,m,n,x,oDataIn,fvec,iflag)
 
     return
   end subroutine lmdif_3
@@ -1692,14 +1735,14 @@ module Levenberg_Marquardt
 
     ! N.B. Arguments LDFJAC,WA & LWA have been removed.
 
-    integer,intent(IN)::m
-    integer,intent(IN)::n
-    real(dp),intent(INOUT)::x(:)
-    real(dp),intent(INOUT)::fvec(:)
-    real(dp),intent(INOUT)::fjac(:,:)    ! fjac(ldfjac,n)
-    real(dp),intent(IN)::tol
-    integer,intent(OUT)::info
-    integer,intent(INOUT)::ipvt(:)
+    integer,intent(in)::m
+    integer,intent(in)::n
+    real(dp),intent(inout)::x(:)
+    real(dp),intent(inout)::fvec(:)
+    real(dp),intent(inout)::fjac(:,:)    ! fjac(ldfjac,n)
+    real(dp),intent(in)::tol
+    integer,intent(out)::info
+    integer,intent(inout)::ipvt(:)
 
 
     ! EXTERNAL fcn
@@ -1708,11 +1751,11 @@ module Levenberg_Marquardt
       subroutine fcn(m,n,x,fvec,fjac,iflag)
         use constants
         implicit none
-        !INTEGER,PARAMETER::dp = SELECTED_REAL_KIND(12,60)
-        integer,intent(IN)::m,n
-        real(dp),intent(IN)::x(:)
-        real(dp),intent(OUT)::fvec(:)
-        real(dp),intent(OUT)::fjac(:,:)
+        !inTEGER,PARAMETER::dp = SELECTED_REAL_KinD(12,60)
+        integer,intent(in)::m,n
+        real(dp),intent(in)::x(:)
+        real(dp),intent(out)::fvec(:)
+        real(dp),intent(out)::fjac(:,:)
         integer,intent(inout)::iflag
       end subroutine fcn
     end interface
@@ -1870,34 +1913,34 @@ module Levenberg_Marquardt
 
     ! N.B. Arguments LDFJAC,WA1,WA2,WA3 & WA4 have been removed.
 
-    integer,intent(IN)::m
-    integer,intent(IN)::n
-    real(dp),intent(INOUT)::x(:)
-    real(dp),intent(OUT)::fvec(m)
-    real(dp),intent(OUT)::fjac(:,:)    ! fjac(ldfjac,n)
-    real(dp),intent(IN)::ftol
-    real(dp),intent(IN)::xtol
-    real(dp),intent(INOUT)::gtol
-    integer,intent(INOUT)::maxfev
-    real(dp),intent(OUT)::diag(:)
-    integer,intent(IN)::mode
-    real(dp),intent(IN)::factor
-    integer,intent(IN)::nprint
-    integer,intent(OUT)::info
-    integer,intent(OUT)::nfev
-    integer,intent(OUT)::njev
-    integer,intent(OUT)::ipvt(:)
-    real(dp),intent(OUT)::qtf(:)
+    integer,intent(in)::m
+    integer,intent(in)::n
+    real(dp),intent(inout)::x(:)
+    real(dp),intent(out)::fvec(m)
+    real(dp),intent(out)::fjac(:,:)    ! fjac(ldfjac,n)
+    real(dp),intent(in)::ftol
+    real(dp),intent(in)::xtol
+    real(dp),intent(inout)::gtol
+    integer,intent(inout)::maxfev
+    real(dp),intent(out)::diag(:)
+    integer,intent(in)::mode
+    real(dp),intent(in)::factor
+    integer,intent(in)::nprint
+    integer,intent(out)::info
+    integer,intent(out)::nfev
+    integer,intent(out)::njev
+    integer,intent(out)::ipvt(:)
+    real(dp),intent(out)::qtf(:)
 
     interface
       subroutine fcn(m,n,x,fvec,fjac,iflag)
         use constants
         implicit none
-        !INTEGER,PARAMETER::dp = SELECTED_REAL_KIND(12,60)
-        integer,intent(IN)::m,n
-        real(dp),intent(IN)::x(:)
-        real(dp),intent(OUT)::fvec(:)
-        real(dp),intent(OUT)::fjac(:,:)
+        !inTEGER,PARAMETER::dp = SELECTED_REAL_KinD(12,60)
+        integer,intent(in)::m,n
+        real(dp),intent(in)::x(:)
+        real(dp),intent(out)::fvec(:)
+        real(dp),intent(out)::fjac(:,:)
         integer,intent(inout)::iflag
       end subroutine fcn
     end interface
@@ -2065,7 +2108,7 @@ module Levenberg_Marquardt
 
     !       minpack-supplied ... dpmpar,enorm,lmpar,qrfac
 
-    !       fortran-supplied ... ABS,MAX,MIN,SQRT,mod
+    !       fortran-supplied ... ABS,MAX,Min,SQRT,mod
 
     !     argonne national laboratory. minpack project. march 1980.
     !     burton s. garbow,kenneth e. hillstrom,jorge j. more
@@ -2320,13 +2363,13 @@ module Levenberg_Marquardt
 
     ! N.B. Arguments LDR,WA1 & WA2 have been removed.
 
-    integer,intent(IN)::n
-    real(dp),dimension(:,:),intent(INOUT)::r
-    integer,dimension(:),intent(IN)::ipvt
-    real(dp),dimension(:),intent(IN)::diag,qtb
-    real(dp),intent(IN)::delta
-    real(dp),intent(OUT)::par
-    real(dp),dimension(:),intent(OUT)::x,sdiag
+    integer,intent(in)::n
+    real(dp),dimension(:,:),intent(inout)::r
+    integer,dimension(:),intent(in)::ipvt
+    real(dp),dimension(:),intent(in)::diag,qtb
+    real(dp),intent(in)::delta
+    real(dp),intent(out)::par
+    real(dp),dimension(:),intent(out)::x,sdiag
 
 
     !     **********
@@ -2416,7 +2459,7 @@ module Levenberg_Marquardt
 
     !       minpack-supplied ... dpmpar,enorm,qrsolv
 
-    !       fortran-supplied ... ABS,MAX,MIN,SQRT
+    !       fortran-supplied ... ABS,MAX,Min,SQRT
 
     !     argonne national laboratory. minpack project. march 1980.
     !     burton s. garbow,kenneth e. hillstrom,jorge j. more
@@ -2621,13 +2664,13 @@ module Levenberg_Marquardt
 
     ! N.B. Arguments LDA,LIPVT & WA has been removed.
 
-    integer,intent(IN)::m
-    integer,intent(IN)::n
-    real(dp),intent(INOUT)::a(:,:)
-    logical,intent(IN)::pivot
-    !integer,intent(OUT)::ipvt(:)
+    integer,intent(in)::m
+    integer,intent(in)::n
+    real(dp),intent(inout)::a(:,:)
+    logical,intent(in)::pivot
+    !integer,intent(out)::ipvt(:)
     integer,dimension(:),intent(out)::ipvt
-    real(dp),dimension(:),intent(OUT)::rdiag,acnorm
+    real(dp),dimension(:),intent(out)::rdiag,acnorm
 
     !     **********
 
@@ -2697,7 +2740,7 @@ module Levenberg_Marquardt
 
     !       minpack-supplied ... dpmpar,enorm
 
-    !       fortran-supplied ... MAX,SQRT,MIN
+    !       fortran-supplied ... MAX,SQRT,Min
 
     !     argonne national laboratory. minpack project. march 1980.
     !     burton s. garbow,kenneth e. hillstrom,jorge j. more
@@ -2822,13 +2865,13 @@ module Levenberg_Marquardt
 
     ! N.B. Arguments LDR & WA has been removed.
 
-    integer,intent(IN)::n
-    real(dp),intent(INOUT)::r(:,:)
-    integer,intent(IN)::ipvt(:)
-    real(dp),intent(IN)::diag(:)
-    real(dp),intent(IN)::qtb(:)
-    real(dp),intent(OUT)::x(:)
-    real(dp),intent(OUT)::sdiag(:)
+    integer,intent(in)::n
+    real(dp),intent(inout)::r(:,:)
+    integer,intent(in)::ipvt(:)
+    real(dp),intent(in)::diag(:)
+    real(dp),intent(in)::qtb(:)
+    real(dp),intent(out)::x(:)
+    real(dp),intent(out)::sdiag(:)
 
 
     !     **********
@@ -2909,7 +2952,7 @@ module Levenberg_Marquardt
 
     !     **********
     integer::i,j,jp1,k,kp1,l,nsing
-    real(dp)::COS,cotan,qtbpj,SIN,sum,TAN,temp,wa(n)
+    real(dp)::COS,cotan,qtbpj,Sin,sum,TAN,temp,wa(n)
     real(dp),parameter::p5 = 0.5_dp,p25 = 0.25_dp
 
     !     copy r and (q transpose)*b to preserve input and initialize s.
@@ -2948,28 +2991,28 @@ module Levenberg_Marquardt
           if (sdiag(k) == zero) cycle
           if (abs(r(k,k)) < abs(sdiag(k))) then
             cotan = r(k,k)/sdiag(k)
-            SIN = p5/sqrt(p25 + p25*cotan**2)
-            COS = SIN*cotan
+            Sin = p5/sqrt(p25 + p25*cotan**2)
+            COS = Sin*cotan
           else
             TAN = sdiag(k)/r(k,k)
             COS = p5/sqrt(p25 + p25*TAN**2)
-            SIN = COS*TAN
+            Sin = COS*TAN
           end if
 
           !           compute the modified diagonal element of r and
           !           the modified element of ((q transpose)*b,0).
 
-          r(k,k) = COS*r(k,k) + SIN*sdiag(k)
-          temp = COS*wa(k) + SIN*qtbpj
-          qtbpj = -SIN*wa(k) + COS*qtbpj
+          r(k,k) = COS*r(k,k) + Sin*sdiag(k)
+          temp = COS*wa(k) + Sin*qtbpj
+          qtbpj = -Sin*wa(k) + COS*qtbpj
           wa(k) = temp
 
           !           accumulate the tranformation in the row of s.
 
           kp1 = k + 1
           do  i = kp1,n
-            temp = COS*r(i,k) + SIN*sdiag(i)
-            sdiag(i) = -SIN*r(i,k) + COS*sdiag(i)
+            temp = COS*r(i,k) + Sin*sdiag(i)
+            sdiag(i) = -Sin*r(i,k) + COS*sdiag(i)
             r(i,k) = temp
           end do
       end do
@@ -3030,8 +3073,8 @@ module Levenberg_Marquardt
     ! Code converted using TO_F90 by Alan Miller
     ! Date: 1999-12-09  Time: 12:45:34
 
-    integer,intent(IN)::n
-    real(dp),intent(IN)::x(:)
+    integer,intent(in)::n
+    real(dp),intent(in)::x(:)
     real(dp)::fn_val
 
 
@@ -3171,7 +3214,7 @@ module Levenberg_Marquardt
     !  Reference:
     !
     !    Jorge More, Burton Garbow, Kenneth Hillstrom,
-    !    User Guide for MINPACK-1
+    !    User Guide for MinPACK-1
     !    Argonne National Laboratory,
     !    Argonne, Illinois.
     !
@@ -3256,22 +3299,22 @@ module Levenberg_Marquardt
 
     ! N.B. Arguments LDFJAC & WA have been removed.
 
-    integer,intent(IN)::m
-    integer,intent(IN)::n
-    real(dp),dimension(:),intent(INOUT)::x
-    real(dp),dimension(:),intent(IN)::fvec
-    real(dp),dimension(:,:),intent(OUT)::fjac    ! fjac(ldfjac,n)
+    integer,intent(in)::m
+    integer,intent(in)::n
+    real(dp),dimension(:),intent(inout)::x
+    real(dp),dimension(:),intent(in)::fvec
+    real(dp),dimension(:,:),intent(out)::fjac    ! fjac(ldfjac,n)
     integer,intent(inout)::iflag
-    real(dp),intent(IN)::epsfcn
+    real(dp),intent(in)::epsfcn
 
     interface
       subroutine fcn(m,n,x,fvec,iflag)
         use constants
         implicit none
-        !INTEGER,PARAMETER::dp = SELECTED_REAL_KIND(12,60)
-        integer,intent(IN)::m,n
-        real(dp),intent(IN)::x(:)
-        real(dp),intent(OUT)::fvec(:)
+        !inTEGER,PARAMETER::dp = SELECTED_REAL_KinD(12,60)
+        integer,intent(in)::m,n
+        real(dp),intent(in)::x(:)
+        real(dp),intent(out)::fvec(:)
         integer,intent(inout)::iflag
       end subroutine fcn
     end interface
@@ -3302,7 +3345,7 @@ module Levenberg_Marquardt
     !  Reference:
     !
     !    Jorge More, Burton Garbow, Kenneth Hillstrom,
-    !    User Guide for MINPACK-1,
+    !    User Guide for MinPACK-1,
     !    Technical Report ANL-80-74,
     !    Argonne National Laboratory, 1980.
     !
@@ -3384,20 +3427,20 @@ module Levenberg_Marquardt
 
     ! N.B. Arguments LDFJAC & WA have been removed.
 
-    integer,intent(IN)::m,n
-    real(dp),dimension(:),intent(INOUT)::allpar,x
-    real(dp),dimension(:),intent(IN)::fvec
-    real(dp),dimension(:,:),intent(OUT)::fjac    ! fjac(ldfjac,n)
+    integer,intent(in)::m,n
+    real(dp),dimension(:),intent(inout)::allpar,x
+    real(dp),dimension(:),intent(in)::fvec
+    real(dp),dimension(:,:),intent(out)::fjac    ! fjac(ldfjac,n)
     integer,intent(inout)::iflag
-    real(dp),intent(IN)::epsfcn
+    real(dp),intent(in)::epsfcn
 
     interface
       subroutine fcn(allpar,m,n,x,fvec,iflag)
         use constants
         implicit none
-        integer,intent(IN)::m,n
-        real(dp),dimension(:),intent(IN)::allpar,x
-        real(dp),dimension(:),intent(OUT)::fvec
+        integer,intent(in)::m,n
+        real(dp),dimension(:),intent(in)::allpar,x
+        real(dp),dimension(:),intent(out)::fvec
         integer,intent(inout)::iflag
       end subroutine fcn
     end interface
@@ -3428,30 +3471,42 @@ module Levenberg_Marquardt
     return
   end subroutine fdjac2_2
 
-  subroutine fdjac2_3(fcn,allpar,m,n,x,RV_obs,T0_obs,fvec,fjac,iflag,epsfcn)
+!   subroutine fdjac2_3(fcn,allpar,m,n,x,RV_obs,T0_obs,fvec,fjac,iflag,epsfcn)
 
+  subroutine fdjac2_3(fcn,allpar,m,n,x,oDataIn,fvec,fjac,iflag,epsfcn)
     ! Code converted using TO_F90 by Alan Miller
     ! Date: 1999-12-09  Time: 12:45:44
 
     ! N.B. Arguments LDFJAC & WA have been removed.
 
-    integer,intent(IN)::m,n
+    integer,intent(in)::m,n
     real(dp),dimension(:),intent(inout)::allpar,x
-    real(dp),dimension(:),intent(in)::RV_obs
-    real(dp),dimension(:,:),intent(in)::T0_obs
-    real(dp),dimension(:),intent(IN)::fvec
-    real(dp),dimension(:,:),intent(OUT)::fjac    ! fjac(ldfjac,n)
+    type(dataObs),intent(in)::odataIn
+    real(dp),dimension(:),intent(in)::fvec
+    real(dp),dimension(:,:),intent(out)::fjac    ! fjac(ldfjac,n)
     integer,intent(inout)::iflag
-    real(dp),intent(IN)::epsfcn
+    real(dp),intent(in)::epsfcn
 
+!     interface
+!       subroutine fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+!         use constants
+!         implicit none
+!         integer,intent(in)::m,n
+!         real(dp),dimension(:),intent(in)::allpar,x,RV_obs
+!         real(dp),dimension(:,:),intent(in)::T0_obs
+!         real(dp),dimension(:),intent(out)::fvec
+!         integer,intent(inout)::iflag
+!       end subroutine fcn
+!     end interface
     interface
-      subroutine fcn(allpar,m,n,x,RV_obs,T0_obs,fvec,iflag)
+      subroutine fcn(allpar,m,n,x,oDataIn,fvec,iflag)
+        use custom_type
         use constants
         implicit none
-        integer,intent(IN)::m,n
-        real(dp),dimension(:),intent(IN)::allpar,x,RV_obs
-        real(dp),dimension(:,:),intent(in)::T0_obs
-        real(dp),dimension(:),intent(OUT)::fvec
+        integer,intent(in)::m,n
+        real(dp),dimension(:),intent(in)::allpar,x
+        type(dataObs),intent(in)::oDataIn
+        real(dp),dimension(:),intent(out)::fvec
         integer,intent(inout)::iflag
       end subroutine fcn
     end interface
@@ -3471,7 +3526,8 @@ module Levenberg_Marquardt
       if (h == zero) h = eps
 
       x(j) = temp + h
-      call fcn(allpar,m,n,x,RV_obs,T0_obs,wa,iflag)
+!       call fcn(allpar,m,n,x,RV_obs,T0_obs,wa,iflag)
+      call fcn(allpar,m,n,x,oDataIn,wa,iflag)
 
       if (iflag < 0) exit
 
@@ -3585,7 +3641,7 @@ module Levenberg_Marquardt
 30     continue
       l = k
     end do
-    ! 50 CONTINUE
+    ! 50 CONTinUE
     !write(*,'(a)')" covar 2"
     !     form the full upper triangle of the inverse of (r transpose)*r
     !     in the full upper triangle of r.

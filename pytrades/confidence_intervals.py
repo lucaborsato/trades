@@ -19,60 +19,6 @@ import pytrades_lib
 
 # ==============================================================================
 
-def ttra_and_rv_from_samples(samples_fit_par, emcee_par_names, NB):
-  
-  n_samples, nfit = np.shape(samples_fit_par)
-  Pephem = pytrades_lib.pytrades.pephem
-  nt0_full, nrv_nmax = pytrades_lib.pytrades.get_max_nt0_nrv(Pephem,NB)
-  
-  #print(' Pephem = ', Pephem)
-  #print(' nT0 = %4d nRV = %6d' %(nt0_full, nrv_nmax))
-  
-  #trades_par_names = anc.emcee_names_to_trades(emcee_par_names)
-  
-  #init transit times dictionary
-  ttra_samples = {}
-  #for ipl in range(0, NB-1):
-    #ttra_samples['%d' %(ipl+2)] = []
-  
-  # rv dictionary
-  rv_samples = {'rv_mod': []}
-  
-  for isample in range(0, n_samples):
-    #anc.print_both('\nSample %d' %(isample))
-    trades_fit_par = anc.sqrte_to_e_fitting(samples_fit_par[isample], emcee_par_names)
-    ttra_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = pytrades_lib.pytrades.fit_par_to_ttra_rv(trades_fit_par, nt0_full, nrv_nmax)
-    
-    stats_ttra = np.array(stats_ttra).astype(bool)
-    stats_rv = np.array(stats_rv).astype(bool)
-    
-    for ipl in range(0, NB-1):
-      id_pl = ipl+2
-      ttra = np.sort(ttra_full[np.logical_and(id_ttra_full == id_pl, stats_ttra)])
-      ttra_samples['%d' %(id_pl)].append(ttra)
-      #ttra_samples['%d' %(id_pl)] = ttra
-      print id_pl, np.shape(ttra)
-  
-    #print('\ntime rv[0:10]:')
-    #print(time_rv_nmax[0:10])
-    time_rvx, rvx = time_rv_nmax[stats_rv], rv_nmax[stats_rv]
-    #print(time_rvx[0:10])
-    id_rv = np.argsort(time_rvx)
-    time_rv, rv = time_rvx[id_rv], rvx[id_rv]
-    #print(time_rv[0:10])
-    if(isample == 0):
-      rv_samples['time_rv_mod'] = np.array(time_rv, dtype=np.float64)
-    rv_samples['rv_mod'].append(rv)
-  rv_samples['rv_mod'] = np.array(rv_samples['rv_mod'], dtype=np.float64).T
-  
-  print '\n', ttra_samples.keys(), '\n'
-  #for key in ttra_samples.keys():
-    #ttra_samples[key] = np.array(ttra_samples[key], dtype=np.float64).T
-  
-  return ttra_samples, rv_samples
-
-# ==============================================================================
-
 def save_ttra_and_rv_from_samples(samples_fit_par, names_par, NB, n_samples, smp_h5):
   
   n_samples, nfit = np.shape(samples_fit_par)
@@ -84,7 +30,7 @@ def save_ttra_and_rv_from_samples(samples_fit_par, names_par, NB, n_samples, smp
     gr = smp_h5.create_group(smp_name)
     gr.attrs['tepoch'] = pytrades_lib.pytrades.tepoch
     trades_fit_par = anc.sqrte_to_e_fitting(samples_fit_par[ismp], names_par)
-    ttra_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = pytrades_lib.pytrades.fit_par_to_ttra_rv(trades_fit_par, nt0_full, nrv_nmax)
+    ttra_full, dur_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = pytrades_lib.pytrades.fit_par_to_ttra_rv(trades_fit_par, nt0_full, nrv_nmax)
     
     stats_rv = np.array(stats_rv).astype(bool)
     time_rvx, rvx = time_rv_nmax[stats_rv], rv_nmax[stats_rv]
@@ -97,10 +43,20 @@ def save_ttra_and_rv_from_samples(samples_fit_par, names_par, NB, n_samples, smp
     
     stats_ttra = np.array(stats_ttra).astype(bool)
     for ipl in range(2, NB+1):
-      ttra = np.sort(ttra_full[np.logical_and(id_ttra_full == ipl, stats_ttra)])
+      sel_tra = np.logical_and(np.logical_and(id_ttra_full == ipl, stats_ttra),
+                               ttra_full > -9.e10
+                               )
+      ttra = np.array(ttra_full)[sel_tra]
+      dur = np.array(dur_full)[sel_tra]
+      idx_tra = np.argsort(ttra)
+      ttra = ttra[idx_tra]
+      dur = dur[idx_tra]
       gr.create_dataset('TTs_%d' %(ipl), data=ttra,
-                        dtype=np.float64, compression='gzip')
-      
+                        dtype=np.float64, compression='gzip'
+                        )
+      gr.create_dataset('T41s_%d' %(ipl), data=dur,
+                        dtype=np.float64, compression='gzip'
+                        )
   return
 
 # ==============================================================================
@@ -334,7 +290,11 @@ def main():
   nbins = anc.get_auto_bins(flatchain_posterior_0)
   hdi_ci, mode_parameters = anc.compute_hdi_full(flatchain_posterior_0, mode_output=True)
   ci_fitted = hdi_ci.T
-  #print np.shape(hdi_ci), np.shape(ci_fitted)
+  print ' shape: hdi_ci = ', np.shape(hdi_ci), ' ci_fitted = ', np.shape(ci_fitted)
+  # hdi_ci: nfit x nci
+  # ci_fitted: nci x nfit
+  # nci -> -1sigma(0) +1sigma(1) -2sigma(2) +2sigma(3) -3sigma(4) +3sigma(5)
+  
   #sys.exit()
   
   units_par = anc.get_units(names_par, mass_unit)
@@ -421,7 +381,10 @@ def main():
   median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
   folder_1050 = get_intervals(cli.full_path, 1050, names_par, median_parameters, flatchain_posterior_0, derived_type='median', summary_file_hdf5=s_h5f)
   ## MEDIAN PARAMETERS ID == 1051
-  folder_1051 = get_intervals(cli.full_path, 1051, names_par, median_parameters, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
+  folder_1051 = get_intervals(cli.full_path, 1051, names_par, median_parameters,
+                              flatchain_posterior_0, derived_type=None,
+                              summary_file_hdf5=s_h5f
+                              )
 # ==============================================================================
   
   print
@@ -433,10 +396,11 @@ def main():
   if(cli.n_samples > 0):
     anc.print_both(' Selecting %d samples from the posterior ...' %(cli.n_samples))
     sys.stdout.flush()
-    samples_fit_par = anc.take_n_samples(flatchain_posterior_0, ci_fitted[2:4,:], n_samples=cli.n_samples)
+    samples_fit_par = anc.take_n_samples(flatchain_posterior_0, ci_fitted[0:2,:],
+                                         n_samples=cli.n_samples
+                                         )
     samples_fit_par[0,:] = median_parameters # first sample as the median of the posterior
     anc.print_both(' Running TRADES and computing the T0s and RVs ...')
-    #ttra_samples, rv_samples = ttra_and_rv_from_samples(samples_fit_par, names_par, NB)
     samples_file = os.path.join(cli.full_path, 'samples_ttra_rv.hdf5')
     anc.print_both(' Saving into %s' %(samples_file))
     smp_h5 = h5py.File(samples_file, 'w')
@@ -470,9 +434,15 @@ def main():
   if(np.any(np.isnan(mode_parameters))):
     print 'Some values are Nan, skip the mode parameters'
   else:
-    folder_3050 = get_intervals(cli.full_path, 3050, names_par, mode_parameters, flatchain_posterior_0, derived_type='mode', summary_file_hdf5=s_h5f)
+    folder_3050 = get_intervals(cli.full_path, 3050, names_par, mode_parameters,
+                                flatchain_posterior_0, derived_type='mode', 
+                                summary_file_hdf5=s_h5f
+                                )
     ## MODE-LIKE PARAMETERS -> id 3051
-    folder_3051 = get_intervals(cli.full_path, 3051, names_par, mode_parameters, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
+    folder_3051 = get_intervals(cli.full_path, 3051, names_par, mode_parameters,
+                                flatchain_posterior_0, derived_type=None,
+                                 summary_file_hdf5=s_h5f
+                                 )
 # ==============================================================================
   
   print
@@ -486,9 +456,13 @@ def main():
                                                              names_par, 
                                                              name_par = name_par,
                                                              name_excluded = name_excluded,
-                                                             post_ci=ci_fitted[0:2,:])
+                                                             post_ci=ci_fitted[0:2,:]
+                                                             )
   if(sample_parameters is not None):
-    folder_666 = get_intervals(cli.full_path, 666, names_par, sample_parameters, flatchain_posterior_0, idx_sample=idx_sample, summary_file_hdf5=s_h5f)
+    folder_666 = get_intervals(cli.full_path, 666, names_par, sample_parameters,
+                               flatchain_posterior_0, idx_sample=idx_sample, 
+                               summary_file_hdf5=s_h5f
+                               )
     s_h5f['parameters/%04d' %(666)].attrs['par_selection'] = name_par
     if(name_excluded is not None):
       s_h5f['parameters/%04d' %(666)].attrs['par_excluded'] = name_excluded
@@ -507,7 +481,10 @@ def main():
     print cli.overplot, cli.adhoc
     adhoc_names, adhoc_par_trades = anc.read_fitted_file(cli.adhoc)
     adhoc_par = anc.e_to_sqrte_fitting(adhoc_par_trades, adhoc_names)
-    folder_777 = get_intervals(cli.full_path, 777, names_par, adhoc_par, flatchain_posterior_0, derived_type=777, summary_file_hdf5=s_h5f)
+    folder_777 = get_intervals(cli.full_path, 777, names_par, adhoc_par,
+                               flatchain_posterior_0, derived_type=777,
+                                summary_file_hdf5=s_h5f
+                                )
 # ==============================================================================
 
 # ==============================================================================
@@ -516,7 +493,9 @@ def main():
   sample2_parameters, sample2_lgllhd = anc.get_sample_by_sorted_lgllhd(
                                        flatchain_posterior_0,
                                        lnprob_burnin.T,
-                                       post_ci = ci_fitted[0:2,:]                                                                      )
+                                       #post_ci = ci_fitted[0:2,:]
+                                       post_ci = ci_fitted.T
+                                       )
   folder_667 = get_intervals(cli.full_path, 667, names_par, sample2_parameters, flatchain_posterior_0, derived_type=667, summary_file_hdf5=s_h5f)
 # ==============================================================================
   
@@ -531,10 +510,14 @@ def main():
                                        #name_par= name_par)
   sample3_parameters, sample3_lgllhd = \
                              anc.select_maxlglhd_with_hdi(flatchain_posterior_0,
-                                                          ci_fitted[0:2,:],
+                                                          #ci_fitted[0:2,:],
+                                                          ci_fitted.T,
                                                           lnprob_burnin.T
                                                           )
-  folder_668 = get_intervals(cli.full_path, 668, names_par, sample3_parameters, flatchain_posterior_0, derived_type=668, summary_file_hdf5=s_h5f)
+  folder_668 = get_intervals(cli.full_path, 668, names_par, sample3_parameters,
+                             flatchain_posterior_0, derived_type=668,
+                             summary_file_hdf5=s_h5f
+                             )
 # ==============================================================================
 
   s_h5f.close()

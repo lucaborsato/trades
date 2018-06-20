@@ -329,7 +329,7 @@ contains
     else ! max peak with periods boudaries >= 2*max peak outside --> BAD
       gls_check=.false.
       delta_max=max(abs(period_max-periods_bounds(1,pl_max)),abs(periods_bounds(2,pl_max)-period_max))
-      if(delta_max.lt.TOLERANCE) delta_max=TOLERANCE
+      if(delta_max.lt.TOL_dp) delta_max=TOL_dp
       gls_scale=one-log10(delta_max)
     end if
     deallocate(periods_bounds)
@@ -385,7 +385,7 @@ contains
       gls_check=.false.
       if(present(gls_scale))then
         delta_max=max(abs(period_max-periods_bounds(1,pl_max)),abs(periods_bounds(2,pl_max)-period_max))
-        if(delta_max.lt.TOLERANCE) delta_max=TOLERANCE
+        if(delta_max.lt.TOL_dp) delta_max=TOL_dp
         gls_scale=one-log10(delta_max)
       end if
     end if

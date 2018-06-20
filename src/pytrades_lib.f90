@@ -17,20 +17,11 @@ module pytrades
   ! exposing variables in parameters to trades_lib
   !f2py integer,parameter::dp=selected_real_kind(8)
   !f2py character(512)::path
-  !f2py integer::ndata,npar,nfit,nfree,dof
+  
+  !f2py integer::npar,nfit
+  
   !f2py real(dp),parameter::resmax=1.e10_dp
   !f2py real(dp)::tepoch,tint
-  
-  !f2py integer::nRV,nRVset
-  !f2py real(dp),dimension(:),allocatable::eRVobs ! it will be exposed in python as ervobs
-  
-  !f2py integer,dimension(:),allocatable::nT0
-  !f2py real(dp),dimension(:,:),allocatable::eT0obs ! it will be exposed in python as et0obs
-  
-  !! !f2py real(dp),dimension(:),allocatable::Tephem,eTephem,Pephem,ePephem
-  !f2py real(dp),dimension(:),allocatable::Pephem
-  
-  !f2py real(dp)::ln_err_const
   
   !f2py real(dp),dimension(2,2)::MR_star
   !f2py real(dp),dimension(:),allocatable::system_parameters
@@ -44,7 +35,16 @@ module pytrades
 
   !f2py integer::ncpu_in
   
-!   integer::ngrid,ncol_grid
+  ! needed because TRADES now uses these variables in data type
+  integer::ndata,nfree,dof
+  integer::nRV,nRVset
+  integer,dimension(:),allocatable::nT0
+  real(dp),dimension(:),allocatable::Pephem
+  integer::nTTs,nDurs
+  
+!   real(dp)::ln_err_const,inv_dof
+  real(dp)::inv_dof
+  !f2py real(dp)::ln_err_const
   
   ! variables:  parameters to fit
   real(dp),dimension(:),allocatable::fitting_parameters
@@ -64,7 +64,9 @@ module pytrades
     integer,intent(in)::n_threads_in
     real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN
     integer,dimension(:),allocatable::nset
-    character(80)::fmt
+!     character(80)::fmt
+
+    integer::inb
     
     ! subroutine: initu -> init_trades
     ! variables:  nfiles -> constants (default = 90)
@@ -101,7 +103,7 @@ module pytrades
     !$ call omp_set_num_threads(ncpu_in)
     !$ call initu(nfiles, ncpu_in)
     
-!     write(*,*)' in pytrades_lin ncpu_in = ',ncpu_in
+!     write(*,*)' in pytrades_lib ncpu_in = ',ncpu_in
     
 !     write(*,'(a,a,a)')" READ ",trim(path)//"arg.in"
 !     progtype=6 ! needed for other subroutines
@@ -110,8 +112,8 @@ module pytrades
     !             NB -> parameters (default =2, updated with read_arg)
     n_bodies=NB ! needed to be used by python wrapper ... to check if I can avoid it
     allocate(e_bounds(2,NB))
-    e_bounds(1,:)=TOLERANCE
-    e_bounds(2,:)=1._dp-TOLERANCE
+    e_bounds(1,:)=TOL_dp
+    e_bounds(2,:)=1._dp-TOL_dp
     ! IT READS THE FILES AND THE NAMES OF THE BODIES AND DETERMINES THE PARAMETERS TO BE FITTED
     ! subroutine: read_list -> init_trades
     ! variables:  cpuid = 1
@@ -151,48 +153,63 @@ module pytrades
 !     fmt=adjustl("(a,i4,a,i4,a,"//trim(string(nRVset))//"i4))")
 !     if(rvcheck.eq.1) write(*,trim(fmt))" RV DATA: nRV = ",nRV,&
 !       &" in ",nRVset," set of RV: ",nRVsingle
+    nRV=obsData%obsRV%nRV
+    nRVset=obsData%obsRV%nRVset
 
     ! IT READS T0 DATA
+    ! allocate number of derived dataT0 for each body in the dataObs type
+    allocate(obsData%obsT0(NB-1),nT0(NB-1))
+    nT0=0
     ! subroutine: cpuid=1
     call read_T0obs(1)
     ! variables:  idtra -> parameters
     !             nT0 -> parameters
 !     if(idtra.ne.0) write(*,'(a,1000(i5,1x))') " T0 DATA: nT0 = ",nT0(2:)
 
+    nT0=obsData%obsT0(:)%nT0
+    
     ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
-    if(sum(nT0).gt.0) call set_ephem()
-
+    if(obsData%nTTs.gt.0)then
+      call set_ephem()
+      call compute_oc(obsData%obsT0)
+      allocate(Pephem(NB))
+      Pephem=zero
+      do inb=2,NB
+        Pephem(inb)=obsData%obsT0(inb-1)%Pephem
+      end do
+    end if
+      
     ! IT DETERMINS THE NDATA
     ! variables:  ndata -> parameters
     !             dof -> parametershttp://www.r-bloggers.com/wilcoxon-signed-rank-test/
     !             nfit -> parameters
     !             inv_dof -> parameters
     !             one -> constants
-    ndata=nRV+sum(nT0)
+    nTTs=obsData%nTTs
+    nDurs = obsData%nDurs
     
-!     if(nfit.ge.ndata)then
-!       stop('NUMBER OF PARAMETERS TO FIT IS GREATER/EQUAL TO TOTAL NUMBER OF DATAPOINTS')
-!     end if
-!     dof=(ndata-nfit)
-    nfree=nRVset
-    dof=ndata-nfit-nfree
+    obsData%ndata=nRV+nTTs+nDurs
+    obsData%nfree=obsData%obsRV%nRVset
+    obsData%dof=(obsData%ndata-nfit-obsData%nfree)
+    
+    ndata=obsData%ndata
+    nfree=obsData%nfree
+    dof=obsData%dof
+
     if(dof.le.0)then
       write(*,'(a,a)')' FOUND dof <= 0 SO IT IS FORCED TO 1 IN CASE',&
          &' THE USER WANT TO SIMULATE/INTEGRATE AND NOT CHECK THE FIT.'
-         dof=1
+      obsData%dof=1
+      dof=obsData%dof
     end if
     
-    inv_dof = one / real(dof,dp)
-!     write(*,'(a,i5)')" NUMBER OF DATA AVAILABLE: ndata = ",ndata
-!     write(*,'(a,i5)')" NUMBER OF PARAMETERS TO FIT: nfit = ",nfit
-!     write(*,'(a,i5)')&
-!         &" NUMBER OF DEGREES OF FREEDOM : dof = ndata - nfit = ",dof
+    obsData%inv_dof = one / real(obsData%dof,dp)
+    inv_dof=obsData%inv_dof
 
     ! IT DETERMINES THE LN_ERR_CONST TO COMPUTE LOGLIKELIHOOD
-    ln_err_const = get_ln_err_const(eRVobs,eT0obs)
-!     write(*,'(a,es23.16)')' LN_ERR_CONST (init_trades) = ',ln_err_const
-!     flush(6)
-
+!     ln_err_const = get_ln_err_const(eRVobs,eT0obs)
+    ln_err_const = get_lnec(obsData)
+    
     ! IT SETS THE LIST OF THE PARAMETERS TO FIT
     ! subroutine: set_parid_list -> init_trades
     call set_parid_list()
@@ -200,18 +217,30 @@ module pytrades
     ! variables:  nset -> parameters
     !             k_a -> parameters
     !             k_b -> parameters
-    if(nRV.ne.0.and.sum(nT0).ne.0)then
-      allocate(nset(2),k_b(2))
-      nset(1)=nRV
-      nset(2)=sum(nT0)
-    else if(nRV.ne.0.and.sum(nT0).eq.0)then
+    if(nRV.ne.0.and.nTTs.ne.0)then
+      if(durcheck.eq.0) then
+        allocate(nset(2),k_b(2))
+        nset(1)=nRV
+        nset(2)=nTTs
+      else
+        allocate(nset(3),k_b(3))
+        nset(1)=nRV
+        nset(2)=nTTs
+        nset(3)=nDurs
+      end if
+    else if(nRV.ne.0.and.nTTs.eq.0)then
       allocate(nset(1),k_b(1))
       nset(1)=nRV
-    else if(nRV.eq.0.and.sum(nT0).ne.0)then
-      allocate(nset(1),k_b(1))
-      nset(1)=sum(nT0)
+    else if(nRV.eq.0.and.nTTs.ne.0)then
+      if(durcheck.eq.0) then
+        allocate(nset(1),k_b(1))
+        nset(1)=nTTs
+      else
+        allocate(nset(2),k_b(2))
+        nset(1)=nTTs
+        nset(2)=nDurs
+      end if
     else
-!       stop('No data-set available. Please check the files.')
       allocate(nset(1),k_b(1))
       nset(1)=1
     end if
@@ -323,7 +352,9 @@ module pytrades
     fitness=zero
     
     fitness=bound_fitness_function(system_parameters,fit_parameters)
-    lgllhd=-half*fitness*real(dof,dp) ! lgllh = - chi2 / 2 || fitness =~ chi2 / dof
+    lgllhd=-half*fitness*real(obsData%dof,dp) ! lgllh = - chi2 / 2 || fitness =~ chi2 / dof
+!     lgllhd=-half*fitness
+    
     if(fitness.ge.resmax)check=.false.
 
     return
@@ -429,7 +460,6 @@ module pytrades
     logical,intent(out)::check
     real(dp),dimension(:),allocatable::run_all_par
     logical::check_status
-    integer::i
 !     logical::wrt_info=.true.
         
     check=.true.
@@ -461,7 +491,8 @@ module pytrades
       write(*,'(a)')'WARNING'
       write(*,'(a)')'*******'
     end if
-    lgllhd=-half*fitness*real(dof,dp)+ln_err_const
+    lgllhd=-half*fitness*real(obsData%dof,dp)+ln_err_const
+!     lgllhd=-half*fitness+ln_err_const
 !     if(fitness.ge.resmax)check=.false.
 
         
@@ -485,7 +516,6 @@ module pytrades
     
     real(dp),dimension(:),allocatable::run_all_par
     logical::check_status
-    integer::i
     
     check=.true.
     check_status=.true.
@@ -509,7 +539,8 @@ module pytrades
     else
       fitness=resmax
     end if
-    lgllhd=-half*fitness*real(dof,dp)+ln_err_const
+    lgllhd=-half*fitness*real(obsData%dof,dp)+ln_err_const
+!     lgllhd=-half*fitness+ln_err_const
     if(fitness.ge.resmax)check=.false.
     
     return
@@ -525,8 +556,7 @@ module pytrades
     real(dp),dimension(nfit),intent(out)::best_parameters
     real(dp),intent(out)::best_fitness
     real(dp)::best_inv_fitness
-    integer::ii
-    
+
     path=trim(adjustl(path))
     best_parameters=zero
     best_inv_fitness=one
@@ -542,6 +572,7 @@ module pytrades
   ! subroutine useful to modify the working path fo TRADES from python
   subroutine path_change(new_path)
     character(512),intent(in)::new_path
+    
     path=trim(adjustl(new_path))
 !     write(*,*)trim(adjustl(path))
     
@@ -586,6 +617,9 @@ module pytrades
   end subroutine deallocate_variables
   
   ! ============================================================================
+  ! +++***+++
+  ! CHECKS THE NEXT!
+  ! +++***+++
   
   ! SUBROUTINE TO INITIALISE TRADES WITHOUT READING FILES
   subroutine args_init(t_start,t_epoch,t_int,n_body,&
@@ -619,6 +653,8 @@ module pytrades
     
 !f2py integer intent(hide),depend(t0_num,t0_obs,et0_obs)::n_max_t0=shape(t0_num,0),n_col=shape(t0_num,1)
     
+    integer::ibd,nx
+    
     tstart=t_start
     tepoch=t_epoch
     tint=t_int
@@ -627,13 +663,26 @@ module pytrades
     
     allocate(e_bounds(2,n_body))
     e_bounds(1,:)=zero
-    e_bounds(2,:)=one-TOLERANCE
+    e_bounds(2,:)=one-TOL_dp
     
-    call set_ephem(n_body,n_t0,t0_num,t0_obs,et0_obs)
+!     call set_ephem(n_body,n_t0,t0_num,t0_obs,et0_obs)
+    obsData%nTTs=sum(n_t0)
+    allocate(obsData%obsT0(n_body-1))
+    do ibd=1,n_body-1
+      nx=n_t0(ibd+1)
+      obsData%obsT0(ibd)%nT0=nx
+      allocate(obsData%obsT0(ibd)%epo(nx),obsData%obsT0(ibd)%T0(nx),&
+        &obsData%obsT0(ibd)%eT0(nx))
+      obsData%obsT0(ibd)%epo=t0_num(1:nx,ibd+1)
+      obsData%obsT0(ibd)%T0=t0_obs(1:nx,ibd+1)
+      obsData%obsT0(ibd)%eT0=et0_obs(1:nx,ibd+1)
+    end do
+    call set_ephem()
+    call compute_oc(obsData%obsT0)
     
     rvcheck=1
     durcheck=0
-    amin=TOLERANCE
+    amin=TOL_dp
     amax=1.e4_dp
     
     return
@@ -642,11 +691,16 @@ module pytrades
   ! ============================================================================
   
   !!! SUBROUTINE TO RUN TRADES INTEGRATION AND RETURN RV_SIM AND T0_SIM
+!   subroutine kelements_to_data(t_start,t_epoch,step_in,t_int,&
+!     &m_msun,R_rsun,P_day,ecc,argp_deg,mA_deg,inc_deg,lN_deg,&
+!     &t_rv,transit_flag,n_t0,t0_num,& ! input
+!     &rv_sim,t0_sim,& ! output
+!     &n_body,n_rv,n_max_t0) ! dimensions
   subroutine kelements_to_data(t_start,t_epoch,step_in,t_int,&
     &m_msun,R_rsun,P_day,ecc,argp_deg,mA_deg,inc_deg,lN_deg,&
-    &t_rv,transit_flag,n_t0,t0_num,& ! input
+    &t_rv,transit_flag,& ! input
     &rv_sim,t0_sim,& ! output
-    &n_body,n_rv,n_max_t0) ! dimensions, try to not provide it...
+    &n_body,n_rv,n_max_t0) ! dimensions
 
     ! INPUT
     ! t_start      == start of the integration
@@ -683,15 +737,17 @@ module pytrades
     real(dp),dimension(n_body),intent(in)::ecc,argp_deg,mA_deg,inc_deg,lN_deg
     real(dp),dimension(n_RV),intent(in)::t_rv
     logical,dimension(n_body),intent(in)::transit_flag
-    integer,dimension(n_body),intent(in)::n_t0
-    integer,dimension(n_max_t0,n_body),intent(in)::t0_num
+!     integer,dimension(n_body),intent(in)::n_t0
+!     integer,dimension(n_max_t0,n_body),intent(in)::t0_num
     
     real(dp),dimension(n_RV),intent(out)::rv_sim
     real(dp),dimension(n_max_t0,n_body),intent(out)::t0_sim
     
 
 !f2py    integer,intent(hide),depend(t_rv)::n_rv=len(t_rv)
-!f2py    integer,intent(hide),depend(t0_num)::n_max_t0=shape(t0_num,0), n_body=shape(t0_num,1)
+
+
+! !f2py    integer,intent(hide),depend(t0_num)::n_max_t0=shape(t0_num,0), n_body=shape(t0_num,1)
 
 ! !f2py    integer,intent(hide),depend(n_t0)::n_body=len(m_msun)
     
@@ -699,10 +755,18 @@ module pytrades
     real(dp),dimension(:),allocatable::rv_temp
     real(dp),dimension(:,:),allocatable::t0_temp
     
+    ! DATA
+    ! set obsData from here!!
+    ! RV
+    obsData%obsRV%nRV=n_RV
+    allocate(obsData%obsRV%jd(n_RV))
+    obsData%obsRV%jd = t_rv
+    ! TT in args_init
+    
     call orbits_to_data(t_start,t_epoch,step_in,t_int,&
       &m_msun,R_rsun,P_day,ecc,argp_deg,mA_deg,inc_deg,lN_deg,&
       &t_rv,RV_temp,&
-      &id_transit_body,transit_flag,durcheck,n_t0,t0_num,t0_temp)
+      &id_transit_body,transit_flag,durcheck,t0_temp)
     
     rv_sim=rv_temp
     t0_sim=t0_temp
@@ -902,7 +966,7 @@ module pytrades
     real(dp),dimension(:),allocatable::sim_all_parameters,sim_fit_parameters
     logical::tempcheck
     
-    integer,dimension(:),allocatable::nT0_perbody
+!     integer,dimension(:),allocatable::nT0_perbody
     
     tempcheck=.true.
     allocate(sim_all_parameters(npar),sim_fit_parameters(nfit))
@@ -949,8 +1013,10 @@ module pytrades
     real(dp),dimension(nrv_nmax),intent(out)::time_rv_nmax,rv_nmax
     logical,dimension(nrv_nmax),intent(out)::stats_rv
     
+    real(dp),dimension(nt0_full)::dur_full
+    
     call ode_all_ttra_rv(wrttime,m,R,P,sma,ecc,w,mA,inc,lN,&
-      &ttra_full,id_ttra_full,stats_ttra,&
+      &ttra_full,dur_full,id_ttra_full,stats_ttra,&
       &time_rv_nmax,rv_nmax,stats_rv)
   
     return
@@ -959,15 +1025,16 @@ module pytrades
   ! ============================================================================
   
   subroutine fit_par_to_ttra_rv(fit_parameters,nfit,&
-    &ttra_full,id_ttra_full,stats_ttra,nt0_full,&
+    &ttra_full,dur_full,id_ttra_full,stats_ttra,nt0_full,&
     &time_rv_nmax,rv_nmax,stats_rv,nrv_nmax)
     integer,intent(in)::nfit
     real(dp),dimension(nfit),intent(in)::fit_parameters
     integer,intent(in)::nt0_full
     
-    real(dp),dimension(nt0_full),intent(out)::ttra_full
+    real(dp),dimension(nt0_full),intent(out)::ttra_full,dur_full
     integer,dimension(nt0_full),intent(out)::id_ttra_full
     logical,dimension(nt0_full),intent(out)::stats_ttra
+    
     integer,intent(in)::nrv_nmax
     real(dp),dimension(nrv_nmax),intent(out)::time_rv_nmax,rv_nmax
     logical,dimension(nrv_nmax),intent(out)::stats_rv
@@ -980,7 +1047,7 @@ module pytrades
       &m,R,P,sma,ecc,w,mA,inc,lN,checkpar)
       
     call ode_all_ttra_rv(wrttime,m,R,P,sma,ecc,w,mA,inc,lN,&
-      &ttra_full,id_ttra_full,stats_ttra,&
+      &ttra_full,dur_full,id_ttra_full,stats_ttra,&
       &time_rv_nmax,rv_nmax,stats_rv)
     
     deallocate(m,R,P,sma,ecc,w,mA,inc,lN)

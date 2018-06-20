@@ -56,7 +56,7 @@ module celestial_mechanics
     P2=P*P
     sma=((mu*P2)/dpi2)**(onethird)
     deallocate(mu,P2)
-    
+
     return
   end subroutine semax_vec
 ! ------------------------------------------------------------------------------
@@ -77,27 +77,27 @@ module celestial_mechanics
     return
   end subroutine period_vec
 ! ------------------------------------------------------------------------------
-  
+
 ! ------------------------------------------------------------------------------
   ! time pericentre to mean anomaly
   function tau2mA(tau, t_ref, per) result(mA)
     real(dp)::mA
     real(dp),intent(in)::tau,t_ref,per
-    
+
     mA = mod( ((circ/per)*(t_ref-tau)) , circ)
-    
+
     return
   end function tau2mA
 ! ------------------------------------------------------------------------------
-  
+
 ! ------------------------------------------------------------------------------
   ! mean anomaly to time pericentre
   function mA2tau(mA, t_ref, per) result(tau)
     real(dp)::tau
     real(dp),intent(in)::mA,t_ref,per
-    
+
     tau = t_ref - (mA*per/circ)
-    
+
     return
   end function mA2tau
 ! ------------------------------------------------------------------------------
@@ -109,9 +109,9 @@ module celestial_mechanics
     real(dp),dimension(:),intent(in)::tau,per
     real(dp),intent(in)::t_ref
     real(dp),dimension(:),intent(out)::mA
-    
+
     mA = mod( ((circ/per)*(t_ref-tau)) , circ)
-    
+
     return
   end subroutine tau2mA_vec
 ! ------------------------------------------------------------------------------
@@ -122,20 +122,19 @@ module celestial_mechanics
     real(dp),dimension(:),intent(in)::mA,per
     real(dp),intent(in)::t_ref
     real(dp),dimension(:),intent(out)::tau
-    
+
     tau = t_ref - (mA*per/circ)
-    
+
     return
   end subroutine mA2tau_vec
 ! ------------------------------------------------------------------------------
-  
+
 ! ------------------------------------------------------------------------------
 !   calculates Eccentric anomaly from meanAnomaly [deg] and eccentricity
   function EAnom(mA,ecc) result(EA)
     real(dp)::EA
     real(dp),intent(IN)::mA,ecc
     real(dp)::mArad,E,fE,dfE
-    real(dp),parameter::tol=1.e-9_dp
     integer::i
 
     EA=zero
@@ -150,7 +149,7 @@ module celestial_mechanics
         fE=E-ecc*sin(E)-mArad
         dfE=one-ecc*cos(E)
         EA=E-(fE/dfE)
-        if(abs(E-EA).le.tol) exit loopo
+        if(abs(E-EA).le.TOLERANCE) exit loopo
         E=EA
       end do loopo
       EA=EA*rad2deg
@@ -161,15 +160,15 @@ module celestial_mechanics
     return
   end function EAnom
 ! ------------------------------------------------------------------------------
-  
+
 ! ------------------------------------------------------------------------------
   function calculate_true_anomaly(mean_anomaly, eccentricity) result(true_anomaly)
     real(dp)::true_anomaly
-    
+
     real(dp),intent(in)::mean_anomaly,eccentricity
-    
+
     real(dp)::EA,tan_EA,ecc_coeff
-    
+
     if(eccentricity.le.TOLERANCE)then
       true_anomaly=mean_anomaly*deg2rad
     else
@@ -178,7 +177,7 @@ module celestial_mechanics
       ecc_coeff=sqrt((one+eccentricity)/(one-eccentricity))
       true_anomaly = two * atan(ecc_coeff*tan_EA) ! output in rad!!!
     end if
-  
+
     return
   end function calculate_true_anomaly
 ! ------------------------------------------------------------------------------
@@ -186,20 +185,20 @@ module celestial_mechanics
 ! ------------------------------------------------------------------------------
   function trueAnom_ecc_to_eccAnom(trueAnom, ecc) result(eccAnom)
     real(dp)::eccAnom
-    
+
     real(dp),intent(in)::trueAnom,ecc
-    
+
     real(dp)::tan_htA,ecoeff
-    
+
     if(ecc.le.TOLERANCE)then
       eccAnom=trueAnom
     else
       tan_htA=tan(half*trueAnom*deg2rad)
-      
+
       ecoeff=sqrt((one-ecc)/(one+ecc))
       eccAnom = mod((two * atan(ecoeff*tan_htA))+dpi,dpi) ! output in rad!!!
     end if
-  
+
     return
   end function trueAnom_ecc_to_eccAnom
 ! ------------------------------------------------------------------------------
@@ -253,7 +252,7 @@ module celestial_mechanics
 ! ------------------------------------------------------------------------------
 
 ! ------------------------------------------------------------------------------
-!   calculate module of Rvec x Vvec 
+!   calculate module of Rvec x Vvec
   function rvprod(r,v) result(out)
     real(dp)::out
     real(dp),dimension(3),intent(in)::r,v
@@ -272,7 +271,7 @@ module celestial_mechanics
   end function rvprod
 ! ------------------------------------------------------------------------------
 
-! ------------------------------------------------------------------------------  
+! ------------------------------------------------------------------------------
 !   function to compute the Hill radius w/o eccentricity
   function rHill_circ(ms,mp,sma) result(rH)
     real(dp)::rH
@@ -304,52 +303,53 @@ module celestial_mechanics
     real(dp)::rH
     real(dp),intent(in)::ms,mp1,sma1,mp2,sma2
     real(dp)::sma_mean,mass_ratio
-    
+
     real(dp)::min_ratio
-    
+
     rH=zero
     sma_mean=half*(sma1+sma2)
     mass_ratio=(mp1+mp2)/ms
-    min_ratio = TOLERANCE**onethird
-    
-    
-    if(mass_ratio.le.TOLERANCE)then
-    
+    min_ratio = TOL_dp**onethird
+
+
+    if(mass_ratio.le.TOL_dp)then
+
       rH=sma_mean*min_ratio
-      write(*,'(2(a,es23.16),a)')'mass_ratio = ',mass_ratio,' <= ',TOLERANCE,' = TOLERANCE ==> USING TOLERANCE'
-      write(*,'(3(a,es23.16))')'Mstar [Msun] = ',ms,' Mi [Msun]= ',mp1,' Mj [Msun]= ',mp2
+      write(*,'(2(a,es23.16),a)')' mass_ratio = ',mass_ratio,' <= ',TOL_dp,' = TOL_dp ==> USING TOL_dp'
+      write(*,'(3(a,es23.16))')' Mstar [Msun] = ',ms,' Mi [Msun]= ',mp1,' Mj [Msun]= ',mp2
       flush(6)
-      rH=1.e10_dp
-    
-    else if(ms.le.TOLERANCE)then
-    
-      write(*,'(2(a,es23.16))')' Mstar = ',ms,' <= ',TOLERANCE,' = TOLERANCE'
-      write(*,'(3(a,es23.16))')'Mstar [Msun] = ',ms,' Mi [Msun]= ',mp1,' Mj [Msun]= ',mp2
-      flush(6)
-      rH=1.e10_dp
-!       stop
-      
-    else if(sma_mean.le.TOLERANCE)then
-    
-      write(*,'(2(a,es23.16))')' sma_mean = ',sma_mean,' <= ',TOLERANCE,' = TOLERANCE'
-      write(*,'(3(a,es23.16))')'Mstar [Msun] = ',ms,' Mi [Msun]= ',mp1,' Mj [Msun]= ',mp2
+!       rH=1.e10_dp
+
+    else if(ms.le.TOL_dp)then
+
+      write(*,'(2(a,es23.16),a)')' Mstar = ',ms,' <= ',TOL_dp,' = TOL_dp'
+      write(*,'(3(a,es23.16))')' Mstar [Msun] = ',ms,' Mi [Msun]= ',mp1,' Mj [Msun]= ',mp2
       flush(6)
       rH=1.e10_dp
 !       stop
-      
-    else if(ms.le.(mp1+mp2))then
-    
-      write(*,'(2(a,es23.16))')' Mstar [Msun] = ',ms,' <= ',mp1+mp2,' = Mi + Mj  [Msun]'
+
+    else if(sma_mean.le.TOL_dp)then
+
+      write(*,'(2(a,es23.16),a)')' sma_mean = ',sma_mean,' <= ',TOL_dp,' = TOL_dp'
+      write(*,'(3(a,es23.16))')' Mstar [Msun] = ',ms,' Mi [Msun]= ',mp1,' Mj [Msun]= ',mp2
       flush(6)
       rH=1.e10_dp
 !       stop
-      
+
+!    ! else if(ms.le.(mp1+mp2))then
+!     else if(abs(ms-(mp1+mp2)).le.TOL_dp)then
+!
+!       write(*,'(2(a,es23.16),a)')' Mstar [Msun] = ',ms,' <= ',mp1+mp2,' = Mi + Mj  [Msun]'
+!       flush(6)
+!       rH=1.e10_dp
+! !       stop
+
     else
-    
+
       rH=sma_mean*((onethird*mass_ratio)**onethird)
-    
+
     end if
-      
+
     return
   end function mutual_Hill_radius
 ! ------------------------------------------------------------------------------
@@ -362,20 +362,23 @@ module celestial_mechanics
     real(dp)::rij,sma_i,sma_j
     real(dp)::Hill_radius_ij,delta_ij,stability_criterion
     integer::i,nci,j,ncj
-    
+
     ! temp variables
-    real(dp)::mui,muj,pxx,exx,ixx,maxx,wxx,lnxx,taxx,dtxx
-    
+    real(dp)::mui,muj,pxx,exx,ixx,maxx,wxx,lnxx,taxx,dtxx,radiusij
+
     hill_check=.true.
-    
+
     if(NB.gt.2)then
       do i=2,(NB-1)
-        
+
         nci=(i-1)*6
         mui=Giau*(m(1)+m(i))
         call elem_mer(mui,rin(1+nci:6+nci),pxx,sma_i,exx,ixx,maxx,wxx,lnxx,taxx,dtxx)
-        if(sma_i.le.TOLERANCE)then
-          write(*,*)' sma_i (<=0) = ',sma_i
+        if(sma_i.le.TOL_dp)then
+!           write(*,*)'sma_i (<=0) = ',sma_i,' p_i = ',pxx
+          hill_check=.false.
+          return
+        else if(exx.ge.one)then
           hill_check=.false.
           return
         end if
@@ -384,17 +387,21 @@ module celestial_mechanics
         ncj=(j-1)*6
         muj=Giau*(m(1)+m(j))
         call elem_mer(muj,rin(1+ncj:6+ncj),pxx,sma_j,exx,ixx,maxx,wxx,lnxx,taxx,dtxx)
-        if(sma_i.le.TOLERANCE)then
-          write(*,*)' sma_j (<=0) = ',sma_j
+        if(sma_j.le.TOL_dp)then
+!           write(*,*)'sma_j (<=0) = ',sma_j,' p_j = ',pxx
+          hill_check=.false.
+          return
+        else if(exx.ge.one)then
           hill_check=.false.
           return
         end if
-        
+
         rij=dist(rin(1+nci:3+nci), rin(1+ncj:3+ncj))
-        if(abs(rij).le.(R(i)+R(j))*RsunAU)then
+        radiusij = (R(i)+R(j))*RsunAU
+        if(abs(rij-radiusij).le.TOL_dp)then
           hill_check=.false. ! if false is bad/unstable
           write(*,*)'PLANET ',i,' AND ',j,' TOUCH EACH OTHER'
-          write(*,*)'rij (au) = ',rij,' <= Rs+Rp (au) = ',(R(i)+R(j))*RsunAU
+          write(*,*)'rij (au) = ',rij,' <= Ri+Rj (au) = ',radiusij
           flush(6)
           return
         end if
@@ -403,18 +410,18 @@ module celestial_mechanics
           Hill_radius_ij = mutual_Hill_radius(m(1),m(i),sma_i,m(j),sma_j)
           delta_ij = abs(sma_j - sma_i)
           stability_criterion = (delta_ij/Hill_radius_ij) - sqrt_12
-          if(stability_criterion.le.TOLERANCE)then
+          if(stability_criterion.le.TOL_dp)then
             hill_check = .false. ! if false is bad/unstable
             return
           end if
         end if
       end do
     end if
-        
+
     return
   end function separation_mutual_Hill_check
 ! ------------------------------------------------------------------------------
-  
+
 ! ------------------------------------------------------------------------------
 ! OLD
   ! computes the initial state vector in the orbital reference frame
@@ -425,7 +432,7 @@ module celestial_mechanics
     integer::i,nci
 
     output=zero
-    
+
     do i=2,NB
       !computation of the anomalies of the bodies
 !       mA_temp=mod(mA(i),circ)+circ
@@ -456,16 +463,16 @@ module celestial_mechanics
   subroutine kepelements2statevector(mass,sma,ecc,meanA,argp,inc,longN,rout)
     real(dp),dimension(:),intent(in)::mass,sma,ecc,meanA,argp,inc,longN
     real(dp),dimension(:),intent(out)::rout
-    
+
     integer::ibd,nci
     real(dp)::mu,trueA,cosf,sinf,oneme2,rval,vval
     real(dp),dimension(:),allocatable::rtemp
     real(dp),dimension(3,3)::Rargp,Rinc,RlN
-    
+
     rout=zero
     allocate(rtemp(size(rout)))
     rtemp=zero
-    
+
     do ibd=2,NB
       ! mu = G(Mstar+Mplane)
       mu=Giau*(mass(1)+mass(ibd))
@@ -483,7 +490,7 @@ module celestial_mechanics
 !       write(*,*)" sma    = ",sma(ibd)
 !       write(*,*)" rval   = ",rval
 !       write(*,*)" vval   = ",vval
-      
+
       ! TEST ONE: x,y,z (vx,vy,vz) --> rotations --> X,Y,Z (VX,VY,VZ)
       nci=(ibd-1)*6
       rtemp(1+nci)=rval*cosf ! x = rcosf
@@ -518,18 +525,18 @@ module celestial_mechanics
     end do
 !     call orb2obs(rtemp,longN,inc,argp,rout)
     deallocate(rtemp)
-    
+
     return
   end subroutine kepelements2statevector
 ! ------------------------------------------------------------------------------
-  
+
 ! ------------------------------------------------------------------------------
   ! function to determine if angle is in some predefined range
   function checklN(lN) result(clN)
     integer::clN
     real(dp),intent(in)::lN
     real(dp)::lN1
-    
+
 
     clN=0
     lN1=mod(lN+circ,circ)
@@ -586,7 +593,6 @@ module celestial_mechanics
     do j=1,NB
       nj=(j-1)*6
       ro(1+nj:6+nj)=ri(1+nj:6+nj)-rbar
-      !end if
     end do
 
     return
@@ -600,7 +606,7 @@ module celestial_mechanics
     real(dp),intent(in)::mu,dt
     real(dp),dimension(:),intent(inout)::rout
     logical,intent(inout)::Hc
-    
+
     real(dp),dimension(3)::rtemp,vtemp
 !     real(dp)::r0,v0,reca,sma,n,sinE,cosE,ecc
 !     real(dp)::Ek1,MAk1,MAk2,Ek2,dE
@@ -632,7 +638,7 @@ module celestial_mechanics
 !     n=sqrt(mu/(sma**3))
 !     sinE=(sum(rout(1:3)*rout(4:6)))/(n*sma**2)
 !     cosE=((r0*v0**2)/mu)-one
-! 
+!
 !     x=rout(1)
 !     y=rout(2)
 !     z=rout(3)
@@ -643,19 +649,19 @@ module celestial_mechanics
 !     hy = z*vx-x*vz
 !     hz = x*vy-y*vx
 !     h2=hx*hx+hy*hy+hz*hz
-!     
+!
 !     e2=one-h2/(sma*mu)
 !     if((abs(e2).le.TOLERANCE).or.(e2.lt.zero)) e2=zero
 !     ecc=sqrt(e2)
-!     
+!
 !     Ek1=mod(atan2(sinE,cosE)+dpi,dpi)
-! 
+!
 !     MAk1=Ek1-sinE
 !     MAk1=mod(MAk1+dpi,dpi)
 !     MAk2=(MAk1+n*dt)*rad2deg
 !     MAk2=mod(MAk2+circ,circ)
 ! !     if(MAk2.lt.zero) MAk2=MAk2+circ
-! 
+!
 !     Ek2=EAnom(MAk2,ecc)*deg2rad
 !     dE=Ek2-Ek1
 !     if(dE.ge.pi)then
@@ -672,13 +678,13 @@ module celestial_mechanics
 !     dFfunc=-ar0*art*n*sin(dE)
 !     dGfunc=art*(cos(dE)-one)+one
 !     vtemp=dFfunc*rout(1:3)+dGfunc*rout(4:6)
-! 
+!
 !     rout(1:3)=rtemp
 !     rout(4:6)=vtemp
     !==============
-    
+
     call elem_mer(mu,rout,pxx,sma,ecc,ixx,mA0,wxx,lnxx,tA0,dtxx) ! in rad!
-    if(sma.le.TOLERANCE)then
+    if(sma.le.TOL_dp.or.ecc.gt.one)then
 !       write(*,*)" mu = ",mu
 !       write(*,*)" rout = ",rout
 !       write(*,*)" sma = ",sma
@@ -698,10 +704,10 @@ module celestial_mechanics
     mA1=mA0+dt*n ! not checking if <0 or greater than 2pi, I want to know the 'direction'
     EA1=EAnom(mA1*rad2deg,ecc)*deg2rad
     dEA=EA1-EA0
-    
+
     r0=dist(rout(1:3))
     v0=dist(rout(4:6))
-    
+
     ar0=sma/r0
     Ffunc=ar0*(cos(dEA)-one)+one
     Gfunc=dt+(sin(dEA)-dEA)/n
@@ -820,14 +826,14 @@ module celestial_mechanics
 
     real(dp)::inv_sma,musma,ecc2
     real(dp)::cosi,sini
-    
+
     real(dp)::coslN,sinlN
     real(dp)::wf,sinwf,coswf
     real(dp)::p_slr,ecosf,esinf
 
     real(dp)::Ea !,mmotion
 
-    
+
     ! init kep elem: P,sma,ecc,inc,mA,w,lN,f,dt
     P=zero
     sma=zero
@@ -838,7 +844,7 @@ module celestial_mechanics
     lN=pi
     f=zero
     dt=zero
-    
+
     x=svec(1)
     y=svec(2)
     z=svec(3)
@@ -866,7 +872,7 @@ module celestial_mechanics
       signx=-one
       signy=one
     end if
-    
+
     ! semi-major axis = sma
     ! 1/sma
 !     inv_sma=(two*mu-R*V2)/(R*mu)
@@ -879,7 +885,7 @@ module celestial_mechanics
     end if
     ! period = P
     P=dpi*sqrt((sma**3)/mu)
-    
+
     ! eccentricity = ecc
     ! ecc2 = 1 - h^2/(mu*sma)
     musma=mu*sma
@@ -889,12 +895,12 @@ module celestial_mechanics
     else
       ecc=zero
     end if
-    
+
     ! inclination = inc
     cosi=hz/h
     inc=acos(cosi) ! rad
     sini=sin(inc)
-    
+
     ! longitude of node = lN
     if(abs(sini).le.TOLERANCE)then
       coslN=cos(pi)
@@ -904,7 +910,7 @@ module celestial_mechanics
       sinlN=signx*hx/(h*sini)
     end if
     lN=mod(atan2(sinlN,coslN)+dpi,dpi)
-    
+
     ! argument of pericentre = w
     ! and
     ! true anomaly = f
@@ -949,7 +955,7 @@ module celestial_mechanics
     end if
     ! t - tau
     dt=mA*P/dpi
-    
+
     return
   end subroutine eleMD
 ! ------------------------------------------------------------------------------
@@ -985,19 +991,28 @@ module celestial_mechanics
     real(dp),intent(in),dimension(:)::svec
 !     real(dp),intent(inout)::q,ecc,inc,p,ln,mA,f
     real(dp),intent(out)::q,ecc,inc,p,ln,mA,f
-    
+
     ! Local
     real(dp)::x,y,z,u,v,w
     real(dp)::hx,hy,hz,h2,h,v2,r,rv,s,true
     real(dp)::ci,t_o,temp,tmp2,bige,cf,ce
-    
+
+    ! init all output variables
+    q=zero
+    ecc=zero
+    inc=zero
+    p=zero
+    ln=zero
+    mA=zero
+    f=zero
+
     x=svec(1)
     y=svec(2)
     z=svec(3)
     u=svec(4)
     v=svec(5)
     w=svec(6)
-    
+
     hx = y * w  -  z * v
     hy = z * u  -  x * w
     hz = x * v  -  y * u
@@ -1007,7 +1022,7 @@ module celestial_mechanics
     r = sqrt(x*x + y*y + z*z)
     h = sqrt(h2)
     s = h2 / mu
-    
+
     ! Inclination and node
     ci = hz / h
     if (abs(ci).lt.one) then
@@ -1024,11 +1039,11 @@ module celestial_mechanics
       end if
       ln = pi
     end if
-    
+
     ! Eccentricity and perihelion distance
     ecc=zero
     temp = one  +  s * (v2 / mu  -  two / r)
-    
+
 !     write(*,*)
 !     write(*,*)" x         = ",x
 !     write(*,*)" y         = ",y
@@ -1044,16 +1059,20 @@ module celestial_mechanics
 !     write(*,*)" r         = ",r
 !     write(*,*)" 2/r       = ",two/r
 !     write(*,*)" temp      = ",temp
-    
-    if (temp.le.zero) then
+
+    ! if (temp.le.zero) then
+    if (temp.le.TOL_dp) then
       ecc = zero
+      q = s
     else
       ecc = sqrt(temp)
+      q = s / (one + ecc)
+      if(ecc.gt.one) q = -q ! hyperbola added by Luca
     end if
 !     write(*,*)" ecc      = ",ecc
 !     write(*,*)
-    q = s / (one + ecc)
-    
+!     q = s / (one + ecc)
+
     ! True longitude
     if (hy.ne.zero) then
       t_o = -hx/hy
@@ -1064,14 +1083,15 @@ module celestial_mechanics
       true = mod(atan2(y * ci, x) + dpi, dpi)
     end if
     if (ci.lt.zero) true = mod(true + pi,dpi)
-    
-    if (ecc.le.TOL_sp) then
-      p = zero
+
+    if (ecc.le.TOLERANCE) then
+      ! p = zero
+      p = -half*pi
       mA = true
       f = mA
     else
       ce = (v2*r - mu) / (ecc*mu)
-    
+
       ! Mean anomaly for ellipse
       if (ecc.lt.one) then
         if (abs(ce).gt.one) ce = sign(one,ce)
@@ -1079,14 +1099,14 @@ module celestial_mechanics
         if (rv.lt.zero) bige = dpi - bige
         mA = bige - ecc*sin(bige)
       else
-      
+
         ! Mean anomaly for hyperbola
         if (ce.lt.one) ce = one
         bige = log( ce + sqrt(ce*ce-one) )
         if (rv.lt.zero) bige = - bige
         mA = ecc*sinh(bige) - bige
       end if
-      
+
       ! Longitude of perihelion
       cf = (s - r) / (ecc*r)
       if (abs(cf).gt.one) cf = sign(one,cf)
@@ -1095,7 +1115,7 @@ module celestial_mechanics
       p = true - f
       p = mod (p + dpi + dpi, dpi)
     end if
-    
+
     if (mA.lt.zero.and.ecc.lt.one) mA = mA + dpi
     if (mA.gt.dpi.and.ecc.lt.one) mA = mod (mA, dpi)
 
@@ -1109,41 +1129,35 @@ module celestial_mechanics
     real(dp),intent(in)::mu
     real(dp),intent(in),dimension(:)::svec
     real(dp),intent(out)::P,sma,ecc,inc,mA,w,lN,f,dt
-  
-    real(dp)::q,lperi,cf
-    
+
+    real(dp)::q,lperi
+!     real(dp)::cf
+
     q=zero
-    lperi=pi
-    cf=zero
-    
-    call mco_x2el(mu,svec,q,ecc,inc,lperi,lN,mA, f)
+    lperi=-half*pi
+!     cf=zero
+
+    call mco_x2el(mu,svec,q,ecc,inc,lperi,lN,mA,f)
     ! semi-major axis sma
     sma=q/(one-ecc)
     ! arg. pericentre w
     w=mod(lperi-lN+dpi,dpi)
-!     ! true anomaly f: as in MERCURY but for some reason it sets f = 0 or 2pi...
-!     if(ecc.le.TOL_sp)then
-!       f=mA
-!       write(*,*)' f = mA = ',f*rad2deg
-!     else
-!       cf=( q*(one+ecc)/dist(svec(1:3)) ) /ecc
-!       cf=sign(min(abs(cf),one),cf)
-!       f=acos(cf)
-!       if(sin(mA).lt.zero) f=dpi-f
-!       write(*,*)' acos(cf) = ',acos(cf)*rad2deg,' ==> f = ',f*rad2deg
-!     end if
-!     write(*,*)' f = ',f*rad2deg
-    if(sma.le.TOLERANCE)then ! sma <= 0
-!       write(*,*)' sma <= 0: ',sma
-      P=zero
-    else
-      P=dpi*sqrt((sma**3)/mu)
-    end if
+    if(ecc.le.TOLERANCE)w=half*pi
+
+    P=dpi*sqrt((sma**3)/mu)
+
     dt=mA*P/dpi
-  
+
+!     if(ecc.ge.one)then
+!       write(*,*)'mu = ',mu
+!       write(*,*)'svec = ',svec
+!       write(*,*)'P,sma,ecc,inc,mA,w,lN,f,dt'
+!       write(*,*)P,sma,ecc,inc,mA,w,lN,f,dt
+!     end if
+
   end subroutine elem_mer
 !-------------------------------------------------------------------------------
-  
+
 !-------------------------------------------------------------------------------
   ! from state vector (astrocentric cartesian coordinates)
   ! to keplerian orbital elements
@@ -1182,5 +1196,5 @@ module celestial_mechanics
     return
   end subroutine elements
 ! ------------------------------------------------------------------------------
-  
+
 end module celestial_mechanics

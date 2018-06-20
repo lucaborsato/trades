@@ -113,38 +113,58 @@ def set_int_or_none(arg_in):
 def get_args():
   parser = argparse.ArgumentParser(description='TRADES+EMCEE PLOT')
 
-  parser.add_argument('-p', '--path', action='store', dest='full_path', required=True,
-                      help='The path (absolute or relative) with simulation files for TRADES.')
+  parser.add_argument('-p', '--path', 
+                      action='store', dest='full_path', required=True,
+                      help='The path (absolute or relative) with simulation files for TRADES.'
+                      )
 
   parser.add_argument('-nb', '--nb', '--nburn', '-nburn', '--nburnin', '-nburnin',
                       action='store', dest='nburnin', required=True,
-                      help='The number of posterior/burn in steps to discard at the beginning of each chain. It has to be > 0')
+                      help='The number of posterior/burn in steps to discard at the beginning of each chain. It has to be > 0'
+                      )
 
-  parser.add_argument('-m', '--mtype', '--mass-type', action='store', dest='m_type', default='e',
-                      help='Mass type: j = Jupiter, e = Earth, s = Sun. Default is Earth = e.')
+  parser.add_argument('-m', '--mtype', '--mass-type', 
+                      action='store', dest='m_type', default='e',
+                      help='Mass type: j = Jupiter, e = Earth, s = Sun. Default is Earth = e.'
+                      )
 
-  parser.add_argument('-t', '--temp-file', action='store', dest='temp_status', default=False,
-                      help='If you want to read temporary emcee_temp.hdf5 file, because simulation is not finished yet. Default is False')
-  parser.add_argument('-b', '--boot-file', '--save-like-boot', action='store', dest='boot_id', default=0,
-                      help='If you want to save flatchain posterior as the posterior file, in order to be read by read_finalpar_v2.py. If set to 0 (default) it doesn\'t save anything. Bootstrap file output: boot_id_posterior_sim.dat')
+  parser.add_argument('-t', '--temp-file', 
+                      action='store', dest='temp_status', default=False,
+                      help='If you want to read temporary emcee_temp.hdf5 file, because simulation is not finished yet. Default is False'
+                      )
+  
+  parser.add_argument('-b', '--boot-file', '--save-like-boot',
+                      action='store', dest='boot_id', default=0,
+                      help='If you want to save flatchain posterior as the posterior file, in order to be read by read_finalpar_v2.py. If set to 0 (default) it doesn\'t save anything. Bootstrap file output: boot_id_posterior_sim.dat'
+                      )
 
-  parser.add_argument('-c', '--cumulative', '--cumulative-histogram', action='store', dest='cumulative',
-                      default='False',
-                      help='If you want to plot the cumulative histogram instead of normal histogram. Set it to "True/Yes/1" Default is False. ')
+  parser.add_argument('-c', '--cumulative', '--cumulative-histogram',
+                      action='store', dest='cumulative', default='False',
+                      help='If you want to plot the cumulative histogram instead of normal histogram. Set it to "True/Yes/1" Default is False. '
+                      )
 
-  parser.add_argument('-s', '--steps', '--gelmanrubin-steps', action='store', dest='sel_steps', default=0,
-                      help='Set to positive integer. It will allow to compute GelmanRubin/Geweke statistics of only sel_steps, and not for each step. Just to debug and overall view of the chains. Default is 0.')
+  parser.add_argument('-s', '--steps', '--gelmanrubin-steps',
+                      action='store', dest='sel_steps', default=0,
+                      help='Set to positive integer. It will allow to compute GelmanRubin/Geweke statistics of only sel_steps, and not for each step. Just to debug and overall view of the chains. Default is 0.'
+                      )
 
-  parser.add_argument('-u', '--thin', '--use-thin', action='store', dest='use_thin', default=False,
-                      help='Set if you want to use or not the thinning parameter computed from the autocorrelation time. Default False')
+  parser.add_argument('-u', '--thin', '--use-thin',
+                      action='store', dest='use_thin', default=False,
+                      help='Set if you want to use or not the thinning parameter computed from the autocorrelation time. Default False'
+                      )
 
-  parser.add_argument('--sample', action='store', dest='sample_str', default='None',
-                      help='Set a list of parameter names to select a parameter sample within the Credible Intervals, first will be the "pivoting" parameters, then the parameters to not take into account. Default = None, it means first parameters fitted as "pivot", all other have to be within the Credible Intervals.')
+  parser.add_argument('--sample',
+                      action='store', dest='sample_str', default='None',
+                      help='Set a list of parameter names to select a parameter sample within the Credible Intervals, first will be the "pivoting" parameters, then the parameters to not take into account. Default = None, it means first parameters fitted as "pivot", all other have to be within the Credible Intervals.'
+                      )
 
-  parser.add_argument('--seed', action='store', dest='seed', default='None',
-                      help='Set the seed for random number generator. Default is None.')
+  parser.add_argument('--seed', 
+                      action='store', dest='seed', default='None',
+                      help='Set the seed for random number generator. Default is None.'
+                      )
 
-  parser.add_argument('--overplot', action='store', dest='overplot', default='None',
+  parser.add_argument('--overplot',
+                      action='store', dest='overplot', default='None',
                       help='Define which parameter set to be overplotted on the correlation plot.\nInput the proper number:\n0 (starting parameters),\n666 (pick sample),\n777 (ad hoc sample),\n1050 (median, derived as median of the derived posterior),\n1051 (median, derived computed from median parameters), 2050 (max lnprob),\n3050 (mode, derived as mode of the derived posterior),\n3051 (mode, derived computed from mode parameters)')
 
   parser.add_argument('--ad-hoc', action='store', dest='adhoc', default='None',
@@ -159,6 +179,7 @@ def get_args():
   cli = parser.parse_args()
 
   cli.full_path = os.path.abspath(cli.full_path)
+  cli.nburnin = set_int_or_none(cli.nburnin)
   cli.m_type = cli.m_type.lower()
   cli.temp_status = set_bool_argument(cli.temp_status)
   cli.cumulative = set_bool_argument(cli.cumulative)
@@ -646,10 +667,11 @@ def get_emcee_parameters(chains, temp_status, nburnin_in, completed_steps):
     nruns = int(completed_steps)
   # select posterior chains, without burn in steps
   nburnin = 0
+  
   if (nburnin_in < 0):
     # print ' WARNING: nburnin <= 0. It will be set to: nburnin = nruns * 10% = %d * 10% = %d' %(nruns, nruns*0.1)
     nburnin = 0
-  elif(nburnin_in >= nruns):
+  elif(nburnin_in >= nruns or nburnin_in is None):
     nburnin = np.rint(0.5*nruns).astype(int)
   else:
     nburnin = int(nburnin_in)
@@ -1022,7 +1044,10 @@ def pick_sample_parameters(posterior, parameter_names, name_par=None, name_exclu
 
     if (post_ci is None):
       # post_ci = np.percentile(posterior, [15.865, 84.135], axis = 0, interpolation='midpoint')
-      post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]], axis=0, interpolation='midpoint')
+      
+      #post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]], axis=0, interpolation='midpoint')
+      post_ci = compute_hdi_full(posterior).T[0:2,:]
+      
       # post_ci = np.percentile(posterior, [percentile_val[4], percentile_val[5]], axis = 0, interpolation='midpoint')
       # print np.shape(post_ci)
 
@@ -1037,9 +1062,9 @@ def pick_sample_parameters(posterior, parameter_names, name_par=None, name_exclu
     # get idx sorted of the selected parameter-posterior
     idx_posterior = np.argsort(posterior[:, sel_par])
     # define the number of testing sample given the values within credible intervals
-    n_test = int(np.sum(
-      np.logical_and(posterior[:, sel_par] >= post_ci[0, sel_par], posterior[:, sel_par] <= post_ci[1, sel_par]).astype(
-        int)) * 0.5)
+    n_test = int(0.5*np.sum(\
+      np.logical_and(posterior[:, sel_par] >= post_ci[0, sel_par],
+                     posterior[:, sel_par] <= post_ci[1, sel_par]).astype(int)))
     # create the list with the sorted idx, starting from the 50th and moving of +1,-1 every time
     testing = []
     testing.append(0)
@@ -1093,14 +1118,29 @@ def select_within_all_ci(posterior, post_ci, lnprobability):
   npost, nfit = np.shape(posterior)
   nrow, ncol = np.shape(post_ci)
 
-  if (nrow == 2 and ncol == nfit):  # check if post_ci is (nfit, 2) or (2, nfit)
-    use_ci = post_ci.T
-  else:
-    use_ci = post_ci
+  #if (nrow == 2 and ncol == nfit):  # check if post_ci is (nfit, 2) or (2, nfit)
+    #use_ci = post_ci.T
+  #else:
+    #use_ci = post_ci
+  use_ci = post_ci
 
+  # that's old
+  #  0       1       2       3       4       5
+  # -3sigma -2sigma -1sigma +1sigma +2sigma +3sigma
+  
+  print np.shape(use_ci)
+  
+  # use_ci should have: nfit x nci, 
+  # where nci:
+  # -1sigma(0) +1sigma(1) -2sigma(2) +2sigma(3) -3sigma(4) +3sigma(5)
   ok_sel = np.ones((npost)).astype(bool)
   for ifit in range(0, nfit):
-    ok_temp = np.logical_and(posterior[:, ifit] >= use_ci[ifit, 0], posterior[:, ifit] <= use_ci[ifit, 1])
+    #ok_temp = np.logical_and(posterior[:, ifit] >= use_ci[ifit, 2], 
+                             #posterior[:, ifit] <= use_ci[ifit, 3]
+                             #)
+    ok_temp = np.logical_and(posterior[:, ifit] >= use_ci[ifit, 0], 
+                             posterior[:, ifit] <= use_ci[ifit, 1]
+                             )
     ok_sel = np.logical_and(ok_sel, ok_temp)
 
   # print np.shape(posterior), np.sum(ok_sel.astype(int)), np.shape(lnprobability)
@@ -1132,7 +1172,11 @@ def select_maxlglhd_with_hdi(posterior, post_ci, lnprobability):
 # 3) sort by lgllhd-lgllhd_med and take the first set of pars
 def get_sample_by_sorted_lgllhd(posterior, lnprobability, post_ci=None):
   if (post_ci is None):
-    post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]], axis=0, interpolation='midpoint')
+    #post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]],
+                            #axis=0, interpolation='midpoint'
+                            #)
+    post_ci = compute_hdi_full(posterior)
+                            
 
   npost, nfit = np.shape(posterior)
 
@@ -1154,7 +1198,8 @@ def get_sample_by_sorted_lgllhd(posterior, lnprobability, post_ci=None):
 
 def get_sample_by_par_and_lgllhd(posterior, lnprobability, parameter_names, post_ci=None, name_par=None):
   if (post_ci is None):
-    post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]], axis=0, interpolation='midpoint')
+    #post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]], axis=0, interpolation='midpoint')
+    post_ci = compute_hdi_full(posterior)
 
   npost, nfit = np.shape(posterior)
 
@@ -1688,9 +1733,9 @@ def compute_hdi_full(flatchains, mode_output=False):
   #print hdi_full
   
   #print 'Reformatting hdi_full to hdi_l:'
-  hdi_l = [[hdi_full[ipar][0][0], hdi_full[ipar][0][1],
-            hdi_full[ipar][1][0], hdi_full[ipar][1][1],
-            hdi_full[ipar][2][0], hdi_full[ipar][2][1]
+  hdi_l = [[hdi_full[ipar][0][0], hdi_full[ipar][0][1], # -1sigma +1sigma
+            hdi_full[ipar][1][0], hdi_full[ipar][1][1], # -2sigma +2sigma
+            hdi_full[ipar][2][0], hdi_full[ipar][2][1]  # -3sigma +3sigma
           ] for ipar in range(npar)]
   #print 'hdi_l with shape ',np.shape(hdi_l), ' and type ',type(hdi_l)
   
@@ -2548,6 +2593,9 @@ def doane_nbins(x):
   stdx = np.std(x, ddof=1)
   g1 = np.mean(((x - mux) / stdx) ** 3)  # skew
   s_g1 = np.sqrt(6. * (nxf - 2.) / ((nxf + 1.) * (nxf + 3.)))
+  #print nxf
+  #print mux,stdx
+  #print g1, s_g1
   nbins = int(1. + np.log2(nxf) + np.log2(1. + np.abs(g1) / s_g1))
 
   return nbins

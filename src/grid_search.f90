@@ -1,5 +1,5 @@
 module grid_search
-  use constants,only:dp,zero,TOLERANCE,sprec,Mjups,Rjups
+  use constants,only:dp,zero,TOL_dp,sprec,Mjups,Rjups
   use parameters
   use parameters_conversion
   use convert_type,only:string
@@ -21,7 +21,7 @@ module grid_search
     real(dp)::step
 
     !if((Xdummy.eq.zero).or.(Xmax.le.Xmin))then
-    if((abs(Xdummy).le.TOLERANCE)&
+    if((abs(Xdummy).le.TOL_dp)&
         &.or.(Xmax.le.Xmin))then
       ! when Xdummy = 0 set NX = 1, Xgrid(1) = Xmin
       NX=1

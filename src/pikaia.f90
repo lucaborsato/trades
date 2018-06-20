@@ -1,6 +1,6 @@
 module Genetic_Algorithm
   use constants
-  use parameters,only:path,wrtAll,seed_pik,ctrl,dof,inv_dof,ndata,nfit,npar,parid,minpar,maxpar,ncpu_in
+  use parameters,only:path,wrtAll,seed_pik,ctrl,nfit,npar,parid,minpar,maxpar,ncpu_in
   use parameters_conversion
   use init_trades,only:get_unit
   use random_trades
@@ -1622,7 +1622,7 @@ module Genetic_Algorithm
     
     inv_fitness=fitns(inp)
     fitness=one/inv_fitness
-    fitness_x_dof=real(dof,dp)*fitness
+    fitness_x_dof=fitness*real(obsData%dof,dp)
     bestpik(nfit+1,igen)=inv_fitness
     bestpik(nfit+2,igen)=fitness_x_dof
     bestpik(nfit+3,igen)=fitness
@@ -1673,7 +1673,7 @@ module Genetic_Algorithm
     do j=1,np
       inv_fitness=fitns(j)
       fitness=one/inv_fitness
-      fitness_x_dof=real(dof,dp)*fitness
+      fitness_x_dof=fitness*real(obsData%dof,dp)
       xpar=zero
       call norm2par(pp(1:nfit,j),xpar)
 !       write(uall,trim(wfmt))ig,ip(j),xpar,iChi2r,Chi2,Chi2r

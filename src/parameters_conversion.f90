@@ -455,11 +455,11 @@ module parameters_conversion
         end if
         temp_kel(4)=temp2
         temp_kel(5)=mod(rad2deg*atan2(atemp(j1+4),atemp(j1+3))+circ,circ)
-        if(temp_kel(4).le.TOLERANCE) temp_kel(5)=90._dp
-        if(abs(temp_kel(4)-atemp(j1+3)).le.TOLERANCE)then
-          if(abs(atemp(j1+4)).gt.TOLERANCE) checkpar=.false.
-        else if(abs(temp_kel(4)-atemp(j1+4)).le.TOLERANCE)then
-          if(abs(atemp(j1+3)).gt.TOLERANCE) checkpar=.false.
+        if(temp_kel(4).le.TOL_dp) temp_kel(5)=90._dp
+        if(abs(temp_kel(4)-atemp(j1+3)).le.TOL_dp)then
+          if(abs(atemp(j1+4)).gt.TOL_dp) checkpar=.false.
+        else if(abs(temp_kel(4)-atemp(j1+4)).le.TOL_dp)then
+          if(abs(atemp(j1+3)).gt.TOL_dp) checkpar=.false.
         end if
       end if
       

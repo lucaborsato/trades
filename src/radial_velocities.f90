@@ -1,5 +1,6 @@
 module radial_velocities
   use constants
+  use custom_type
   use parameters
   implicit none
 
@@ -40,24 +41,31 @@ module radial_velocities
   end subroutine calcRV
 
   ! checks the RV, it uses the calcRV subroutine
-  subroutine check_RV_1(m,ri,drdt,ttemp,hok,cntRV,RV_stat,RV_sim)
+!   subroutine check_RV_1(m,ri,drdt,ttemp,hok,cntRV,RV_stat,RV_sim)
+subroutine check_RV_1(m,ri,drdt,ttemp,hok,simRV)
     real(dp),dimension(:),intent(in)::m,ri,drdt
     real(dp),intent(in)::ttemp
-    integer,intent(inout)::cntRV
-    real(dp),dimension(:),intent(inout)::RV_sim
-    integer,dimension(:),intent(inout)::RV_stat
+!     integer,intent(inout)::cntRV
+!     real(dp),dimension(:),intent(inout)::RV_sim
+!     integer,dimension(:),intent(inout)::RV_stat
+    type(dataRV),intent(inout)::simRV
     real(dp),intent(inout)::hok
-    real(dp)::stepRV
-    integer::j
+    
+    real(dp)::stepRV,xRV
+    integer::nRV,j
 
+    nRV=obsData%obsRV%nRV
+    xRV=zero
     ! RV check
     do j=1,nRV
-      if(RV_stat(j).eq.0)then
-        stepRV=jdRV(j)-tepoch-ttemp
+      if(simRV%RV_stat(j).eq.0)then
+        stepRV=obsData%obsRV%jd(j)-tepoch-ttemp
         if( stepRV*(stepRV-hok).le.zero )then
-          call calcRV(m,ri,drdt,stepRV,RV_sim(j))
-          cntRV=cntRV+1
-          RV_stat(j)=1
+          call calcRV(m,ri,drdt,stepRV,xRV)
+          simRV%RV(j)=xRV
+          simRV%jd(j)=obsData%obsRV%jd(j)
+          simRV%nRV=simRV%nRV+1
+          simRV%RV_stat(j)=1
         end if
       end if
     end do
@@ -65,26 +73,30 @@ module radial_velocities
     return
   end subroutine check_RV_1
 
-  subroutine check_RV_2(m,ri,drdt,ttemp,hok,cntRV,tRV,RV_stat,RV_sim)
+!   subroutine check_RV_2(m,ri,drdt,ttemp,hok,cntRV,tRV,RV_stat,RV_sim)
+subroutine check_RV_2(m,ri,drdt,ttemp,hok,obsjd,simRV)
     real(dp),dimension(:),intent(in)::m,ri,drdt
     real(dp),intent(in)::ttemp
-    integer,intent(inout)::cntRV
-    real(dp),dimension(:),intent(in)::tRV
-    integer,dimension(:),intent(inout)::RV_stat
-    real(dp),dimension(:),intent(inout)::RV_sim
+!     integer,intent(inout)::cntRV
+!     real(dp),dimension(:),intent(in)::tRV
+!     integer,dimension(:),intent(inout)::RV_stat
+!     real(dp),dimension(:),intent(inout)::RV_sim
+    real(dp),dimension(:),intent(in)::obsjd
+    type(dataRV),intent(inout)::simRV
     real(dp),intent(inout)::hok
     real(dp)::stepRV
     integer::j,n_RV
 
-    n_RV=size(tRV)
+    n_RV=size(obsjd)
     ! RV check
     do j=1,n_RV
-      if(RV_stat(j).eq.0)then
-        stepRV=tRV(j)-tepoch-ttemp
+      if(simRV%RV_stat(j).eq.0)then
+        stepRV=obsjd(j)-tepoch-ttemp
         if(stepRV*(stepRV-hok).le.zero)then
-          call calcRV(m,ri,drdt,stepRV,RV_sim(j))
-          cntRV=cntRV+1
-          RV_stat(j)=1
+          call calcRV(m,ri,drdt,stepRV,simRV%RV(j))
+          simRV%jd=obsjd(j)
+          simRV%nRV=simRV%nRV+1
+          simRV%RV_stat(j)=1
         end if
       end if
     end do

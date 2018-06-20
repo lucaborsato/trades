@@ -10,8 +10,6 @@
 ! if lmon = 1 run the LM on the parameters
 ! if nboot > 0 run bootstrap
 
-
-
 program main_grid
   use constants
   use parameters
@@ -25,7 +23,6 @@ program main_grid
   real(dp),dimension(:),allocatable::m,R,P,a,e,w,mA,inc,lN ! Keplerian orbital elements
   real(dp),dimension(:),allocatable::fitting_parameters
 !   integer::sim_id
-  
   
   ! ------------------
   ! initialises TRADES

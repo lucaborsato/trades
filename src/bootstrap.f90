@@ -1,5 +1,6 @@
 module bootstrap
   use constants,only:dp,sprec,zero,one,half
+  use custom_type
   use parameters
   use Levenberg_Marquardt,only:lm_driver
   use gaussian
@@ -22,8 +23,11 @@ module bootstrap
 
     real(dp),dimension(:),allocatable::Ms_boot,Rs_boot
     
-    real(dp),dimension(:),allocatable::RVok,RVboot
-    real(dp),dimension(:,:),allocatable::T0ok,T0boot
+!     real(dp),dimension(:),allocatable::RVok,RVboot
+!     real(dp),dimension(:,:),allocatable::T0ok,T0boot
+    type(dataRV)::okRV,bootRV
+    type(dataT0),dimension(:),allocatable::okT0,bootT0
+    type(dataObs)::bootData
 
     real(dp),dimension(:),allocatable::b_par,b_allpar
     real(dp),dimension(:,:),allocatable::storeboot
@@ -31,17 +35,33 @@ module bootstrap
     real(dp),dimension(:),allocatable::resw,diag,sig
     integer,dimension(:),allocatable::iwa
     real(dp)::fitness,scale_errorbar
-    integer::info,nTs,iT0
+    integer::info,nRV,nTTs,nT0
 
     real(dp),dimension(:,:),allocatable::percentile
     integer,parameter::nperc=7
-    integer::iboot,inb,cpu,chunk
+    integer::iboot,inb,cpu,chunk,ndata
 
+    ndata=obsData%ndata
     allocate(resw(ndata))
     allocate(b_par(nfit),b_allpar(npar),diag(nfit),sig(nfit),iwa(nfit))
-    if(nRV.gt.0) allocate(RVok(nRV),RVboot(nRV))
-    nTs=maxval(nT0)
-    if(nTs.gt.0) allocate(T0ok(nTs,NB),T0boot(nTs,NB))
+    
+!     if(nRV.gt.0) allocate(RVok(nRV),RVboot(nRV))
+    nRV=obsData%obsRV%nRV
+!     call init_dataRV(nRV,okRV) ! it will be done within ode_parok
+    call init_dataRV(nRV,bootRV)
+    call init_dataRV(nRV,bootData%obsRV)
+    
+    nTTs=obsData%nTTs
+!     if(nTTs.gt.0) allocate(T0ok(nTTs,NB),T0boot(nTTs,NB))
+    if(nTTS.gt.0)then
+      allocate(okT0(NB-1),bootT0(NB-1),bootData%obsT0(NB-1))
+      do inb=1,NB-1
+        nT0=obsData%obsT0(inb)%nT0
+!         call init_dataT0(nT0,okT0(inb),durcheck) ! it will be done within ode_parok
+        call init_dataT0(nT0,bootT0(inb),durcheck)
+        call init_dataT0(nT0,bootData%obsT0(inb),durcheck)
+      end do
+    end if
     
     
     write(*,'(a)')''
@@ -49,7 +69,8 @@ module bootstrap
     flush(6)
     
     !1. call subroutine to retrieve RVok and T0ok (ode_parok)
-    call ode_parok(allpar,parok,RVok,T0ok,resw,fitness)
+!     call ode_parok(allpar,parok,RVok,T0ok,resw,fitness)
+    call ode_parok(allpar,parok,okRV,okT0,resw,fitness)
 
     call set_bootfile(isim)
     allocate(storeboot(nboot,nfit),percentile(nperc,nfit))
@@ -80,8 +101,8 @@ module bootstrap
 
     !$omp parallel do schedule(DYNAMIC,chunk)&
     !$omp& default(private) NUM_THREADS(ncpu_in)&
-    !$omp& shared(allpar, parok, ndata, nfit, eT0obs, eRVobs, storeboot,&
-    !$omp& scale_errorbar, nboot, RVok, T0ok, NB, nRV, nT0, nTs,&
+    !$omp& shared(allpar, parok, ndata, nfit, obsData, storeboot,&
+    !$omp& scale_errorbar, nboot, bootRV, bootDAta, bootT0, NB, nRV, &
     !$omp& Ms_boot, Rs_boot)
     bootstrap: do iboot=1,nboot
 
@@ -93,22 +114,32 @@ module bootstrap
       !2.a generation of ndata (RVboot and T0boot) with Gaussian distribution N(mean,var)
       !    where mean = data (RVok or T0ok) and var = square error data (eRVobs, eT0obs)
       if(nRV.gt.0)then
-          RVboot=zero
-          call gaussdev(RVboot)
-          RVboot = RVok+RVboot*eRVobs*scale_errorbar
+!           RVboot=zero
+!           call gaussdev(RVboot)
+!           RVboot = RVok+RVboot*eRVobs*scale_errorbar
+            call gaussdev(bootRV%RV)
+            bootRV%RV=bootRV%RV*bootRV%eRV*scale_errorbar+okRV%RV
+            bootData%obsRV=bootRV
       end if
       
-      if(nTs.gt.0) T0boot=zero
+!       if(nTTs.gt.0) T0boot=zero
       
-      do inb=2,NB
-          iT0=nT0(inb)
-          if(iT0.gt.0)then
-            call gaussdev(T0boot(1:iT0,inb))
-            T0boot(1:iT0,inb)=T0ok(1:iT0,inb)+&
-                  &T0boot(1:iT0,inb)*eT0obs(1:iT0,inb)*&
-                  &scale_errorbar
-          end if
+      do inb=1,NB-1
+!           nT0=nT0(inb)
+!           if(nT0.gt.0)then
+!             call gaussdev(T0boot(1:nT0,inb))
+!             T0boot(1:nT0,inb)=T0ok(1:nT0,inb)+&
+!                   &T0boot(1:nT0,inb)*eT0obs(1:nT0,inb)*&
+!                   &scale_errorbar
+!           end if
+        nT0=okT0(inb)%nT0
+        if(nT0.gt.0)then
+          call gaussdev(bootT0(inb)%T0)
+          bootT0(inb)%T0=bootT0(inb)%T0*bootT0(inb)%eT0*scale_errorbar+&
+            &okT0(inb)%T0
+        end if
       end do
+      bootData%obsT0=bootT0
       
       !2.b lm_driver (_3) to retrieve temporary parameters fitting new RVboot and T0boot
       b_allpar = allpar
@@ -125,7 +156,7 @@ module bootstrap
       info=0
       
       call lm_driver(ode_boot,b_allpar,ndata,nfit,b_par,&
-            &RVboot,T0boot,resw,diag,sig,info,iwa)
+            &bootData,resw,diag,sig,info,iwa)
 
       storeboot(iboot,:)=b_par
       write(*,'(2(a,i5))')" CPU ",cpu,&
@@ -135,19 +166,30 @@ module bootstrap
     end do bootstrap
     !$omp end parallel do
 
-    call wrt_storeboot(isim,parok,storeboot)
+!     call wrt_storeboot(isim,parok,storeboot)
+    call wrt_storeboot(isim,storeboot)
 !     write(*,'(a)')" Written bootstrap file"
 
     !3.  sort all new parameters and compute the percentiles
-    call calc_percentile(parok,storeboot,percentile)
+!     call calc_percentile(parok,storeboot,percentile)
+    call calc_percentile(storeboot,percentile)
 
     !4.  write 2 files, one with all fitted parameters, one with percentiles
     call wrt_percentile(isim,percentile)
 
     deallocate(storeboot)
     deallocate(Ms_boot,Rs_boot)
-    if(allocated(RVok)) deallocate(RVok,RVboot)
-    if(allocated(T0ok)) deallocate(T0ok,T0boot)
+!     if(allocated(RVok)) deallocate(RVok,RVboot)
+!     if(allocated(T0ok)) deallocate(T0ok,T0boot)
+    call deallocate_dataRV(okRV)
+    call deallocate_dataRV(bootRV)
+    
+    do inb=1,NB-1
+      call deallocate_dataT0(bootT0(inb))
+    end do
+
+    call deallocate_dataObs(bootData)
+    
     deallocate(resw)
 
     return
@@ -179,11 +221,12 @@ module bootstrap
   end subroutine set_bootfile
 
   ! it writes into file the bootstrap analysis
-  subroutine wrt_storeboot(isim,parok,storeboot)
+!   subroutine wrt_storeboot(isim,parok,storeboot)
+  subroutine wrt_storeboot(isim,storeboot)
     use init_trades,only:get_unit
     use convert_type,only:string
     integer,intent(in)::isim
-    real(dp),dimension(:),intent(in)::parok
+!     real(dp),dimension(:),intent(in)::parok
     real(dp),dimension(:,:),intent(in)::storeboot
     real(dp),dimension(:),allocatable::storevec
 !     real(dp),dimension(2)::val,valabs
@@ -222,9 +265,10 @@ module bootstrap
 
   ! it computes the distribution of the parameters
   ! and it returns the percentiles
-  subroutine calc_percentile(parok,store,perc)
+!   subroutine calc_percentile(parok,store,perc)
+  subroutine calc_percentile(store,perc)
     use sorting,only:sort
-    real(dp),dimension(:),intent(in)::parok
+!     real(dp),dimension(:),intent(in)::parok
     real(dp),dimension(:,:),intent(in)::store
     real(dp),dimension(:,:),intent(out)::perc
 

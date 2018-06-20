@@ -28,61 +28,105 @@ import glob
 #
 def get_args():
   parser = argparse.ArgumentParser(description='TRADES+EMCEE')
-  
+
   # PATH FOLDER: full_path
-  parser.add_argument('-p', '--path', action='store', dest='full_path', required=True, help='The path (absolute or relative) with simulation files for TRADES.')
+  parser.add_argument('-p', '--path', 
+                      action='store', dest='full_path', required=True,
+                      help='The path (absolute or relative) with simulation files for TRADES.'
+                      )
 
   # SUBFOLDER TO SAVE ALL SIMULATION DATA
-  parser.add_argument('-s', '--sub-folder', '--sb', action='store', dest='sub_folder', default='emcee_run', help='Sub-folder name, without full path. Default = emcee_run')
-  
+  parser.add_argument('-s', '--sub-folder', '--sb',
+                      action='store', dest='sub_folder', default='emcee_run',
+                      help='Sub-folder name, without full path. Default = emcee_run'
+                      )
+
   # NUMBER OF CPU TO USE WITH EMCE !!
-  parser.add_argument('-c', '--cpu', '--nthreads', action='store', dest='nthreads', default=1, help='Number of threads to use. default nthreads = 1.')
-  
+  parser.add_argument('-c', '--cpu', '--nthreads',
+                      action='store', dest='nthreads', default=1,
+                      help='Number of threads to use. default nthreads = 1.'
+                      )
+
   # NUMBER OF WALKERS TO USE WITH EMCEE
-  parser.add_argument('-nw', '--nwalkers', '-np', '--npop', action='store', dest='nwalkers', default=1, help='Number of walkers (or number of chains) to use. default nwalkers = nfit*2')
-  
+  parser.add_argument('-nw', '--nwalkers', '-np', '--npop',
+                      action='store', dest='nwalkers', default=1,
+                      help='Number of walkers (or number of chains) to use. default nwalkers = nfit*2'
+                      )
+
   # NUMBER OF STEPS/RUNS TO DO FOR EACH WALKER OF EMCEE
-  parser.add_argument('-nr', '--nruns', '-ns', '--nsteps', action='store', dest='nruns', default=10000, help='Number of runs/steps to use for each chain. default nruns = 10000.')
-  
+  parser.add_argument('-nr', '--nruns', '-ns', '--nsteps',
+                      action='store', dest='nruns', default=10000,
+                      help='Number of runs/steps to use for each chain. default nruns = 10000.'
+                      )
+
   # NUMBER OF STEPS/RUNS TO SAVE TEMPORARY EMCEE SIMULATION
-  parser.add_argument('--isave', '--iter-save', '--iterations-save', action='store', dest='nsave', default='False', help='Number of iterations to do for save temporary chain. default each 0.1 of nruns.')
-  
+  parser.add_argument('--isave', '--iter-save', '--iterations-save',
+                      action='store', dest='nsave', default='False', 
+                      help='Number of iterations to do for save temporary chain. No intermediate save.'
+                      )
+
   # NUMBER OF BURNIN TO SKIP FOR PRELIMINARY ANALYSIS
-  parser.add_argument('-nb', '--nburn', '--npost', action='store', dest='npost', default=1000, help='Number of burn in, or number of posterior to discard at the beginning of the each chain. default npost = 1000.')
-  
+  parser.add_argument('-nb', '--nburn', '--npost', 
+                      action='store', dest='npost', default=0,
+                      help='Number of burn in, or number of posterior to discard at the beginning of the each chain. default npost = 1000.'
+                      )
+
   # COMPUTE OR NOT CONSTANT TO ADD TO THE LGLIKELIHOOD: - (1/2dof) * SUM( ln 2pi * sigma_obs^2 )
-  parser.add_argument('-l', '--ln-err', '--ln-err-const', action='store', dest='ln_flag', default=True, help='Computes or not constant to add to the lglikelihood: - (1/2dof) * SUM( ln 2pi * sigma_obs^2 ). Default = True. Set to False if not use this value.')
-  
-  parser.add_argument('-ds', '--d-sigma', '--delta-sigma', action='store', dest='delta_sigma', default='1.e-4', type=str, help='Value of the sigma to compute initial walkers from initial solution. Default=1.e-4')
-  
-  parser.add_argument('-e', '--emcee-previous', action='store', dest='emcee_previous', default='None', type=str, help='Provide an existing "emcee_summary.hdf5" file if you wanto to start from the last step of that simulation. Default is None, create new initial walkers.')
-  
-  parser.add_argument('--trades-fin', '--trades-final-previous', '--trades-final', action='store', dest='trades_previous', default='None', help='Define file from a previous TRADES simulation. File name and structure should be of type X_Y_finalNpar.dat. The parameters from this file will be the new original parameters')
-  
+  parser.add_argument('-l', '--ln-err', '--ln-err-const',
+                      action='store', dest='ln_flag', default=True,
+                       help='Computes or not constant to add to the lglikelihood: - (1/2dof) * SUM( ln 2pi * sigma_obs^2 ). Default = True. Set to False if not use this value.'
+                       )
+
+  parser.add_argument('-ds', '--d-sigma', '--delta-sigma',
+                      action='store', dest='delta_sigma', default='1.e-4', type=str,
+                      help='Value of the sigma to compute initial walkers from initial solution. Default=1.e-4'
+                      )
+
+  parser.add_argument('-e', '--emcee-previous',
+                      action='store', dest='emcee_previous', default='None', type=str,
+                      help='Provide an existing "emcee_summary.hdf5" file if you wanto to start from the last step of that simulation. Default is None, create new initial walkers.'
+                      )
+
+  parser.add_argument('--trades-fin', '--trades-final-previous', '--trades-final', 
+                      action='store', dest='trades_previous', default='None', 
+                      help='Define file from a previous TRADES simulation. File name and structure should be of type X_Y_finalNpar.dat. The parameters from this file will be the new original parameters'
+                      )
+
+  parser.add_argument('-seed', '--seed', 
+                      action='store', dest='seed', default='None', 
+                      help='Seed for random number generator. Default is None.'
+                      )
+
   cli = parser.parse_args()
-  
+
   cli.full_path = os.path.join(os.path.abspath(cli.full_path), '')
   cli.sub_folder = os.path.join(os.path.relpath(cli.sub_folder), '')
-  
+
   cli.nthreads = int(cli.nthreads)
-  
+
   cli.nwalkers = int(cli.nwalkers)
   cli.nruns = int(cli.nruns)
   cli.npost = int(cli.npost)
-  
+
   cli.ln_flag = anc.set_bool_argument(cli.ln_flag)
-  
+
   cli.emcee_previous = anc.set_adhoc_file(cli.emcee_previous)
   cli.trades_previous = anc.set_adhoc_file(cli.trades_previous)
   #try:
     #cli.delta_sigma = np.float64(cli.delta_sigma)
   #except:
     #cli.delta_sigma = np.float64(1.e-4)
-    
+
+  try:
+    cli.seed = int(cli.seed)
+    if(cli.seed <= 0): cli.seed = None
+  except:
+    cli.seed = None
+
   return cli
 
 
-# 
+#
 # LOGPROBABILITY FUNCTION NEEDED BY EMCEE
 #
 def lnprob(fitting_parameters):
@@ -97,10 +141,10 @@ def lnprob(fitting_parameters):
   return loglhd
 
 def lnprob_sq(fitting_parameters, names_par):
-  
+
   fitting_trades = anc.sqrte_to_e_fitting(fitting_parameters, names_par)
   loglhd = lnprob(fitting_trades)
-  
+
   return loglhd
 
 #
@@ -110,7 +154,7 @@ def init_folder(working_path, sub_folder):
   working_folder = os.path.join(working_path, sub_folder)
   if (not os.path.isdir(working_folder)):
       os.makedirs(working_folder)
-      
+
   #arg_file = os.path.join(working_path, 'arg.in')
   #shutil.copy(arg_file, os.path.join(working_folder,''))
   #bodies_file = os.path.join(working_path, 'bodies.lst')
@@ -124,40 +168,40 @@ def init_folder(working_path, sub_folder):
     #shutil.copy(t0f, os.path.join(working_folder,''))
   #if(os.path.exists(os.path.join(working_path,'obsRV.dat'))):
     #shutil.copy(os.path.join(working_path,'obsRV.dat'), os.path.join(working_folder,''))
-  
+
   # copy files
   anc.copy_simulation_files(working_path, working_folder)
-  
+
   run_log = os.path.join(working_folder, "trades_run.log")
   of_run = open(run_log, 'w')
   anc.print_both("# pyTRADES LOG FILE", of_run)
   anc.print_both("# working_path = %s" %(working_path), of_run)
   anc.print_both("# working_folder = %s" %(working_folder), of_run)
   anc.print_both("# run_log = %s" %(run_log), of_run)
-  
+
   return working_folder, run_log, of_run
 
 # ==============================================================================
 
 #def compute_ln_err_const(dof, e_RVo, e_T0o, ln_flag=False):
-  
+
   #if (ln_flag):
     #eRV = e_RVo[e_RVo > 0.]
     #eT0 = e_T0o[e_T0o > 0.]
-    
+
     #ln_e_RVo = np.sum(np.log(eRV*eRV))
     #ln_e_T0o = np.sum(np.log(eT0*eT0))
 
     #ln_err_const = - 0.5 * dof * np.log(2.*np.pi) - 0.5 * ( ln_e_RVo + ln_e_T0o)
   #else:
     #ln_err_const = 0.
-  
+
   #return ln_err_const
 
 # ==============================================================================
 
 def get_emcee_arguments(cli,nfit):
-  
+
   #
   # NUMBER OF WALKERS
   if (cli.nwalkers < nfit*2):
@@ -175,27 +219,33 @@ def get_emcee_arguments(cli,nfit):
     nruns = cli.nruns
 
   # NUMBER OF SAVE STEPS
-  if (cli.nsave != 'False'):
-    if (int(cli.nsave) > 0 and int(cli.nsave) < nruns):
-      nsave = int(cli.nsave)
-    elif (int(cli.nsave) <= 0):
+  #if (cli.nsave != 'False'):
+    #if (int(cli.nsave) > 0 and int(cli.nsave) < nruns):
+      #nsave = int(cli.nsave)
+    #elif (int(cli.nsave) <= 0):
+      #nsave = False
+    #else:
+      #nsave = nruns/10
+  #else:
+    #nsave = False
+  try:
+    nsave = int(cli.nsave)
+    if(nsave <= 0 or nsave >= nruns):
       nsave = False
-    else:
-      nsave = nruns/10
-  else:
+  except:
     nsave = False
-
+  
   # NUMBER OF BURNIN/POSTERIOR TO DISCARD
   if (cli.npost < 0):
-    npost = 1000
+    npost = 0
   else:
     npost = cli.npost
   #print nwalkers, nruns, npost
-  
+
   return nwalkers, nruns, nsave, npost
 
 def compute_proper_sigma(nfit, delta_sigma, parameter_names):
-  
+
   delta_sigma_out = np.ones((nfit))*delta_sigma
   for ifit in range(0,nfit):
     if(delta_sigma > 1.e-6):
@@ -206,9 +256,9 @@ def compute_proper_sigma(nfit, delta_sigma, parameter_names):
           delta_sigma_out[ifit] = delta_sigma * 1.e-2
         elif('mA' in parameter_names[ifit] or 'lambda' in parameter_names[ifit]):
           delta_sigma_out[ifit] = 1.e-4
-          
+
   return delta_sigma_out
-      
+
 
 def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minmax, parameter_names, delta_sigma, of_run):
   # initial walkers as input fitting_parameters + N(loc=0.,sigma=1.,size=nwalkers)*delta_sigma
@@ -216,9 +266,9 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
   anc.print_both(' Inititializing walkers with delta_sigma = %s' %(str(delta_sigma).strip()), of_run)
   p0 = []
   i_p0 = 0
-  
+
   anc.print_both(' good p0:', of_run)
-  
+
   # 2017-02-03 LUCA --0--
   try:
     d_sigma = np.float64(delta_sigma)
@@ -269,7 +319,7 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
             if(i_pos%nw_min == 0): break
       print
     print
-  
+
   anc.print_both(' done initial walkers.', of_run)
 
   return p0
@@ -283,15 +333,16 @@ def main():
   # STARTING TIME
   start = time.time()
 
-  # RENAME 
+  # RENAME
   working_path = cli.full_path
-  nthreads=cli.nthreads
+  nthreads = cli.nthreads
+  np.random.RandomState(cli.seed)
 
   # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
   pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
 
   # RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
-  
+
   #global n_bodies, n_planets, ndata, npar, nfit, dof, inv_dof
   n_bodies = pytrades_lib.pytrades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
   n_planets = n_bodies - 1 # NUMBER OF PLANETS IN THE SYSTEM
@@ -301,12 +352,13 @@ def main():
   nfree  = pytrades_lib.pytrades.nfree # NUMBER OF FREE PARAMETERS (ie nrvset)
   dof   = pytrades_lib.pytrades.dof # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
   global inv_dof
-  inv_dof = np.float64(1.0 / dof)
+  #inv_dof = np.float64(1.0 / dof)
+  inv_dof = pytrades_lib.pytrades.inv_dof
 
   # READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
   #reshaped_names = pytrades_lib.pytrades.parameter_names.reshape((10,nfit), order='F').T
   #parameter_names = [''.join(reshaped_names[i,:]).strip() for i in range(0,nfit)]
-  
+
   #parameter_names = anc.convert_fortran2python_strarray(pytrades_lib.pytrades.parameter_names, nfit, str_len=10)
   #trades_names = anc.convert_fortran2python_strarray(pytrades_lib.pytrades.parameter_names,
                                                      #nfit, str_len=10
@@ -315,7 +367,7 @@ def main():
   temp_names = pytrades_lib.pytrades.get_parameter_names(nfit,str_len)
   trades_names = anc.convert_fortran_charray2python_strararray(temp_names)
   parameter_names = anc.trades_names_to_emcee(trades_names)
-  
+
   if(cli.trades_previous is not None):
     temp_names, trades_parameters = anc.read_fitted_file(cli.trades_previous)
     if(nfit != np.shape(trades_parameters)[0]):
@@ -332,7 +384,7 @@ def main():
   # save initial_fitting parameters into array
   original_fit_parameters = trades_parameters.copy()
   fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
-  
+
   trades_minmax = pytrades_lib.pytrades.parameters_minmax # PARAMETER BOUNDARIES
   #parameters_minmax = trades_minmax.copy()
   #parameters_minmax[:,0] = anc.e_to_sqrte_fitting(trades_minmax[:,0], trades_names)
@@ -345,24 +397,25 @@ def main():
 
   # TRANSITS SET
   n_t0 = pytrades_lib.pytrades.nt0
-  n_t0_sum = np.sum(n_t0)
+  n_t0_sum = pytrades_lib.pytrades.ntts
   n_set_t0 = 0
-  for i in range(0, n_bodies):
-    if (np.sum(n_t0[i]) > 0): n_set_t0 += 1
+  for i in range(0, n_bodies-1):
+    if (n_t0[i] > 0): n_set_t0 += 1
 
   # compute global constant for the loglhd
   global ln_err_const
 
-  try:
-    # fortran variable RV in python will be rv!!!
-    e_RVo = np.array(pytrades_lib.pytrades.ervobs[:], dtype=np.float64)
-  except:
-    e_RVo = np.array([0.], dtype=np.float64)
-  try:
-    e_T0o = np.array(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
-  except:
-    e_T0o = np.array([0.], dtype=np.float64)
-  ln_err_const = anc.compute_ln_err_const(dof, e_RVo, e_T0o, cli.ln_flag)
+  #try:
+    ## fortran variable RV in python will be rv!!!
+    #e_RVo = np.array(pytrades_lib.pytrades.ervobs[:], dtype=np.float64)
+  #except:
+    #e_RVo = np.array([0.], dtype=np.float64)
+  #try:
+    #e_T0o = np.array(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
+  #except:
+    #e_T0o = np.array([0.], dtype=np.float64)
+  #ln_err_const = anc.compute_ln_err_const(dof, e_RVo, e_T0o, cli.ln_flag)
+  ln_err_const = pytrades_lib.pytrades.ln_err_const
 
   # SET EMCEE PARAMETERS:
   nwalkers, nruns, nsave, npost = get_emcee_arguments(cli,nfit)
@@ -382,18 +435,19 @@ def main():
   anc.print_both(' Total N_T0 = %d for %d out of %d planet(s)' %(n_t0_sum, n_set_t0, n_planets),of_run)
   anc.print_both(' %s = %.7f' %('log constant error = ', ln_err_const),of_run)
   anc.print_both(' %s = %.7f' %('IN FORTRAN log constant error = ', pytrades_lib.pytrades.ln_err_const),of_run)
+  anc.print_both(' seed = %s' %(str(cli.seed)), of_run)
 
   if(cli.trades_previous is not None):
     anc.print_both('\n ******\n INITIAL FITTING PARAMETERS FROM PREVIOUS' \
               ' TRADES-EMCEE SIM IN FILE:\n %s\n ******\n' %(cli.trades_previous),
               of_run
               )
-    
+
   anc.print_both(' ORIGINAL PARAMETER VALUES -> 0000', of_run)
   fitness_0000, lgllhd_0000, check_0000 = pytrades_lib.pytrades.write_summary_files(0, original_fit_parameters)
   anc.print_both(' ', of_run)
   anc.print_both(' TESTING LNPROB_SQ ...', of_run)
-  
+
   lgllhd_zero = lnprob(trades_parameters)
   lgllhd_sq_zero = lnprob_sq(fitting_parameters, parameter_names)
 
@@ -402,9 +456,9 @@ def main():
   for ifit in range(0, nfit):
     anc.print_both(' %15s %23.16e %23.16e %15s %23.16e' %(trades_names[ifit], original_fit_parameters[ifit], trades_parameters[ifit], parameter_names[ifit], fitting_parameters[ifit]), of_run)
   anc.print_both(' ', of_run)
-  anc.print_both(' %15s %23.16e %23.16e %15s %23.16e' %('lnprob', lgllhd_0000,lgllhd_zero, 'lnprob_sq', lgllhd_sq_zero), of_run)
+  anc.print_both(' %15s %23.16e %23.16e %15s %23.16e' %('lnprob', lgllhd_0000, lgllhd_zero, 'lnprob_sq', lgllhd_sq_zero), of_run)
   anc.print_both(' ', of_run)
-  
+
   # INITIALISES THE WALKERS
   if(cli.emcee_previous is not None):
     anc.print_both(' Use a previous emcee simulation: %s' %(cli.emcee_previous), of_run)
@@ -418,17 +472,17 @@ def main():
 
   anc.print_both(' emcee chain: nwalkers = %d nruns = %d' %(nwalkers, nruns), of_run)
   anc.print_both(' sampler ... ',of_run)
-  
+
   # old version with threads
   #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, threads=nthreads)
   #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, threads=nthreads, args=[parameter_names]) # needed to use sqrt(e) in emcee instead of e (in fortran)
-  
+
   threads_pool = emcee.interruptible_pool.InterruptiblePool(nthreads)
   #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, pool=threads_pool)
   sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, pool=threads_pool, args=[parameter_names]) # needed to use sqrt(e) in emcee instead of e (in fortran)
-  
+
   anc.print_both(' ready to go', of_run)
-  anc.print_both(' with nsave = %r' %(nsave), of_run)
+  anc.print_both(' with nsave = %s' %(str(nsave)), of_run)
   sys.stdout.flush()
 
   #sys.exit()
@@ -468,13 +522,13 @@ def main():
       temp_lnprob = f_hdf5['lnprobability'] #[:,:]
       temp_lnprob[:, aaa:bbb] = sampler.lnprobability[:, aaa:bbb]
       shape_lnprob = sampler.lnprobability.shape
-      
+
       acceptance_fraction = sampler.acceptance_fraction
       temp_acceptance = f_hdf5['acceptance_fraction']
       temp_acceptance = acceptance_fraction
       #f_hdf5.create_dataset('acceptance_fraction', data=acceptance_fraction, dtype=np.float64)
       mean_acceptance_fraction = np.mean(acceptance_fraction)
-    
+
       #temp_chains_T = np.zeros((bbb, nwalkers, nfit))
       #for ifit in range(0,nfit):
         #temp_chains_T[:,:,ifit] = sampler.chain[:, :bbb, ifit].T
@@ -482,7 +536,7 @@ def main():
       acor_time = anc.compute_acor_time(sampler, steps_done=bbb)
       temp_acor = f_hdf5['autocor_time']
       temp_acor[...] = acor_time
-      
+
       #f_hdf5.create_dataset('autocor_time', data=np.array(acor_temp, dtype=np.float64), dtype=np.float64)
       #f_hdf5.create_dataset('autocor_time', data=np.array(sampler.acor, dtype=np.float64), dtype=np.float64) # not working
       #print 'aaa = %6d bbb = %6d -> sampler.lnprobability.shape = (%6d , %6d)' %(aaa, bbb, shape_lnprob[0], shape_lnprob[1])
@@ -509,9 +563,9 @@ def main():
     acceptance_fraction = sampler.acceptance_fraction
     mean_acceptance_fraction = np.mean(acceptance_fraction)
     #autocor_time = sampler.acor
-    temp_chains_T = np.zeros((bbb, nwalkers, nfit))
-    for ifit in range(0,nfit):
-      temp_chains_T[:,:,ifit] = sampler.chain[:, :, ifit].T
+    #temp_chains_T = np.zeros((nwalkers, nsteps, nfit))
+    #for ifit in range(0,nfit):
+      #temp_chains_T[:,:,ifit] = sampler.chain[:, :, ifit].T
     #acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
     acor_time = anc.compute_acor_time(sampler)
     lnprobability = sampler.lnprobability

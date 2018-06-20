@@ -3,10 +3,71 @@ module lin_fit
   implicit none
 
   interface linfit
-    module procedure linfit_0,linfit_1
+    module procedure linfit_noerrors_0,linfit_noerrors_1,linfit_0,linfit_1
   end interface linfit
 
   contains
+
+    ! ------------------------------------------------------------------ !
+    ! linear fit with vector x and y => y = m*x + q
+    subroutine linfit_noerrors_0(x,y,m,q)
+      integer,dimension(:),intent(in)::x
+      real(dp),dimension(:),intent(in)::y
+      real(dp),intent(out)::m,q
+
+      integer::n
+      real(dp),dimension(:),allocatable::xr
+      real(dp)::Sxy,Sx,Sx2,Sy,nr,num,den
+
+      n=size(x)
+      allocate(xr(n))
+      nr=real(n,dp)
+      xr = real(x, dp)
+      Sxy = sum(xr*y)
+      Sx = sum(xr)
+      Sx2 = sum(xr*xr)
+      Sy = sum(y)
+      den = nr*Sx2-(Sx*Sx)
+
+      num = (nr*Sxy) - (Sx*Sy)
+      m = num/den
+
+      num = (Sx2*Sy) - (Sx*Sxy)
+      q = num/den
+
+      deallocate(xr)
+
+      return
+    end subroutine linfit_noerrors_0
+
+    ! ------------------------------------------------------------------ !
+    ! linear fit with vector x and y => y = m*x + q
+    subroutine linfit_noerrors_1(x,y,m,q)
+      real(dp),dimension(:),intent(in)::x
+      real(dp),dimension(:),intent(in)::y
+      real(dp),intent(out)::m,q
+
+      integer::n
+      real(dp)::Sxy,Sx,Sx2,Sy,nr,num,den
+
+      n=size(x)
+      nr=real(n,dp)
+
+      Sxy = sum(x*y)
+      Sx = sum(x)
+      Sx2 = sum(x*x)
+      Sy = sum(y)
+      den = nr*Sx2-(Sx*Sx)
+
+      num = (nr*Sxy) - (Sx*Sy)
+      m = num/den
+
+      num = (Sx2*Sy) - (Sx*Sxy)
+      q = num/den
+
+      return
+    end subroutine linfit_noerrors_1
+
 
   ! ------------------------------------------------------------------ !
   ! linear fit with vector x and y and error on y (ey) => y = m*x + q
@@ -14,6 +75,7 @@ module lin_fit
     integer,dimension(:),intent(in)::x
     real(dp),dimension(:),intent(in)::y,ey
     real(dp),intent(out)::m,em,q,eq
+
     integer::n
     real(dp),dimension(:),allocatable::xf,w,wyx,wy,wx,wx2
     real(dp)::Sw,Swyx,Swy,Swx,Swx2,delta,num,eq2,em2
