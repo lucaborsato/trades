@@ -15,8 +15,9 @@ import matplotlib as mpl
 mpl.use('Agg', warn=False)
 import matplotlib.pyplot as plt
 #plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-plt.rc('font',**{'family':'serif','serif':['Latin Modern Roman']})
+#plt.rc('font',**{'family':'serif','serif':['Latin Modern Roman']})
 plt.rc('text', usetex=True)
+plt.rcParams['font.family'] = 'serif'
 
 # custom modules
 import constants as cst
@@ -262,7 +263,7 @@ def plot_oc_T41(cli, file_in, samples):
                   zorder=6,
                   alpha=malpha,
                   label='simulations'
-)
+                  )
   
   # samples
   if(nsmp > 0):
@@ -339,7 +340,7 @@ def plot_oc_T41(cli, file_in, samples):
     if(nsmp > 0):
       for ss in samples_plt:
         xx = ss.TTlin - tscale
-        print np.min(ss.T41s*ocu[0]),np.max(ss.T41s*ocu[0])
+        #print np.min(ss.T41s*ocu[0]),np.max(ss.T41s*ocu[0])
         ax.plot(xx, ss.T41s*ocu[0],
                 color='gray',
                 marker='None', ls='-', lw=0.4,

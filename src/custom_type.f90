@@ -159,9 +159,11 @@ module custom_type
     
     call deallocate_dataRV(oData%obsRV)
     n=size(oData%obsT0)
-    do i=1,n
-      call deallocate_dataT0(oData%obsT0(i))
-    end do
+    if(oData%ntts.gt.0)then
+      do i=1,n
+        call deallocate_dataT0(oData%obsT0(i))
+      end do
+    end if
   
   end subroutine deallocate_dataObs
 

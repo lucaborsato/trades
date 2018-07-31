@@ -150,53 +150,23 @@ def lnprob_sq(fitting_parameters, names_par):
 #
 # INITIALISE FOLDER AND LOG FILE
 #
-def init_folder(working_path, sub_folder):
-  working_folder = os.path.join(working_path, sub_folder)
-  if (not os.path.isdir(working_folder)):
-      os.makedirs(working_folder)
+#def init_folder(working_path, sub_folder):
+  #working_folder = os.path.join(working_path, sub_folder)
+  #if (not os.path.isdir(working_folder)):
+      #os.makedirs(working_folder)
 
-  #arg_file = os.path.join(working_path, 'arg.in')
-  #shutil.copy(arg_file, os.path.join(working_folder,''))
-  #bodies_file = os.path.join(working_path, 'bodies.lst')
-  #shutil.copy(bodies_file, os.path.join(working_folder,''))
-  #obd = open(bodies_file, 'r')
-  #for line in obd.readlines():
-    #shutil.copy(os.path.join(working_path, line.strip().split()[0]), os.path.join(working_folder,''))
-  #obd.close()
-  #t0files = glob.glob(os.path.join(working_path,'NB*_observations.dat'))
-  #for t0f in t0files:
-    #shutil.copy(t0f, os.path.join(working_folder,''))
-  #if(os.path.exists(os.path.join(working_path,'obsRV.dat'))):
-    #shutil.copy(os.path.join(working_path,'obsRV.dat'), os.path.join(working_folder,''))
+  ## copy files
+  #anc.copy_simulation_files(working_path, working_folder)
 
-  # copy files
-  anc.copy_simulation_files(working_path, working_folder)
+  #run_log = os.path.join(working_folder, "trades_run.log")
+  #of_run = open(run_log, 'w')
+  #anc.print_both("# pyTRADES LOG FILE", of_run)
+  #anc.print_both("# working_path = %s" %(working_path), of_run)
+  #anc.print_both("# working_folder = %s" %(working_folder), of_run)
+  #anc.print_both("# run_log = %s" %(run_log), of_run)
 
-  run_log = os.path.join(working_folder, "trades_run.log")
-  of_run = open(run_log, 'w')
-  anc.print_both("# pyTRADES LOG FILE", of_run)
-  anc.print_both("# working_path = %s" %(working_path), of_run)
-  anc.print_both("# working_folder = %s" %(working_folder), of_run)
-  anc.print_both("# run_log = %s" %(run_log), of_run)
-
-  return working_folder, run_log, of_run
-
-# ==============================================================================
-
-#def compute_ln_err_const(dof, e_RVo, e_T0o, ln_flag=False):
-
-  #if (ln_flag):
-    #eRV = e_RVo[e_RVo > 0.]
-    #eT0 = e_T0o[e_T0o > 0.]
-
-    #ln_e_RVo = np.sum(np.log(eRV*eRV))
-    #ln_e_T0o = np.sum(np.log(eT0*eT0))
-
-    #ln_err_const = - 0.5 * dof * np.log(2.*np.pi) - 0.5 * ( ln_e_RVo + ln_e_T0o)
-  #else:
-    #ln_err_const = 0.
-
-  #return ln_err_const
+  #return working_folder, run_log, of_run
+init_folder = anc.init_folder
 
 # ==============================================================================
 

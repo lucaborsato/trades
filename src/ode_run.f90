@@ -1193,9 +1193,11 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 !     if(allocated(gamma)) deallocate(gamma)
 !     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
     call deallocate_dataRV(simRV)
-    do ibd=1,NB-1
-      call deallocate_dataT0(simT0(ibd))
-    end do
+    if(nTTs.gt.0)then
+      do ibd=1,NB-1
+        call deallocate_dataT0(simT0(ibd))
+      end do
+    end if
 
     if(allocated(m))   deallocate(m,R,P,a,e,w,mA,inc,lN,clN)
     if(allocated(ra0)) deallocate(ra0,ra1)
@@ -1572,9 +1574,11 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 !     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
 
     call deallocate_dataRV(simRV)
-    do ibd=1,NB-1
-      call deallocate_dataT0(simT0(ibd))
-    end do
+    if(nTTs.gt.0)then
+      do ibd=1,NB-1
+        call deallocate_dataT0(simT0(ibd))
+      end do
+    end if
 
     if(allocated(m)) deallocate(m,R,P,a,e,w,mA,inc,lN,clN)
     if(allocated(ra0)) deallocate(ra0,ra1)
@@ -1951,10 +1955,12 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     if(allocated(ra0)) deallocate(ra0,ra1)
 
     call deallocate_dataRV(simRV)
-    do ibd=1,n_body-1
-      call deallocate_dataT0(simT0(ibd))
-    end do
-
+    if(nTTs.gt.0)then
+      do ibd=1,n_body-1
+        call deallocate_dataT0(simT0(ibd))
+      end do
+    end if
+      
     return
   end subroutine orbits_to_data
 
@@ -2306,9 +2312,11 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 !     if(allocated(gamma)) deallocate(gamma)
 !     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
     call deallocate_dataRV(simRV)
-    do ibd=1,NB-1
-      call deallocate_dataT0(simT0(ibd))
-    end do
+    if(nTTs.gt.0)then
+      do ibd=1,NB-1
+        call deallocate_dataT0(simT0(ibd))
+      end do
+    end if
 
     if(allocated(m))   deallocate(m,R,P,sma,ecc,w,mA,inc,lN,clN)
     if(allocated(ra0)) deallocate(ra0,ra1)

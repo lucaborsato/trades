@@ -26,8 +26,10 @@ kel_fmt = ['%.3f', '%.4f', '%.3f', '%.1f', '%.1f', '%.1f', '%.3f', '%.3f']
 
 letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'l', 'm', 'n', 'o', 'p']
 
-deg2rad = np.pi / 180.0
-rad2deg = 180.0 / np.pi
+#deg2rad = np.pi / 180.0
+#rad2deg = 180.0 / np.pi
+deg2rad = cst.deg2rad
+rad2deg = cst.rad2deg
 
 eps64bit = np.finfo(np.float64(1.0)).eps
 eps32bit = np.finfo(np.float32(1.0)).eps
@@ -37,7 +39,7 @@ eps32bit = np.finfo(np.float32(1.0)).eps
 percentile_val = [68.27, 50.0, 15.865, 84.135, 2.265, 97.735, 0.135, 99.865]
 
 
-# ===================================================================
+# ==============================================================================
 
 def print_both(line, output=None):
   
@@ -47,8 +49,58 @@ def print_both(line, output=None):
 
   return
 
+# ==============================================================================
+# INITIALISE FOLDER AND LOG FILE
+# ==============================================================================
+def copy_simulation_files(dir_src, dir_dest):
+  # copy all the simulation files from the source directory to destination directory
+  ## arg.in
+  arg_file = os.path.join(dir_src, 'arg.in')
+  shutil.copy(arg_file, os.path.join(dir_dest, ''))
+  ## bodies.lst
+  bodies_file = os.path.join(dir_src, 'bodies.lst')
+  shutil.copy(bodies_file, os.path.join(dir_dest, ''))
+  ## bodies file (inside bodies.lst)
+  obd = open(bodies_file, 'r')
+  for line in obd.readlines():
+    shutil.copy(os.path.join(dir_src, line.strip().split()[0]), os.path.join(dir_dest, ''))
+  obd.close()
+  ## TT files
+  t0files = glob.glob(os.path.join(dir_src, 'NB*_observations.dat'))
+  for t0f in t0files:
+    shutil.copy(t0f, os.path.join(dir_dest, ''))
+  ## RV file
+  if (os.path.exists(os.path.join(dir_src, 'obsRV.dat'))):
+    shutil.copy(os.path.join(dir_src, 'obsRV.dat'), os.path.join(dir_dest, ''))
 
-# ===================================================================
+  ## lm.opt pso.opt pik.opt
+  opt_files = 'lm.opt pso.opt pik.opt'.split()
+  for opt in opt_files:
+    if (os.path.exists(os.path.join(dir_src, opt))):
+      shutil.copy(os.path.join(dir_src, opt), os.path.join(dir_dest, ''))
+
+  return
+
+# ==============================================================================
+
+
+def init_folder(working_path, sub_folder):
+  working_folder = os.path.join(working_path, sub_folder)
+  if (not os.path.isdir(working_folder)):
+      os.makedirs(working_folder)
+
+  copy_simulation_files(working_path, working_folder)
+
+  run_log = os.path.join(working_folder, "trades_run.log")
+  of_run = open(run_log, 'w')
+  print_both("# pyTRADES LOG FILE", of_run)
+  print_both("# working_path = %s" %(working_path), of_run)
+  print_both("# working_folder = %s" %(working_folder), of_run)
+  print_both("# run_log = %s" %(run_log), of_run)
+
+  return working_folder, run_log, of_run
+
+# ==============================================================================
 
 def set_bool_argument(arg_in):
   if (str(arg_in).lower() in ['t', 'tr', 'tru', 'true', 'y', 'ye', 'yes', '1']):
@@ -184,7 +236,8 @@ def get_args():
   cli.temp_status = set_bool_argument(cli.temp_status)
   cli.cumulative = set_bool_argument(cli.cumulative)
   cli.boot_id = set_int_argument(cli.boot_id)
-  cli.use_thin = set_bool_argument(cli.use_thin)
+  cli.use_thin = set_int_argument(cli.use_thin, default=False)
+  #cli.use_thin = set_bool_argument(cli.use_thin)
   cli.seed = set_int_or_none(cli.seed)
   cli.overplot = set_overplot(cli.overplot)
   cli.adhoc = set_adhoc_file(cli.adhoc)
@@ -192,38 +245,6 @@ def get_args():
   cli.n_samples = set_int_argument(cli.n_samples, default=0)
 
   return cli
-
-
-# ==============================================================================
-
-def copy_simulation_files(dir_src, dir_dest):
-  # copy all the simulation files from the source directory to destination directory
-  ## arg.in
-  arg_file = os.path.join(dir_src, 'arg.in')
-  shutil.copy(arg_file, os.path.join(dir_dest, ''))
-  ## bodies.lst
-  bodies_file = os.path.join(dir_src, 'bodies.lst')
-  shutil.copy(bodies_file, os.path.join(dir_dest, ''))
-  ## bodies file (inside bodies.lst)
-  obd = open(bodies_file, 'r')
-  for line in obd.readlines():
-    shutil.copy(os.path.join(dir_src, line.strip().split()[0]), os.path.join(dir_dest, ''))
-  obd.close()
-  ## TT files
-  t0files = glob.glob(os.path.join(dir_src, 'NB*_observations.dat'))
-  for t0f in t0files:
-    shutil.copy(t0f, os.path.join(dir_dest, ''))
-  ## RV file
-  if (os.path.exists(os.path.join(dir_src, 'obsRV.dat'))):
-    shutil.copy(os.path.join(dir_src, 'obsRV.dat'), os.path.join(dir_dest, ''))
-
-  ## lm.opt pso.opt pik.opt
-  opt_files = 'lm.opt pso.opt pik.opt'.split()
-  for opt in opt_files:
-    if (os.path.exists(os.path.join(dir_src, opt))):
-      shutil.copy(os.path.join(dir_src, opt), os.path.join(dir_dest, ''))
-
-  return
 
 
 # ==============================================================================
@@ -792,7 +813,8 @@ def compute_limits(vec_a, delta=0.05):
 
 # ==============================================================================
 
-def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False,
+def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time,
+                    chains_T_full, lnprobability, burnin_done=False,
                     full_chains_thinned=False):
   nr, nw, nfit = np.shape(chains_T_full)
   print ' nburnin = ', nburnin
@@ -815,13 +837,13 @@ def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time, chains_T_
     except:
       n_acor = len(autocor_time)
     if (n_acor == 0):
-      # autocor_time = anc.compute_autocor_time(flatchain_posterior_0)
-      autocor_time = anc.compute_autocor_time(chains_T_posterior)
+      # autocor_time = compute_autocor_time(flatchain_posterior_0)
+      autocor_time = compute_autocor_time(chains_T_posterior)
     thin_steps = np.rint(np.mean(np.array(autocor_time, dtype=np.float64))).astype(int)
     print ' computed thin_steps = ', thin_steps
-    if (thin_steps > 200):
-      thin_steps = 200
-      print ' set thin_steps = 200'
+    if (thin_steps > 1000):
+      thin_steps = 1000
+      print ' set thin_steps = 1000'
 
     sel_thin_steps = np.arange(0, nruns_sel + thin_steps, thin_steps).astype(int)
     if (sel_thin_steps[-1] >= nruns_sel): sel_thin_steps[-1] = nruns_sel - 1
@@ -1128,7 +1150,7 @@ def select_within_all_ci(posterior, post_ci, lnprobability):
   #  0       1       2       3       4       5
   # -3sigma -2sigma -1sigma +1sigma +2sigma +3sigma
   
-  print np.shape(use_ci)
+  #print np.shape(use_ci)
   
   # use_ci should have: nfit x nci, 
   # where nci:

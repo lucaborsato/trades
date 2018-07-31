@@ -113,6 +113,7 @@ def main():
   posterior_file = os.path.join(cli.full_path, 'posterior.hdf5')
   p_h5f = h5py.File(posterior_file, 'w')
   p_h5f.create_dataset('posterior', data=flatchain_posterior, dtype=np.float64)
+  p_h5f.create_dataset('loglikelihood', data=lnprob_burnin.reshape((-1)), dtype=np.float64)
   p_h5f['posterior'].attrs['nfit'] = nfit
   p_h5f['posterior'].attrs['nposterior'] = np.shape(flatchain_posterior)[0]
   p_h5f.create_dataset('parameter_names', data=names_par, dtype='S10')
@@ -500,7 +501,7 @@ def main():
 # ==============================================================================
   
 # ==============================================================================
-# another kind of selection: parameter set withi HDI, then take the max(loglikelihood) --> 668
+# another kind of selection: parameter set within HDI, then take the max(loglikelihood) --> 668
 # ==============================================================================
   name_par, name_excluded = anc.get_sample_list(cli.sample_str, names_par)
   #sample3_parameters, sample3_lgllhd = anc.get_sample_by_par_and_lgllhd(flatchain_posterior_0,
