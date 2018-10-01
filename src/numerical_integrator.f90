@@ -77,10 +77,15 @@ module numerical_integrator
 
     allocate(ertemp(size(err)))
     ertemp=zero
-    ertemp(7:NBDIM)=abs(err(7:NBDIM))/rscal(7:NBDIM)
+!     ertemp(7:NBDIM)=abs(err(7:NBDIM))/rscal(7:NBDIM)
     do i=7,NBDIM
       !if(rscal(i).eq.zero)ertemp(i)=TOL_dp
-      if(abs(rscal(i)-zero).le.TOL_dp)ertemp(i)=TOL_dp
+!       if(abs(rscal(i)-zero).le.TOL_dp)ertemp(i)=TOL_dp
+      if(abs(rscal(i)).le.TOL_dp)then
+        ertemp(i)=TOL_dp
+      else
+        ertemp(i)=abs(err(i))/rscal(i)
+      end if
     end do
     maxtemp=maxval(ertemp(7:NBDIM))
     emax=max(emold,maxtemp)

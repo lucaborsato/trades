@@ -16,9 +16,10 @@ from matplotlib import use as mpluse
 mpluse("Agg")
 #mpluse("Qt4Agg")
 import matplotlib.pyplot as plt
-plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-plt.rc('text', usetex=True)
-
+#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
+#plt.rc('text', usetex=True)
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.family'] = 'serif'
 
 # ==============================================================================
 
@@ -593,7 +594,8 @@ def main():
   res_rv = rv_opl - rv_spl
   
   idx = np.argsort(phi_rv[:,0])
-  fig = plt.figure(figsize=(12,12))
+  #fig = plt.figure(figsize=(12,12))
+  fig = plt.figure(figsize=(6,6))
   
   lmin, bmin = 0.07, 0.07
   rmax, umax = 1.-0.5*lmin, 1.-0.5*bmin

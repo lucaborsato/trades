@@ -13,8 +13,11 @@ from matplotlib import use as mpluse
 mpluse("Agg")
 #mpluse("Qt4Agg")
 import matplotlib.pyplot as plt
-plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-plt.rc('text', usetex=True)
+#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
+#plt.rc('text', usetex=True)
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.family'] = 'serif'
+
 #from matplotlib import rcParams
 #rcParams['text.latex.unicode']=True
 

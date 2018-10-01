@@ -18,8 +18,10 @@ from matplotlib import use as mpluse
 mpluse("Agg")
 #mpluse("Qt4Agg")
 import matplotlib.pyplot as plt
-plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-plt.rc('text', usetex=True)
+#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
+#plt.rc('text', usetex=True)
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.family'] = 'serif'
 import matplotlib.colors as colors
 #from matplotlib import rcParams
 #rcParams['text.latex.unicode']=True
@@ -37,10 +39,10 @@ def main():
 
   # global variables
 
-  label_separation=-0.90
-  label_pad = 16
-  label_size = 7
-  ticklabel_size = 5
+  label_separation=-0.90 # if uses this, comment ax.xyaxis.labelpad = label_pad
+  label_pad = 12 # it uses this, comment ax.xyaxis.set_label_coords()...
+  label_size = 8
+  ticklabel_size = 4
 
 
   def set_xaxis(ax, label_size, label_separation, label_pad, ticklabel_size, kel_label, ticks_formatter, tick_fmt='%.4f'):
@@ -49,7 +51,7 @@ def main():
     ax.xaxis.set_label_coords(0.5, label_separation)
     #ax.ticklabel_format(style='plain', axis='both', useOffset=False)
     plt.setp(ax.xaxis.get_majorticklabels(), rotation=70 )
-    ax.xaxis.labelpad = label_pad
+    #ax.xaxis.labelpad = label_pad
     ax.set_xlabel(kel_label, fontsize=label_size)
     tick_step = (ticks_formatter[1] - ticks_formatter[0]) / ticks_formatter[2]
     ax.xaxis.set_ticks(np.arange(ticks_formatter[0], ticks_formatter[1], tick_step))
@@ -62,7 +64,7 @@ def main():
     ax.yaxis.set_tick_params(labelsize=ticklabel_size)
     ax.yaxis.set_label_coords(label_separation,0.5)
     #ax.ticklabel_format(style='plain', axis='both', useOffset=False)
-    ax.yaxis.labelpad = label_pad
+    #ax.yaxis.labelpad = label_pad
     ax.set_ylabel(kel_label, fontsize=label_size)
     tick_step = (ticks_formatter[1] - ticks_formatter[0]) / ticks_formatter[2]
     ax.yaxis.set_ticks(np.arange(ticks_formatter[0], ticks_formatter[1], tick_step))
@@ -113,11 +115,13 @@ def main():
   # test label_separation
   #if (nfit <= 3): label_separation = -0.1
   if(nfit > 2):
-    label_separation = -0.1 - ( 0.075 * (nfit-2) )
-  else:
-    label_separation = -0.15
+    #label_separation = -0.1 - ( 0.075 * (nfit-2) ) # good for figsize=(12,12)
+    label_separation = -0.15 - ( 0.125 * (nfit-2) ) # testing
+  #else:
+    #label_separation = -0.15
 
-  label_size = label_size - 1 * int(nfit / 5.)
+  #label_size = label_size - 1 * int(nfit / 5.)
+  label_size = label_size - 1 * int(nfit / 2.5)
 
   # set label and legend names
   kel_plot_labels = anc.keplerian_legend(parameter_names_emcee, cli.m_type)
@@ -125,6 +129,10 @@ def main():
   chains_T_full, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, nburnin, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
 
   chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, nburnin, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False)
+  
+  flatchain_posterior_0 = anc.fix_lambda(flatchain_posterior_0,
+                                         parameter_names_emcee
+                                        )
 
   if(cli.boot_id > 0):
     flatchain_posterior_msun = anc.posterior_back_to_msun(m_factor,parameter_names_emcee,flatchain_posterior_0)
@@ -132,26 +140,7 @@ def main():
     logger.info('saved bootstrap like file: %s' %(boot_file))
     del flatchain_posterior_msun
 
-  ## TO BE SUBSTITUTED WITH PROPER READ OF summary_parameters.hdf5 FILE
-  ## GET MAX LNPROBABILITY AND PARAMETERS -> id 40XX
-  #max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
-
-  ## std way: median of the posterior parameter distribution -> id 10XX
-  #median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
-
-  ## MODE-LIKE PARAMETERS -> id 30XX
-  ## take the mean of 5 bin centered to the higher bin
-  #k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
-  ##if(k>50): k=50
-  #if(k>20): k=20
-  
-  #k = anc.get_bins(flatchain_posterior_0, rule='doane')
   k = anc.get_auto_bins(flatchain_posterior_0)
-  
-  #mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
-
-  #name_par, name_excluded = anc.get_sample_list(cli.sample_str, parameter_names_emcee)
-  #sample_parameters, idx_sample = anc.pick_sample_parameters(flatchain_posterior_0, parameter_names_emcee, name_par = name_par, name_excluded = name_excluded)
   
   if(cli.overplot is not None):
     
@@ -174,7 +163,8 @@ def main():
         overp_par[ii] = overp_par[ii]*m_factor
 
   #fig, ax = plt.subplots(nrows = nfit-1, ncols=nfit, figsize=(12,12))
-  fig = plt.figure(figsize=(12,12))
+  #fig = plt.figure(figsize=(12,12))
+  fig = plt.figure(figsize=(6,6))
   fig.subplots_adjust(hspace=0.05, wspace=0.05)
 
   for ix in range(0, nfit, 1):
@@ -203,11 +193,22 @@ def main():
         ax = plt.subplot2grid((nfit+1, nfit), (iy,ix))
         
         #hist2d_counts, xedges, yedges, image2d = ax.hist2d(x_data, y_data, bins=k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], cmap=cm.gray_r, normed=True)
-        hist2d_counts, xedges, yedges, image2d = ax.hist2d(x_data, y_data, bins=k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], cmap=cm.gray_r, normed=False)
+        hist2d_counts, xedges, yedges, image2d = ax.hist2d(\
+          x_data, y_data, bins=k, 
+          range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]],
+          cmap=cm.gray_r,
+          normed=False
+          #density=False
+          )
         
        #new_k = int(k/3)
         new_k = k
-        hist2d_counts_2, xedges_2, yedges_2 = np.histogram2d(x_data, y_data, bins=new_k, range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]], normed=True)
+        hist2d_counts_2, xedges_2, yedges_2 = np.histogram2d(\
+          x_data, y_data, bins=new_k, 
+          range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]],
+          #normed=True
+          density=False
+          )
         
         x_bins = [0.5*(xedges_2[i]+xedges_2[i+1]) for i in range(0, new_k)]
         y_bins = [0.5*(yedges_2[i]+yedges_2[i+1]) for i in range(0, new_k)]
@@ -220,7 +221,11 @@ def main():
         #ax.contour(x_bins, y_bins, hist2d_counts_2.T, cmap=cm.viridis, linestyle='solid', linewidths=0.7)
         
         #ax.contour(x_bins, y_bins, hist2d_counts_2.T, levels, cmap=cm.viridis, linestyle='solid', linewidths=0.7, normed=True)
-        ax.contour(x_bins, y_bins, hist2d_counts_2.T, nl, cmap=cm.viridis, linestyle='solid', linewidths=0.5, normed=True)
+        ax.contour(x_bins, y_bins, hist2d_counts_2.T,
+                   nl, cmap=cm.viridis,
+                   linestyles='solid', linewidths=0.5,
+                   #normed=True
+                   )
         
         
         if(cli.overplot is not None):
@@ -253,26 +258,30 @@ def main():
         
         if(not cli.cumulative):
           # HISTOGRAM and pdf
-          hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True)
+          hist_counts, edges, patces = ax.hist(x_data, bins=k,
+                                               range=[x_data.min(), x_data.max()], histtype='stepfilled', 
+                                               color='darkgrey', 
+                                               edgecolor='lightgray', align='mid', 
+                                               orientation=hist_orientation, 
+                                               #normed=True,
+                                               density=True,
+                                               stacked=True
+                                               )
           
-          ##x_pdf = scipy_norm.pdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
-          #x_pdf = scipy_norm.pdf(x_data, loc=x_data.mean(), scale=x_data.std())
-          #if(ix == nfit-1):
-            #ax.plot(x_pdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
-          #else:
-            #ax.plot(x_data[idx], x_pdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
         
         else:
           # CUMULATIVE HISTOGRAM and cdf
-          hist_counts, edges, patces = ax.hist(x_data, bins=k, range=[x_data.min(), x_data.max()], histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid', orientation=hist_orientation, normed=True, stacked=True, cumulative=True)
+          hist_counts, edges, patces = ax.hist(x_data, bins=k,
+                                               range=[x_data.min(), x_data.max()],
+                                               histtype='stepfilled', 
+                                               color='darkgrey', 
+                                               edgecolor='lightgray', align='mid', 
+                                               orientation=hist_orientation, 
+                                               density=True,
+                                               stacked=True,
+                                               cumulative=True
+                                               )
           
-          ##x_cdf = scipy_norm.cdf(x_data[idx], loc=x_data.mean(), scale=x_data.std())
-          #x_cdf = scipy_norm.cdf(x_data, loc=x_data.mean(), scale=x_data.std())
-          #if(ix == nfit-1):
-            #ax.plot(x_cdf[idx], x_data[idx], marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
-          #else:
-            #ax.plot(x_data[idx], x_cdf[idx] , marker='None', color='black', ls='-', lw=1.1, alpha=0.99)
-        
         if (ix == nfit-1):
           ax.set_ylim([y_min, y_max])
           if(cli.overplot is not None):

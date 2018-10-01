@@ -2086,8 +2086,10 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 !       T0_stat=0
 !       T0_sim=zero
 !     end if
+
+    allocate(simT0(NB-1))
     if(nTTs.gt.0)then
-      allocate(simT0(NB-1))
+!       allocate(simT0(NB-1))
         do ibd=1,NB-1
           nT0=obsData%obsT0(ibd)%nT0
 !           allocate(simT0(ibd)%epo(nT0),simT0(ibd)%T0(nT0),&
@@ -2243,7 +2245,7 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
       end if
 
-      if(sum(simT0(:)%nT0).gt.0)then
+      if(allocated(simT0).and.sum(simT0(:)%nT0).gt.0)then
         write(*,*)
         write(*,'(a,i5)')" T0 SIM found ",sum(simT0(:)%nT0)
         write(*,*)

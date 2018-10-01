@@ -5,17 +5,17 @@ from __future__ import division # no more "zero" integer division bugs!:P
 import sys
 import argparse
 import os
-import ancillary as anc
 import multiprocessing as mp
 import subprocess as sp
 import time
-
+# ==============================================================================
+import ancillary as anc
+# ==============================================================================
+# ==============================================================================
 
 def geweke(cli):
 
   log_folder = os.path.join(cli.full_path, 'logs')
-  if(not os.path.isdir(log_folder)):
-    os.makedirs(log_folder)
   log_file = os.path.join(log_folder, 'log_geweke.txt')
   olog = open(log_file, 'w')
   
@@ -32,11 +32,11 @@ def geweke(cli):
   
   return
 
+# ==============================================================================
+
 def gelman_rubin(cli):
   
   log_folder = os.path.join(cli.full_path, 'logs')
-  if(not os.path.isdir(log_folder)):
-    os.makedirs(log_folder)
   log_file = os.path.join(log_folder, 'log_gelman_rubin.txt')
   olog = open(log_file, 'w')
   
@@ -54,11 +54,11 @@ def gelman_rubin(cli):
   
   return
 
+# ==============================================================================
+
 def chains(cli):
   
   log_folder = os.path.join(cli.full_path, 'logs')
-  if(not os.path.isdir(log_folder)):
-    os.makedirs(log_folder)
   log_file = os.path.join(log_folder, 'log_chains.txt')
   olog = open(log_file, 'w')
   
@@ -75,11 +75,11 @@ def chains(cli):
   
   return
 
+# ==============================================================================
+
 def correlation(cli):
   
   log_folder = os.path.join(cli.full_path, 'logs')
-  if(not os.path.isdir(log_folder)):
-    os.makedirs(log_folder)
   log_file = os.path.join(log_folder, 'log_corr_plot_fitted.txt')
   olog = open(log_file, 'w')
   
@@ -96,11 +96,11 @@ def correlation(cli):
   
   return
 
+# ==============================================================================
+
 def derived_correlation(cli):
   
   log_folder = os.path.join(cli.full_path, 'logs')
-  if(not os.path.isdir(log_folder)):
-    os.makedirs(log_folder)
   log_file = os.path.join(log_folder, 'log_corr_plot_derived.txt')
   olog = open(log_file, 'w')
   
@@ -117,11 +117,11 @@ def derived_correlation(cli):
   
   return
 
+# ==============================================================================
+
 def ci_chains_correlation(cli):
   
   log_folder = os.path.join(cli.full_path, 'logs')
-  if(not os.path.isdir(log_folder)):
-    os.makedirs(log_folder)
   log_file = os.path.join(log_folder, 'log_confidence_intervals.txt')
   olog = open(log_file, 'w')
   
@@ -169,6 +169,8 @@ def ci_chains_correlation(cli):
   
   return
 
+# ==============================================================================
+
 # Define the function for checking the process status
 def status(proc):
   #print proc.is_alive(), type(proc.is_alive())
@@ -179,9 +181,14 @@ def status(proc):
   else:
     return proc.is_alive()
 
+# ==============================================================================
 
 def main():
   cli = anc.get_args()
+  
+  log_folder = os.path.join(cli.full_path, 'logs')
+  if(not os.path.isdir(log_folder)):
+    os.makedirs(log_folder)
 
   threads = []
   
@@ -223,15 +230,17 @@ def main():
       if status(pp) == "dead":
         threads.pop(threads.index(pp))
     # loose 10 seconds before checking again
-    time.sleep(5)
+    time.sleep(2.5)
   
   print 'COMPLETED ALL SCRIPTS'
   
   return
 
-
+# ==============================================================================
+# ==============================================================================
 if __name__ == "__main__":
   main()
-  
+# ==============================================================================
+# ==============================================================================
   
   

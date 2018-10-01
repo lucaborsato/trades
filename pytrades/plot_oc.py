@@ -16,7 +16,7 @@ mpl.use('Agg', warn=False)
 import matplotlib.pyplot as plt
 #plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
 #plt.rc('font',**{'family':'serif','serif':['Latin Modern Roman']})
-plt.rc('text', usetex=True)
+plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
 
 # custom modules
@@ -219,6 +219,9 @@ def plot_oc_T41(cli, file_in, samples):
   else:
     nsmp = 0
   
+  lfont=10
+  tfont=8
+  
   xlabel = 'BJD$_\\textrm{TDB} - %.3f$' %(tscale)
   
   fig = plt.figure(figsize=(6,6))
@@ -231,12 +234,13 @@ def plot_oc_T41(cli, file_in, samples):
     ncols = 1
 
   malpha = 0.88
+  mso=5
+  mss=4
 
   # O-C
-
   ax = plt.subplot2grid((nrows, ncols), (0,0), rowspan=2)
-  set_axis_default(ax, ticklabel_size=6, aspect='auto', labeldown=False)
-  ax.set_ylabel('O-C (%s)' %(ocu[1]), fontsize=8)
+  set_axis_default(ax, ticklabel_size=tfont, aspect='auto', labeldown=False)
+  ax.set_ylabel('O-C (%s)' %(ocu[1]), fontsize=lfont)
   axtitle(ax, labtitle='planet %s: transit times' %(planet))
   
   ax.axhline(0., color='black', ls='-',lw=0.7)
@@ -249,7 +253,7 @@ def plot_oc_T41(cli, file_in, samples):
   lobs = ax.errorbar(x, sim.oc_o*ocu[0],
                      yerr=sim.eTTo*ocu[0],
                      color='black', ecolor='gray',
-                     fmt='o', ms=3, mec='None',
+                     fmt='o', ms=mso, mfc='white', mec='black',
                      ls='',
                      elinewidth=0.6,
                      capsize=0,
@@ -258,7 +262,7 @@ def plot_oc_T41(cli, file_in, samples):
                      )
   # trades
   lsim, = ax.plot(x, sim.oc_s*ocu[0],
-                  marker='.', ms=4, mec='None',
+                  marker='o', ms=mss, mec='None',
                   ls='',
                   zorder=6,
                   alpha=malpha,
@@ -275,30 +279,31 @@ def plot_oc_T41(cli, file_in, samples):
                     color='gray',
                     marker='None', ls='-', lw=0.4,
                     zorder=4,
-                    alpha=0.5,
+                    alpha=0.4,
                     label='samples'
                     )
       lsmp.append(ll)
   
-    ax.legend(handles=[lobs, lsim, lsmp[0]], loc='best', fontsize=5)
+    ax.legend(handles=[lobs, lsim, lsmp[0]], loc='best', fontsize=tfont-2)
   else:
-    ax.legend(loc='best', fontsize=5)
+    ax.legend(loc='best', fontsize=tfont-2)
   
   ax.set_xlim(minx, maxx)
   
   # residuals TTo-TTs
   ax = plt.subplot2grid((nrows, ncols), (2,0), rowspan=1)
-  set_axis_default(ax, ticklabel_size=6, aspect='auto')
-  ax.set_ylabel('res (%s)' %(ocu[1]), fontsize=8)
-  ax.set_xlabel(xlabel, fontsize=8)
+  set_axis_default(ax, ticklabel_size=tfont, aspect='auto')
+  ax.set_ylabel('res (%s)' %(ocu[1]), fontsize=lfont)
+  ax.set_xlabel(xlabel, fontsize=lfont)
   
   ax.axhline(0., color='black', ls='-',lw=0.7)
   
   # data - trades
   ax.errorbar(x, sim.dTTos*ocu[0],
               yerr=sim.eTTo*ocu[0],
-              fmt='o', ms=3, mec='None',
+              fmt='o', ms=mss, mec='lightgray', mew=0.5,
               ls='',
+              ecolor='gray',
               elinewidth=0.6,
               capsize=0,
               zorder=6,
@@ -310,8 +315,8 @@ def plot_oc_T41(cli, file_in, samples):
     # T41 duration
 
     ax = plt.subplot2grid((nrows, ncols), (0,1), rowspan=2)
-    set_axis_default(ax, ticklabel_size=6, aspect='auto', labeldown=False)
-    ax.set_ylabel('T$_{41}$ (%s)' %(ocu[1]), fontsize=8)
+    set_axis_default(ax, ticklabel_size=tfont, aspect='auto', labeldown=False)
+    ax.set_ylabel('T$_{41}$ (%s)' %(ocu[1]), fontsize=lfont)
     axtitle(ax, labtitle='planet %s: durations as T$_4$-T$_1$ ' %(planet))
     
     #ax.axhline(np.median(data[:,6]), color='black', ls='-',lw=0.7)
@@ -320,7 +325,7 @@ def plot_oc_T41(cli, file_in, samples):
     ax.errorbar(x, sim.T41o*ocu[0],
                 yerr=sim.eT41o*ocu[0],
                 color='black', ecolor='gray',
-                fmt='o', ms=3, mec='None',
+                fmt='o', ms=mso, mfc='white', mec='black',
                 ls='',
                 elinewidth=0.6,
                 capsize=0,
@@ -329,7 +334,7 @@ def plot_oc_T41(cli, file_in, samples):
                 )
     # trades
     ax.plot(x, sim.T41s*ocu[0],
-            marker='.', ms=4, mec='None',
+            marker='o', ms=mss, mec='None',
             ls='',
             zorder=6,
             alpha=malpha,
@@ -345,29 +350,30 @@ def plot_oc_T41(cli, file_in, samples):
                 color='gray',
                 marker='None', ls='-', lw=0.4,
                 zorder=4,
-                alpha=0.5,
+                alpha=0.4,
                 )
         
     ax.set_xlim(minx, maxx)
     
     # residuals T41o - T41s
     ax = plt.subplot2grid((nrows, ncols), (2,1), rowspan=1)
-    set_axis_default(ax, ticklabel_size=6, aspect='auto')
-    ax.set_ylabel('res (min)', fontsize=8)
-    ax.set_xlabel(xlabel, fontsize=8)
+    set_axis_default(ax, ticklabel_size=tfont, aspect='auto')
+    ax.set_ylabel('res (min)', fontsize=lfont)
+    ax.set_xlabel(xlabel, fontsize=lfont)
     
     ax.axhline(0., color='black', ls='-',lw=0.7)
     
     # data - trades
     ax.errorbar(x, sim.dT41os*ocu[0],
                 yerr=sim.eT41o*ocu[0],
-                fmt='o', ms=3, mec='None',
+                fmt='o', ms=mss, mec='lightgray', mew=0.5,
                 ls='',
+                ecolor='gray',
                 elinewidth=0.6,
                 capsize=0,
                 zorder=6,
                 )
- 
+      
     ax.set_xlim(minx, maxx)
   
   folder_out = os.path.join(os.path.dirname(file_in), 'plots')

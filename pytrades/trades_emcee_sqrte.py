@@ -149,23 +149,6 @@ def lnprob_sq(fitting_parameters, names_par):
 
 #
 # INITIALISE FOLDER AND LOG FILE
-#
-#def init_folder(working_path, sub_folder):
-  #working_folder = os.path.join(working_path, sub_folder)
-  #if (not os.path.isdir(working_folder)):
-      #os.makedirs(working_folder)
-
-  ## copy files
-  #anc.copy_simulation_files(working_path, working_folder)
-
-  #run_log = os.path.join(working_folder, "trades_run.log")
-  #of_run = open(run_log, 'w')
-  #anc.print_both("# pyTRADES LOG FILE", of_run)
-  #anc.print_both("# working_path = %s" %(working_path), of_run)
-  #anc.print_both("# working_folder = %s" %(working_folder), of_run)
-  #anc.print_both("# run_log = %s" %(run_log), of_run)
-
-  #return working_folder, run_log, of_run
 init_folder = anc.init_folder
 
 # ==============================================================================
@@ -449,8 +432,16 @@ def main():
 
   threads_pool = emcee.interruptible_pool.InterruptiblePool(nthreads)
   #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, pool=threads_pool)
-  sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, pool=threads_pool, args=[parameter_names]) # needed to use sqrt(e) in emcee instead of e (in fortran)
+  sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq,
+                                  pool=threads_pool,
+                                  args=[parameter_names]
+                                  ) # needed to use sqrt(e) in emcee instead of e (in fortran)
 
+  anc.print_both(' TEST A PRE-EMCEE OF 1000 STEPS', of_run)
+  p0, prob, state = sampler.run_mcmc(p0, 1000)
+  anc.print_both(' TEST A RESET OF THE SAMPLER', of_run)
+  sampler.reset()
+  
   anc.print_both(' ready to go', of_run)
   anc.print_both(' with nsave = %s' %(str(nsave)), of_run)
   sys.stdout.flush()

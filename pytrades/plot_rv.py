@@ -15,8 +15,10 @@ import matplotlib as mpl
 mpl.use('Agg', warn=False)
 import matplotlib.pyplot as plt
 #plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-plt.rc('font',**{'family':'serif','serif':['Latin Modern Roman']})
-plt.rc('text', usetex=True)
+#plt.rc('font',**{'family':'serif','serif':['Latin Modern Roman']})
+#plt.rc('text', usetex=True)
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.family'] = 'serif'
 
 # custom modules
 import constants as cst
@@ -159,7 +161,10 @@ def plot_rv(cli, samples=None):
   rv_os = get_sim_data(sim_file, tscale)
   tmod, rvmod = get_sim_model(cli)
   
-  xlabel = 'BJD$_\\textrm{TDB} - %.3f$' %(tscale)
+  if(tscale == 0.):
+    xlabel = 'BJD$_\\textrm{TDB}$'
+  else:
+    xlabel = 'BJD$_\\textrm{TDB} - %.3f$' %(tscale)
   
   fig = plt.figure(figsize=(6,6))
   fig.subplots_adjust(hspace=0.05, wspace=0.25)
@@ -167,10 +172,15 @@ def plot_rv(cli, samples=None):
   nrows = 3
   ncols = 1
   
+  lfont=10
+  tfont=8
+  mso=5
+  mss=4
+  
   # RV plot
   ax = plt.subplot2grid((nrows, ncols), (0,0), rowspan=2)
-  set_axis_default(ax, ticklabel_size=6, aspect='auto', labeldown=False)
-  ax.set_ylabel('RV (m/s)', fontsize=8)
+  set_axis_default(ax, ticklabel_size=tfont, aspect='auto', labeldown=False)
+  ax.set_ylabel('RV (m/s)', fontsize=lfont)
   axtitle(ax, labtitle='Radial Velocities')
   
   ax.axhline(0., color='black', ls='-',lw=0.7)
@@ -181,8 +191,8 @@ def plot_rv(cli, samples=None):
   nset = len(rv_os)
   label_data = ['RV dataset \#%d' %(i+1) for i in range(0,nset)]
   if(cli.labels is not None):
-    nlabels = len(cli.labels)
-    label_data[:nlabels] = cli.labels
+    nlabels = len(list(cli.labels))
+    label_data[0:nlabels] = [ll for ll in list(cli.labels)]
   
   for i in range(0, nset):
     rv = rv_os[i]
@@ -190,7 +200,8 @@ def plot_rv(cli, samples=None):
     lobs = ax.errorbar(rv.time_plot, rv.rvo,
                        yerr=rv.eRVo,
                        color='black', ecolor='gray',
-                       fmt=filled_markers[i], ms=4, mec='None',
+                       #fmt=filled_markers[i], ms=mso, mec='None',
+                       fmt=filled_markers[i], ms=mso, mfc='white', mec='black',
                        ls='',
                        elinewidth=0.6,
                        capsize=0,
@@ -200,7 +211,9 @@ def plot_rv(cli, samples=None):
     lobs_a.append(lobs)
     # trades
     lsim, = ax.plot(rv.time_plot, rv.rvs,
-                    marker=filled_markers[i], ms=3, mfc='None',
+                    #marker=filled_markers[i], ms=mss, mfc='None',
+                    color='C0',
+                    marker=filled_markers[i], ms=mss, mec='None',
                     ls='',
                     zorder=8,
                     label='simulations'
@@ -227,16 +240,18 @@ def plot_rv(cli, samples=None):
       
   ax.set_xlim(xlims)
   
-  lhand = [lobs, lsim, lmod]
-  if(samples is not None): lhand.append(lsmp_a[0])
-    
-  ax.legend(handles=lhand, loc='best', fontsize=5)
+  if(samples is None):
+    lhand = lobs_a + [lsim_a[0], lmod]
+  else:
+    lhand = lobs_a + [lsim_a[0], lmod, lsmp_a[0]]
+  
+  ax.legend(handles=lhand, bbox_to_anchor=(1., 0.5), fontsize=tfont-2)
   
   # residuals plot
   ax = plt.subplot2grid((nrows, ncols), (2,0), rowspan=1)
-  set_axis_default(ax, ticklabel_size=6, aspect='auto')
-  ax.set_ylabel('res (m/s)', fontsize=8)
-  ax.set_xlabel(xlabel, fontsize=8)
+  set_axis_default(ax, ticklabel_size=tfont, aspect='auto')
+  ax.set_ylabel('res (m/s)', fontsize=lfont)
+  ax.set_xlabel(xlabel, fontsize=lfont)
   
   ax.axhline(0., color='black', ls='-',lw=0.7)
   
@@ -244,8 +259,11 @@ def plot_rv(cli, samples=None):
     rv = rv_os[i]
     ax.errorbar(rv.time_plot, rv.dRVos,
                 yerr=rv.eRVo,
-                fmt=filled_markers[i], ms=4, mec='None',
+                #fmt=filled_markers[i], ms=4, mec='None',
+                color='C0',
+                fmt=filled_markers[i], ms=mss, mec='lightgray', mew=0.5,
                 ls='',
+                ecolor='gray',
                 elinewidth=0.6,
                 capsize=0,
                 zorder=5,
@@ -302,7 +320,7 @@ def get_args():
                       action='store',
                       dest='labels',
                       default='None',
-                      help='Sequence of labels for RV data set, avoid spaces within 1 label, e.g.: "HARPS FIES". Default is None, meaning that it will plot "RV dataset #x" where x is an increasing number. '
+                      help='Sequence of labels for RV data set, avoid spaces within 1 label, e.g.: "HARPS FIES". Put labels sorted as in the obsRV.dat file: "HARPS FIES" means 1 -> HARPS, 2 -> FIES. Default is None, meaning that it will plot "RV dataset #x" where x is an increasing number. '
                       )
   parser.add_argument('-samples-file', '--samples-file',
                       action='store',
@@ -319,7 +337,7 @@ def get_args():
   
   cli.lmflag = int(cli.lmflag)
   
-  if(cli.tscale.lower() != 'none'):
+  if(str(cli.tscale).lower() != 'none'):
     try:
       cli.tscale = np.float64(cli.tscale)
     except:
@@ -327,7 +345,7 @@ def get_args():
   else:
     cli.tscale = 2440000.5
   
-  if(cli.labels.lower() != 'none'):
+  if(str(cli.labels).lower() != 'none'):
     try:
       cli.labels = cli.labels.split()
     except:
@@ -335,7 +353,7 @@ def get_args():
   else:
     cli.labels = None
   
-  if(cli.samples_file.lower() == 'none'):
+  if(str(cli.samples_file).lower() == 'none'):
     cli.samples_file = None
   else:
     if(os.path.isfile(os.path.abspath(cli.samples_file))):

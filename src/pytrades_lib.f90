@@ -885,6 +885,9 @@ module pytrades
     
     integer,dimension(:),allocatable::nT0_perbody
   
+!     write(*,*)'f90: n_bodies = ',n_bodies
+!     write(*,*)'f90: size(P) = ',size(P),' => P = ',P
+  
   ! compute number maximum of all transit times of all the planets from the
     ! integration time (global variable tint)
     allocate(nT0_perbody(n_bodies-1))

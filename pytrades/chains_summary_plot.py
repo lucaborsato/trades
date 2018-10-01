@@ -15,8 +15,10 @@ from matplotlib import use as mpluse
 mpluse("Agg")
 #mpluse("Qt4Agg")
 import matplotlib.pyplot as plt
-plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-plt.rc('text', usetex=True)
+#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
+#plt.rc('text', usetex=True)
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.family'] = 'serif'
 #from matplotlib import rcParams
 #rcParams['text.latex.unicode']=True
 #import corner
@@ -53,7 +55,7 @@ def main():
 
   chains_T_full, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, nburnin, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
   
-  if(cli.use_thin):
+  if(cli.use_thin or cli.use_thin > 0):
     chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps, chains_T_full_thinned = anc.thin_the_chains(cli.use_thin, nburnin, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False, full_chains_thinned=True)
     nburnin_plt = np.rint(nburnin / thin_steps).astype(int)
     nend = np.rint(nruns / thin_steps).astype(int)
@@ -68,32 +70,23 @@ def main():
 
   #flatchain_posterior_1 = flatchain_posterior_0
 
+  # fix lambda? 
+  #flatchain_posterior_0 = anc.fix_lambda(flatchain_posterior_0,
+                                         #parameter_names_emcee
+                                         #)
+  
   if(cli.boot_id > 0):
     flatchain_posterior_msun = anc.posterior_back_to_msun(m_factor,parameter_names_emcee,flatchain_posterior_0)
     boot_file = anc.save_bootstrap_like(emcee_folder, cli.boot_id, parameter_names_emcee, flatchain_posterior_msun)
     logger.info('saved bootstrap like file: %s' %(boot_file))
     del flatchain_posterior_msun
 
-  #median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
-
-  #k = np.ceil(2. * flatchain_posterior_0.shape[0]**(1./3.)).astype(int)
-  #if(k>50): k=50
-  
-  #k = anc.get_bins(flatchain_posterior_0, rule='doane')
   k = anc.get_auto_bins(flatchain_posterior_0)
-  
-  #mode_bin, mode_parameters, mode_perc68, mode_confint = anc.get_mode_parameters_full(flatchain_posterior_0, k)
-  
-  # max lnprob
-  #max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
-  #print 
   
   try:
     overplot = int(cli.overplot)
   except:
     overplot = None
-  #print overplot
-  #sys.exit()
   
   ## OPEN summary_parameters.hdf5 FILE
   s_h5f = h5py.File(os.path.join(cli.full_path, 'summary_parameters.hdf5'), 'r')
@@ -152,10 +145,18 @@ def main():
     
     emcee_fig_file = os.path.join(emcee_plots, 'chain_%03d_%s.png' %(i+1, parameter_names_emcee[i].strip()))
     print ' %s' %(emcee_fig_file),
-    fig, (axChain, axHist) = plt.subplots(nrows=1, ncols=2, figsize=(12,12))
+    #fig, (axChain, axHist) = plt.subplots(nrows=1, ncols=2, figsize=(12,12))
+    fig, (axChain, axHist) = plt.subplots(nrows=1, ncols=2, figsize=(6,6))
 
     
-    (counts, bins_val, patches) = axHist.hist(flatchain_posterior_0[:,i], bins=k, range=(flatchain_posterior_0[:,i].min(), flatchain_posterior_0[:,i].max()), orientation='horizontal', normed=True, stacked=True, histtype='stepfilled', color='darkgrey', edgecolor='lightgray', align='mid')
+    (counts, bins_val, patches) = axHist.hist(flatchain_posterior_0[:,i], bins=k,
+                                              range=(flatchain_posterior_0[:,i].min(), flatchain_posterior_0[:,i].max()),
+                                              orientation='horizontal',
+                                              density=True, stacked=True,
+                                              histtype='stepfilled',
+                                              color='darkgrey', edgecolor='lightgray', 
+                                              align='mid'
+                                              )
 
     xpdf = scipy_norm.pdf(flatchain_posterior_0[:,i], loc = flatchain_posterior_0[:,i].mean(), scale = flatchain_posterior_0[:,i].std())
     idx = np.argsort(flatchain_posterior_0[:,i])
@@ -212,10 +213,6 @@ def main():
     axChain.set_xlim([0, nend])
     axChain.set_ylabel(kel_labels[i])
     
-    #y_min, y_max = anc.compute_limits(flatchain_posterior_0[:,i], 0.05)
-    #if(y_min == y_max):
-      #y_min = parameter_boundaries[i,0]
-      #y_max = parameter_boundaries[i,1]
     y_min = flatchain_posterior_0[:,i].min()
     y_max = flatchain_posterior_0[:,i].max()
     
@@ -224,6 +221,7 @@ def main():
     plt.draw()
 
     axHist.ticklabel_format(useOffset=False)
+    axHist.tick_params(direction='inout', labelleft=False)
     axHist.set_ylim([y_min, y_max])
 
     if(overplot is not None):
@@ -264,7 +262,8 @@ def main():
     print ' saved'
     print
 
-  fig = plt.figure(figsize=(12,12))
+  #fig = plt.figure(figsize=(12,12))
+  fig = plt.figure(figsize=(6,6))
   
   # lnprob
   xlabel = '$N_\mathrm{steps}$'

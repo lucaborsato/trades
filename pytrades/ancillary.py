@@ -404,7 +404,7 @@ def keplerian_legend(parameter_names, m_type):
       planet_id = int(parameter_names[i][2:]) - 1
       kel_legends[i] = r'$\Omega_\mathrm{%s} [^\circ]$' % (letters[planet_id])
 
-  kel_legends = [i.strip() for i in kel_legends]
+  kel_legends = [i.replace('[', '(').replace(']', ')').strip() for i in kel_legends]
 
   return kel_legends
 
@@ -462,6 +462,8 @@ def derived_labels(derived_names, m_type):
       # labels_list.append(r'$\Omega_\mathrm{%s} [\mathrm{deg}]$' %(letters[planet_id]))
       labels_list.append(r'$\Omega_\mathrm{%s} [^\circ]$' % (letters[planet_id]))
 
+  labels_list = [l.replace('[', '(').replace(']', ')') for l in labels_list]
+
   return labels_list
 
 
@@ -469,16 +471,19 @@ def derived_labels(derived_names, m_type):
 
 # only needed by check_good_parameters to convert Mjup to flagged mass
 def check_good_parameters(good_id, good_parameters_in, m_factor, nfit):
+  
   good_parameters_out = np.zeros(nfit) + good_parameters_in
   for i in range(0, nfit):
     if (good_id[i].strip()[0] == 'm' and good_id[i].strip()[1] != 'A'):
       good_parameters_out[i] = good_parameters_in[i] * cst.Mjups * m_factor
+      
   return good_parameters_out
 
 
 # ==============================================================================
 
 def read_check_good_parameters(full_path, good_status, m_factor, nfit):
+  
   # read good parameters file
   good_parameters_0, good_parameters_1 = False, False
   if (good_status):
@@ -490,6 +495,7 @@ def read_check_good_parameters(full_path, good_status, m_factor, nfit):
       # for ii in range(0,nfit):
       # if (parameter_names_emcee[ii][:2] == 'mA'):
       # good_parameters_0[ii] = rescale_angle(good_parameters[ii])
+      
   return good_parameters_0, good_parameters_1
 
 
@@ -498,6 +504,7 @@ def read_check_good_parameters(full_path, good_status, m_factor, nfit):
 # sometimes the angle distribution are bimodal because they are centered in the wrong position
 # e.g.: -1° = 359° etc...
 def rescale_angle(angle):
+  
   # with arctan2
   cosa = np.cos(angle * deg2rad)
   sina = np.sin(angle * deg2rad)
@@ -510,11 +517,13 @@ def rescale_angle(angle):
 
 # renormalize the angular parameter mean Anomaly mA
 def renormalize_parameters(parameters, parameter_names):
+  
   new_parameters = parameters.copy()
   nfit = np.array(new_parameters).shape[0]
   for i in range(0, nfit):
     if (parameter_names[i][:2] == 'mA'):
       new_parameters[i] = (parameters[i] + 360.) % 360.
+      
   return new_parameters
 
 
@@ -522,7 +531,9 @@ def renormalize_parameters(parameters, parameter_names):
 
 # get indices of max of an array
 def get_max_indices(array_values):
+  
   (idx1, idx2) = np.unravel_index(array_values.argmax(), array_values.shape)
+  
   return idx1, idx2
 
 
@@ -530,6 +541,7 @@ def get_max_indices(array_values):
 
 # prepare file and best folder emcee
 def get_emcee_file_and_best(emcee_folder, temp_status):
+  
   if (temp_status):
     folder_best = 'best_temp'
     emcee_file = os.path.join(emcee_folder, 'emcee_temp.hdf5')
@@ -540,19 +552,23 @@ def get_emcee_file_and_best(emcee_folder, temp_status):
     folder_best = 'best'
     emcee_file = os.path.join(emcee_folder, 'emcee_summary.hdf5')
     emcee_best = os.path.join(emcee_folder, folder_best)
+    
   return emcee_file, emcee_best, folder_best
 
 
 # ==============================================================================
 
 def get_devol_file(emcee_folder):
+  
   devol_file = os.path.join(emcee_folder, 'best_devol.hdf5')
+  
   return devol_file
 
 
 # ==============================================================================
 
 def get_percentile_angle(angle_posterior):
+  
   cosa_posterior = np.cos(angle_posterior * np.pi / 180.)
   sina_posterior = np.sin(angle_posterior * np.pi / 180.)
   temp_cos = np.percentile(cosa_posterior, 50.)
@@ -560,12 +576,14 @@ def get_percentile_angle(angle_posterior):
   median_angle = (np.arctan2(temp_sin, temp_cos) * 180. / np.pi) % 360.
   lower_angle = np.percentile(angle_posterior, 16.)
   upper_angle = np.percentile(angle_posterior, 84.)
+  
   return median_angle, lower_angle, upper_angle
 
 
 # ==============================================================================
 
 def get_data(emcee_file, temp_status):
+  
   ## read data from hdf5 file
   completed_steps = 0
   # print ' reading file', emcee_file
@@ -601,6 +619,7 @@ def get_data(emcee_file, temp_status):
 # ==============================================================================
 
 def get_last_emcee_iteration(emcee_file, nwalkers):
+  
   f_read = h5py.File(emcee_file, 'r')
   chains = f_read['chains'][...]
   nw_c, nr_c, nf_c = np.shape(chains)
@@ -634,6 +653,7 @@ def get_last_emcee_iteration(emcee_file, nwalkers):
 # ==============================================================================
 
 def compute_autocor_time(chains, walkers_transposed=True):
+  
   if (walkers_transposed):
 
     nr, nw, nfit = np.shape(chains)
@@ -660,6 +680,7 @@ def compute_autocor_time(chains, walkers_transposed=True):
 
 # ==============================================================================
 def compute_acor_time(sampler, steps_done=None):
+  
   if (steps_done is None):
     actime_const = 100
   else:
@@ -680,6 +701,7 @@ def compute_acor_time(sampler, steps_done=None):
 # ==============================================================================
 
 def get_emcee_parameters(chains, temp_status, nburnin_in, completed_steps):
+  
   # determine nwalkers, nruns, nburnin, and nfit parameters
   # nwalkers = chains.shape[0]
   # nruns = chains.shape[1]
@@ -704,8 +726,10 @@ def get_emcee_parameters(chains, temp_status, nburnin_in, completed_steps):
 # ==============================================================================
 
 def print_memory_usage(array_values):
+  
   print ' MEMORY USAGE: array_values = %d bytes = %.2d MBytes = %.4f GBytes' % (
   array_values.nbytes, array_values.nbytes / (1024. ** 2), array_values.nbytes / (1024. ** 3))
+  
   return
 
 
@@ -713,6 +737,7 @@ def print_memory_usage(array_values):
 
 def select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_factor, parameter_names_emcee,
                                     parameter_boundaries_in, chains):
+  
   # chain is transposed: needed to plot quicker chains for each walker: nruns vs value of parameter
   parameter_boundaries = parameter_boundaries_in.copy()
   chains_T = np.zeros((nruns, nwalkers, nfit))
@@ -735,6 +760,7 @@ def select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_f
 # ==============================================================================
 
 def posterior_back_to_msun(m_factor, parameter_names_emcee, flatchain_posterior_in):
+  
   nfit = flatchain_posterior_in.shape[1]
   flatchain_posterior_out = flatchain_posterior_in.copy()
   for ifit in range(0, nfit):
@@ -747,6 +773,7 @@ def posterior_back_to_msun(m_factor, parameter_names_emcee, flatchain_posterior_
 # ==============================================================================
 
 def prepare_plot_folder(full_path):
+  
   plot_folder = prepare_emcee_plot_folder(full_path)
 
   return plot_folder
@@ -755,6 +782,7 @@ def prepare_plot_folder(full_path):
 # ==============================================================================
 
 def prepare_emcee_plot_folder(full_path):
+  
   emcee_plots = os.path.join(full_path, 'plots')
   if (not os.path.isdir(emcee_plots)):
     os.makedirs(emcee_plots)
@@ -765,6 +793,7 @@ def prepare_emcee_plot_folder(full_path):
 # ==============================================================================
 
 def computation_time(elapsed):
+  
   elapsed_d = elapsed / 86400.
   elapsed_h = (elapsed_d - int(elapsed_d)) * 24.
   elapsed_m = (elapsed_h - int(elapsed_h)) * 60.
@@ -776,6 +805,7 @@ def computation_time(elapsed):
 # ==============================================================================
 
 def get_pso_data(pso_file):
+  
   of_pso = h5py.File(pso_file, 'r')
   population = np.array(of_pso['population'], dtype=np.float64)
   population_fitness = np.array(of_pso['population_fitness'], dtype=np.float64)
@@ -802,6 +832,7 @@ def get_pso_data(pso_file):
 # ==============================================================================
 
 def compute_limits(vec_a, delta=0.05):
+  
   a_min = np.min(np.array(vec_a))
   a_max = np.max(np.array(vec_a))
   da = np.abs(a_max - a_min)
@@ -816,6 +847,7 @@ def compute_limits(vec_a, delta=0.05):
 def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time,
                     chains_T_full, lnprobability, burnin_done=False,
                     full_chains_thinned=False):
+  
   nr, nw, nfit = np.shape(chains_T_full)
   print ' nburnin = ', nburnin
   print ' nruns = ', nruns
@@ -831,19 +863,32 @@ def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time,
 
   # print ' np.shape(lnprob_posterior) = ',np.shape(lnprob_posterior)
 
-  if (use_thin):
-    try:
-      n_acor = autocor_time.shape[0]
-    except:
-      n_acor = len(autocor_time)
-    if (n_acor == 0):
-      # autocor_time = compute_autocor_time(flatchain_posterior_0)
-      autocor_time = compute_autocor_time(chains_T_posterior)
-    thin_steps = np.rint(np.mean(np.array(autocor_time, dtype=np.float64))).astype(int)
-    print ' computed thin_steps = ', thin_steps
-    if (thin_steps > 1000):
-      thin_steps = 1000
-      print ' set thin_steps = 1000'
+  if(not use_thin or use_thin <= 0): # use_thin is False or <= 0
+    
+    chains_T = chains_T_posterior
+    flatchain_posterior_0 = chains_T[:, :, :].copy().reshape((-1, nfit))
+    print ' posterior not thinned shape = ', np.shape(flatchain_posterior_0)
+    lnprob_burnin = lnprob_posterior[:, :].copy()
+    print ' lnprob_burnin not thinned shape = ', np.shape(lnprob_burnin)
+    thin_steps = 0
+
+  else: # use_thin is True or > 0
+    if(type(use_thin) is bool and use_thin): # use_thin is True
+      try:
+        n_acor = autocor_time.shape[0]
+      except:
+        n_acor = len(autocor_time)
+      if (n_acor == 0):
+        # autocor_time = compute_autocor_time(flatchain_posterior_0)
+        autocor_time = compute_autocor_time(chains_T_posterior)
+      thin_steps = np.rint(np.mean(np.array(autocor_time, dtype=np.float64))).astype(int)
+      print ' computed thin_steps = ', thin_steps
+      if (thin_steps > 1000):
+        thin_steps = 1000
+        print ' set thin_steps = 1000'
+        
+    else: # use_thin > 0
+      thin_steps = use_thin
 
     sel_thin_steps = np.arange(0, nruns_sel + thin_steps, thin_steps).astype(int)
     if (sel_thin_steps[-1] >= nruns_sel): sel_thin_steps[-1] = nruns_sel - 1
@@ -862,16 +907,8 @@ def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time,
       tempsel = np.arange(0, nruns + thin_steps, thin_steps).astype(int)
       if (tempsel[-1] >= nruns): tempsel[-1] = nruns - 1
       chains_T_full_thinned = chains_T_full[tempsel, :, :].copy()
+      
       return chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps, chains_T_full_thinned
-
-  else:
-
-    chains_T = chains_T_posterior
-    flatchain_posterior_0 = chains_T[:, :, :].copy().reshape((-1, nfit))
-    print ' posterior not thinned shape = ', np.shape(flatchain_posterior_0)
-    lnprob_burnin = lnprob_posterior[:, :].copy()
-    print ' lnprob_burnin not thinned shape = ', np.shape(lnprob_burnin)
-    thin_steps = 0
 
   return chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps
 
@@ -879,6 +916,7 @@ def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time,
 # ==============================================================================
 
 def get_sigmas(best_parameters, flatchain_posterior):
+  
   sigmas_percentiles = [15.87, 2.28, 0.13, 84.13, 97.72, 99.87]
   sigma_perc68 = np.percentile(np.abs(flatchain_posterior - best_parameters), 68.27, axis=0, interpolation='midpoint')
   # retrieve confidence intervals of the residual distribution
@@ -891,6 +929,7 @@ def get_sigmas(best_parameters, flatchain_posterior):
 # ==============================================================================
 
 def get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior):
+  
   maxlnprob_row, maxlnprob_col = get_max_indices(lnprob_burnin)
   maxlnprob = lnprob_burnin[maxlnprob_row, maxlnprob_col]
   # retrieve best parameters <-> best lnprobability
@@ -905,6 +944,7 @@ def get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior):
 # ==============================================================================
 
 def get_median_parameters(flatchain_posterior):
+  
   median_parameters = np.percentile(flatchain_posterior, 50., axis=0, interpolation='midpoint')
   median_perc68, median_confint = get_sigmas(median_parameters, flatchain_posterior)
 
@@ -914,6 +954,7 @@ def get_median_parameters(flatchain_posterior):
 # ==============================================================================
 
 def get_parameters_median_fitness(nwalkers, npost, nruns, lnprobability, flatchain_posterior, ln_err_const):
+  
   nruns_sel = nruns - npost
   lnprob_burnin = lnprobability[:, npost:nruns]
   flat_lnprob = lnprob_burnin.T.reshape((nwalkers * nruns_sel))
@@ -941,6 +982,7 @@ def get_parameters_median_fitness(nwalkers, npost, nruns, lnprobability, flatcha
 # ==============================================================================
 
 def compute_max_mean(data_vec, k):
+  
   hist_counts, bin_edges = np.histogram(data_vec, bins=k)
   max_bin = np.argmax(np.array(hist_counts))
   if (max_bin == 0 or max_bin == k):
@@ -967,6 +1009,7 @@ def compute_max_mean(data_vec, k):
 # ==============================================================================
 
 def get_mode_parameters_full(flatchain_posterior, k):
+  
   npost, nfit = np.shape(flatchain_posterior)
   mode_parameters = np.zeros((nfit))
   mode_bin = np.zeros((nfit)).astype(int)
@@ -983,6 +1026,7 @@ def get_mode_parameters_full(flatchain_posterior, k):
 # ==============================================================================
 
 def get_mode_parameters(flatchain_posterior, k):
+  
   npost, nfit = np.shape(flatchain_posterior)
   mode_parameters = np.zeros((nfit))
   mode_bin = np.zeros((nfit)).astype(int)
@@ -1004,6 +1048,7 @@ def get_mode_parameters(flatchain_posterior, k):
 # ==============================================================================
 
 def get_sample_list(sample_str, parameter_names):
+  
   nfit = np.shape(parameter_names)[0]
   print ' input sample to select = ', sample_str
   str_list = sample_str.strip().split()
@@ -1035,6 +1080,7 @@ def get_sample_list(sample_str, parameter_names):
 # ==============================================================================
 
 def check_sample_parameters(parameter_names, sample_parameters, post_ci, name_excluded=None):
+  
   nfit = np.shape(sample_parameters)[0]
 
   check_sample = True
@@ -1061,6 +1107,7 @@ def check_sample_parameters(parameter_names, sample_parameters, post_ci, name_ex
 # ==============================================================================
 
 def pick_sample_parameters(posterior, parameter_names, name_par=None, name_excluded=None, post_ci=None):
+  
   if (name_par is not None):
     npost, nfit = np.shape(posterior)
 
@@ -1137,6 +1184,7 @@ def pick_sample_parameters(posterior, parameter_names, name_par=None, name_exclu
 
 # 1) select parameters and lgllhd within ci
 def select_within_all_ci(posterior, post_ci, lnprobability):
+  
   npost, nfit = np.shape(posterior)
   nrow, ncol = np.shape(post_ci)
 
@@ -1193,6 +1241,7 @@ def select_maxlglhd_with_hdi(posterior, post_ci, lnprobability):
 # 2) determine the median lgllhd lgllhd_med of the selected pars
 # 3) sort by lgllhd-lgllhd_med and take the first set of pars
 def get_sample_by_sorted_lgllhd(posterior, lnprobability, post_ci=None):
+  
   if (post_ci is None):
     #post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]],
                             #axis=0, interpolation='midpoint'
@@ -1219,6 +1268,7 @@ def get_sample_by_sorted_lgllhd(posterior, lnprobability, post_ci=None):
 # ==============================================================================
 
 def get_sample_by_par_and_lgllhd(posterior, lnprobability, parameter_names, post_ci=None, name_par=None):
+  
   if (post_ci is None):
     #post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]], axis=0, interpolation='midpoint')
     post_ci = compute_hdi_full(posterior)
@@ -1266,6 +1316,7 @@ def get_sample_by_par_and_lgllhd(posterior, lnprobability, parameter_names, post
 # ==============================================================================
 
 def take_n_samples(posterior, post_ci, n_samples=100):
+  
   # post_ci must have fitted parameters as cols and
   # lower and upper ci as row, i.e.:
   # post_ci(2, nfit)
@@ -1287,6 +1338,7 @@ def take_n_samples(posterior, post_ci, n_samples=100):
 # =============================================================================
 
 def print_parameters_nolog(parameter_names, parameters, perc68, confint, par_type):
+  
   sigmas_percentiles = [15.87, 2.28, 0.13, 84.13, 97.72, 99.87]
   nsigmas = ['-1', '-2', '-3', '+1', '+2', '+3']
 
@@ -1312,6 +1364,7 @@ def print_parameters_nolog(parameter_names, parameters, perc68, confint, par_typ
 # ==============================================================================
 
 def print_parameters_logtxt(of_run, parameter_names, parameters, perc68, confint, par_type):
+  
   sigmas_percentiles = [15.87, 2.28, 0.13, 84.13, 97.72, 99.87]
   nsigmas = ['-1', '-2', '-3', '+1', '+2', '+3']
 
@@ -1341,6 +1394,7 @@ def print_parameters_logtxt(of_run, parameter_names, parameters, perc68, confint
 # ==============================================================================
 
 def print_parameters_logger(logger, parameter_names, parameters, perc68, confint, par_type):
+  
   sigmas_percentiles = [15.87, 2.28, 0.13, 84.13, 97.72, 99.87]
   nsigmas = ['-1', '-2', '-3', '+1', '+2', '+3']
 
@@ -1367,6 +1421,7 @@ def print_parameters_logger(logger, parameter_names, parameters, perc68, confint
 
 # OLD
 def get_derived_posterior_parameters(parameter_names, chains_T, flatchain_posterior):
+  
   nfit = flatchain_posterior.shape[1]
   derived_names = []
   derived_chains = []
@@ -1423,6 +1478,7 @@ def get_derived_posterior_parameters(parameter_names, chains_T, flatchain_poster
 
 # OLD
 def save_posterior_like(out_folder, boot_id, parameter_names, flatchain_posterior):
+  
   nfit = flatchain_posterior.shape[1]
   nboot = flatchain_posterior.shape[0]
   header_0000 = ' iboot %s' % (' '.join(parameter_names))
@@ -1439,6 +1495,7 @@ def save_posterior_like(out_folder, boot_id, parameter_names, flatchain_posterio
 # =============================================================================
 
 def GelmanRubin_test_1(chains_T):
+  
   n, M = np.shape(chains_T)
   theta_m = np.mean(chains_T, axis=0)
 
@@ -1455,6 +1512,7 @@ def GelmanRubin_test_1(chains_T):
 # ==============================================================================
 
 def GelmanRubin(chains_T):
+  
   n, M = np.shape(chains_T)
 
   theta_m = [np.mean(chains_T[:, i_m]) for i_m in range(0, M)]
@@ -1478,6 +1536,7 @@ def GelmanRubin(chains_T):
 # ==============================================================================
 
 def GelmanRubin_PyORBIT(chains_input):
+  
   n_iters, n_chain = np.shape(chains_input)
   W = np.asarray(0., dtype=np.double)
   z_pc = np.sum(chains_input, axis=0) / n_iters  # eq 20
@@ -1561,6 +1620,7 @@ def GelmanRubin_pymc(x):
 
 # Geweke 1992 test 1
 def geweke_test(chains_T, start_frac=0.05, n_sel_steps=5):
+  
   n_steps, n_chains = chains_T.shape
   half = int(0.5 * n_steps)
 
@@ -1587,6 +1647,7 @@ def geweke_test(chains_T, start_frac=0.05, n_sel_steps=5):
 # ==============================================================================
 
 def get_units(names, mass_unit):
+  
   n_names = len(names)
   units_par = []
 
@@ -1633,6 +1694,7 @@ def get_units(names, mass_unit):
 # ==============================================================================
 
 def elements(fpath, idsim, lmf=0):
+  
   # kel_file = os.path.join(fpath, str(idsim) + "_" + str(lmf) + "_initialElements.dat")
   kel_file = os.path.join(fpath, '%d_%d_initialElements.dat' % (idsim, lmf))
   try:
@@ -1647,6 +1709,7 @@ def elements(fpath, idsim, lmf=0):
 # ==============================================================================
 
 def get_case(id_body, fit_body):
+  
   fit_n = np.arange(1, 11, 1)
   id_fit = [fit_n[j] for j in range(len(fit_body)) if (fit_body[j] == '1')]
   id_all = [8 * (id_body - 1) + 2 + id_fit[j] for j in range(len(id_fit))]
@@ -1670,6 +1733,7 @@ def get_case(id_body, fit_body):
 # ==============================================================================
 
 def get_fitted(full_path):
+  
   of = open(os.path.join(full_path, 'bodies.lst'), 'r')
   lines = of.readlines()
   of.close()
@@ -1816,26 +1880,35 @@ def compute_sigma_hdi(flatchains, parameters):
 # ==============================================================================
 
 def get_good_distribution(posterior_scale, posterior_mod):
+
+
   par_scale = np.median(posterior_scale)
-  p68_scale = np.percentile(np.abs(posterior_scale - par_scale), 68.27, interpolation='midpoint')
+  p68_scale = np.percentile(np.abs(posterior_scale - par_scale),
+                            68.27, interpolation='midpoint'
+                            )
+  std_scale = np.std(posterior_scale, ddof=1)
+  s_scale = max(p68_scale, std_scale)
 
   par_mod = np.median(posterior_mod)
-  p68_mod = np.percentile(np.abs(posterior_mod - par_mod), 68.27, interpolation='midpoint')
+  p68_mod = np.percentile(np.abs(posterior_mod - par_mod),
+                          68.27, interpolation='midpoint'
+                          )
+  std_mod = np.std(posterior_mod, ddof=1)
+  s_mod = max(p68_mod, std_mod)
 
-  if (np.abs(p68_scale - p68_mod) <= eps64bit):
-    return par_mod, posterior_mod
+  if(s_scale < s_mod):
+    par_out = par_scale
+    posterior_out = posterior_scale
   else:
-    if (p68_mod < p68_scale):
-      return par_mod, posterior_mod
-    else:
-      return par_scale, posterior_scale
+    par_out = par_mod
+    posterior_out = posterior_mod
 
-  return par_mod, posterior_mod
-
+  return par_out, posterior_out
 
 # ==============================================================================
 
 def get_proper_posterior_correlated(posterior, col=None):
+  
   if (col is not None):
     posterior_scale = np.arctan2(posterior[:, col + 1], posterior[:, col]) * rad2deg
     posterior_mod = posterior_scale % 360.
@@ -1843,11 +1916,26 @@ def get_proper_posterior_correlated(posterior, col=None):
     posterior_scale = np.arctan2(np.sin(posterior * deg2rad), np.cos(posterior * deg2rad)) * rad2deg
     posterior_mod = posterior_scale % 360.
 
-  par_out, boot_out = get_good_distribution(posterior_scale, posterior_mod)
+  par_out, post_out = get_good_distribution(posterior_scale, posterior_mod)
+  
+  return par_out, post_out
 
-  return par_out, boot_out
+# ==============================================================================
+# ==============================================================================
+# fix lambda only in flatchain posterior
+def fix_lambda(flatchain_post, names_par):
+  
+  npost, nfit = np.shape(flatchain_post)
+  flatchain_post_out = flatchain_post.copy()
+  for ifit in range(0,nfit):
+    if('lambda' in names_par[ifit]):
+      _, xout = \
+        get_proper_posterior_correlated(flatchain_post[:,ifit])
+      flatchain_post_out[:,ifit] = xout.copy()
+  
+  return flatchain_post_out
 
-
+# ==============================================================================
 # ==============================================================================
 
 def get_trigonometric_posterior(id_NB, id_l, col, idpar,
@@ -2253,10 +2341,18 @@ def derived_parameters_check(derived_names, derived_parameters_in, derived_poste
 
 # ==============================================================================
 
-def compute_derived_posterior(idpar, kep_elem, id_fit, case_list, cols_list, posterior, conv_factor=1.):
+def compute_derived_posterior(idpar, kep_elem_in, id_fit, case_list, cols_list, posterior, conv_factor=1.):
   NB = len(case_list)
   nfit = len(id_fit)
-  # print NB, nfit
+  #print 'NB =', NB
+  #print 'np.shape(kep_elem_in) = ',np.shape(kep_elem_in)
+  
+  if(NB == 2):
+    kep_elem = np.array(kep_elem_in).reshape((1,-1))
+  else:
+    kep_elem = kep_elem_in
+  
+  #print 'np.shape(kep_elem) = ',np.shape(kep_elem)
 
   posterior_out = posterior.copy()
 
@@ -2288,23 +2384,38 @@ def compute_derived_posterior(idpar, kep_elem, id_fit, case_list, cols_list, pos
       id_temp, der_temp = [], []
 
       if (case_list[i_NB][0] == 0):
-        id_temp, der_temp = derived_posterior_case0(idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], posterior)
+        id_temp, der_temp = derived_posterior_case0(idpar_NB, id_fit_NB, i_NB,
+                                                    cols_list[i_NB],
+                                                    posterior
+                                                    )
 
       elif (case_list[i_NB][0] == 1):
-        id_temp, der_temp = derived_posterior_case1(idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB - 1, :],
-                                                    posterior)
+        id_temp, der_temp = derived_posterior_case1(idpar_NB, id_fit_NB, i_NB, 
+                                                    cols_list[i_NB],
+                                                    kep_elem[i_NB - 1, :],
+                                                    posterior
+                                                    )
 
       elif (case_list[i_NB][0] == 2):
-        id_temp, der_temp = derived_posterior_case2(idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB - 1, :],
-                                                    posterior)
+        id_temp, der_temp = derived_posterior_case2(idpar_NB, id_fit_NB, i_NB,
+                                                    cols_list[i_NB],
+                                                    kep_elem[i_NB - 1, :],
+                                                    posterior
+                                                    )
 
       elif (case_list[i_NB][0] == 3):
-        id_temp, der_temp = derived_posterior_case3(idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB - 1, :],
-                                                    posterior)
+        id_temp, der_temp = derived_posterior_case3(idpar_NB, id_fit_NB, i_NB, 
+                                                    cols_list[i_NB],
+                                                    kep_elem[i_NB - 1, :],
+                                                    posterior
+                                                    )
 
       elif (case_list[i_NB][0] == 4):
-        id_temp, der_temp = derived_posterior_case4(idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB - 1, :],
-                                                    posterior)
+        id_temp, der_temp = derived_posterior_case4(idpar_NB, id_fit_NB, i_NB,
+                                                    cols_list[i_NB],
+                                                    kep_elem[i_NB - 1, :],
+                                                    posterior
+                                                    )
 
       id_derived.append(id_temp)
       der_posterior.append(der_temp)
@@ -2341,10 +2452,18 @@ def compute_derived_posterior(idpar, kep_elem, id_fit, case_list, cols_list, pos
 
 # ==============================================================================
 
-def compute_derived_parameters(idpar, kep_elem, id_fit, case_list, cols_list, parameters, conv_factor=1.):
+def compute_derived_parameters(idpar, kep_elem_in, id_fit, case_list, cols_list, parameters, conv_factor=1.):
   NB = len(case_list)
   nfit = len(id_fit)
-  # print NB, nfit
+  #print 'NB =', NB
+  #print 'np.shape(kep_elem_in) = ',np.shape(kep_elem_in)
+  
+  if(NB == 2):
+    kep_elem = np.array(kep_elem_in).reshape((1,-1))
+  else:
+    kep_elem = kep_elem_in
+  
+  #print 'np.shape(kep_elem) = ',np.shape(kep_elem)
 
   id_derived = []
   der_par = []
@@ -2374,23 +2493,38 @@ def compute_derived_parameters(idpar, kep_elem, id_fit, case_list, cols_list, pa
       id_temp, der_temp = [], []
 
       if (case_list[i_NB][0] == 0):
-        id_temp, der_temp = derived_parameters_case0(idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], parameters)
+        id_temp, der_temp = derived_parameters_case0(idpar_NB, id_fit_NB, i_NB,
+                                                     cols_list[i_NB],
+                                                     parameters
+                                                     )
 
       elif (case_list[i_NB][0] == 1):
-        id_temp, der_temp = derived_parameters_case1(idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB - 1, :],
-                                                     parameters)
+        id_temp, der_temp = derived_parameters_case1(idpar_NB, id_fit_NB, i_NB,
+                                                     cols_list[i_NB],
+                                                     kep_elem[i_NB - 1, :],
+                                                     parameters
+                                                     )
 
       elif (case_list[i_NB][0] == 2):
-        id_temp, der_temp = derived_parameters_case2(idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB - 1, :],
-                                                     parameters)
+        id_temp, der_temp = derived_parameters_case2(idpar_NB, id_fit_NB, i_NB,
+                                                     cols_list[i_NB],
+                                                     kep_elem[i_NB - 1, :],
+                                                     parameters
+                                                     )
 
       elif (case_list[i_NB][0] == 3):
-        id_temp, der_temp = derived_parameters_case3(idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB - 1, :],
-                                                     parameters)
+        id_temp, der_temp = derived_parameters_case3(idpar_NB, id_fit_NB, i_NB,
+                                                     cols_list[i_NB],
+                                                     kep_elem[i_NB - 1, :],
+                                                     parameters
+                                                     )
 
       elif (case_list[i_NB][0] == 4):
-        id_temp, der_temp = derived_parameters_case4(idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], kep_elem[i_NB - 1, :],
-                                                     parameters)
+        id_temp, der_temp = derived_parameters_case4(idpar_NB, id_fit_NB, i_NB,
+                                                     cols_list[i_NB],
+                                                     kep_elem[i_NB - 1, :],
+                                                     parameters
+                                                     )
 
       id_derived.append(id_temp)
       der_par.append(der_temp)

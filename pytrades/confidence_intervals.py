@@ -9,6 +9,7 @@ import os
 import numpy as np # array
 import h5py
 
+# ==============================================================================
 # custom modules
 script_path = os.path.realpath(__file__)
 module_path = os.path.abspath(os.path.join(os.path.dirname(script_path), '../'))
@@ -23,7 +24,17 @@ def save_ttra_and_rv_from_samples(samples_fit_par, names_par, NB, n_samples, smp
   
   n_samples, nfit = np.shape(samples_fit_par)
   Pephem = pytrades_lib.pytrades.pephem
-  nt0_full, nrv_nmax = pytrades_lib.pytrades.get_max_nt0_nrv(Pephem,NB)
+  #print 'NB = ',NB,' np.shape(Pephem) = ',np.shape(Pephem)
+  try:
+    nt0_full, nrv_nmax = pytrades_lib.pytrades.get_max_nt0_nrv(Pephem,NB)
+  except:
+    jP = (np.arange(2,NB+1,1)-2)*8 + 5 - 1
+    #print 'jP = ',jP
+    Pephem = np.zeros((NB))
+    Pephem[1:] = pytrades_lib.pytrades.system_parameters[jP]
+    #print 'Pephem = ',Pephem
+    nt0_full, nrv_nmax = pytrades_lib.pytrades.get_max_nt0_nrv(Pephem,NB)
+    
   
   for ismp in range(0, n_samples):
     smp_name = '%04d' %(ismp)
@@ -93,6 +104,11 @@ def main():
     chains_T_full[:,:,ii] = chains[:,:nruns,ii].T # transpose
     
   chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, nburnin, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False)
+  
+  # lambda fix
+  flatchain_posterior_0 = anc.fix_lambda(flatchain_posterior_0,
+                                        names_par
+                                        )
   
   # computes mass conversion factor
   #m_factor = anc.mass_conversion_factor(cli.m_type)

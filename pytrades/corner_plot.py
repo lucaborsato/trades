@@ -13,9 +13,10 @@ import ancillary as anc
 import corner
 
 import matplotlib.pyplot as plt
-plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-plt.rc('text', usetex=True)
-
+#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
+#plt.rc('text', usetex=True)
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.family'] = 'serif'
 
 def read_posterior(folder_path):
   

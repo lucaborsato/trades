@@ -16,8 +16,10 @@ from matplotlib import use as mpluse
 mpluse("Agg")
 #mpluse("Qt4Agg")
 import matplotlib.pyplot as plt
-plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-plt.rc('text', usetex=True)
+#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
+#plt.rc('text', usetex=True)
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.family'] = 'serif'
 #from matplotlib import rcParams
 #rcParams['text.latex.unicode']=True
 
@@ -91,7 +93,8 @@ def main():
 
   for ifit in range(0, nfit):
     logger.info('Parameter: %13s' %(parameter_names_emcee[ifit]))
-    fig = plt.figure(figsize=(12,12))
+    #fig = plt.figure(figsize=(12,12))
+    fig = plt.figure(figsize=(6,6))
     ax = plt.subplot2grid((1, 1), (0,0))
     
     for istep in range(0,sel_steps):

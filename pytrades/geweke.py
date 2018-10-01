@@ -16,8 +16,10 @@ from matplotlib import use as mpluse
 mpluse("Agg")
 #mpluse("Qt4Agg")
 import matplotlib.pyplot as plt
-plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-plt.rc('text', usetex=True)
+#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
+#plt.rc('text', usetex=True)
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.family'] = 'serif'
 #from matplotlib import rcParams
 #rcParams['text.latex.unicode']=True
 
@@ -84,7 +86,8 @@ def main():
 
   for ifit in range(0, nfit):
     logger.info('Parameter: %13s' %(parameter_names_emcee[ifit]))
-    fig = plt.figure(figsize=(12,12))
+    #fig = plt.figure(figsize=(12,12))
+    fig = plt.figure(figsize=(6,6))
     
     lower_interval, z_score = anc.geweke_test(chains_T[:,:,ifit], start_frac=0.01, n_sel_steps=sel_steps)
 
@@ -97,7 +100,7 @@ def main():
     ax.set_xlabel('steps (%s)' %(parameter_names_emcee[ifit].strip()))
     
     #plt.legend(loc='best',fontsize=9)
-    ax.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5), ncol=cols)
+    #ax.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5), ncol=cols)
     
     fig.savefig(os.path.join(emcee_plots, 'geweke_%03d_%s.png' %(ifit+1, parameter_names_emcee[ifit])), bbox_inches='tight', dpi=300)
     plt.close(fig)

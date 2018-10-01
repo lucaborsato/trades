@@ -15,8 +15,10 @@ import gc
 import matplotlib as mpl
 mpl.use('Agg', warn=False)
 import matplotlib.pyplot as plt
-plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-plt.rc('text', usetex=True)
+#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
+#plt.rc('text', usetex=True)
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.family'] = 'serif'
 
 # custom modules
 import ancillary as anc
@@ -125,7 +127,8 @@ def main():
   if(not os.path.isdir(plot_folder)): os.makedirs(plot_folder)
   plot_file = os.path.join(plot_folder, '%d_%s_oc_full.png' %(cli.sim_id, cli.lm_flag))
   
-  fig = plt.figure(figsize=(12,12))
+  #fig = plt.figure(figsize=(12,12))
+  fig = plt.figure(figsize=(6,6))
   
   plt.tick_params(direction='in')
 
