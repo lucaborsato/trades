@@ -785,7 +785,8 @@ def prepare_emcee_plot_folder(full_path):
   
   emcee_plots = os.path.join(full_path, 'plots')
   if (not os.path.isdir(emcee_plots)):
-    os.makedirs(emcee_plots)
+    if (not os.path.exists(emcee_plots)):
+      os.makedirs(emcee_plots)
 
   return emcee_plots
 

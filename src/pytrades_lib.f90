@@ -700,7 +700,8 @@ module pytrades
     &m_msun,R_rsun,P_day,ecc,argp_deg,mA_deg,inc_deg,lN_deg,&
     &t_rv,transit_flag,& ! input
     &rv_sim,t0_sim,& ! output
-    &n_body,n_rv,n_max_t0) ! dimensions
+    &n_max_t0,& ! input dimension to be provided
+    &n_body,n_rv) ! dimensions to be not provided
 
     ! INPUT
     ! t_start      == start of the integration
@@ -718,9 +719,8 @@ module pytrades
     ! lN_deg       == longitude of node of all the bodies lN_deg(n_body); lN_deg(0) = 0
 
     ! t_rv         == time of the RV datapoints t_rv(n_rv)
-    ! transit_flag == logical/boolean vector with which bodies should transit (.true.) or not (.false) transit_flag(n_body); transit_flag(0) = False
-    ! n_t0         == number of transits per each body n_t0(n_body); n_t0(0) = 0
-    ! t0_num       == epochs/transit number for each body t0_num(n_max_t0,n_body); t0_num(:,0) = 0
+    ! transit_flag == logical/boolean vector with which bodies should transit (.true.) or not (.false.) transit_flag(n_body); transit_flag(0) = False
+    ! n_max_t0     == maxval(n_t0) == maxval of transits available
     
     ! OUTPUT
     ! rv_sim       == rv simulated in m/s, same dimension of t_rv
@@ -729,14 +729,15 @@ module pytrades
     ! DIMENSIONS
     ! n_body       == number of bodies (take into account the star)
     ! n_rv         == number of radial velocities datapoints
-    ! n_max_t0     == maxval(n_t0) == maxval of transits available
-    integer::n_body,n_rv,n_max_t0
+    integer::n_body,n_rv
     
     real(dp),intent(in)::t_start,t_epoch,step_in,t_int
     real(dp),dimension(n_body),intent(in)::m_msun,R_rsun,P_day
     real(dp),dimension(n_body),intent(in)::ecc,argp_deg,mA_deg,inc_deg,lN_deg
     real(dp),dimension(n_RV),intent(in)::t_rv
     logical,dimension(n_body),intent(in)::transit_flag
+    integer,intent(in)::n_max_t0
+
 !     integer,dimension(n_body),intent(in)::n_t0
 !     integer,dimension(n_max_t0,n_body),intent(in)::t0_num
     
@@ -765,7 +766,7 @@ module pytrades
     
     call orbits_to_data(t_start,t_epoch,step_in,t_int,&
       &m_msun,R_rsun,P_day,ecc,argp_deg,mA_deg,inc_deg,lN_deg,&
-      &t_rv,RV_temp,&
+      &t_rv,rv_temp,&
       &id_transit_body,transit_flag,durcheck,t0_temp)
     
     rv_sim=rv_temp

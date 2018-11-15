@@ -262,7 +262,8 @@ def plot_oc_T41(cli, file_in, samples):
                      )
   # trades
   lsim, = ax.plot(x, sim.oc_s*ocu[0],
-                  marker='o', ms=mss, mec='None',
+                  marker='o', ms=mss,
+                  mec='lightgray',  mew=0.5, #mec='None',
                   ls='',
                   zorder=6,
                   alpha=malpha,
@@ -334,7 +335,8 @@ def plot_oc_T41(cli, file_in, samples):
                 )
     # trades
     ax.plot(x, sim.T41s*ocu[0],
-            marker='o', ms=mss, mec='None',
+            marker='o', ms=mss,
+            mec='lightgray',  mew=0.5, #mec='None',
             ls='',
             zorder=6,
             alpha=malpha,
@@ -380,7 +382,7 @@ def plot_oc_T41(cli, file_in, samples):
   if(not os.path.isdir(folder_out)): os.makedirs(folder_out)
   fname = os.path.basename(file_in)
   plt_file = os.path.join(folder_out, os.path.splitext(fname)[0])
-  fig.savefig('%s.png' %(plt_file), bbox_inches='tight', dpi=300)
+  fig.savefig('%s.png' %(plt_file), bbox_inches='tight', dpi=200)
   print 'Saved plot into:'
   print '%s' %('%s.png' %(plt_file))
   fig.savefig('%s.pdf' %(plt_file), bbox_inches='tight', dpi=72)

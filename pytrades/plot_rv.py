@@ -26,14 +26,16 @@ import ancillary as anc
 
 # ==============================================================================
 
-filled_markers = ('o', 's', 'D', '^', '*', 'v', '<', '>', '8', 'p', 'h', 'H', 'd', 'P', 'X')
+filled_markers = ('o', 's', 'D', '^', '*', 'v', '<', '>', \
+                  '8', 'p', 'h', 'H', 'd', 'P', 'X')
 
 # ==============================================================================
 
 def get_sim_file(cli):
   
   main_folder = cli.full_path
-  sim_file = os.path.join(main_folder, '%s_%s_simRV.dat' %(cli.idsim, cli.lmflag))
+  #sim_file = os.path.join(main_folder, '%s_%s_simRV.dat' %(cli.idsim, cli.lmflag))
+  sim_file = os.path.join(main_folder, '%d_%d_simRV.dat' %(cli.idsim, cli.lmflag))
   
   return sim_file
 
@@ -213,7 +215,8 @@ def plot_rv(cli, samples=None):
     lsim, = ax.plot(rv.time_plot, rv.rvs,
                     #marker=filled_markers[i], ms=mss, mfc='None',
                     color='C0',
-                    marker=filled_markers[i], ms=mss, mec='None',
+                    marker=filled_markers[i], ms=mss,
+                    mec='lightgray',  mew=0.5, # mec='None',
                     ls='',
                     zorder=8,
                     label='simulations'
@@ -245,7 +248,11 @@ def plot_rv(cli, samples=None):
   else:
     lhand = lobs_a + [lsim_a[0], lmod, lsmp_a[0]]
   
-  ax.legend(handles=lhand, bbox_to_anchor=(1., 0.5), fontsize=tfont-2)
+  # legend in a column right of the boxes
+  #ax.legend(handles=lhand, bbox_to_anchor=(1., 0.5), fontsize=tfont-2)
+  # legend automatic
+  nlegcol = int( (len(label_data) + 3) / 2) + 1 # nRVset obs + 1 sim + 1 model + 1 samples
+  ax.legend(handles=lhand, loc='best', ncol=nlegcol, fontsize=tfont-2)
   
   # residuals plot
   ax = plt.subplot2grid((nrows, ncols), (2,0), rowspan=1)
@@ -269,11 +276,13 @@ def plot_rv(cli, samples=None):
                 zorder=5,
                 )
   
+  print 'full_path', cli.full_path
   folder_out = os.path.join(os.path.dirname(cli.full_path), 'plots')
+  print 'folder_out', folder_out
   if(not os.path.isdir(folder_out)): os.makedirs(folder_out)
   fname = os.path.basename(sim_file)
   plt_file = os.path.join(folder_out, os.path.splitext(fname)[0])
-  fig.savefig('%s.png' %(plt_file), bbox_inches='tight', dpi=300)
+  fig.savefig('%s.png' %(plt_file), bbox_inches='tight', dpi=200)
   print 'Saved plot into:'
   print '%s' %('%s.png' %(plt_file))
   fig.savefig('%s.pdf' %(plt_file), bbox_inches='tight', dpi=72)

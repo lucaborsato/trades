@@ -65,11 +65,11 @@ def get_args():
                       help='Number of iterations to do for save temporary chain. No intermediate save.'
                       )
 
-  # NUMBER OF BURNIN TO SKIP FOR PRELIMINARY ANALYSIS
-  parser.add_argument('-nb', '--nburn', '--npost', 
-                      action='store', dest='npost', default=0,
-                      help='Number of burn in, or number of posterior to discard at the beginning of the each chain. default npost = 1000.'
-                      )
+  ## NUMBER OF BURNIN TO SKIP FOR PRELIMINARY ANALYSIS
+  #parser.add_argument('-nb', '--nburn', '--npost', 
+                      #action='store', dest='npost', default=0,
+                      #help='Number of burn in, or number of posterior to discard at the beginning of the each chain. default npost = 1000.'
+                      #)
 
   # COMPUTE OR NOT CONSTANT TO ADD TO THE LGLIKELIHOOD: - (1/2dof) * SUM( ln 2pi * sigma_obs^2 )
   parser.add_argument('-l', '--ln-err', '--ln-err-const',
@@ -106,7 +106,7 @@ def get_args():
 
   cli.nwalkers = int(cli.nwalkers)
   cli.nruns = int(cli.nruns)
-  cli.npost = int(cli.npost)
+  #cli.npost = int(cli.npost)
 
   cli.ln_flag = anc.set_bool_argument(cli.ln_flag)
 
@@ -189,11 +189,12 @@ def get_emcee_arguments(cli,nfit):
     nsave = False
   
   # NUMBER OF BURNIN/POSTERIOR TO DISCARD
-  if (cli.npost < 0):
-    npost = 0
-  else:
-    npost = cli.npost
+  #if (cli.npost < 0):
+    #npost = 0
+  #else:
+    #npost = cli.npost
   #print nwalkers, nruns, npost
+  npost=0
 
   return nwalkers, nruns, nsave, npost
 

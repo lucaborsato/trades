@@ -1925,7 +1925,7 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         end if
 !       if(nTs.gt.0) T0_sim = zero
         if(nTTs.gt.0)then
-          do ibd=1,n_body
+          do ibd=1,n_body-1
             if(simT0(ibd)%nT0.gt.0)then
               simT0(ibd)%T0=zero
               simT0(ibd)%T0_stat=0
@@ -1942,7 +1942,7 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
       if(nRV.gt.0) RV_sim=simRV%RV
       if(nTTs.gt.0)then
-        do ibd=1,n_body
+        do ibd=1,n_body-1
           nT0=simT0(ibd)%nT0
           if(nT0.gt.0) T0_sim(1:nT0,ibd+1)=simT0(ibd)%T0
         end do

@@ -190,12 +190,14 @@ def main():
         idx = np.argsort(x_data)
         
         if(not cli.cumulative):
-          # HISTOGRAM and pdf
+          # HISTOGRAM
           hist_counts, edges, patces = ax.hist(x_data, bins=k,
                                                range=[x_data.min(), x_data.max()], 
                                                histtype='stepfilled', 
                                                color='darkgrey', 
-                                               edgecolor='lightgray', align='mid', 
+                                               #edgecolor='lightgray',
+                                               edgecolor='None',
+                                               align='mid', 
                                                orientation=hist_orientation, 
                                                #normed=True,
                                                density=True,
@@ -203,12 +205,14 @@ def main():
                                                )
           
         else:
-          # CUMULATIVE HISTOGRAM and cdf
+          # CUMULATIVE HISTOGRAM
           hist_counts, edges, patces = ax.hist(x_data, bins=k,
                                                range=[x_data.min(), x_data.max()],
                                                histtype='stepfilled', 
                                                color='darkgrey', 
-                                               edgecolor='lightgray', align='mid', 
+                                               #edgecolor='lightgray',
+                                               edgecolor='None',
+                                               align='mid', 
                                                orientation=hist_orientation, 
                                                density=True,
                                                stacked=True,
@@ -254,7 +258,7 @@ def main():
   fig.savefig(correlation_file, bbox_inches='tight', dpi=300)
   anc.print_both('png done')
   correlation_file = os.path.join(plot_folder, 'derived_triangle.pdf')
-  fig.savefig(correlation_file, bbox_inches='tight', dpi=300)    
+  fig.savefig(correlation_file, bbox_inches='tight', dpi=96)    
   anc.print_both('pdf done')
   plt.close(fig)
       

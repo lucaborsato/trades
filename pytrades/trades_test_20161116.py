@@ -62,7 +62,9 @@ def main():
   print 'n_t0 = ', n_t0
   print 'n_max_t0 = ',n_max_t0
 
-  pytrades.args_init(t_start,t_epoch,t_int,n_body,n_t0,t0_num,t0_obs,et0_obs)
+  pytrades.args_init(t_start,t_epoch,t_int,n_body,
+                     n_t0,t0_num,t0_obs,et0_obs
+                     )
 
   print 'initialised args for trades'
 
@@ -79,9 +81,16 @@ def main():
 
   print 'set orbital elements'
 
+  # old
+  #rv_sim, t0_sim = pytrades.kelements_to_data(t_start,t_epoch,step_in,t_int,
+                     #M_msun,R_rsun,P_day,ecc,argp_deg,mA_deg,inc_deg,lN_deg,
+                     #t_rv,transit_flag,n_t0,t0_num)
   rv_sim, t0_sim = pytrades.kelements_to_data(t_start,t_epoch,step_in,t_int,
-                     M_msun,R_rsun,P_day,ecc,argp_deg,mA_deg,inc_deg,lN_deg,
-                     t_rv,transit_flag,n_t0,t0_num)
+                                              M_msun,R_rsun,
+                                              P_day,ecc,argp_deg,mA_deg,inc_deg,lN_deg,
+                                              t_rv,
+                                              transit_flag,n_max_t0
+                                              )
 
   print
   print '## RV'

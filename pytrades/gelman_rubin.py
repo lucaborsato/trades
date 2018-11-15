@@ -131,7 +131,7 @@ def main():
     ax.set_ylim(0.95, 2.3)
     ax.set_xlabel('steps (%s)' %(parameter_names_emcee[ifit].strip()))
     ax.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5))
-    fig.savefig(os.path.join(emcee_plots, 'GR_%03d_%s.png' %(ifit+1, parameter_names_emcee[ifit])), bbox_inches='tight', dpi=300)
+    fig.savefig(os.path.join(emcee_plots, 'GR_%03d_%s.png' %(ifit+1, parameter_names_emcee[ifit])), bbox_inches='tight', dpi=200)
     plt.close(fig)
     logger.info('saved plot %s' %(os.path.join(emcee_plots, 'GRtrace_pam_%s.png' %(parameter_names_emcee[ifit]))))
     

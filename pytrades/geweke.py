@@ -102,7 +102,7 @@ def main():
     #plt.legend(loc='best',fontsize=9)
     #ax.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5), ncol=cols)
     
-    fig.savefig(os.path.join(emcee_plots, 'geweke_%03d_%s.png' %(ifit+1, parameter_names_emcee[ifit])), bbox_inches='tight', dpi=300)
+    fig.savefig(os.path.join(emcee_plots, 'geweke_%03d_%s.png' %(ifit+1, parameter_names_emcee[ifit])), bbox_inches='tight', dpi=200)
     plt.close(fig)
     logger.info('saved plot %s' %(os.path.join(emcee_plots, 'geweke_trace_pam_%s.png' %(parameter_names_emcee[ifit]))))
     

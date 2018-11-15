@@ -257,11 +257,13 @@ def main():
         idx = np.argsort(x_data)
         
         if(not cli.cumulative):
-          # HISTOGRAM and pdf
+          # HISTOGRAM
           hist_counts, edges, patces = ax.hist(x_data, bins=k,
                                                range=[x_data.min(), x_data.max()], histtype='stepfilled', 
                                                color='darkgrey', 
-                                               edgecolor='lightgray', align='mid', 
+                                               #edgecolor='lightgray',
+                                               edgecolor='None',
+                                               align='mid', 
                                                orientation=hist_orientation, 
                                                #normed=True,
                                                density=True,
@@ -270,12 +272,14 @@ def main():
           
         
         else:
-          # CUMULATIVE HISTOGRAM and cdf
+          # CUMULATIVE HISTOGRAM
           hist_counts, edges, patces = ax.hist(x_data, bins=k,
                                                range=[x_data.min(), x_data.max()],
                                                histtype='stepfilled', 
                                                color='darkgrey', 
-                                               edgecolor='lightgray', align='mid', 
+                                               #edgecolor='lightgray',
+                                               edgecolor='None',
+                                               align='mid', 
                                                orientation=hist_orientation, 
                                                density=True,
                                                stacked=True,
@@ -305,7 +309,7 @@ def main():
   fig.savefig(emcee_fig_file, bbox_inches='tight', dpi=300)
   logger.info('png done')
   emcee_fig_file = os.path.join(emcee_plots, 'emcee_triangle.pdf')
-  fig.savefig(emcee_fig_file, bbox_inches='tight', dpi=300)
+  fig.savefig(emcee_fig_file, bbox_inches='tight', dpi=96)
   logger.info('pdf done')
   plt.close(fig)
 
