@@ -92,6 +92,14 @@ def main():
                                               transit_flag,n_max_t0
                                               )
 
+  # run it twice as check
+  rv_sim, t0_sim = pytrades.kelements_to_data(t_start,t_epoch,step_in,t_int,
+                                              M_msun,R_rsun,
+                                              P_day,ecc,argp_deg,mA_deg,inc_deg,lN_deg,
+                                              t_rv,
+                                              transit_flag,n_max_t0
+                                              )
+
   print
   print '## RV'
   print '# time_rv rv_obs rv_sim'

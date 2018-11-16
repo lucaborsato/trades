@@ -759,6 +759,12 @@ module pytrades
     ! DATA
     ! set obsData from here!!
     ! RV
+    ! method 1 ...
+!     obsData%obsRV%nRV=n_RV
+!     if(.not.allocated(obsData%obsRV%jd)) allocate(obsData%obsRV%jd(n_RV))
+!     obsData%obsRV%jd = t_rv
+    ! method 2 ...
+    if(allocated(obsData%obsRV%jd)) deallocate(obsData%obsRV%jd)
     obsData%obsRV%nRV=n_RV
     allocate(obsData%obsRV%jd(n_RV))
     obsData%obsRV%jd = t_rv
