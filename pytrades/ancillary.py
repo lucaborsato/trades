@@ -12,6 +12,7 @@ import h5py
 import constants as cst  # local constants module
 
 # from emcee import autocorr as acor
+import emcee
 # import acor
 
 import scipy.optimize as sciopt
@@ -293,6 +294,7 @@ def mass_type_factor(Ms=1.0, mtype='earth', mscale=True):
 # ==============================================================================
 
 def get_proper_mass(m_type, parameter_names_emcee, full_path):
+
   nfit = np.size(parameter_names_emcee)
 
   MR_star = np.ones((2, 2))
@@ -305,7 +307,7 @@ def get_proper_mass(m_type, parameter_names_emcee, full_path):
   MR_star = np.genfromtxt(file_star)
   if (len(MR_star.shape) == 1): MR_star = np.column_stack((MR_star, np.zeros((2))))
 
-  m_factor, m_unit = mass_type_factor(MR_star[0, 0], cli.m_type, True)
+  m_factor, m_unit = mass_type_factor(MR_star[0, 0], m_type, True)
 
   return m_factor, m_unit
 
@@ -2622,12 +2624,16 @@ def print_parameters(top_header, header, name_parameters, unit_parameters, param
   print_both(header, output)
   # n_par = parameters.shape[0]
   #n_par = len(name_parameters)
+  
+ 
   if(sigma_parameters is not None):
     n_sig, n_par = np.shape(sigma_parameters)
     for i_p in range(0, n_par):
+      unit = unit_parameters[i_p].strip()
+      if(len(unit) == 0): unit = '-'
       sigma_line = ' '.join(['%23.16e' % (sigma_parameters[ii, i_p]) for ii in range(n_sig)])
       line = ' %15s %20s %23.16e %s' % (name_parameters[i_p],
-                                        unit_parameters[i_p].strip(),
+                                        unit[i_p],
                                         parameters[i_p], sigma_line)
       print_both(line, output)
   else:
@@ -2648,8 +2654,10 @@ def print_confidence_intervals(percentiles, conf_interv=None, name_parameters=No
 
     n_par = len(name_parameters)
     for i_p in range(0, n_par):
+      unit = unit_parameters[i_p].strip()
+      if(len(unit) == 0): unit = '-'
       ci_line = ' '.join(['%23.16e' % (conf_interv[ii, i_p]) for ii in range(0, len(percentiles))])
-      line = '  %15s %23s %s' % (name_parameters[i_p], unit_parameters[i_p], ci_line)
+      line = '  %15s %23s %s' % (name_parameters[i_p], unit, ci_line)
       print_both(line, output)
 
   else:
@@ -2675,8 +2683,10 @@ def print_hdi(conf_interv=None, name_parameters=None, unit_parameters=None, outp
     #n_par, n_hdi = np.shape(conf_interv)
     n_hdi, n_par = np.shape(conf_interv)
     for i_p in range(0, n_par):
+      unit = unit_parameters[i_p].strip()
+      if(len(unit) == 0): unit = '-'
       ci_line = ' '.join(['%23.16e' % (conf_interv[ii, i_p]) for ii in range(n_hdi)])
-      line = '  %15s %23s %s' % (name_parameters[i_p], unit_parameters[i_p], ci_line)
+      line = '  %15s %23s %s' % (name_parameters[i_p], unit, ci_line)
       print_both(line, output)
 
   else:

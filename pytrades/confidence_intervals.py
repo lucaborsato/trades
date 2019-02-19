@@ -163,9 +163,9 @@ def main():
     out = open(out_file, 'w')
     pytrades_lib.pytrades.path_change(out_folder)
     
-    anc.print_both(' ', out)
-    anc.print_both(' --------------------------------- ', out)
-    anc.print_both(' PARAMETER VALUES -> %d' %(id_sim), out)
+    anc.print_both(' #', out)
+    anc.print_both(' # --------------------------------- ', out)
+    anc.print_both(' # PARAMETER VALUES -> %d' %(id_sim), out)
     fitness, lgllhd, check = pytrades_lib.pytrades.write_summary_files(id_sim, parameters_trades)
     
     kel_file, kep_elem = anc.elements(out_folder, id_sim, lmf=0)

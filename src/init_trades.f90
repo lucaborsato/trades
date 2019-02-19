@@ -282,7 +282,7 @@ module init_trades
   !IT READS BODY NAMES AND DETERMINES WHICH PARAMETER TO FIT
   subroutine read_list(cpuid)
     integer,intent(in)::cpuid
-    character(128)::temp
+    character(128)::temp,temp2
     character::fitpar
     integer::i,i1,i2,j,pos,ulst,stat,ih,it
     logical::fstat
@@ -292,6 +292,7 @@ module init_trades
     inquire(file=trim(path)//"bodies.lst",exist=fstat)
     if(fstat)then
       if(.not.allocated(bnames)) allocate(bnames(NB),bfiles(NB),do_transit(NB))
+
       do_transit(2:NB)=.true. ! set all planet to transit by default
       do_transit(1)=.false. ! star not transiting ... ...
 
@@ -320,7 +321,6 @@ module init_trades
             end do
 
           else ! row from 2 to NB == planets
-
             do j=1,8 ! read fitting parameters: 1 fit, 0 no fit
               pos=i+j+(i-2)*7
               fitpar=temp(i2:i2)
@@ -331,9 +331,10 @@ module init_trades
             ih = index(temp(1:len(trim(adjustl(temp)))),'#')
             if(ih.eq.0)ih=len(trim(adjustl(temp)))
             ! then last column: planet should transit? T = True/Yes (or omit), F = False/No. Before # character.
-            it=scan(temp(i2:ih),'Ff')
+            temp2=trim(adjustl(temp(i2:ih)))
+            it=scan(temp2,'Ff')
             if(it.ne.0)then
-              read(temp(it:it),*)do_transit(i)
+              read(temp2(it:it),*)do_transit(i)
             end if
 
           end if
@@ -1306,7 +1307,7 @@ module init_trades
     if(obsData%nTTs.gt.0)then
 
       do ipl=1,NB-1
-
+        if(obsData%obsT0(ipl)%nT0.gt.0)then
         ln_eT0 = ln_eT0 + sum(log(pack(&
           &obsData%obsT0(ipl)%eT0,obsData%obsT0(ipl)%eT0/=zero)*&
           &pack(obsData%obsT0(ipl)%eT0,obsData%obsT0(ipl)%eT0/=zero)&
@@ -1315,6 +1316,7 @@ module init_trades
           &pack(obsData%obsT0(ipl)%edur,obsData%obsT0(ipl)%edur/=zero)*&
           &pack(obsData%obsT0(ipl)%edur,obsData%obsT0(ipl)%edur/=zero)&
           &))
+        end if
 
       end do
 

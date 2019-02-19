@@ -175,11 +175,11 @@ module pytrades
       allocate(Pephem(NB))
       Pephem=zero
       do inb=2,NB
-        Pephem(inb)=obsData%obsT0(inb-1)%Pephem
+        if(obsData%obsT0(inb-1)%nT0.gt.0) Pephem(inb)=obsData%obsT0(inb-1)%Pephem
       end do
     end if
       
-    ! IT DETERMINS THE NDATA
+    ! IT DETERMINES THE NDATA
     ! variables:  ndata -> parameters
     !             dof -> parametershttp://www.r-bloggers.com/wilcoxon-signed-rank-test/
     !             nfit -> parameters
@@ -206,10 +206,12 @@ module pytrades
     obsData%inv_dof = one / real(obsData%dof,dp)
     inv_dof=obsData%inv_dof
 
+    ! write(*,*)' ln_err_const'
     ! IT DETERMINES THE LN_ERR_CONST TO COMPUTE LOGLIKELIHOOD
 !     ln_err_const = get_ln_err_const(eRVobs,eT0obs)
     ln_err_const = get_lnec(obsData)
     
+    ! write(*,*)' set id of parameters'
     ! IT SETS THE LIST OF THE PARAMETERS TO FIT
     ! subroutine: set_parid_list -> init_trades
     call set_parid_list()
@@ -270,21 +272,26 @@ module pytrades
 ! !     call fix_system_parameters()
 !     call fix_all_parameters(system_parameters)
 !   
+    ! write(*,*)' init_param'
     call init_param(system_parameters,fitting_parameters)
 
     parameters_minmax(:,1)=minpar
     parameters_minmax(:,2)=maxpar
     str_len=len(parid(1))
     
+    ! write(*,*)' init_derived_parameters'
     ! check if there are derived parameters to compute and to check
     call init_derived_parameters(1,path)
     
     ! deallocated variables not needed anymore
     if(allocated(m)) deallocate(m,R,P,a,e,w,mA,inc,lN)
   
+    ! write(*,*)' set new path'
     path=trim(adjustl(path_in))//trim(adjustl(sub_folder))
 !     write(*,'(a,a)')" RUNNING IN PATH = ",trim(path)
   
+    ! stop 'STOP end of initialize_trades'
+
     return
   end subroutine initialize_trades
   

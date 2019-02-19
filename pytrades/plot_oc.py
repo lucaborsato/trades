@@ -189,7 +189,8 @@ def axtitle(ax, labtitle='', fontsize=8):
   
   ax.text(0.5, 1.02, labtitle,
           horizontalalignment='center',
-          verticalalignment='center',
+          #verticalalignment='center',
+          verticalalignment='bottom',
           fontsize=fontsize,
           transform=ax.transAxes
           )
@@ -219,7 +220,7 @@ def plot_oc_T41(cli, file_in, samples):
   else:
     nsmp = 0
   
-  lfont=10
+  lfont=12
   tfont=8
   
   xlabel = 'BJD$_\\textrm{TDB} - %.3f$' %(tscale)
@@ -241,7 +242,9 @@ def plot_oc_T41(cli, file_in, samples):
   ax = plt.subplot2grid((nrows, ncols), (0,0), rowspan=2)
   set_axis_default(ax, ticklabel_size=tfont, aspect='auto', labeldown=False)
   ax.set_ylabel('O-C (%s)' %(ocu[1]), fontsize=lfont)
-  axtitle(ax, labtitle='planet %s: transit times' %(planet))
+  axtitle(ax, labtitle='planet %s: transit times' %(planet),
+          fontsize=lfont
+          )
   
   ax.axhline(0., color='black', ls='-',lw=0.7)
   
@@ -285,9 +288,9 @@ def plot_oc_T41(cli, file_in, samples):
                     )
       lsmp.append(ll)
   
-    ax.legend(handles=[lobs, lsim, lsmp[0]], loc='best', fontsize=tfont-2)
+    ax.legend(handles=[lobs, lsim, lsmp[0]], loc='best', fontsize=lfont)
   else:
-    ax.legend(loc='best', fontsize=tfont-2)
+    ax.legend(loc='best', fontsize=lfont)
   
   ax.set_xlim(minx, maxx)
   
@@ -317,8 +320,10 @@ def plot_oc_T41(cli, file_in, samples):
 
     ax = plt.subplot2grid((nrows, ncols), (0,1), rowspan=2)
     set_axis_default(ax, ticklabel_size=tfont, aspect='auto', labeldown=False)
-    ax.set_ylabel('T$_{41}$ (%s)' %(ocu[1]), fontsize=lfont)
-    axtitle(ax, labtitle='planet %s: durations as T$_4$-T$_1$ ' %(planet))
+    ax.set_ylabel('T$_{14}$ (%s)' %(ocu[1]), fontsize=lfont)
+    axtitle(ax, labtitle='planet %s: durations as T$_4$-T$_1$' %(planet),
+            fontsize=lfont
+            )
     
     #ax.axhline(np.median(data[:,6]), color='black', ls='-',lw=0.7)
     

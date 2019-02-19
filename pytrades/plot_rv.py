@@ -147,7 +147,7 @@ def axtitle(ax, labtitle='', fontsize=8):
   
   ax.text(0.5, 1.02, labtitle,
           horizontalalignment='center',
-          verticalalignment='center',
+          verticalalignment='bottom',
           fontsize=fontsize,
           transform=ax.transAxes
           )
@@ -174,7 +174,7 @@ def plot_rv(cli, samples=None):
   nrows = 3
   ncols = 1
   
-  lfont=10
+  lfont=12
   tfont=8
   mso=5
   mss=4
@@ -183,7 +183,9 @@ def plot_rv(cli, samples=None):
   ax = plt.subplot2grid((nrows, ncols), (0,0), rowspan=2)
   set_axis_default(ax, ticklabel_size=tfont, aspect='auto', labeldown=False)
   ax.set_ylabel('RV (m/s)', fontsize=lfont)
-  axtitle(ax, labtitle='Radial Velocities')
+  axtitle(ax, labtitle='Radial Velocities',
+          fontsize=lfont
+          )
   
   ax.axhline(0., color='black', ls='-',lw=0.7)
   
@@ -252,7 +254,7 @@ def plot_rv(cli, samples=None):
   #ax.legend(handles=lhand, bbox_to_anchor=(1., 0.5), fontsize=tfont-2)
   # legend automatic
   nlegcol = int( (len(label_data) + 3) / 2) + 1 # nRVset obs + 1 sim + 1 model + 1 samples
-  ax.legend(handles=lhand, loc='best', ncol=nlegcol, fontsize=tfont-2)
+  ax.legend(handles=lhand, loc='best', ncol=nlegcol, fontsize=lfont)
   
   # residuals plot
   ax = plt.subplot2grid((nrows, ncols), (2,0), rowspan=1)
