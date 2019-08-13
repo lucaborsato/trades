@@ -323,14 +323,14 @@ module transits
 
     loop=0
 
-    many_iter=100000
+    many_iter=1000
 
     traloop: do
       loop=loop+1
       if(abs(dt1).le.TOLERANCE) exit traloop
       if(loop.ge.many_iter)then
-        write(*,'(a,a,a)')" Reached ",trim(adjustl(string(many_iter))),&
-        &"-th iteration in one_contact"
+        ! write(*,'(a,a,a)')" Reached ",trim(adjustl(string(many_iter))),&
+        ! &"-th iteration in find_transit"
         exit traloop
       end if
       call onetra_nr(itra,m,rw,dt2)
@@ -405,7 +405,7 @@ module transits
     real(dp)::Rp,Rs,Rmin,Rmax,Rcheck,tmid,tt,lte
     integer::jtra,ix,iy,ivx,ivy
     logical::Hc
-    integer::loop
+    integer::loop,many_iter
 
     jtra=(itra-1)*6
     ix=1+jtra
@@ -460,12 +460,13 @@ module transits
 !     A=(rw(ix)*rw(ix)+rw(iy)*rw(iy))-Rcheck
 !     B=A
 
+    many_iter = 1000
     loop=0
     contloop: do
       loop=loop+1
       if(abs(dt1).le.TOLERANCE) exit contloop
-      if(loop.ge.100000)then
-        write(*,'(a)')" Reached 100000-th iteration in one_contact"
+      if(loop.ge.many_iter)then
+        ! write(*,'(a)')" Reached max iterations in one_contact"
         exit contloop
       end if
       call onecont_nr(itra,Rcheck,rw,dt2)

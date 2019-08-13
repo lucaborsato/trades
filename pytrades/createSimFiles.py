@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os #  os: operating system
 import glob # glob: globbing file...loading multiple files as *.pippa
@@ -30,7 +30,7 @@ def get_args():
 # check if directory does not exist, then creates iteration
 def createFolder(fpath):
   if not os.path.isdir(fpath):
-    print " CREATING FOLDER " + fpath
+    print(" CREATING FOLDER " + fpath)
     os.makedirs(fpath)
 
 #
@@ -38,8 +38,8 @@ def createFolder(fpath):
 
 def createARG(fpath):
   farg = os.path.join(fpath, "arg.in")
-  print " CREATING: " + farg
-  print ""
+  print(" CREATING: " + farg)
+  print("")
 
   ofarg = open(farg, 'w')
 
@@ -47,129 +47,129 @@ def createARG(fpath):
   liner = "# 1=grid search, 2=integration/Levenberg-Marquardt, 3=PIKAIA (GA), 4=PSO, 5=PolyChord."
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "nboot = 0" # nboot
   liner = "# bootstrap: <=0 no bootstrap, >0 yes bootstrap (Nboot set to 100 if <100)"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
   
   linel = "bootstrap_scaling = T" # nboot
   liner = "# bootstrap_scaling = .true. or T, .false. or F, default .false."
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "tepoch = 2455088.212" # epoch
   liner = "# epoch of the elements [JD]."
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "tstart = 2454965." # time start
   liner = "# time start of the integration [JD]. Set this to a value > 9.e7 if you want to use the tepoch (next parameter) "
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "tint = 500." # integration time
   liner = "# time duration of the integration in days"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "step = 1.e-3" # initial step size
   liner = "# initial time step size in days"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "wrttime = 0.04167" # write interval time
   liner = "# time interval in days of write data in files (if < stepsize the program will write every step)"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "NB = 3" # Number of bodies
   liner = "# number of bodies to use (from 2 to N, where the max N is the number of files in bodies.lst)"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "idtra = 1" # T_0 fit, duration fit
   liner = "# number of the body to check if it transits (from 2 to N, 1 for everyone, 0 for no check)."
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
   
   line = "# oc_fit: define if the program has to fit: resw_T0=T0_obs-R0_sim (set to 0); resw_OC=OC_obs-OC_sim (set 1) where OC_obs(sim)=T0_obs(sim)-T0_lin,obs(sim); set to 2 to use both (resw=(resw_T0+resw_OC)/2). By default it is set to 0\noc_fit = 0"
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "durcheck = 0" # T_0 fit, duration fit
   liner = "# 0/1=no/yes duration fit"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "tol_int = 1.e-13" # TOLERANCE
   liner = "# tolerance in the integration (stepsize selection etc)"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "wrtorb = 1" # write orbit
   liner = "# write orbit condition: 1[write], 0[do not write]"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "wrtconst = 1" # write const of motion
   liner = "# write constants condition: 1[write], 0[do not write]"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "wrtel = 1" # write orb elements
   liner = "# write orbital elements condition: 1[write], 0[do not write]"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "rvcheck = 1" # check RV
   liner = "# check of Radial Velocities condition: 1[check, read from obsRV.dat], 0[do not check]"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "idpert = 3" # grid
   liner = "# grid option: id of the perturber body [integer >1, <= tot bodies; else no perturber]"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   linel = "lmon = 0" # lmon
   liner = "# lmon: Levenberg-Marquardt off = 0[no LM], on=1[yes LM]. Default lmon = 0"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   line = "# weight_chi_square: parameter needed to weight the fitness function, such that\n# fitness = Chi^2_r * weight_chi_square + Chi^2_wr * (1. - weight_chi_square),\n# where Chi^2_wr is the reduced Chi Square but weighted by the number of data for each data set (Chi2r * Ndata/Nset for all dataset).\n# Default weight_chi_square = 1.\nweight_chi_square = 1."
   ofarg.write(line + "\n")
-  print line
+  print(line)
 
   line = "# secondary_parameters: define if the program has to check only boundarie for derived parameters (1) or if it has also to fix values due to derived parameters (2) or do nothing (0) with derived parameters.\n# Default secondary_parameters = 0.\nsecondary_parameters = 0"
   ofarg.write(line + "\n")
-  print line
+  print(line)
   
   line = "# do_hill_check: define if the program has to check the Mutual Hill Radius between consecutive pairs of planets or not. Default do_hill_check = False. Provide: y or Y or yes or Yes or True or true, otherwise set to .false.\ndo_hill_check = F"
   ofarg.write(line + "\n")
-  print line
+  print(line)
   
   line = "# number of cpu to use with opemMP. Default is 1.\nncpu = 1"
   ofarg.write(line + '\n')
-  print line
+  print(line)
   
   ofarg.close()
 
@@ -179,8 +179,8 @@ def createARG(fpath):
 # c.dat 0 0 1 1 1 1 0 1 T #filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)
 def createBODIESLST(fpath):
   fbodies = os.path.join(fpath, "bodies.lst")
-  print " CREATING: " + fbodies
-  print ""
+  print(" CREATING: " + fbodies)
+  print("")
 
   ofbodies = open(fbodies, 'w')
 
@@ -188,19 +188,19 @@ def createBODIESLST(fpath):
   liner = "#filename Mass Radius [1=to fit, 0=fixed]"
   line = linel + "          " + liner
   ofbodies.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "b.dat 0 0 1 1 1 1 0 0 T"
   liner = "#filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)"
   line = linel + "          " + liner
   ofbodies.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "c.dat 0 0 1 1 1 1 0 1 T"
   liner = "#filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)"
   line = linel + "          " + liner
   ofbodies.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   ofbodies.close()
 
@@ -209,8 +209,8 @@ def createBODIESLST(fpath):
 # 1.10    # Rstar [Rsun]
 def createSTAR(fpath):
   fstar = os.path.join(fpath, "star.dat")
-  print " CREATING: " + fstar
-  print ""
+  print(" CREATING: " + fstar)
+  print("")
 
   ofstar = open(fstar, 'w')
 
@@ -218,13 +218,13 @@ def createSTAR(fpath):
   liner = "# Mstar [Msun]"
   line = linel + "          " + liner
   ofstar.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "1.10 0.01"
   liner = "# Rstar [Rsun]"
   line = linel + "          " + liner
   ofstar.write(line + "\n")
-  print " " + line
+  print(" " + line)
   
   ofstar.close()
   
@@ -242,8 +242,8 @@ def createSTAR(fpath):
   
 def createPLANETB(fpath):
   fb = os.path.join(fpath, "b.dat")
-  print " CREATING: " + fb
-  print ""
+  print(" CREATING: " + fb)
+  print("")
 
   ofb = open(fb, 'w')
 
@@ -251,61 +251,61 @@ def createPLANETB(fpath):
   liner = "# Mmin Mmax X ss/rn/sn=StepSize/RandomNumber/StepNumber [Mjup]"
   line = linel + "          " + liner
   ofb.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "0.842 0. 0. rn"
   liner = "# Radius of Planet [Rjup]"
   line = linel + "          " + liner
   ofb.write(line + "\n")
-  print " " + line
+  print(" " + line)
   
   linel = "19.238756 0. 0. rn"
   liner = "# Period [day] - set it > 9000000. to calculate from semi-major axis"
   line = linel + "          " + liner
   ofb.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "999. 0. 0. rn"
   liner = "# semi major axis [AU] - set it to 999.0 if there is no value available"
   line = linel + "          " + liner
   ofb.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "0.058152 0. 0. rn"
   liner = "# eccentricity"
   line = linel + "          " + liner
   ofb.write(line + "\n")
-  print " " + line
+  print(" " + line)
   
   linel = "356.056648 0. 0. rn"
   liner = "# argument of the pericenter [deg]"
   line = linel + "          " + liner
   ofb.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "3.771733 0. 0. rn"
   liner = "# mean anomaly [deg]: if set to >= 999. the time of pericenter passage (next row) will be used"
   line = linel + "          " + liner
   ofb.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "9.e8 0. 0. rn"
   liner = "# time of pericenter passage [JD]: if set to >= 9.e8 the mean anomaly (previous row) will be used"
   line = linel + "          " + liner
   ofb.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "88.55 0. 0. rn"
   liner = "# orbit inclination [deg]"
   line = linel + "          " + liner
   ofb.write(line + "\n")
-  print " " + line
+  print(" " + line)
   
   linel = "180. 0. 0. rn"
   liner = "# longitude of the ascending node [deg]"
   line = linel + "          " + liner
   ofb.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   ofb.close()
 
@@ -323,8 +323,8 @@ def createPLANETB(fpath):
 
 def createPLANETC(fpath):
   fc = os.path.join(fpath, "c.dat")
-  print " CREATING: " + fc
-  print ""
+  print(" CREATING: " + fc)
+  print("")
 
   ofc = open(fc, 'w')
 
@@ -332,61 +332,61 @@ def createPLANETC(fpath):
   liner = "# Mmin Mmax X ss/rn/sn=StepSize/RandomNumber/StepNumber [Mjup]"
   line = linel + "    " + liner
   ofc.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "0.823 0. 0. rn"
   liner = "# Radius of Planet [Rjup]"
   line = linel + "    " + liner
   ofc.write(line + "\n")
-  print " " + line
+  print(" " + line)
   
   linel = "38.986097 0. 0. rn"
   liner = "# Period [day] - set it > 9.e6 to calculate from semi-major axis"
   line = linel + "    " + liner
   ofc.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "999. 0. 0. rn"
   liner = "# semi major axis [AU] - set it to 999.0 if there is no value available"
   line = linel + "    " + liner
   ofc.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "0.067645 0. 0. rn"
   liner = "# eccentricity"
   line = linel + "    " + liner
   ofc.write(line + "\n")
-  print " " + line
+  print(" " + line)
   
   linel = "167.573369 0. 0. rn"
   liner = "# argument of the pericenter [deg]"
   line = linel + "    " + liner
   ofc.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "307.432620 0. 0. rn"
   liner = "# mean anomaly [deg]: if set to >= 999. the time of pericenter passage (next row) will be used"
   line = linel + "    " + liner
   ofc.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "9.e8 0. 0. rn"
   liner = "# time of pericenter passage [JD]: if set to >= 9.e8 the mean anomaly (previous row) will be used"
   line = linel + "          " + liner
   ofc.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "89.12 0. 0. rn"
   liner = "# orbit inclination [deg]"
   line = linel + "    " + liner
   ofc.write(line + "\n")
-  print " " + line
+  print(" " + line)
   
   linel = "359.889907 0. 0. rn"
   liner = "# longitude of the ascending node [deg]"
   line = linel + "    " + liner
   ofc.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   ofc.close()
 
@@ -401,8 +401,8 @@ def createPLANETC(fpath):
 
 def createLM(fpath):
   flm = os.path.join(fpath, "lm.opt")
-  print " CREATING: " + flm
-  print ""
+  print(" CREATING: " + flm)
+  print("")
 
   oflm = open(flm, 'w')
 
@@ -410,37 +410,37 @@ def createLM(fpath):
   liner = "# max function evaluation (if <=0 it will be set to 200*(n+1), where n=number of parameters to be fitted)"
   line = linel + "    " + liner
   oflm.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "1.e-8"
   liner = "# ftol (must be > 0., if <=0 it will be setted with an internal TOLERANCE) DETERMINED IN THE PROGRAM"
   line = linel + "    " + liner
   oflm.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "1.e-8"
   liner = "# xtol (must be > 0., if <=0 it will be setted with an internal TOLERANCE) DETERMINED IN THE PROGRAM"
   line = linel + "    " + liner
   oflm.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "1.e-8"
   liner = "# gtol (must be >= 0., if <0 it will be setted to zero)"
   line = linel + "    " + liner
   oflm.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "-1."
   liner = "# value that multiply the parameters to detect a parameter step in lmdif (usually to be setted to sqrt( machine precision ), if <0 it will be set to this value) DETERMINED IN THE PROGRAM"
   line = linel + "    " + liner
   oflm.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   linel = "0"
   liner = "# nprint: it prints some results every nprint function evaluations (if <0 it will be set to 0)"
   line = linel + "    " + liner
   oflm.write(line + "\n")
-  print " " + line
+  print(" " + line)
 
   oflm.close()
 
@@ -463,8 +463,8 @@ def createLM(fpath):
 
 def createPIKAIA(fpath):
   fpik = os.path.join(fpath, "pikaia.opt")
-  print " CREATING: " + fpik
-  print ""
+  print(" CREATING: " + fpik)
+  print("")
 
   ofpik = open(fpik, 'w')
   
@@ -515,8 +515,8 @@ def createPIKAIA(fpath):
 
 def createPSO(fpath):
   fpso = os.path.join(fpath, "pso.opt")
-  print " CREATING: " + fpso
-  print ""
+  print(" CREATING: " + fpso)
+  print("")
 
   ofpso = open(fpso, 'w')
   
@@ -549,8 +549,8 @@ def createPSO(fpath):
 # create PolyChord configuration file
 def createPC(fpath):
   fpc = os.path.join(fpath, "PolyChord.opt")
-  print " CREATING: " + fpc
-  print ""
+  print(" CREATING: " + fpc)
+  print("")
 
   ofpc = open(fpc, 'w')
   
@@ -626,8 +626,8 @@ def createPC(fpath):
 #2455376.930532 17.39 2.61 1
 def createOBSRV(fpath):
   fobsRV = os.path.join(fpath, "obsRV.dat")
-  print " CREATING: " + fobsRV
-  print ""
+  print(" CREATING: " + fobsRV)
+  print("")
 
   ofobsRV = open(fobsRV, 'w')
   
@@ -667,8 +667,8 @@ def createOBSRV(fpath):
 #   5  2455169.68103  0.00046
 def createNB2OBS(fpath):
   fNB2obs = os.path.join(fpath, "NB2_observations.dat")
-  print " CREATING: " + fNB2obs
-  print ""
+  print(" CREATING: " + fNB2obs)
+  print("")
 
   ofNB2obs = open(fNB2obs, 'w')
 
@@ -710,8 +710,8 @@ def createNB2OBS(fpath):
 #  2  2455164.18168  0.00055
 def createNB3OBS(fpath):
   fNB3obs = os.path.join(fpath, "NB3_observations.dat")
-  print " CREATING: " + fNB3obs
-  print ""
+  print(" CREATING: " + fNB3obs)
+  print("")
 
   ofNB3obs = open(fNB3obs, 'w')
   
@@ -743,31 +743,31 @@ def main():
   # MAIN
   fpath = get_args()
   createFolder(fpath)
-  print ""
+  print("")
   createARG(fpath)
-  print ""
+  print("")
   createBODIESLST(fpath)
-  print ""
+  print("")
   createSTAR(fpath)
-  print ""
+  print("")
   createPLANETB(fpath)
-  print ""
+  print("")
   createPLANETC(fpath)
-  print ""
+  print("")
   createLM(fpath)
-  print ""
+  print("")
   createPIKAIA(fpath)
-  print ""
+  print("")
   createPSO(fpath)
-  print ""
+  print("")
   createPC(fpath)
-  print ""
+  print("")
   createOBSRV(fpath)
-  print ""
+  print("")
   createNB2OBS(fpath)
-  print ""
+  print("")
   createNB3OBS(fpath)
-  print ""
+  print("")
   return
 
 if __name__ == "__main__":

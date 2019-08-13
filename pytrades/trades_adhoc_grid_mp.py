@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os
 import numpy as np # array
@@ -41,7 +41,7 @@ def get_args():
   return cli
 
 def print_both(line, of_log=None):
-  print line
+  print(line)
   if(of_log is not None):
     of_log.write(line + '\n')
   return
@@ -252,9 +252,9 @@ def main():
   print_both(' INITIALISED GRID QUEUE', of_run)
 
   #full_id, full_fitness, full_check = np.zeros((n_grid)).astype(np.int), np.zeros((n_grid)), np.ones((n_grid)).astype(np.int)
-  full_id = mp.Array('i',range(n_grid))
-  full_fitness  = mp.Array('d',range(n_grid))
-  full_check = mp.Array('i',range(n_grid))
+  full_id = mp.Array('i',list(range(n_grid)))
+  full_fitness  = mp.Array('d',list(range(n_grid)))
+  full_check = mp.Array('i',list(range(n_grid)))
   
   threads = []
   for i_th in range(0, nthreads):
@@ -267,7 +267,7 @@ def main():
     
   # Check processes status
   for pp in threads:
-    print "Process ",pp, " @ ", pp.pid, " is ", status(pp)
+    print("Process ",pp, " @ ", pp.pid, " is ", status(pp))
   # Wait processes to finish
   while len(threads) != 0:
     for pp in threads:

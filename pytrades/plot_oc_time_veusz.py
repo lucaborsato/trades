@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os #  os: operating system
 import time # time: execution time
@@ -35,7 +35,7 @@ def get_bool(bool_in):
 
 def get_args():
   
-  print " EMBED VEUSZ VERSION ", vsz.API_VERSION
+  print(" EMBED VEUSZ VERSION ", vsz.API_VERSION)
   parser = argparse.ArgumentParser()
   parser.add_argument('-p', action='store', dest='full_path', required=True, help='Folder path')
   parser.add_argument('-s', action='store', dest='idsim', required=True, help='Simulation ID number')
@@ -70,13 +70,13 @@ def get_args():
 # ==============================================================================
 
 def intro(fullpath, nbI, nbF):
-  print ""
-  print "--- O-C plot ---"
-  print ""
-  print "Folder:"
-  print fullpath
-  print "Bodies to plot, from %d to %d"%(nbI,nbF)
-  print ""
+  print("")
+  print("--- O-C plot ---")
+  print("")
+  print("Folder:")
+  print(fullpath)
+  print("Bodies to plot, from %d to %d"%(nbI,nbF))
+  print("")
 
 # ==============================================================================
 
@@ -130,15 +130,15 @@ def read_samples(samples_file = None):
       #oc_samples[ipl] = sh5['T0/%s' %(ipl)][...]
     #oc_samples = [oc_sample(inb, sh5['T0/%d' %(inb)][...]) for inb in range(nbI, nbF+1)]
     
-    n_samples = len(sh5.keys())
+    n_samples = len(list(sh5.keys()))
     samples = []
-    for igr in sh5.keys():
+    for igr in list(sh5.keys()):
       tepoch = sh5[igr].attrs['tepoch']
       trv = sh5['%s/time_rv_mod' %(igr)][...]
       #trv = sh5['%s/time_rv_mod' %(igr)][...] + tepoch
       rv = sh5['%s/rv_mod' %(igr)][...]
       osmp = sample(tepoch, trv, rv)
-      TTfield = sh5[igr].keys()
+      TTfield = list(sh5[igr].keys())
       #osmp.nplanets = len(TTfield)
       npl = 0
       for kk in TTfield:
@@ -194,11 +194,11 @@ def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, samples=None):
     #simT0 = ssim + "_" + str(lmf) + "_NB" + str(ibd) + "_simT0.dat"
     simT0 = '%d_%d_NB%d_simT0.dat' %(ssim, lmf, ibd)
     fT0 = os.path.join(path, simT0)
-    print " OPENING FILE %s" %(fT0)
+    print(" OPENING FILE %s" %(fT0))
     try:
       with open(fT0):
 
-        print "Reading file %s" %(simT0)
+        print("Reading file %s" %(simT0))
         data = np.genfromtxt(fT0) # epoT0obs T0obs eT0obs T0_sim T0obs-T0_sim T0_stat
 
         epo = np.array(data[:,0]).astype(int)
@@ -224,9 +224,9 @@ def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, samples=None):
                                                           epoin=epo, 
                                                           modefit='odr')
           tc = Teph + Peph * epo
-          print "Linear ephemeris:"
-          print "T_ephem [JD] = %20.7f +/- %9.7f" %(Teph, TP_err[0])
-          print "P_ephem [d]  = %20.7f +/- %9.7f" %(Peph, TP_err[1])
+          print("Linear ephemeris:")
+          print("T_ephem [JD] = %20.7f +/- %9.7f" %(Teph, TP_err[0]))
+          print("P_ephem [d]  = %20.7f +/- %9.7f" %(Peph, TP_err[1]))
 
           oc = np.zeros((nt,6))
           oc[:,0] = data[:,1] - tc
@@ -244,9 +244,9 @@ def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, samples=None):
                                                           epoin=epo, 
                                                           modefit='odr')
           tc_o = Teph_obs + Peph_obs * epo
-          print "Linear ephemeris observed:"
-          print "T_ephem [JD] = %20.7f +/- %9.7f" %(Teph_obs, TP_err_obs[0])
-          print "P_ephem [d]  = %20.7f +/- %9.7f" %(Peph_obs, TP_err_obs[1])
+          print("Linear ephemeris observed:")
+          print("T_ephem [JD] = %20.7f +/- %9.7f" %(Teph_obs, TP_err_obs[0]))
+          print("P_ephem [d]  = %20.7f +/- %9.7f" %(Peph_obs, TP_err_obs[1]))
           
           #Teph_sim, Peph_sim = poly.polyfit(epo, data[:,3], deg=1, w=np.ones((nt))/err[:,0].mean())
           #Teph_sim, Peph_sim, TP_err_sim = lstsq_fit(epo, data[:,3], np.ones((nt))*err[:,0].mean())
@@ -255,9 +255,9 @@ def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, samples=None):
                                                           epoin=epo, 
                                                           modefit='odr')
           tc_s = Teph_sim + Peph_sim * eposim
-          print "Linear ephemeris simulated:"
-          print "T_ephem [JD] = %20.7f +/- %9.7f" %(Teph_sim, TP_err_sim[0])
-          print "P_ephem [d]  = %20.7f +/- %9.7f" %(Peph_sim, TP_err_sim[1])
+          print("Linear ephemeris simulated:")
+          print("T_ephem [JD] = %20.7f +/- %9.7f" %(Teph_sim, TP_err_sim[0]))
+          print("P_ephem [d]  = %20.7f +/- %9.7f" %(Peph_sim, TP_err_sim[1]))
 
           oc = np.zeros((nt,6))
           oc[:,0] = data[:,1] - tc_o
@@ -285,7 +285,7 @@ def read_simT0(path, ssim, lmf, ibd, t_subtract=0., oc_fit=False, samples=None):
                 #print np.max(samples[ismp].oc_samples[inp].oc[:,0])
 
     except IOError:
-      print '%s does not exist ... closing script' %(simT0)
+      print('%s does not exist ... closing script' %(simT0))
       sys.exit()
 
   return epo, t_obs_subtract, oc, res, err, samples
@@ -605,7 +605,7 @@ def main():
 
   #gRows = (cli.nbF + 1) - cli.nbI + 2 # added another +1 to allow legend
   nbPlt = (cli.nbF - cli.nbI) + 1
-  print " First body %d , last body %d ==> bodies to plot: %d" %(cli.nbI, cli.nbF, nbPlt)
+  print(" First body %d , last body %d ==> bodies to plot: %d" %(cli.nbI, cli.nbF, nbPlt))
   gRows = nbPlt * 2 + 1 # O-C + res x nbPlt + 1 legend
   #if cli.nbI == 0:
   if (cli.nbI <= 1):
@@ -617,7 +617,7 @@ def main():
     if statRV:
       gRows = gRows + 2 # added +2 rows to allow RV plot
 
-  print "Number of rows of the grid: %d" %(gRows)
+  print("Number of rows of the grid: %d" %(gRows))
 
   gCols = 1
   # define height of the page in cm
@@ -629,7 +629,7 @@ def main():
       hVal = 23.
     hPage = "%4.2fcm"%(hVal)
   scRows = scalingRows(gRows)
-  print 'scaling rows: ', scRows
+  print('scaling rows: ', scRows)
 
   letters = ["b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n"]
 
@@ -686,7 +686,7 @@ def main():
       #else:
         #ttra_samples=t0_samples['%d' %(inb)]
       epo, t_obs_base, oc, res, err, samples = read_simT0(cli.full_path, cli.idsim, cli.lmflag, inb, t_subtract, cli.oc_fit, samples=samples)
-      print ""
+      print("")
 
       keyObs = ""
       keySim = ""
@@ -896,15 +896,15 @@ def main():
       # print T0 residuals rms
       rms_oc = np.sqrt(np.mean(oc*oc, axis=0))
       rms_resT0 = np.sqrt(np.mean(res*res, axis=0))
-      print 'rms(OC)obs = %.8f days = %.6f min = %.4f sec' %(rms_oc[0], rms_oc[1], rms_oc[2])
-      print 'rms(OC)sim = %.8f days = %.6f min = %.4f sec' %(rms_oc[3], rms_oc[4], rms_oc[5])
-      print 'rms(T0)    = %.8f days = %.6f min = %.4f sec' %(rms_resT0[0], rms_resT0[1], rms_resT0[2])
-      print ''
+      print('rms(OC)obs = %.8f days = %.6f min = %.4f sec' %(rms_oc[0], rms_oc[1], rms_oc[2]))
+      print('rms(OC)sim = %.8f days = %.6f min = %.4f sec' %(rms_oc[3], rms_oc[4], rms_oc[5]))
+      print('rms(T0)    = %.8f days = %.6f min = %.4f sec' %(rms_resT0[0], rms_resT0[1], rms_resT0[2]))
+      print('')
 
     # set properly the xaxis of all the O-C and res plots
     min_time = float(np.min(min_max_time))
     max_time = float(np.max(min_max_time))
-    print 'min time = %.5f max time = %.5f' %(min_time, max_time)
+    print('min time = %.5f max time = %.5f' %(min_time, max_time))
     for ii in range(len(xoc_list)):
       xoc_list[ii].min.val=min_time
       xoc_list[ii].max.val=max_time
@@ -927,13 +927,13 @@ def main():
       jd = RV[:,0] - t_subtract
       #minJD, maxJD = lims(jd, jd_lte)
       minJD, maxJD = lims(jd, jd)
-      print " limits of BJD = ", minJD, maxJD
+      print(" limits of BJD = ", minJD, maxJD)
       minRV, maxRV = lims( (minRV, maxRV), RVmod)
       #print minRV, maxRV
       dRV = RV[:,1] - RV[:,4]
       RV_rms = np.sqrt(np.mean(dRV*dRV))
-      print ' RV summary '
-      print ' RMS( RV_obs - RV_sim ) = %.7f m/s' %(RV_rms)
+      print(' RV summary ')
+      print(' RMS( RV_obs - RV_sim ) = %.7f m/s' %(RV_rms))
       print_gamma = np.zeros((nRV_set,2)) # gamma, err_gamma
       print_gamma[0,:] = RV[0,5:7]
       for i in range(1,nRV_set):
@@ -941,9 +941,9 @@ def main():
           if (RV[j,5] != RV[j-1,5]):
             #print i,j,RV[j,5],RV[j-1,5]
             print_gamma[i,:] = RV[j,5:7]
-      print 'gamma'.rjust(15),'+/-', 'err_gamma'.rjust(15)
+      print('gamma'.rjust(15),'+/-', 'err_gamma'.rjust(15))
       for i in range(0, nRV_set):
-        print '%15.6f +/- %15.6f' %(print_gamma[i,0], print_gamma[i,1])
+        print('%15.6f +/- %15.6f' %(print_gamma[i,0], print_gamma[i,1]))
 
       # RVplot
       RVname = 'RVPlot'
@@ -1091,13 +1091,13 @@ def main():
         xy_modRV.yData.val = dataYname
         
       else:
-        print "I did not find the orbit file to plot RV model. Skipping."
+        print("I did not find the orbit file to plot RV model. Skipping.")
 
       #if(rv_samples is not None):
       if(samples is not None):
-        print '\nPlotting rv samples ... it would take some time ...',
+        print('\nPlotting rv samples ... it would take some time ...', end=' ')
         plot_rv_samples(ocWin, RVPlot, xname, yname, samples, t_subtract=t_subtract, t_rv_min=minJD, t_rv_max=maxJD)
-        print 'done'
+        print('done')
       
       legend = RVPlot.Add('key', name = 'legendRV', autoadd = False,
                     #Text__font ='URW Palladio L',
@@ -1217,19 +1217,19 @@ def main():
     createDir = "mkdir -p " + plotFolder
     os.system(createDir)
   fveusz = os.path.join(plotFolder, '%d_%d_oc%s' %(cli.idsim, cli.lmflag, s_nbIF))
-  print '\nSaving vsz file ...',
+  print('\nSaving vsz file ...', end=' ')
   ocWin.Save(fveusz + ".vsz")
-  print 'done.\nSaving eps file ...',
+  print('done.\nSaving eps file ...', end=' ')
   ocWin.Export(fveusz + ".eps")
-  print 'done.\nSaving pdf file ...',
+  print('done.\nSaving pdf file ...', end=' ')
   ocWin.Export(fveusz + ".pdf")
-  print 'done.\nSaving png150dpi file ...',
+  print('done.\nSaving png150dpi file ...', end=' ')
   ocWin.Export(fveusz + "_150dpi.png", dpi=150, antialias=True, quality=100, backcolor='white')
-  print 'done.\nSaving png300dpi file ...',
+  print('done.\nSaving png300dpi file ...', end=' ')
   ocWin.Export(fveusz + "_300dpi.png", dpi=300, antialias=True, quality=100, backcolor='white')
-  print 'done.\nSaving svg file ...',
+  print('done.\nSaving svg file ...', end=' ')
   ocWin.Export(fveusz + ".svg")
-  print 'done.'
+  print('done.')
   ocWin.Close()
   
   return

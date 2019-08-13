@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import sys
 import argparse
 import time
@@ -22,26 +22,37 @@ import pytrades_lib
 
 def save_ttra_and_rv_from_samples(samples_fit_par, names_par, NB, n_samples, smp_h5):
   
-  n_samples, nfit = np.shape(samples_fit_par)
-  Pephem = pytrades_lib.pytrades.pephem
-  #print 'NB = ',NB,' np.shape(Pephem) = ',np.shape(Pephem)
-  try:
-    nt0_full, nrv_nmax = pytrades_lib.pytrades.get_max_nt0_nrv(Pephem,NB)
-  except:
-    jP = (np.arange(2,NB+1,1)-2)*8 + 5 - 1
-    #print 'jP = ',jP
-    Pephem = np.zeros((NB))
-    Pephem[1:] = pytrades_lib.pytrades.system_parameters[jP]
-    #print 'Pephem = ',Pephem
-    nt0_full, nrv_nmax = pytrades_lib.pytrades.get_max_nt0_nrv(Pephem,NB)
-    
+  # n_samples, nfit = np.shape(samples_fit_par)
+  n_samples, _ = np.shape(samples_fit_par)
+
+  # Pephem = pytrades_lib.pytrades.pephem
+  # print('NB = ',NB,' np.shape(Pephem) = ',np.shape(Pephem), ' Pephem = ', Pephem)
+  # try:
+  #   nt0_full, nrv_nmax = pytrades_lib.pytrades.get_max_nt0_nrv(Pephem,NB)
+  # except:
+  #   jP = (np.arange(2,NB+1,1)-2)*8 + 5 - 1
+  #   print('jP = ',jP)
+  #   Pephem = np.zeros((NB))
+  #   Pephem[1:] = pytrades_lib.pytrades.system_parameters[jP]
+  #   print('Pephem = ',Pephem)
+  #   nt0_full, nrv_nmax = pytrades_lib.pytrades.get_max_nt0_nrv(Pephem,NB)
+  # if(nt0_full < 0): nt0_full = 0
   
   for ismp in range(0, n_samples):
-    smp_name = '%04d' %(ismp)
+    smp_name = '{0:04d}'.format(ismp)
     gr = smp_h5.create_group(smp_name)
     gr.attrs['tepoch'] = pytrades_lib.pytrades.tepoch
     trades_fit_par = anc.sqrte_to_e_fitting(samples_fit_par[ismp], names_par)
-    ttra_full, dur_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = pytrades_lib.pytrades.fit_par_to_ttra_rv(trades_fit_par, nt0_full, nrv_nmax)
+
+    # run TRADES to get Reduced Chi Square (rchisq) only
+    rchisq = pytrades_lib.pytrades.trades_rchisq(trades_fit_par)
+    gr.attrs['rchisq'] = rchisq
+
+    # run TRADES to get all TTs and RVs during the integration time
+    nt0_full, nrv_nmax = pytrades_lib.pytrades.get_ntt_nrv(trades_fit_par)
+    # print('sample id {2}: nt0_full = {0} and nrv_max = {1}'.format(nt0_full, nrv_nmax, smp_name))
+    ttra_full, dur_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = \
+      pytrades_lib.pytrades.fit_par_to_ttra_rv(trades_fit_par, nt0_full, nrv_nmax)
     
     stats_rv = np.array(stats_rv).astype(bool)
     time_rvx, rvx = time_rv_nmax[stats_rv], rv_nmax[stats_rv]
@@ -75,36 +86,50 @@ def save_ttra_and_rv_from_samples(samples_fit_par, names_par, NB, n_samples, smp
 # main
 
 def main():
-  print
-  print ' TRADES: EMCEE confidence intervals'
-  print
+  print()
+  print(' TRADES: EMCEE confidence intervals')
+  print()
 
   cli = anc.get_args()
 
   # init trades
   pytrades_lib.pytrades.initialize_trades(os.path.join(cli.full_path, ''), '', 1)
 
-  nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case_list = anc.get_fitted(cli.full_path)
+  # nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case_list = anc.get_fitted(cli.full_path)
+  nfit, NB, _, id_fit, _, _, cols_list, case_list = anc.get_fitted(cli.full_path)
   ndata = pytrades_lib.pytrades.ndata
   nfree = pytrades_lib.pytrades.nfree
   dof = pytrades_lib.pytrades.dof
+
+  np.random.seed(seed=cli.seed)
   
   # read emcee data
-  emcee_file, emcee_best, folder_best = anc.get_emcee_file_and_best(cli.full_path, cli.temp_status)
+  # emcee_file, emcee_best, folder_best = \
+  emcee_file, _, _ = \
+    anc.get_emcee_file_and_best(cli.full_path, cli.temp_status)
   # get data from the hdf5 file
-  names_par, parameter_boundaries, chains, acceptance_fraction, autocor_time, lnprobability, ln_err_const, completed_steps = anc.get_data(emcee_file, cli.temp_status)
+  names_par, _, chains, _, autocor_time, \
+    lnprobability, ln_err_const, completed_steps = \
+      anc.get_data(emcee_file, cli.temp_status)
   # print Memory occupation of ...
   anc.print_memory_usage(chains)
 
-  nfit, nwalkers, nruns, nburnin, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.nburnin, completed_steps)
+  nfit, nwalkers, nruns, nburnin, nruns_sel = \
+    anc.get_emcee_parameters(chains, cli.temp_status, cli.nburnin, completed_steps)
   
-  #chains_T, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, nburnin, nruns, nruns_sel, m_factor, names_par, parameter_boundaries, chains)
   chains_T_full = np.zeros((nruns, nwalkers, nfit))
-  for ii in xrange(0,nfit):
+  for ii in range(0,nfit):
     chains_T_full[:,:,ii] = chains[:,:nruns,ii].T # transpose
     
-  chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps = anc.thin_the_chains(cli.use_thin, nburnin, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability, burnin_done=False)
+  chains_T, flatchain_posterior_0, lnprob_burnin, _ = \
+    anc.thin_the_chains(cli.use_thin, nburnin, nruns, nruns_sel, autocor_time, chains_T_full, lnprobability,
+                        burnin_done=False
+                        )
   
+  print(' | AFTER THINNING:')
+  print(' | shape(chains_T) = ', np.shape(chains_T))
+  print(' | shape(lnprob_burnin) = ', np.shape(lnprob_burnin))
+
   # lambda fix
   flatchain_posterior_0 = anc.fix_lambda(flatchain_posterior_0,
                                         names_par
@@ -114,8 +139,8 @@ def main():
   #m_factor = anc.mass_conversion_factor(cli.m_type)
   MR_star = pytrades_lib.pytrades.mr_star
   m_factor_0, mass_unit = anc.mass_type_factor(Ms=1.0, mtype=cli.m_type, mscale=False)
-  np.random.seed(seed=cli.seed)
-  Ms_gaussian = MR_star[0,0] + np.random.normal(0., 1., size=(np.shape(flatchain_posterior_0)[0]))*MR_star[0,1] # if exists an error on the mass, it creates a Normal distribution for the values and use it to re-scale mp/Ms to mp.
+  
+  Ms_gaussian = MR_star[0,0] + np.random.normal(0.0, 1.0, size=(np.shape(flatchain_posterior_0)[0]))*MR_star[0,1] # if exists an error on the mass, it creates a Normal distribution for the values and use it to re-scale mp/Ms to mp.
   m_factor_boot = m_factor_0 * Ms_gaussian # given the factor from Msun to mass_unit it multiply it by the Normal Mstar.
   m_factor = m_factor_0 * MR_star[0,0]
 
@@ -132,9 +157,13 @@ def main():
   p_h5f.create_dataset('loglikelihood', data=lnprob_burnin.reshape((-1)), dtype=np.float64)
   p_h5f['posterior'].attrs['nfit'] = nfit
   p_h5f['posterior'].attrs['nposterior'] = np.shape(flatchain_posterior)[0]
-  p_h5f.create_dataset('parameter_names', data=names_par, dtype='S10')
+
+  p_h5f.create_dataset('parameter_names', data=anc.encode_list(names_par),
+        dtype="S15"
+        )
+
   p_h5f.close()
-  anc.print_both(' Saved posterior file: %s' %(posterior_file))
+  anc.print_both(' Saved posterior file: {}'.format(posterior_file))
 
   top_header, header = anc.get_header(anc.percentile_val)
 
@@ -146,14 +175,14 @@ def main():
 # ==============================================================================
   def get_intervals(full_path, id_sim, names_par_in, parameters_in, flatchain_posterior_in, derived_type=None, full_output=False, idx_sample=None, summary_file_hdf5=None):
     
-    names_trades = anc.emcee_names_to_trades(names_par_in) # emcee to trades
+    # names_trades = anc.emcee_names_to_trades(names_par_in) # emcee to trades
     parameters_trades = anc.sqrte_to_e_fitting(parameters_in, names_par_in) # emcee to trades
     
     names_par = names_par_in # emcee kind
     parameters = parameters_in # emcee kind
     flatchain_posterior = flatchain_posterior_in # emcee kind
     
-    loglhdx, checkx = pytrades_lib.pytrades.fortran_loglikelihood(np.array(parameters_trades,dtype=np.float64))
+    loglhdx, _ = pytrades_lib.pytrades.fortran_loglikelihood(np.array(parameters_trades,dtype=np.float64))
     loglhdx = loglhdx + ln_err_const
     
     out_folder = os.path.join(os.path.join(full_path, '%04d_sim' %(id_sim)), '')
@@ -168,7 +197,8 @@ def main():
     anc.print_both(' # PARAMETER VALUES -> %d' %(id_sim), out)
     fitness, lgllhd, check = pytrades_lib.pytrades.write_summary_files(id_sim, parameters_trades)
     
-    kel_file, kep_elem = anc.elements(out_folder, id_sim, lmf=0)
+    # kel_file, kep_elem = anc.elements(out_folder, id_sim, lmf=0)
+    _, kep_elem = anc.elements(out_folder, id_sim, lmf=0)
 
     #sigma_par = anc.compute_intervals(flatchain_posterior, parameters, anc.percentile_val)
     sigma_par = anc.compute_sigma_hdi(flatchain_posterior, parameters) # uses HDI
@@ -176,7 +206,7 @@ def main():
     units_par = anc.get_units(names_par, mass_unit)
     
     if(not bool(check)):
-      print 'WRTING WARNING FILE: %s' %(os.path.join(out_folder,'WARNING.txt'))
+      print('WRTING WARNING FILE: %s' %(os.path.join(out_folder,'WARNING.txt')))
       warn_o = open(os.path.join(out_folder,'WARNING.txt'), 'w')
       warn_o.write('*******\nWARNING: FITTED PARAMETERS COULD NOT BE PHYSICAL!\nWARNING: BE VERY CAREFUL WITH THIS PARAMETER SET!\n*******')
       warn_o.close()
@@ -192,14 +222,14 @@ def main():
     descr = ''
     if(str(derived_type).strip().lower() == 'median'):
       # MEDIAN PARAMETERS ID == 1050
-      derived_par = np.percentile(der_posterior_T, 50., axis=0, interpolation='midpoint')
+      derived_par = np.percentile(der_posterior_T, 50.0, axis=0, interpolation='midpoint')
       par_type = 'MEDIAN:'
       descr = 'median of posterior and median of derived posterior'
     elif(str(derived_type).strip().lower() == 'mode'):
       # MODE-LIKE PARAMETERS -> id 3050
       #k = anc.get_bins(flatchain_posterior, rule='doane')
       
-      der_bin, derived_par = anc.get_mode_parameters(der_posterior_T, nbins)
+      _, derived_par = anc.get_mode_parameters(der_posterior_T, nbins)
       par_type = 'MODE'
       descr = 'mode of posterior and mode of derived posterior'
     else:      
@@ -251,9 +281,9 @@ def main():
       s_id_sim = '%04d' %(id_sim)
       s_h5f.create_dataset('parameters/%s/fitted/parameters' %(s_id_sim), data=parameters,
                            dtype=np.float64, compression='gzip')
-      s_h5f.create_dataset('parameters/%s/fitted/names' %(s_id_sim), data=names_par,
+      s_h5f.create_dataset('parameters/%s/fitted/names' %(s_id_sim), data=anc.encode_list(names_par),
                            dtype='S10', compression='gzip')
-      s_h5f.create_dataset('parameters/%s/fitted/units' %(s_id_sim), data=units_par,
+      s_h5f.create_dataset('parameters/%s/fitted/units' %(s_id_sim), data=anc.encode_list(units_par),
                            dtype='S15', compression='gzip')
       s_h5f.create_dataset('parameters/%s/fitted/sigma' %(s_id_sim), data=sigma_par.T,
                            dtype=np.float64, compression='gzip')
@@ -261,15 +291,15 @@ def main():
 
       s_h5f.create_dataset('parameters/%s/derived/parameters' %(s_id_sim), data=derived_par,
                            dtype=np.float64, compression='gzip')
-      s_h5f.create_dataset('parameters/%s/derived/names' %(s_id_sim), data=names_derived,
+      s_h5f.create_dataset('parameters/%s/derived/names' %(s_id_sim), data=anc.encode_list(names_derived),
                            dtype='S10', compression='gzip')
-      s_h5f.create_dataset('parameters/%s/derived/units' %(s_id_sim), data=units_der,
+      s_h5f.create_dataset('parameters/%s/derived/units' %(s_id_sim), data=anc.encode_list(units_der),
                            dtype='S15', compression='gzip')
       s_h5f.create_dataset('parameters/%s/derived/sigma' %(s_id_sim), data=sigma_derived.T,
                            dtype=np.float64, compression='gzip')
       s_h5f['parameters/%s/derived/sigma' %(s_id_sim)].attrs['percentiles'] = anc.percentile_val
 
-      s_h5f['parameters/%s' %(s_id_sim)].attrs['info'] = '%s ==> %s' %(s_id_sim, par_type)
+      s_h5f['parameters/%s' %(s_id_sim)].attrs['info'] = '{} ==> {}'.format(s_id_sim, par_type)
       s_h5f['parameters/%s' %(s_id_sim)].attrs['fitness'] = fitness
       s_h5f['parameters/%s' %(s_id_sim)].attrs['lgllhd'] = lgllhd
       s_h5f['parameters/%s' %(s_id_sim)].attrs['check'] = check
@@ -304,10 +334,11 @@ def main():
 # ==============================================================================
 # HDI INSTEAD OF CREDIBLE INTERVALS
 # ==============================================================================
-  nbins = anc.get_auto_bins(flatchain_posterior_0)
+  # nbins = anc.get_auto_bins(flatchain_posterior_0)
+
   hdi_ci, mode_parameters = anc.compute_hdi_full(flatchain_posterior_0, mode_output=True)
   ci_fitted = hdi_ci.T
-  print ' shape: hdi_ci = ', np.shape(hdi_ci), ' ci_fitted = ', np.shape(ci_fitted)
+  print(' shape: hdi_ci = ', np.shape(hdi_ci), ' ci_fitted = ', np.shape(ci_fitted))
   # hdi_ci: nfit x nci
   # ci_fitted: nci x nfit
   # nci -> -1sigma(0) +1sigma(1) -2sigma(2) +2sigma(3) -3sigma(4) +3sigma(5)
@@ -318,17 +349,17 @@ def main():
   
   s_h5f.create_dataset('confidence_intervals/fitted/ci', data=ci_fitted.T, 
                        dtype=np.float64, compression='gzip')
-  s_h5f.create_dataset('confidence_intervals/fitted/names', data=names_par,
+  s_h5f.create_dataset('confidence_intervals/fitted/names', data=anc.encode_list(names_par),
                        dtype='S10', compression='gzip')
-  s_h5f.create_dataset('confidence_intervals/fitted/units', data=units_par,
+  s_h5f.create_dataset('confidence_intervals/fitted/units', data=anc.encode_list(units_par),
                        dtype='S15', compression='gzip')
   s_h5f.create_dataset('confidence_intervals/fitted/percentiles', data=np.array(anc.percentile_val[2:]), 
                        dtype=np.float64, compression='gzip') # now it not true...
   
-  s_h5f['confidence_intervals/fitted'].attrs['nfit'] = nfit
+  s_h5f['confidence_intervals/fitted'].attrs['nfit']  = nfit
   s_h5f['confidence_intervals/fitted'].attrs['nfree'] = nfree
   s_h5f['confidence_intervals/fitted'].attrs['ndata'] = ndata
-  s_h5f['confidence_intervals/fitted'].attrs['dof'] = dof
+  s_h5f['confidence_intervals/fitted'].attrs['dof']   = dof
 # ==============================================================================
   
 # ==============================================================================
@@ -341,27 +372,30 @@ def main():
   # (ecosw,esinw) => (sqrecosw, sqrtesinw)
   trades_names = anc.emcee_names_to_trades(names_par)
   original_parameters = anc.e_to_sqrte_fitting(original_fit_parameters, trades_names)
-  folder_0 = get_intervals(cli.full_path, 0, names_par, original_parameters, flatchain_posterior_0, derived_type=None, summary_file_hdf5=s_h5f)
+  _ = get_intervals(cli.full_path, 0, names_par, original_parameters, flatchain_posterior_0,
+                    derived_type=None, summary_file_hdf5=s_h5f
+                    )
 # ==============================================================================
   
-  print
-  print
+  print()
+  print()
   
 # ==============================================================================
 ## MAX LNPROBABILITY AND PARAMETERS -> id 2050
 # ==============================================================================
-  max_lnprob, max_lnprob_parameters, max_lnprob_perc68, max_lnprob_confint = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
-  max_id1, max_id2 = anc.get_max_indices(lnprob_burnin)
-  folder_2050, names_derived, der_posterior = get_intervals(cli.full_path, 2050, names_par, max_lnprob_parameters, flatchain_posterior_0, derived_type=None, full_output=True, summary_file_hdf5=s_h5f)
+  _, max_lnprob_parameters, _, _ = anc.get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior_0)
+  # max_id1, max_id2 = anc.get_max_indices(lnprob_burnin)
+  _, names_derived, der_posterior = get_intervals(cli.full_path, 2050, names_par, max_lnprob_parameters, flatchain_posterior_0, derived_type=None, full_output=True, summary_file_hdf5=s_h5f)
   units_der = anc.get_units(names_derived, mass_unit)
   # write out the derived names and posterior into an hdf5 file
   der_post_file = os.path.join(cli.full_path, 'derived_posterior.hdf5')
   h5f = h5py.File(der_post_file, 'w')
-  h5f.create_dataset('derived_names', data=names_derived,
+  
+  h5f.create_dataset('derived_names', data=anc.encode_list(names_derived),
                      dtype='S10', compression='gzip')
   h5f.create_dataset('derived_posterior', data=der_posterior,
                      dtype=np.float64, compression='gzip')
-  h5f.create_dataset('units_derived', data=units_der,
+  h5f.create_dataset('units_derived', data=anc.encode_list(units_der),
                      dtype='S15', compression='gzip')
   h5f.close()
 # ==============================================================================
@@ -380,32 +414,32 @@ def main():
                        data=ci_derived.T,
                        dtype=np.float64, compression='gzip')
   s_h5f.create_dataset('confidence_intervals/derived/names', 
-                       data=names_derived, 
+                       data=anc.encode_list(names_derived), 
                        dtype='S10', compression='gzip')
   s_h5f.create_dataset('confidence_intervals/derived/units', 
-                       data=units_der,
+                       data=anc.encode_list(units_der),
                        dtype='S15', compression='gzip')
   s_h5f.create_dataset('confidence_intervals/derived/percentiles',
                        data=np.array(anc.percentile_val[2:]),
                        dtype=np.float64, compression='gzip')
 # ==============================================================================  
-  print
-  print
+  print()
+  print()
   
 # ==============================================================================
 ## MEDIAN PARAMETERS ID == 1050
 # ==============================================================================
-  median_parameters, median_perc68, median_confint = anc.get_median_parameters(flatchain_posterior_0)
-  folder_1050 = get_intervals(cli.full_path, 1050, names_par, median_parameters, flatchain_posterior_0, derived_type='median', summary_file_hdf5=s_h5f)
+  median_parameters, _, _ = anc.get_median_parameters(flatchain_posterior_0)
+  _ = get_intervals(cli.full_path, 1050, names_par, median_parameters, flatchain_posterior_0, derived_type='median', summary_file_hdf5=s_h5f)
   ## MEDIAN PARAMETERS ID == 1051
-  folder_1051 = get_intervals(cli.full_path, 1051, names_par, median_parameters,
-                              flatchain_posterior_0, derived_type=None,
-                              summary_file_hdf5=s_h5f
-                              )
+  _ = get_intervals(cli.full_path, 1051, names_par, median_parameters,
+                    flatchain_posterior_0, derived_type=None,
+                    summary_file_hdf5=s_h5f
+                    )
 # ==============================================================================
   
-  print
-  print
+  print()
+  print()
 
 # ==============================================================================
 # select n_samples from the posterior within the CI
@@ -413,7 +447,9 @@ def main():
   if(cli.n_samples > 0):
     anc.print_both(' Selecting %d samples from the posterior ...' %(cli.n_samples))
     sys.stdout.flush()
-    samples_fit_par = anc.take_n_samples(flatchain_posterior_0, ci_fitted[0:2,:],
+    samples_fit_par = anc.take_n_samples(flatchain_posterior_0,
+                                         lnprob=lnprob_burnin.reshape((-1)),
+                                         post_ci = ci_fitted[0:2,:],
                                          n_samples=cli.n_samples
                                          )
     samples_fit_par[0,:] = median_parameters # first sample as the median of the posterior
@@ -435,8 +471,8 @@ def main():
   #sys.exit()
 # ==============================================================================
 
-  print
-  print
+  print()
+  print()
 
 # ==============================================================================
 ## MODE-LIKE PARAMETERS -> id 3050
@@ -449,21 +485,21 @@ def main():
   # mode_parameters computed at the beginning with hdi
   
   if(np.any(np.isnan(mode_parameters))):
-    print 'Some values are Nan, skip the mode parameters'
+    print('Some values are Nan, skip the mode parameters')
   else:
-    folder_3050 = get_intervals(cli.full_path, 3050, names_par, mode_parameters,
-                                flatchain_posterior_0, derived_type='mode', 
-                                summary_file_hdf5=s_h5f
-                                )
+    _ = get_intervals(cli.full_path, 3050, names_par, mode_parameters,
+                      flatchain_posterior_0, derived_type='mode', 
+                      summary_file_hdf5=s_h5f
+                      )
     ## MODE-LIKE PARAMETERS -> id 3051
-    folder_3051 = get_intervals(cli.full_path, 3051, names_par, mode_parameters,
-                                flatchain_posterior_0, derived_type=None,
-                                 summary_file_hdf5=s_h5f
-                                 )
+    _ = get_intervals(cli.full_path, 3051, names_par, mode_parameters,
+                      flatchain_posterior_0, derived_type=None,
+                      summary_file_hdf5=s_h5f
+                      )
 # ==============================================================================
   
-  print
-  print
+  print()
+  print()
 
 # ==============================================================================
 # ONE SAMPLE PARAMETER SET --> 666
@@ -476,15 +512,15 @@ def main():
                                                              post_ci=ci_fitted[0:2,:]
                                                              )
   if(sample_parameters is not None):
-    folder_666 = get_intervals(cli.full_path, 666, names_par, sample_parameters,
-                               flatchain_posterior_0, idx_sample=idx_sample, 
-                               summary_file_hdf5=s_h5f
-                               )
+    _ = get_intervals(cli.full_path, 666, names_par, sample_parameters,
+                      flatchain_posterior_0, idx_sample=idx_sample, 
+                      summary_file_hdf5=s_h5f
+                      )
     s_h5f['parameters/%04d' %(666)].attrs['par_selection'] = name_par
     if(name_excluded is not None):
       s_h5f['parameters/%04d' %(666)].attrs['par_excluded'] = name_excluded
   else:
-    print 'NONE SAMPLE PARAMETERS!!!'
+    print('NONE SAMPLE PARAMETERS!!!')
 # ==============================================================================
 
 # ==============================================================================
@@ -495,25 +531,25 @@ def main():
   #adhoc_par[12] = mode_parameters[12].copy()
   #if(cli.overplot is not None):
   if( cli.adhoc is not None):
-    print cli.overplot, cli.adhoc
+    print(cli.overplot, cli.adhoc)
     adhoc_names, adhoc_par_trades = anc.read_fitted_file(cli.adhoc)
     adhoc_par = anc.e_to_sqrte_fitting(adhoc_par_trades, adhoc_names)
-    folder_777 = get_intervals(cli.full_path, 777, names_par, adhoc_par,
-                               flatchain_posterior_0, derived_type=777,
-                                summary_file_hdf5=s_h5f
-                                )
+    _ = get_intervals(cli.full_path, 777, names_par, adhoc_par,
+                      flatchain_posterior_0, derived_type=777,
+                      summary_file_hdf5=s_h5f
+                      )
 # ==============================================================================
 
 # ==============================================================================
 # select the sample within post_ci and close to median lgllhd --> 667
 # ==============================================================================
-  sample2_parameters, sample2_lgllhd = anc.get_sample_by_sorted_lgllhd(
+  sample2_parameters, _ = anc.get_sample_by_sorted_lgllhd(
                                        flatchain_posterior_0,
                                        lnprob_burnin.T,
                                        #post_ci = ci_fitted[0:2,:]
                                        post_ci = ci_fitted.T
                                        )
-  folder_667 = get_intervals(cli.full_path, 667, names_par, sample2_parameters, flatchain_posterior_0, derived_type=667, summary_file_hdf5=s_h5f)
+  _ = get_intervals(cli.full_path, 667, names_par, sample2_parameters, flatchain_posterior_0, derived_type=667, summary_file_hdf5=s_h5f)
 # ==============================================================================
   
 # ==============================================================================
@@ -525,13 +561,13 @@ def main():
                                        #names_par, 
                                        #post_ci = ci_fitted[0:2,:], 
                                        #name_par= name_par)
-  sample3_parameters, sample3_lgllhd = \
+  sample3_parameters, _ = \
                              anc.select_maxlglhd_with_hdi(flatchain_posterior_0,
                                                           #ci_fitted[0:2,:],
                                                           ci_fitted.T,
                                                           lnprob_burnin.T
                                                           )
-  folder_668 = get_intervals(cli.full_path, 668, names_par, sample3_parameters,
+  _ = get_intervals(cli.full_path, 668, names_par, sample3_parameters,
                              flatchain_posterior_0, derived_type=668,
                              summary_file_hdf5=s_h5f
                              )
@@ -539,7 +575,7 @@ def main():
 
   s_h5f.close()
 
-  print
+  print()
 
 # ==============================================================================
 # print into file CONFIDENCE INTERVALS of fitted and derived parameters

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division  # no more "zero" integer division bugs!:P
+  # no more "zero" integer division bugs!:P
 import sys
 import argparse
 import os
@@ -21,6 +21,7 @@ import sklearn.linear_model as sklm
 import scipy.stats as scits
 import glob
 import shutil
+import statsmodels.api as sm
 
 # common variables needed to create labels and parameter names
 kel_fmt = ['%.3f', '%.4f', '%.3f', '%.1f', '%.1f', '%.1f', '%.3f', '%.3f']
@@ -49,6 +50,24 @@ def print_both(line, output=None):
     output.write(line + '\n')
 
   return
+
+def decode_list(alist):
+
+  if (not 'str' in str(type(alist[0]))):
+    blist = [a.decode('utf-8') for a in alist]
+  else:
+    blist = alist
+
+  return blist
+
+def encode_list(alist):
+
+  if (not 'bytes' in str(type(alist[0]))):
+    blist = [a.encode('utf-8') for a in alist]
+  else:
+    blist = alist
+
+  return blist
 
 # ==============================================================================
 # INITIALISE FOLDER AND LOG FILE
@@ -295,7 +314,7 @@ def mass_type_factor(Ms=1.0, mtype='earth', mscale=True):
 
 def get_proper_mass(m_type, parameter_names_emcee, full_path):
 
-  nfit = np.size(parameter_names_emcee)
+  # nfit = np.size(parameter_names_emcee)
 
   MR_star = np.ones((2, 2))
 
@@ -316,33 +335,31 @@ def get_proper_mass(m_type, parameter_names_emcee, full_path):
 
 # prepare the labels of the Keplerian orbital elements for the legend
 def keplerian_legend(parameter_names, m_type):
-  useless, m_unit = mass_type_factor(1., m_type, mscale=False)
+  _, m_unit = mass_type_factor(1.0, m_type, mscale=False)
   # if (m_type in ['j', 'jup', 'jupiter']):
   # unit_mass = '$[M_\mathrm{Jup}]$'
   # elif (m_type in ['s', 'sun']):
   # unit_mass = '$[M_{\odot}]$'
-  if (m_unit == 'M_Jup'):
-    unit_mass = 'M_\mathrm{Jup}'
-    unit_radius = 'R_\mathrm{Jup}'
-  elif (m_unit == 'M_Earth'):
-    unit_mass = 'M_\oplus'
-    unit_radius = 'R_\oplus'
-  elif (m_unit == 'M_Sun'):
-    unit_mass = 'M_\odot'
-    unit_radius = 'R_\odot'
-  elif (m_unit == 'M_Nep'):
-    unit_mass = 'M_\mathrm{Nep}'
-    unit_radius = 'R_\mathrm{Nep}'
+  if (m_unit == r'M_Jup'):
+    unit_mass   = r'M_\mathrm{Jup}'
+    unit_radius = r'R_\mathrm{Jup}'
+  elif (m_unit == r'M_Earth'):
+    unit_mass   = r'M_\oplus'
+    unit_radius = r'R_\oplus'
+  elif (m_unit == r'M_Sun'):
+    unit_mass   = r'M_\odot'
+    unit_radius = r'R_\odot'
+  elif (m_unit == r'M_Nep'):
+    unit_mass   = r'M_\mathrm{Nep}'
+    unit_radius = r'R_\mathrm{Nep}'
   else:
     unit_mass = ' '
 
-  nfit = parameter_names.shape[0]
+  nfit = np.shape(parameter_names)[0]
   kel_legends = np.zeros((nfit), dtype='|S256')
 
   for i in range(0, nfit):
-    # print parameter_names[i], ' ==> ',
     parameter_names[i] = parameter_names[i].strip()
-    # print parameter_names[i],
 
     if ('Ms' in parameter_names[i]):
       planet_id = int(parameter_names[i].split('m')[1].split('Ms')[0]) - 1
@@ -406,7 +423,8 @@ def keplerian_legend(parameter_names, m_type):
       planet_id = int(parameter_names[i][2:]) - 1
       kel_legends[i] = r'$\Omega_\mathrm{%s} [^\circ]$' % (letters[planet_id])
 
-  kel_legends = [i.replace('[', '(').replace(']', ')').strip() for i in kel_legends]
+  kel_legends = [r'{0}'.format(kl.replace('[', '(').replace(']', ')').strip())
+                 for kl in decode_list(kel_legends)]
 
   return kel_legends
 
@@ -414,15 +432,15 @@ def keplerian_legend(parameter_names, m_type):
 # ==============================================================================
 
 def derived_labels(derived_names, m_type):
-  m_factor_useless, m_unit = mass_type_factor(1., m_type, mscale=False)
+  _, m_unit = mass_type_factor(1., m_type, mscale=False)
   if (m_unit == 'M_Jup'):
-    unit_mass = 'M_\mathrm{Jup}'
+    unit_mass = r'M_\mathrm{Jup}'
   elif (m_unit == 'M_Earth'):
-    unit_mass = 'M_\oplus'
+    unit_mass = r'M_\oplus'
   elif (m_unit == 'M_Sun'):
-    unit_mass = 'M_\odot'
+    unit_mass = r'M_\odot'
   elif (m_unit == 'M_Nep'):
-    unit_mass = 'M_\mathrm{Nep}'
+    unit_mass = r'M_\mathrm{Nep}'
   else:
     unit_mass = ' '
 
@@ -464,7 +482,8 @@ def derived_labels(derived_names, m_type):
       # labels_list.append(r'$\Omega_\mathrm{%s} [\mathrm{deg}]$' %(letters[planet_id]))
       labels_list.append(r'$\Omega_\mathrm{%s} [^\circ]$' % (letters[planet_id]))
 
-  labels_list = [l.replace('[', '(').replace(']', ')') for l in labels_list]
+  labels_list = [r'{0}'.format(l.replace('[', '(').replace(']', ')'))
+                 for l in decode_list(labels_list)]
 
   return labels_list
 
@@ -534,10 +553,16 @@ def renormalize_parameters(parameters, parameter_names):
 # get indices of max of an array
 def get_max_indices(array_values):
   
-  (idx1, idx2) = np.unravel_index(array_values.argmax(), array_values.shape)
-  
-  return idx1, idx2
+  # print(' ++ from index = ', np.argmax(array_values))
+  # idx = np.unravel_index(np.argmax(array_values), np.shape(array_values))
+  lmax = np.max(array_values)
+  print(' ++ lnL_max = {}'.format(lmax))
+  xx = np.where(array_values == lmax)
+  print(' ++ from index = ', xx)
+  idx = [xx[0][0], xx[1][0]]
+  print(' ++ to indexes = ', idx)
 
+  return idx[0], idx[1]
 
 # ==============================================================================
 
@@ -590,20 +615,33 @@ def get_data(emcee_file, temp_status):
   completed_steps = 0
   # print ' reading file', emcee_file
   f_read = h5py.File(emcee_file, 'r')
-  data_names = [str(i) for i in f_read.keys()]
+  data_names = [str(i) for i in list(f_read.keys())]
   parameter_names_emcee, parameter_boundaries = [], []
   chains = []
   acceptance_fraction, autocor_time, lnprobability = [], [], []
 
-  if ('parameter_names' in data_names):   parameter_names_emcee = np.array(f_read['parameter_names'], dtype='S10')
-  if ('boundaries' in data_names):        parameter_boundaries = np.array(f_read['boundaries'], dtype=np.float64)
+  if ('parameter_names' in data_names):
+    # parameter_names_emcee = np.array(f_read['parameter_names'], dtype='S15').astype(str)
+    names_temp = f_read['parameter_names'][...]
+    parameter_names_emcee = decode_list(names_temp)
+    # parameter_names_emcee = names_temp
+
+  if ('boundaries' in data_names):
+    parameter_boundaries = np.array(f_read['boundaries'][...],
+                                    dtype=np.float64)
   # if ('final_parameters' in data_names):  final_parameters = np.array(f_read['final_parameters'], dtype=np.float64)
-  if ('chains' in data_names):            chains = np.array(f_read['chains'],
-                                                            dtype=np.float64)  # shape (nwalkers, nrusn, nfit)
-  if ('acceptance_fraction' in data_names): acceptance_fraction = np.array(f_read['acceptance_fraction'],
-                                                                           dtype=np.float64)
-  if ('autocor_time' in data_names): autocor_time = np.array(f_read['autocor_time'], dtype=np.float64)
-  if ('lnprobability' in data_names): lnprobability = np.array(f_read['lnprobability'], dtype=np.float64)
+  if ('chains' in data_names):
+    chains = np.array(f_read['chains'],
+                      dtype=np.float64)  # shape (nwalkers, nrusn, nfit)
+  if ('acceptance_fraction' in data_names):
+    acceptance_fraction = np.array(f_read['acceptance_fraction'],
+                                   dtype=np.float64)
+  if ('autocor_time' in data_names): 
+    autocor_time = np.array(f_read['autocor_time'],
+                            dtype=np.float64)
+  if ('lnprobability' in data_names): 
+    lnprobability = np.array(f_read['lnprobability'],
+                             dtype=np.float64)
   try:
     ln_err_const = f_read['lnprobability'].attrs['ln_err_const']
   except:
@@ -624,7 +662,7 @@ def get_last_emcee_iteration(emcee_file, nwalkers):
   
   f_read = h5py.File(emcee_file, 'r')
   chains = f_read['chains'][...]
-  nw_c, nr_c, nf_c = np.shape(chains)
+  nw_c, nr_c, _ = np.shape(chains)
   done = True
 
   try:
@@ -658,7 +696,7 @@ def compute_autocor_time(chains, walkers_transposed=True):
   
   if (walkers_transposed):
 
-    nr, nw, nfit = np.shape(chains)
+    _, nw, nfit = np.shape(chains)
     autocor_time = np.zeros((nfit), dtype=np.float64)
     for ifit in range(0, nfit):
       x = chains[:, :, ifit]
@@ -669,7 +707,7 @@ def compute_autocor_time(chains, walkers_transposed=True):
 
   else:
 
-    nw, nr, nfit = chains.shape
+    nw, _, nfit = chains.shape
     autocor_time = np.zeros((nfit), dtype=np.float64)
     for ifit in range(0, nfit):
       x = chains[:, :, ifit]
@@ -691,7 +729,7 @@ def compute_acor_time(sampler, steps_done=None):
     else:
       actime_const = 100
 
-  nx, ny, nfit = np.shape(sampler.chain)
+  _, _, nfit = np.shape(sampler.chain)
   try:
     acor_time = sampler.acor
   except:
@@ -729,8 +767,8 @@ def get_emcee_parameters(chains, temp_status, nburnin_in, completed_steps):
 
 def print_memory_usage(array_values):
   
-  print ' MEMORY USAGE: array_values = %d bytes = %.2d MBytes = %.4f GBytes' % (
-  array_values.nbytes, array_values.nbytes / (1024. ** 2), array_values.nbytes / (1024. ** 3))
+  print(' MEMORY USAGE: array_values = %d bytes = %.2d MBytes = %.4f GBytes' % (
+  array_values.nbytes, array_values.nbytes / (1024. ** 2), array_values.nbytes / (1024. ** 3)))
   
   return
 
@@ -744,7 +782,7 @@ def select_transpose_convert_chains(nfit, nwalkers, npost, nruns, nruns_sel, m_f
   parameter_boundaries = parameter_boundaries_in.copy()
   chains_T = np.zeros((nruns, nwalkers, nfit))
 
-  for ii in xrange(0, nfit):
+  for ii in range(0, nfit):
     chains_T[:, :, ii] = chains[:, :nruns, ii].T  # transpose
     if (parameter_names_emcee[ii][0] == 'm' and parameter_names_emcee[ii][1] != 'A'):
 
@@ -814,15 +852,15 @@ def get_pso_data(pso_file):
   population_fitness = np.array(of_pso['population_fitness'], dtype=np.float64)
   pso_parameters = np.array(of_pso['pso_parameters'], dtype=np.float64)
   pso_fitness = np.array(of_pso['pso_fitness'], dtype=np.float64)
-  if ('pso_best_evolution' in of_pso.keys()):
+  if ('pso_best_evolution' in list(of_pso.keys())):
     pso_best_evolution = np.array(of_pso['pso_best_evolution'], dtype=np.float64)
   else:
     pso_best_evolution = False
-  if ('parameters_minmax' in of_pso.keys()):
+  if ('parameters_minmax' in list(of_pso.keys())):
     parameters_minmax = np.array(of_pso['parameters_minmax'], dtype=np.float64)
   else:
     parameters_minmax = False
-  if ('parameter_names' in of_pso.keys()):
+  if ('parameter_names' in list(of_pso.keys())):
     parameter_names = np.array(of_pso['parameter_names'], dtype='S10')
   else:
     parameter_names = False
@@ -851,18 +889,27 @@ def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time,
                     chains_T_full, lnprobability, burnin_done=False,
                     full_chains_thinned=False):
   
-  nr, nw, nfit = np.shape(chains_T_full)
-  print ' nburnin = ', nburnin
-  print ' nruns = ', nruns
-  print ' nruns_sel = ', nruns_sel
+  _, _, nfit = np.shape(chains_T_full)
+  print(' nburnin = ', nburnin)
+  print(' nruns = ', nruns)
+  print(' nruns_sel = ', nruns_sel)
   # print ' np.shape(lnprobability) = ',np.shape(lnprobability)
+  nr, nc = np.shape(lnprobability)
 
   if (not burnin_done):
     chains_T_posterior = chains_T_full[nburnin:nruns, :, :].copy()
-    lnprob_posterior = lnprobability[:, nburnin:nruns].copy()
+    # lnprob_posterior = lnprobability[:, nburnin:nruns].copy()
+    if(nr > nc):
+      lnprob_posterior = lnprobability[nburnin:nruns, :].copy()
+    else:
+      lnprob_posterior = lnprobability.T[nburnin:nruns, :].copy()
   else:
     chains_T_posterior = chains_T_full[:, :nruns, :].copy()
-    lnprob_posterior = lnprobability[:, :nruns].copy()
+    # lnprob_posterior = lnprobability[:, :nruns].copy()
+    if(nr > nc):
+      lnprob_posterior = lnprobability[:nruns, :].copy()
+    else:
+      lnprob_posterior = lnprobability.T[:nruns, :].copy()
 
   # print ' np.shape(lnprob_posterior) = ',np.shape(lnprob_posterior)
 
@@ -870,9 +917,9 @@ def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time,
     
     chains_T = chains_T_posterior
     flatchain_posterior_0 = chains_T[:, :, :].copy().reshape((-1, nfit))
-    print ' posterior not thinned shape = ', np.shape(flatchain_posterior_0)
+    print(' posterior not thinned shape = ', np.shape(flatchain_posterior_0))
     lnprob_burnin = lnprob_posterior[:, :].copy()
-    print ' lnprob_burnin not thinned shape = ', np.shape(lnprob_burnin)
+    print(' lnprob_burnin not thinned shape = ', np.shape(lnprob_burnin))
     thin_steps = 0
 
   else: # use_thin is True or > 0
@@ -885,10 +932,10 @@ def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time,
         # autocor_time = compute_autocor_time(flatchain_posterior_0)
         autocor_time = compute_autocor_time(chains_T_posterior)
       thin_steps = np.rint(np.mean(np.array(autocor_time, dtype=np.float64))).astype(int)
-      print ' computed thin_steps = ', thin_steps
+      print(' computed thin_steps = ', thin_steps)
       if (thin_steps > 1000):
         thin_steps = 1000
-        print ' set thin_steps = 1000'
+        print(' set thin_steps = 1000')
         
     else: # use_thin > 0
       thin_steps = use_thin
@@ -897,14 +944,14 @@ def thin_the_chains(use_thin, nburnin, nruns, nruns_sel, autocor_time,
     if (sel_thin_steps[-1] >= nruns_sel): sel_thin_steps[-1] = nruns_sel - 1
     n_thin = np.shape(sel_thin_steps)[0]
 
-    print ' n_thin = ', n_thin
+    print(' n_thin = ', n_thin)
 
     chains_T = chains_T_posterior[sel_thin_steps, :, :]
     # create a flat array of the posterior: from (nruns_sel, nwalkers, nfit) -> (n_thin * nwalkers, nfit)
     flatchain_posterior_0 = chains_T[:, :, :].copy().reshape((-1, nfit))
-    print ' posterior thinned shape = ', np.shape(flatchain_posterior_0)
+    print(' posterior thinned shape = ', np.shape(flatchain_posterior_0))
     lnprob_burnin = lnprob_posterior[:, sel_thin_steps].copy()
-    print ' lnprob_burnin thinned shape = ', np.shape(lnprob_burnin)
+    print(' lnprob_burnin thinned shape = ', np.shape(lnprob_burnin))
 
     if (full_chains_thinned):
       tempsel = np.arange(0, nruns + thin_steps, thin_steps).astype(int)
@@ -933,10 +980,14 @@ def get_sigmas(best_parameters, flatchain_posterior):
 
 def get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior):
   
+  print(' -- shape(chains_T)      = ', np.shape(chains_T))
+  print(' -- shape(lnprob_burnin) = ',np.shape(lnprob_burnin))
   maxlnprob_row, maxlnprob_col = get_max_indices(lnprob_burnin)
+  # print(' -- maxlnprob_row, maxlnprob_col = ',maxlnprob_row, maxlnprob_col)
   maxlnprob = lnprob_burnin[maxlnprob_row, maxlnprob_col]
   # retrieve best parameters <-> best lnprobability
-  maxlnprob_parameters = chains_T[maxlnprob_col, maxlnprob_row, :]
+  # maxlnprob_parameters = chains_T[maxlnprob_col, maxlnprob_row, :]
+  maxlnprob_parameters = chains_T[maxlnprob_row, maxlnprob_col, :]
   # retrieve 1sigma as 68.27th percentile of the absolute residual distribution
   # retrieve confidence intervals of the residual distribution
   maxlnprob_perc68, maxlnprob_confint = get_sigmas(maxlnprob_parameters, flatchain_posterior)
@@ -948,7 +999,7 @@ def get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior):
 
 def get_median_parameters(flatchain_posterior):
   
-  median_parameters = np.percentile(flatchain_posterior, 50., axis=0, interpolation='midpoint')
+  median_parameters = np.percentile(flatchain_posterior, 50.0, axis=0, interpolation='midpoint')
   median_perc68, median_confint = get_sigmas(median_parameters, flatchain_posterior)
 
   return median_parameters, median_perc68, median_confint
@@ -997,7 +1048,7 @@ def compute_max_mean(data_vec, k):
 
   data_max = data_vec[np.logical_and(data_vec >= bin_edges[max_bin - ext_bin], data_vec < bin_edges[max_bin + ext_bin])]
   if(np.shape(data_max)[0] < 1):
-    print 'WARNING: n(data_max) < 1!'
+    print('WARNING: n(data_max) < 1!')
     return np.nan, 0
     sys.stdout.flush()
   max_mean = np.mean(data_max)
@@ -1013,7 +1064,7 @@ def compute_max_mean(data_vec, k):
 
 def get_mode_parameters_full(flatchain_posterior, k):
   
-  npost, nfit = np.shape(flatchain_posterior)
+  _, nfit = np.shape(flatchain_posterior)
   mode_parameters = np.zeros((nfit))
   mode_bin = np.zeros((nfit)).astype(int)
   
@@ -1030,7 +1081,7 @@ def get_mode_parameters_full(flatchain_posterior, k):
 
 def get_mode_parameters(flatchain_posterior, k):
   
-  npost, nfit = np.shape(flatchain_posterior)
+  _, nfit = np.shape(flatchain_posterior)
   mode_parameters = np.zeros((nfit))
   mode_bin = np.zeros((nfit)).astype(int)
   
@@ -1038,11 +1089,11 @@ def get_mode_parameters(flatchain_posterior, k):
   sys.stdout.flush()
   
   for i_fit in range(0, nfit):
-    print 'i_fit = %d' %(i_fit),
+    print('i_fit = {0:d}'.format(i_fit), end = ' ')
     data_vec = flatchain_posterior[:, i_fit]
-    print 'computing mode and bin ... ',
+    print('computing mode and bin ... ', end = ' ')
     mode_parameters[i_fit], mode_bin[i_fit] = compute_max_mean(data_vec, k)
-    print '(%.5f , %d) done' %(mode_parameters[i_fit], mode_bin[i_fit])
+    print('(%.5f , %d) done' %(mode_parameters[i_fit], mode_bin[i_fit]))
     sys.stdout.flush()
     
   return mode_bin, mode_parameters
@@ -1053,7 +1104,7 @@ def get_mode_parameters(flatchain_posterior, k):
 def get_sample_list(sample_str, parameter_names):
   
   nfit = np.shape(parameter_names)[0]
-  print ' input sample to select = ', sample_str
+  print(' input sample to select = ', sample_str)
   str_list = sample_str.strip().split()
 
   name_par = parameter_names[0]
@@ -1176,8 +1227,8 @@ def pick_sample_parameters(posterior, parameter_names, name_par=None, name_exclu
       check_sample = True
       check_sample = check_sample_parameters(parameter_names, sample_parameters, post_ci, name_excluded)
       if (check_sample):
-        print ' found good sample parameters at index: ', idx
-        print sample_parameters
+        print(' found good sample parameters at index: ', idx)
+        print(sample_parameters)
         return sample_parameters, idx
 
     return None, None
@@ -1189,7 +1240,7 @@ def pick_sample_parameters(posterior, parameter_names, name_par=None, name_exclu
 def select_within_all_ci(posterior, post_ci, lnprobability):
   
   npost, nfit = np.shape(posterior)
-  nrow, ncol = np.shape(post_ci)
+  # nrow, ncol = np.shape(post_ci)
 
   #if (nrow == 2 and ncol == nfit):  # check if post_ci is (nfit, 2) or (2, nfit)
     #use_ci = post_ci.T
@@ -1227,7 +1278,7 @@ def select_within_all_ci(posterior, post_ci, lnprobability):
 
 def select_maxlglhd_with_hdi(posterior, post_ci, lnprobability):
   
-  npost, nfit = np.shape(posterior)
+  npost, _ = np.shape(posterior)
   post_sel, lnprob_sel = select_within_all_ci(posterior, 
                                               post_ci, 
                                               lnprobability.reshape((npost))
@@ -1252,7 +1303,7 @@ def get_sample_by_sorted_lgllhd(posterior, lnprobability, post_ci=None):
     post_ci = compute_hdi_full(posterior)
                             
 
-  npost, nfit = np.shape(posterior)
+  npost, _ = np.shape(posterior)
 
   use_lnprob = lnprobability.reshape((npost))
 
@@ -1305,10 +1356,13 @@ def get_sample_by_par_and_lgllhd(posterior, lnprobability, parameter_names, post
   sample_parameters, sample_lgllhd = None, None
   for ii in range(0, np.shape(ids_par)[0]):
     idx = ids_par[ii]
-    temp_parameters = post_sel[idx, :]
-    temp_lgllhd = lnprob_sel[idx]
+    
+    # temp_parameters = post_sel[idx, :]
+    # temp_lgllhd = lnprob_sel[idx]
+
     # if(abs_dlg[idx] <= lgllhd_mad):
     # if(temp_lgllhd >= lgllhd_min):
+    
     if (lgllhd_check[idx]):
       sample_parameters = post_sel[idx, :]
       sample_lgllhd = lnprob_sel[idx]
@@ -1318,24 +1372,55 @@ def get_sample_by_par_and_lgllhd(posterior, lnprobability, parameter_names, post
 
 # ==============================================================================
 
-def take_n_samples(posterior, post_ci, n_samples=100):
+def take_n_samples(posterior, lnprob=None, post_ci=None, n_samples=100):
   
   # post_ci must have fitted parameters as cols and
   # lower and upper ci as row, i.e.:
   # post_ci(2, nfit)
-  
+
   npost, nfit = np.shape(posterior)
-  idx_post = np.arange(0, npost).astype(int)
+
+  # idx_post = np.arange(0, npost).astype(int)
+
+  # if(lnprob is not None and post_ci is None):
+  #   idx_lnp = np.argsort(lnprob)[::-1] # sort: descending
+  #   idx_sample = idx_lnp[:n_samples]
+
+  # elif(lnprob is None and post_ci is not None):
+  #   sel_within_ci = np.ones((npost)).astype(bool)
+  #   for ifit in range(0,nfit):
+  #     sel_par = np.logical_and(posterior[:,ifit] >= post_ci[0,ifit], posterior[:,ifit] <= post_ci[1,ifit])
+  #     sel_within_ci = np.logical_and(sel_within_ci, sel_par)
+    
+  #   idx_within_ci = idx_post[sel_within_ci]
+  #   idx_sample = np.random.choice(idx_within_ci, n_samples, replace=False)
   
-  sel_within_ci = np.ones((npost)).astype(bool)
-  for ifit in range(0,nfit):
-    sel_par = np.logical_and(posterior[:,ifit] >= post_ci[0,ifit], posterior[:,ifit] <= post_ci[1,ifit])
-    sel_within_ci = np.logical_and(sel_within_ci, sel_par)
+  # else:
+  #   idx_sample = np.random.choice(idx_post, n_samples, replace=False)
   
-  idx_within_ci = idx_post[sel_within_ci]
-  idx_sample = np.random.choice(idx_within_ci, n_samples, replace=False)
+  # sample_parameters = posterior[idx_sample, :]
+
+  if(lnprob is not None):
+    idx_post = np.argsort(lnprob)[::-1]  # sort: descending
+  else:
+    idx_post = np.arange(0, npost).astype(int)
+
+  post_sort = posterior[idx_post, :] # sort properly so then selection matches indexes
+  
+  if(post_ci is not None):
+    # set selection withing hdi (ci) to True
+    sel_within_ci = np.ones((npost)).astype(bool)
+    # loop on parameters and check if within hdi (ci)
+    for ifit in range(0,nfit):
+      sel_par = np.logical_and(post_sort[:,ifit] >= post_ci[0,ifit], post_sort[:,ifit] <= post_ci[1,ifit])
+      sel_within_ci = np.logical_and(sel_within_ci, sel_par)
+  
+    idx_sample = np.random.choice(idx_post[sel_within_ci], n_samples, replace=False)
+  else:
+    idx_sample = np.random.choice(idx_post, n_samples, replace=False)
+
   sample_parameters = posterior[idx_sample, :]
-  
+
   return sample_parameters
 
 # =============================================================================
@@ -1346,20 +1431,20 @@ def print_parameters_nolog(parameter_names, parameters, perc68, confint, par_typ
   nsigmas = ['-1', '-2', '-3', '+1', '+2', '+3']
 
   f_w = 23
-  f_d = 16
+  # f_d = 16
 
-  print
+  print()
   line_68 = '+/-1sigma(68.27|res|)'.rjust(f_w)
   line_s = '%s' % (' '.join(
     ['%2ssigma(%5.2fres)'.rjust(f_w) % (nsigmas[j], sigmas_percentiles[j]) for j in range(len(sigmas_percentiles))]))
   header = '%s %23s %s %s' % ('#'.ljust(10), par_type, line_68, line_s)
-  print header
+  print(header)
 
   for i_fit in range(0, parameters.shape[0]):
     sigma_line = ''.join(['%23.16f' % (confint[j_perc, i_fit]) for j_perc in range(len(sigmas_percentiles))])
     line = '%10s %23.16f %23.16f %s' % (parameter_names[i_fit], parameters[i_fit], perc68[i_fit], sigma_line)
-    print line
-  print
+    print(line)
+  print()
 
   return
 
@@ -1372,23 +1457,23 @@ def print_parameters_logtxt(of_run, parameter_names, parameters, perc68, confint
   nsigmas = ['-1', '-2', '-3', '+1', '+2', '+3']
 
   f_w = 23
-  f_d = 16
+  # f_d = 16
 
-  print
+  print()
   of_run.write('\n')
   line_68 = '+/-1sigma(68.27|res|)'.rjust(f_w)
   line_s = '%s' % (' '.join(
     ['%2ssigma(%5.2fres)'.rjust(f_w) % (nsigmas[j], sigmas_percentiles[j]) for j in range(len(sigmas_percentiles))]))
   header = '%s %23s %s %s' % ('#'.ljust(10), par_type, line_68, line_s)
-  print header
+  print(header)
   of_run.write(header + '\n')
 
   for i_fit in range(0, parameters.shape[0]):
     sigma_line = ''.join(['%23.16f' % (confint[j_perc, i_fit]) for j_perc in range(len(sigmas_percentiles))])
     line = '%10s %23.16f %23.16f %s' % (parameter_names[i_fit], parameters[i_fit], perc68[i_fit], sigma_line)
-    print line
+    print(line)
     of_run.write(line + '\n')
-  print
+  print()
   of_run.write('\n')
 
   return
@@ -1402,7 +1487,7 @@ def print_parameters_logger(logger, parameter_names, parameters, perc68, confint
   nsigmas = ['-1', '-2', '-3', '+1', '+2', '+3']
 
   f_w = 23
-  f_d = 16
+  # f_d = 16
 
   logger.info('')
   line_68 = '+/-1sigma(68.27|res|)'.rjust(f_w)
@@ -1497,23 +1582,6 @@ def save_posterior_like(out_folder, boot_id, parameter_names, flatchain_posterio
 
 # =============================================================================
 
-def GelmanRubin_test_1(chains_T):
-  
-  n, M = np.shape(chains_T)
-  theta_m = np.mean(chains_T, axis=0)
-
-  B = np.sum((theta_m - np.mean(theta_m)) ** 2) * n / (M - 1)
-
-  W = np.mean(np.var(chains_T, axis=0, ddof=1))
-
-  Var = (W * (n - 1) + B) / n
-  Rc = np.sqrt(Var / W)
-
-  return Rc
-
-
-# ==============================================================================
-
 def GelmanRubin(chains_T):
   
   n, M = np.shape(chains_T)
@@ -1534,90 +1602,6 @@ def GelmanRubin(chains_T):
   Rc = np.sqrt(Var / W)
 
   return Rc
-
-
-# ==============================================================================
-
-def GelmanRubin_PyORBIT(chains_input):
-  
-  n_iters, n_chain = np.shape(chains_input)
-  W = np.asarray(0., dtype=np.double)
-  z_pc = np.sum(chains_input, axis=0) / n_iters  # eq 20
-  for nn in xrange(0, n_chain):
-    W += (np.sum(np.power(chains_input[:, nn] - z_pc[nn], 2))) / ((n_iters - 1) * n_chain)  # eq 21
-  z_pp = np.sum(chains_input) / (n_chain * n_iters)
-  B = np.sum(np.power(z_pc - z_pp, 2)) * (n_chain / (n_iters - 1))
-  var = W * (n_chain - 1) / n_chain + B / n_chain
-
-  return np.sqrt(var / W)
-
-
-# ==============================================================================
-
-def GelmanRubin_pymc(x):
-  """ Returns estimate of R for a set of traces.
-
-  The Gelman-Rubin diagnostic tests for lack of convergence by comparing
-  the variance between multiple chains to the variance within each chain.
-  If convergence has been achieved, the between-chain and within-chain
-  variances should be identical. To be most effective in detecting evidence
-  for nonconvergence, each chain should have been initialized to starting
-  values that are dispersed relative to the target distribution.
-
-  Parameters
-  ----------
-  x : array-like
-    An array containing the 2 or more traces of a stochastic parameter. That is, an array of dimension m x n x k, where m is the number of traces, n the number of samples, and k the dimension of the stochastic.
-
-  Returns
-  -------
-  Rhat : float
-    Return the potential scale reduction factor, :math:`\hat{R}`
-
-  Notes
-  -----
-
-  The diagnostic is computed by:
-
-    .. math:: \hat{R} = \frac{\hat{V}}{W}
-
-  where :math:`W` is the within-chain variance and :math:`\hat{V}` is
-  the posterior variance estimate for the pooled traces. This is the
-  potential scale reduction factor, which converges to unity when each
-  of the traces is a sample from the target posterior. Values greater
-  than one indicate that one or more chains have not yet converged.
-
-  References
-  ----------
-  Brooks and Gelman (1998)
-  Gelman and Rubin (1992)"""
-
-  if np.shape(x) < (2,):
-    raise ValueError(
-      'Gelman-Rubin diagnostic requires multiple chains of the same length.')
-
-  try:
-    m, n = np.shape(x)
-  except ValueError:
-    return [gelman_rubin(np.transpose(y)) for y in np.transpose(x)]
-
-  # Calculate between-chain variance
-  B_over_n = np.sum((np.mean(x, 1) - np.mean(x)) ** 2) / (m - 1)
-
-  # Calculate within-chain variances
-  W = np.sum([(x[i] - xbar) ** 2 for i, xbar in enumerate(np.mean(x, 1))]) / (m * (n - 1))
-
-  # (over) estimate of variance
-  s2 = W * (n - 1) / n + B_over_n
-
-  # Pooled posterior variance estimate
-  V = s2 + B_over_n / m
-
-  # Calculate PSRF
-  R = V / W
-
-  return R
-
 
 # ==============================================================================
 
@@ -1703,7 +1687,7 @@ def elements(fpath, idsim, lmf=0):
   try:
     kep_elem = np.genfromtxt(kel_file)  # (NB-1) x (M_Msun R_Rsun P_d a_AU ecc w_deg mA_deg inc_deg lN_deg)
   except:
-    print ' KEPLERIAN ELEMENTS FILE NOT FOUND %s' % (kel_file)
+    print(' KEPLERIAN ELEMENTS FILE NOT FOUND %s' % (kel_file))
     sys.exit()
 
   return kel_file, kep_elem
@@ -1741,7 +1725,7 @@ def get_fitted(full_path):
   lines = of.readlines()
   of.close()
   NB = len(lines)
-  n_pl = NB - 1
+  # n_pl = NB - 1
   bodies_file = []
   fit_string = ''
   fit_list = []
@@ -1778,7 +1762,7 @@ def get_fitted(full_path):
     nfit_list.append(nfit_j)
     cols_list.append([cc for cc in range(nfit_cnt, nfit_cnt + nfit_j)])
     nfit_cnt += nfit_j
-  cols = [jj for jj in range(0, nfit)]
+  # cols = [jj for jj in range(0, nfit)]
 
   return nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case
 
@@ -1804,7 +1788,7 @@ def compute_intervals(flatchain, parameters, percentiles):
 def compute_hdi_full(flatchains, mode_output=False):
   
   alpha=[0.3173, 0.0456, 0.0026]
-  npost, npar = np.shape(flatchains)
+  _, npar = np.shape(flatchains)
   #print '\n^^^\nIN compute_hdi_full WITH (npost , npar) = (%d , %d)' %(npost, npar)
   
   nbins = get_auto_bins(flatchains)
@@ -1849,7 +1833,7 @@ def compute_sigma_hdi(flatchains, parameters):
   
   alpha=[0.3173, 0.0456, 0.0026]
   
-  npost, npar = np.shape(flatchains)
+  _, npar = np.shape(flatchains)
   #print '\n^^^\nIN compute_sigma_hdi WITH (npost , npar) = (%d , %d)\n^^^\n' %(npost, npar)
   nbins = get_auto_bins(flatchains)
   
@@ -1928,7 +1912,7 @@ def get_proper_posterior_correlated(posterior, col=None):
 # fix lambda only in flatchain posterior
 def fix_lambda(flatchain_post, names_par):
   
-  npost, nfit = np.shape(flatchain_post)
+  _, nfit = np.shape(flatchain_post)
   flatchain_post_out = flatchain_post.copy()
   for ifit in range(0,nfit):
     if('lambda' in names_par[ifit]):
@@ -1952,7 +1936,7 @@ def get_trigonometric_posterior(id_NB, id_l, col, idpar,
   else:
     aboot = np.sqrt(sum_square)
   # aboot = np.sqrt( (cosboot*cosboot) + (sinboot*sinboot) )
-  temp, bboot = get_proper_posterior_correlated(posterior, col)
+  _, bboot = get_proper_posterior_correlated(posterior, col)
   if ('e' in idpar[id_l]):
     sel_ezero = aboot <= eps64bit
     bboot[sel_ezero] = 90.
@@ -2081,7 +2065,7 @@ def derived_posterior_case1(idpar_NB, id_fit_NB, i_NB, cols, kep_elem,
         longn = kep_elem[8]  # longn is fixed
 
       aboot = (lambda_post - argp - longn) % 360.
-      temp, aboot = get_proper_posterior_correlated(aboot)
+      _, aboot = get_proper_posterior_correlated(aboot)
       name_der.append('%s%s' % ('mA', i_NB + 1))
       der_posterior.append(aboot)
 
@@ -2152,7 +2136,7 @@ def derived_posterior_case2(idpar_NB, id_fit_NB, i_NB, cols, kep_elem,
 
       if (idpar_NB[i_l + 2][0:2] != 'mA'):
         mAboot = (posterior[:, cols[i_l + 2]] - wboot - kep_elem[8]) % 360.  # mA = lambda - w - lN
-        temp, mAboot = get_proper_posterior_correlated(mAboot)
+        _, mAboot = get_proper_posterior_correlated(mAboot)
         name_der.append('%s%s' % ('mA', i_NB + 1))
         der_posterior.append(mAboot)
 
@@ -2205,7 +2189,7 @@ def derived_posterior_case3(idpar_NB, id_fit_NB, i_NB, cols, kep_elem, posterior
 
       if (idpar_NB[i_l + 2][0:2] != 'mA'):
         mAboot = (posterior[:, cols[i_l - 1]] - kep_elem[5] - lNboot) % 360.  # mA = lambda - w - lN
-        temp, mAboot = get_proper_posterior_correlated(mAboot)
+        _, mAboot = get_proper_posterior_correlated(mAboot)
         name_der.append('%s%s' % ('mA', i_NB + 1))
         der_posterior.append(mAboot)
 
@@ -2263,7 +2247,7 @@ def derived_posterior_case4(idpar_NB, id_fit_NB, i_NB, cols, kep_elem,
 
       if (idpar_NB[i_l + 2][0:2] != 'mA'):
         mAboot = (posterior[:, cols[i_l + 2]] - wboot - lNboot) % 360.  # mA = lambda - w - lN
-        temp, mAboot = get_proper_posterior_correlated(mAboot)
+        _, mAboot = get_proper_posterior_correlated(mAboot)
         name_der.append('%s%s' % ('mA', i_NB + 1))
         der_posterior.append(mAboot)
 
@@ -2304,9 +2288,10 @@ def derived_parameters_case4(idpar_NB, id_fit_NB, i_NB, cols, kep_elem,
 
 # ==============================================================================
 
-def derived_posterior_check(derived_names, derived_posterior_in):
+def derived_posterior_check(derived_names_in, derived_posterior_in):
   # check distribution of angles...
   derived_posterior = derived_posterior_in.copy()
+  derived_names = decode_list(derived_names_in)
   n_der = np.shape(derived_names)[0]
   for ider in range(0, n_der):
     if ('w' in derived_names[ider] or 'mA' in derived_names[ider] or 'lN' in derived_names[ider]):
@@ -2315,7 +2300,7 @@ def derived_posterior_check(derived_names, derived_posterior_in):
       sinp = np.sin(derived_posterior_in[:, ider] * deg2rad)
       p_scale = np.arctan2(sinp, cosp) * rad2deg
       p_mod = (p_scale + 360.) % 360.
-      temp_par, temp_post = get_good_distribution(p_scale, p_mod)
+      _, temp_post = get_good_distribution(p_scale, p_mod)
       derived_posterior[:, ider] = temp_post
 
   return derived_posterior
@@ -2346,7 +2331,7 @@ def derived_parameters_check(derived_names, derived_parameters_in, derived_poste
 
 def compute_derived_posterior(idpar, kep_elem_in, id_fit, case_list, cols_list, posterior, conv_factor=1.):
   NB = len(case_list)
-  nfit = len(id_fit)
+  # nfit = len(id_fit)
   #print 'NB =', NB
   #print 'np.shape(kep_elem_in) = ',np.shape(kep_elem_in)
   
@@ -2357,7 +2342,7 @@ def compute_derived_posterior(idpar, kep_elem_in, id_fit, case_list, cols_list, 
   
   #print 'np.shape(kep_elem) = ',np.shape(kep_elem)
 
-  posterior_out = posterior.copy()
+  # posterior_out = posterior.copy()
 
   id_derived = []
   der_posterior = []
@@ -2457,7 +2442,7 @@ def compute_derived_posterior(idpar, kep_elem_in, id_fit, case_list, cols_list, 
 
 def compute_derived_parameters(idpar, kep_elem_in, id_fit, case_list, cols_list, parameters, conv_factor=1.):
   NB = len(case_list)
-  nfit = len(id_fit)
+  # nfit = len(id_fit)
   #print 'NB =', NB
   #print 'np.shape(kep_elem_in) = ',np.shape(kep_elem_in)
   
@@ -2625,7 +2610,6 @@ def print_parameters(top_header, header, name_parameters, unit_parameters, param
   # n_par = parameters.shape[0]
   #n_par = len(name_parameters)
   
- 
   if(sigma_parameters is not None):
     n_sig, n_par = np.shape(sigma_parameters)
     for i_p in range(0, n_par):
@@ -2633,7 +2617,7 @@ def print_parameters(top_header, header, name_parameters, unit_parameters, param
       if(len(unit) == 0): unit = '-'
       sigma_line = ' '.join(['%23.16e' % (sigma_parameters[ii, i_p]) for ii in range(n_sig)])
       line = ' %15s %20s %23.16e %s' % (name_parameters[i_p],
-                                        unit[i_p],
+                                        unit,
                                         parameters[i_p], sigma_line)
       print_both(line, output)
   else:
@@ -2792,7 +2776,7 @@ def get_auto_bins(posterior):
 # GIVEN THE POSTERIOR AND THE RULE IT COMPUTES THE NBINS
 # ==============================================================================
 
-def get_bins(x, rule='rice'):
+def get_old_bins(x, rule='sq'):
   
   nx = np.shape(x)[0]
   nxf = np.float64(nx)
@@ -2887,7 +2871,12 @@ def calculate_hdi(x, nbins, alpha=[0.05], mode_output=False):
 
 def convert_fortran2python_strarray(array_str_in, nfit, str_len=10):
   
-  temp = np.asarray(array_str_in, dtype=str).reshape((str_len, nfit), order='F').T
+  # not working in python3?
+  # temp = np.asarray(array_str_in, dtype=str).reshape((str_len, nfit), order='F').T
+  # tested with python3...it should work...
+  temp = [array_str_in[r].decode('utf-8')[c] for r in range(nfit) for c in range(str_len)]
+  temp = np.asarray(temp).reshape((nfit,str_len), order='F')
+
   array_str_out = [''.join(temp[i, :]).strip() for i in range(0, nfit)]
 
   return array_str_out
@@ -2897,7 +2886,10 @@ def convert_fortran2python_strarray(array_str_in, nfit, str_len=10):
 def convert_fortran_charray2python_strararray(array_str_in):
   
   ndim, str_len = np.shape(array_str_in)
-  array_str_out = [''.join(array_str_in[i, :]).strip() for i in range(0, ndim)]
+  temp = np.asarray([array_str_in[r,c].decode('utf-8')
+                     for r in range(ndim) for c in range(str_len)]
+                   ).reshape((ndim,str_len))
+  array_str_out = [''.join(temp[i, :]).strip() for i in range(0, ndim)]
 
   return array_str_out
 
@@ -2964,7 +2956,7 @@ def e_to_sqrte_fitting(fitting_in, names_par):
 # ==============================================================================
 
 def e_to_sqrte_flatchain(fitting_in, names_par):
-  npost, nfit = np.shape(fitting_in)
+  _, nfit = np.shape(fitting_in)
   fitting_out = np.array(fitting_in, dtype=np.float64).copy()
   for ifit in range(0, nfit):
     if (names_par[ifit][:2] == 'ec'):
@@ -2983,7 +2975,7 @@ def e_to_sqrte_flatchain(fitting_in, names_par):
 # ==============================================================================
 
 def e_to_sqrte_chain(fitting_in, names_par):
-  nw, nr, nfit = np.shape(fitting_in)
+  _, _, nfit = np.shape(fitting_in)
   fitting_out = np.array(fitting_in, dtype=np.float64).copy()
   for ifit in range(0, nfit):
     if (names_par[ifit][:2] == 'ec'):
@@ -3034,7 +3026,7 @@ def sqrte_to_e_fitting(fitting_in, names_par):
 # ==============================================================================
 
 def sqrte_to_e_flatchain(fitting_in, names_par):
-  npost, nfit = np.shape(fitting_in)
+  _, nfit = np.shape(fitting_in)
   fitting_out = np.array(fitting_in, dtype=np.float64).copy()
   for ifit in range(0, nfit):
     if ('sqrtec' in names_par[ifit]):
@@ -3051,7 +3043,7 @@ def sqrte_to_e_flatchain(fitting_in, names_par):
 # ==============================================================================
 
 def sqrte_to_e_chain(fitting_in, names_par):
-  nw, nr, nfit = np.shape(fitting_in)
+  _, _, nfit = np.shape(fitting_in)
   fitting_out = np.array(fitting_in, dtype=np.float64).copy()
   for ifit in range(0, nfit):
     if ('sqrtec' in names_par[ifit]):
@@ -3094,9 +3086,9 @@ def compute_Kms(Ms_sun, Mp_jup, inc_deg, P_day, ecc):
   G_m_mj_s = cst.Gsi * cst.Mjup
   P_sec = P_day * cst.d2s
 
-  P_factor = np.power((cst.dpi * G_m_mj_s / P_sec), 1. / 3.)
-  M_factor = (Mp_jup * sini) / np.power((Ms_jup + Mp_jup), 2. / 3.)
-  e_factor = 1. / np.sqrt(1. - (ecc * ecc))
+  P_factor = np.power((cst.dpi * G_m_mj_s / P_sec), 1.0 / 3.0)
+  M_factor = (Mp_jup * sini) / np.power((Ms_jup + Mp_jup), 2.0 / 3.0)
+  e_factor = 1.0 / np.sqrt(1.0 - (ecc * ecc))
 
   Kms = P_factor * M_factor * e_factor
 
@@ -3138,7 +3130,7 @@ def compute_lin_ephem_lstsq(T0, eT0):
   Pref0 = np.percentile(np.array(dT), 50., interpolation='midpoint')
   
   epo = calculate_epoch(T0, Tref0, Pref0)
-  Tref, Pref, coeff_err = lstsq_fit(epo, T0, eT0)
+  Tref, Pref, _ = lstsq_fit(epo, T0, eT0)
   epo = calculate_epoch(T0, Tref, Pref)
 
   return epo, Tref, Pref
@@ -3177,7 +3169,7 @@ def chi2r_linear_model(par, x, y, ey=None):
 
 # ==============================================================================
 
-def compute_lin_ephem(T0, eT0=None, epoin=None, modefit='odr'):
+def compute_lin_ephem(T0, eT0=None, epoin=None, modefit='wls'):
   
   nT0 = np.shape(T0)[0]
   
@@ -3187,14 +3179,15 @@ def compute_lin_ephem(T0, eT0=None, epoin=None, modefit='odr'):
     errTT = eT0
   
   if(epoin is None):
-    Tref0 = T0[0]
+    # Tref0 = T0[0]
     #Tref0 = np.percentile(T0, 50., interpolation='midpoint')
+    Tref0 = T0[int(0.5*nT0)]
     dT = [np.abs(T0[i+1]-T0[i]) for i in range(nT0-1)]
     Pref0 = np.percentile(np.array(dT), 50., interpolation='midpoint')
     epo = calculate_epoch(T0, Tref0, Pref0)
   else:
     epo = epoin
-    Tref0, Pref0, coeff0_err = lstsq_fit(epo, T0, errTT)
+    Tref0, Pref0, _ = lstsq_fit(epo, T0, errTT)
   
   if(modefit in ['optimize', 'minimize']):
     # SCIPY.OPTIMIZE.MINIMIZE
@@ -3209,8 +3202,8 @@ def compute_lin_ephem(T0, eT0=None, epoin=None, modefit='odr'):
     sk_mod.fit(epo.reshape((-1,1)), T0)
     Tref, Pref = np.asscalar(np.array(sk_mod.intercept_)), np.asscalar(np.array(sk_mod.coef_))
     epo = calculate_epoch(T0, Tref, Pref)
-  
-  else:
+
+  elif(modefit == 'odr'):
     # SCIPY.ODR
     odr_lm = sodr.Model(linear_model)
     if(eT0 is not None):
@@ -3223,8 +3216,16 @@ def compute_lin_ephem(T0, eT0=None, epoin=None, modefit='odr'):
     Tref, Pref = odr_out.beta[0], odr_out.beta[1]
     TP_err = odr_out.sd_beta
   
+  else: # wls
+    X = sm.add_constant(epo)
+    if(eT0 is not None):
+      wls = sm.WLS(T0, X, weights=1.0/(eT0*eT0)).fit()
+    else:
+      wls = sm.WLS(T0, X)
+    Tref, Pref = wls.params[0], wls.params[1]
+    TP_err =  wls.bse
+  
   return epo, Tref, Pref, TP_err
 
 # ==============================================================================
 # ==============================================================================
-

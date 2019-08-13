@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import sys
 import argparse
 import os
@@ -86,24 +86,14 @@ def main():
   #print steps
   sel_steps = steps.shape[0]
 
-  gr_Rc_1 = np.ones((sel_steps, nfit)) + 99.
   gr_Rc_2 = np.ones((sel_steps, nfit)) + 99.
-  gr_Rc_pyorbit = np.ones((sel_steps, nfit)) + 99.
-  gr_Rc_pymc = np.ones((sel_steps, nfit)) + 99.
 
   for ifit in range(0, nfit):
     logger.info('Parameter: %13s' %(parameter_names_emcee[ifit]))
-    #fig = plt.figure(figsize=(12,12))
     fig = plt.figure(figsize=(6,6))
     ax = plt.subplot2grid((1, 1), (0,0))
     
     for istep in range(0,sel_steps):
-      #print 'istep',istep
-      #time0 = time.time()
-      #gr_Rc_1[istep,ifit] = anc.GelmanRubin_test_1(chains_T[:steps[istep], :, ifit])
-      #if(istep == sel_steps-1):
-        #LBo_d, LBo_h, LBo_m, LBo_s = anc.computation_time(time.time()-time0)
-        #logger.info('steps = %6d for %13s ==> Gelman-Rubin test:  LBo time = %2d m %6.3f s' %(steps[istep], parameter_names_emcee[ifit], LBo_m, LBo_s))
       
       time0 = time.time()
       gr_Rc_2[istep,ifit] = anc.GelmanRubin(chains_T[:steps[istep], :, ifit])
@@ -111,23 +101,8 @@ def main():
         LBo_d, LBo_h, LBo_m, LBo_s = anc.computation_time(time.time()-time0)
         logger.info('steps = %6d for %13s ==> Gelman-Rubin test:  LBo time = %2d m %6.3f s' %(steps[istep], parameter_names_emcee[ifit], LBo_m, LBo_s))
       
-      time0 = time.time()
-      gr_Rc_pyorbit[istep,:] = anc.GelmanRubin_PyORBIT(chains_T[:steps[istep], :, ifit])
-      if(istep == sel_steps-1):
-        LMa_d, LMa_h, LMa_m, LMa_s = anc.computation_time(time.time()-time0)
-        logger.info('steps = %6d for %13s ==> Gelman-Rubin test:  LMa time = %2d m %6.3f s' %(steps[istep], parameter_names_emcee[ifit], LMa_m, LMa_s))
-
-      time0 = time.time()
-      gr_Rc_pymc[istep,:] = np.sqrt(anc.GelmanRubin_pymc(chains_T[:steps[istep], :, ifit].T))
-      if(istep == sel_steps-1):
-        pymc_d, pymc_h, pymc_m, pymc_s = anc.computation_time(time.time()-time0)
-        logger.info('steps = %6d for %13s ==> Gelman-Rubin test: pymc time = %2d m %6.3f s' %(steps[istep], parameter_names_emcee[ifit], pymc_m, pymc_s))
-
     ax.axhline(1.01, color='gray')
-    #ax.plot(steps, gr_Rc_1[:,ifit], '-', color='k', label='LBo 1')
     ax.plot(steps, gr_Rc_2[:,ifit], '-', color='k', lw=1.3, label='LBo 2')
-    ax.plot(steps, gr_Rc_pyorbit[:,ifit], '--', color='lightgray', alpha=0.7, label='LMa')
-    ax.plot(steps, gr_Rc_pymc[:,ifit], '-.', color='red', lw=1.5, alpha=0.7, label='pymc')
     ax.set_ylim(0.95, 2.3)
     ax.set_xlabel('steps (%s)' %(parameter_names_emcee[ifit].strip()))
     ax.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5))

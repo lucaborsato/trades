@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os #  os: operating system
 import time # time: execution time
@@ -14,10 +14,15 @@ import h5py
 import matplotlib as mpl
 mpl.use('Agg', warn=False)
 import matplotlib.pyplot as plt
-#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-#plt.rc('font',**{'family':'serif','serif':['Latin Modern Roman']})
+# matplotlib rc params
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
+plt.rcParams['figure.figsize'] = [6, 6]
+plt.rcParams["figure.facecolor"] = 'white'
+plt.rcParams["savefig.facecolor"] = 'white'
+plt.rcParams["figure.dpi"]  = 200
+plt.rcParams["savefig.dpi"] = 300
+plt.rcParams["font.size"]   = 14
 
 # custom modules
 import constants as cst
@@ -62,7 +67,8 @@ class sim_data:
     
     self.epo, self.Teph, self.Peph, self.eTPeph = \
       anc.compute_lin_ephem(self.TTo, eT0=self.eTTo, epoin=self.epo,
-                            modefit='odr'
+                            # modefit='odr'
+                            modefit='wls'
                             )
     self.TTlin = self.Teph + self.epo*self.Peph
     self.oc_o = self.TTo - self.TTlin
@@ -124,10 +130,10 @@ def read_samples(samples_file = None):
   if (samples_file is not None):
     
     sh5 = h5py.File(os.path.abspath(samples_file), 'r')
-    n_samples = len(sh5.keys())
+    # n_samples = len(list(sh5.keys()))
     samples = []
-    for igr in sh5.keys(): # loop on groups, one for each sample
-      TTfield = sh5[igr].keys()
+    for igr in list(sh5.keys()): # loop on groups, one for each sample
+      TTfield = list(sh5[igr].keys())
       for kk in TTfield:
         if('TTs_' in kk):
           idpl = int(kk.split('_')[1])
@@ -207,6 +213,7 @@ def plot_oc_T41(cli, file_in, samples):
     tscale = 2440000.5
   else:
     tscale = np.float64(cli.tscale)
+    if(tscale <= 0.0): tscale = 0.0
     
   ocu = set_unit(cli)
   
@@ -223,7 +230,11 @@ def plot_oc_T41(cli, file_in, samples):
   lfont=12
   tfont=8
   
-  xlabel = 'BJD$_\\textrm{TDB} - %.3f$' %(tscale)
+  if(tscale > 0.0):
+    xlabel = r'BJD$_\textrm{TDB} - {0:.3f}$'.format(tscale)
+  else:
+    xlabel = r'BJD$_\textrm{TDB}$'
+
   
   fig = plt.figure(figsize=(6,6))
   fig.subplots_adjust(hspace=0.05, wspace=0.25)
@@ -250,8 +261,12 @@ def plot_oc_T41(cli, file_in, samples):
   
   #x = sim.TTo - tscale
   x = sim.TTlin - tscale
-  minx, maxx = np.min(x)-0.88*sim.Peph, np.max(x)+0.88*sim.Peph
-  
+  # minx, maxx = np.min(x)-0.88*sim.Peph, np.max(x)+0.88*sim.Peph
+  dx = np.max(x) - np.min(x)
+  px = 0.05
+  minx = np.min(x) - px*dx
+  maxx = np.max(x) + px*dx
+
   # data
   lobs = ax.errorbar(x, sim.oc_o*ocu[0],
                      yerr=sim.eTTo*ocu[0],
@@ -288,11 +303,12 @@ def plot_oc_T41(cli, file_in, samples):
                     )
       lsmp.append(ll)
   
-    ax.legend(handles=[lobs, lsim, lsmp[0]], loc='best', fontsize=lfont)
+    ax.legend(handles=[lobs, lsim, lsmp[0]], loc='best', fontsize=lfont-2)
   else:
-    ax.legend(loc='best', fontsize=lfont)
+    ax.legend(loc='best', fontsize=lfont-2)
   
   ax.set_xlim(minx, maxx)
+  xlims = ax.get_xlim()
   
   # residuals TTo-TTs
   ax = plt.subplot2grid((nrows, ncols), (2,0), rowspan=1)
@@ -313,7 +329,8 @@ def plot_oc_T41(cli, file_in, samples):
               zorder=6,
               )
   
-  ax.set_xlim(minx, maxx)
+  # ax.set_xlim(minx, maxx)
+  ax.set_xlim(xlims)
   
   if(sim.ncols == 11):
     # T41 duration
@@ -360,7 +377,8 @@ def plot_oc_T41(cli, file_in, samples):
                 alpha=0.4,
                 )
         
-    ax.set_xlim(minx, maxx)
+    # ax.set_xlim(minx, maxx)
+    ax.set_xlim(xlims)
     
     # residuals T41o - T41s
     ax = plt.subplot2grid((nrows, ncols), (2,1), rowspan=1)
@@ -381,17 +399,18 @@ def plot_oc_T41(cli, file_in, samples):
                 zorder=6,
                 )
       
-    ax.set_xlim(minx, maxx)
+    # ax.set_xlim(minx, maxx)
+    ax.set_xlim(xlims)
   
   folder_out = os.path.join(os.path.dirname(file_in), 'plots')
   if(not os.path.isdir(folder_out)): os.makedirs(folder_out)
   fname = os.path.basename(file_in)
   plt_file = os.path.join(folder_out, os.path.splitext(fname)[0])
   fig.savefig('%s.png' %(plt_file), bbox_inches='tight', dpi=200)
-  print 'Saved plot into:'
-  print '%s' %('%s.png' %(plt_file))
+  print('Saved plot into:')
+  print('%s' %('%s.png' %(plt_file)))
   fig.savefig('%s.pdf' %(plt_file), bbox_inches='tight', dpi=72)
-  print '%s' %('%s.pdf' %(plt_file))
+  print('%s' %('%s.pdf' %(plt_file)))
   plt.close(fig)
   
   
@@ -448,7 +467,7 @@ def get_args():
 
   cli = parser.parse_args()
   
-  full_path = os.path.abspath(cli.full_path)
+  cli.full_path = os.path.abspath(cli.full_path)
   
   cli.idsim = int(cli.idsim)
   

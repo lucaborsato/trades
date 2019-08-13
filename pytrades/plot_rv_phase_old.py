@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os
 import numpy as np # array
@@ -529,15 +529,15 @@ def main():
   t_model, rv_model = read_RVmodel(cli.full_path, cli.id_sim, cli.lm_flag, sub_folder = cli.sub_folder)
   sim_rv, n_rvset = read_simRV(cli.full_path, cli.id_sim, cli.lm_flag, sub_folder = cli.sub_folder)
   n_rv = np.shape(sim_rv)[0]
-  print
-  print ' t_epoch = ',t_epoch
-  print ' number of planets = ',n_pl, ' for ', n_bd, ' bodies in the system'
-  print ' Star mass = ', star[0,0], ' radius = ', star[1,0]
+  print()
+  print(' t_epoch = ',t_epoch)
+  print(' number of planets = ',n_pl, ' for ', n_bd, ' bodies in the system')
+  print(' Star mass = ', star[0,0], ' radius = ', star[1,0])
   t_ref = set_t_ref(cli.t_ref, t_epoch, n_pl)
-  print ' t_ref = ',t_ref
-  print ' labels input = ', cli.labels
+  print(' t_ref = ',t_ref)
+  print(' labels input = ', cli.labels)
   labels = get_labels(cli.labels, n_rvset)
-  print ' labels output= ', labels
+  print(' labels output= ', labels)
   
   #viridis_cmap = cm.viridis.colors
   #sel_col = np.random.choice(len(viridis_cmap),n_rvset)
@@ -599,15 +599,15 @@ def main():
   
   lmin, bmin = 0.07, 0.07
   rmax, umax = 1.-0.5*lmin, 1.-0.5*bmin
-  print 'lmin, rmax, bmin, umax:', lmin, rmax, bmin, umax
+  print('lmin, rmax, bmin, umax:', lmin, rmax, bmin, umax)
   dhbig = 0.05 # large vertical distance, small distance between plot e res plot
   hfull = umax - bmin
   hrvres = (hfull / n_bd)- dhbig
   hrv, hres = hrvres*0.75, hrvres*0.25
-  print 'dhbig:', dhbig
-  print 'hfull, hrvres, hrv, hres:', hfull, hrvres, hrv, hres
+  print('dhbig:', dhbig)
+  print('hfull, hrvres, hrv, hres:', hfull, hrvres, hrv, hres)
   ww = rmax - lmin
-  print 'ww:', ww
+  print('ww:', ww)
   
   pl_ids = 'b c d e f g h i j k l m n o p q r s t u v w x y z'.split()
   
@@ -623,17 +623,17 @@ def main():
   for ipl in range(0, n_pl):
     idph = np.argsort(phi_model[:,ipl])
     # plot phased-rv
-    print 'planet ', ipl+1
+    print('planet ', ipl+1)
     brv = bres - dhbig - hrv
-    print 'left, bottom, widht, height:', lmin, brv, ww, hrv
+    print('left, bottom, widht, height:', lmin, brv, ww, hrv)
     ax_rv = fig.add_axes([lmin, brv, ww, hrv])
     ax_rv = plot_phase_rv(ax_rv, phi_model[idph,ipl], rv_mkep[idph,ipl], phi_rv[:,ipl], rv_opl[:,ipl], rv_spl[:,ipl], sim_rv, n_rvset, labels, colors, markers)
     # plot phased-rv
     bres = brv - hres
-    print 'left, bottom, widht, height:', lmin, bres, ww, hres
+    print('left, bottom, widht, height:', lmin, bres, ww, hres)
     ax_res = fig.add_axes([lmin, bres, ww, hres])
     ax_res = plot_phase_res(ax_res, phi_rv[:,ipl], rv_opl[:,ipl], rv_spl[:,ipl], res_rv[:,ipl], sim_rv, rv_kep[:,ipl], n_rvset, labels, colors, markers, pl_ids[ipl])
-    print
+    print()
   
   out_folder = os.path.join(os.path.abspath(os.path.join(cli.full_path, cli.sub_folder)), 'plots')
   if(not os.path.isdir(out_folder)):
@@ -642,7 +642,7 @@ def main():
   
   fig.savefig('%s.pdf' %(out_file), bbox_inches='tight', dpi=150)
   #fig.savefig('%s.pdf' %(out_file), dpi=150)
-  print ' Saved file %s.pdf' %(out_file)
+  print(' Saved file %s.pdf' %(out_file))
   
   return
 

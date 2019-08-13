@@ -50,7 +50,7 @@ module init_trades
       read(unit,*,IOSTAT=stat)comment
       comment=trim(adjustl(comment))
       if(IS_IOSTAT_END(stat)) exit count
-      if(comment(1:1).ne."#") nrows=nrows+1
+      if(comment(1:1).ne."#".and.len(trim(comment)).gt.0) nrows=nrows+1
     end do count
     rewind(unit)
 
@@ -1104,6 +1104,7 @@ module init_trades
         inquire(file=trim(flt0),exist=fstat)
 
         if(fstat)then ! fstat1 == .true.
+
           uread=get_unit(cpuid)
           open(uread,file=trim(flt0),status='OLD')
 !           nT0(j)=get_rows(uread)
@@ -1128,11 +1129,6 @@ module init_trades
 
         nbj2: do j=2,NB
 
-!           nTx=obsData%obsT0(j-1)%nT0
-!           ! update derived data type
-!           allocate(obsData%obsT0(j-1)%epo(nTx),&
-!             &obsData%obsT0(j-1)%T0(nTx),&
-!             &obsData%obsT0(j-1)%eT0(nTx))
           flt0=""
           flt0=trim(path)//'NB'//trim(adjustl(string(j)))//'_observations.dat'
           flt0=trim(adjustl(flt0))
@@ -1150,7 +1146,7 @@ module init_trades
               read(uread,'(a512)',IOSTAT=stat)row
               if(IS_IOSTAT_END(stat)) exit T0only
               row=trim(adjustl(row))
-              if(row(1:1).ne."#")then
+              if(row(1:1).ne."#".and.len(trim(row)).gt.0)then
                 j1=j1+1
 !                 read(row,*)epoT0obs(j1,j),T0obs(j1,j),eT0obs(j1,j)
                 read(row,*)obsData%obsT0(j-1)%epo(j1),&
@@ -1198,7 +1194,7 @@ module init_trades
               read(uread,'(a512)',IOSTAT=stat)row
               if(IS_IOSTAT_END(stat)) exit T0Dur
               row=trim(adjustl(row))
-              if(row(1:1).ne."#")then
+              if(row(1:1).ne."#".and.len(trim(row)).gt.0)then
                 j1=j1+1
                 read(row,*)obsData%obsT0(j-1)%epo(j1),&
                   &obsData%obsT0(j-1)%T0(j1),&

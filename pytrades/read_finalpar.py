@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os
 import time
@@ -57,25 +57,25 @@ def get_args():
   noList  = ["0", "no",  "n", "False", False]
   yesList = ["1", "yes", "y", "True",  True]
   if (cli.boot in yesList ):
-    print " BOOTSTRAP INTERVALS: YES"
+    print(" BOOTSTRAP INTERVALS: YES")
     cli.boot = True
   else:
-    print " BOOTSTRAP INTERVALS: NO"
+    print(" BOOTSTRAP INTERVALS: NO")
     cli.boot = False
     
   mList = ["e", "j", "s", "n"]
   if not(cli.mtype in mList):
-    print " INSERTED INVALID MASS TYPE ARGUMENT: %s" %(cli.mtype)
+    print(" INSERTED INVALID MASS TYPE ARGUMENT: %s" %(cli.mtype))
     cli.mtype = "j"
-    print " MASS TYPE HAS BEEN SET TO DEFAULT: j = Jupiter"
+    print(" MASS TYPE HAS BEEN SET TO DEFAULT: j = Jupiter")
     
     
   if (cli.mgauss in noList):
     cli.mgauss = False
-    print ' DO NOT SCALE MASS FIT BY N(Mstar, sigma_Mstar)'
+    print(' DO NOT SCALE MASS FIT BY N(Mstar, sigma_Mstar)')
   else:
     cli.mgauss = True
-    print ' DO SCALE MASS FIT BY N(Mstar, sigma_Mstar)'
+    print(' DO SCALE MASS FIT BY N(Mstar, sigma_Mstar)')
     
   #if (cli.lmflag == '1'):
     #cli.fit_type = 'hk'
@@ -105,8 +105,8 @@ def parameters_file(fpath, idsim, lmf):
 # ---
 # read #_final#par.dat from the TRADES fit
 def read_parameters(file_par, lmf):
-  print " Reading file "
-  print " Parameters: %s" %(file_par)
+  print(" Reading file ")
+  print(" Parameters: %s" %(file_par))
   names_par = []
   par = []
   fitness_s, fitness_x_dof_s, bic, chi2 = 'NONE', 'NONE', 'NONE','NONE'
@@ -154,9 +154,9 @@ def main():
   # =================================================================================
   # MAIN
 
-  print ""
-  print " --- read_finalpar_v2.py --- "
-  print ""
+  print("")
+  print(" --- read_finalpar_v2.py --- ")
+  print("")
 
   cli = get_args()
   fpath, idsim, lmflag, boot, mtype, mgauss, fit_type = cli.fpath, cli.idsim, cli.lmflag, cli.boot, cli.mtype, cli.mgauss, cli.fit_type

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 #import argparse
 import os
 import numpy as np # array
@@ -22,12 +22,12 @@ def main():
   t_int = np.float64(201.)
   step_in = np.float64(1.e-3)
 
-  print 'set integration parameters'
+  print('set integration parameters')
 
   # number of bodies in the system
   n_body = 2
 
-  print 'set n_body'
+  print('set n_body')
 
   # read rv data
   rv_path = os.path.abspath('/home/borsato/Dropbox/Transfer/LMa_TestTTVFast/2016-11-08_data/rv_data_1p.dat')
@@ -38,7 +38,7 @@ def main():
   rv_obs  = rv_data[:,1]
   erv_obs = rv_data[:,2]
 
-  print 'read and set rv data'
+  print('read and set rv data')
 
   # read t0 data
   t0b_path = os.path.abspath('/home/borsato/Dropbox/Transfer/LMa_TestTTVFast/2016-11-08_data/obsT0.dat')
@@ -58,15 +58,15 @@ def main():
   t0_obs[0:n_t0[1],1] = t0b_data[:,1]
   et0_obs[0:n_t0[1],1] = t0b_data[:,2]
 
-  print 'read and set T0 data'
-  print 'n_t0 = ', n_t0
-  print 'n_max_t0 = ',n_max_t0
+  print('read and set T0 data')
+  print('n_t0 = ', n_t0)
+  print('n_max_t0 = ',n_max_t0)
 
   pytrades.args_init(t_start,t_epoch,t_int,n_body,
                      n_t0,t0_num,t0_obs,et0_obs
                      )
 
-  print 'initialised args for trades'
+  print('initialised args for trades')
 
   transit_flag = np.array([False, True])
 
@@ -79,7 +79,7 @@ def main():
   inc_deg  = np.array([0, 90.], dtype=np.float64)
   lN_deg   = np.array([0, 180.], dtype=np.float64)
 
-  print 'set orbital elements'
+  print('set orbital elements')
 
   # old
   #rv_sim, t0_sim = pytrades.kelements_to_data(t_start,t_epoch,step_in,t_int,
@@ -100,19 +100,19 @@ def main():
                                               transit_flag,n_max_t0
                                               )
 
-  print
-  print '## RV'
-  print '# time_rv rv_obs rv_sim'
+  print()
+  print('## RV')
+  print('# time_rv rv_obs rv_sim')
   for irv in range(0, n_rv):
-    print '%18.6f %12.6f %12.6f' %(t_rv[irv], rv_obs[irv], rv_sim[irv])
-  print 
+    print('%18.6f %12.6f %12.6f' %(t_rv[irv], rv_obs[irv], rv_sim[irv]))
+  print() 
 
-  print '## T0'
+  print('## T0')
   for inb in range(1,n_body):
-    print '# BODY %d (planet %d)' %(inb+1, inb)
-    print '# t0_num t0_obs t0_sim'
+    print('# BODY %d (planet %d)' %(inb+1, inb))
+    print('# t0_num t0_obs t0_sim')
     for itt in range(0,n_t0[inb]):
-      print '%5d %20.6f %16.6f' %(t0_num[itt,inb], t0_obs[itt,inb], t0_sim[itt,inb])
+      print('%5d %20.6f %16.6f' %(t0_num[itt,inb], t0_obs[itt,inb], t0_sim[itt,inb]))
 
   return
 

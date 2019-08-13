@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import sys
 import argparse
 import os
@@ -19,7 +19,7 @@ def geweke(cli):
   log_file = os.path.join(log_folder, 'log_geweke.txt')
   olog = open(log_file, 'w')
   
-  print 'RUN geweke.py'
+  print('RUN geweke.py')
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'geweke.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', '0', '-m', str(cli.m_type), '-t', str(cli.temp_status), '-s', str(cli.sel_steps)], 
                  #stdout = sp.PIPE, stderr = sp.PIPE,
@@ -27,7 +27,7 @@ def geweke(cli):
                  bufsize=1
                  )
   sout, serr = run.communicate()
-  print 'COMPLETED geweke.py'
+  print('COMPLETED geweke.py')
   olog.close()
   
   return
@@ -40,7 +40,7 @@ def gelman_rubin(cli):
   log_file = os.path.join(log_folder, 'log_gelman_rubin.txt')
   olog = open(log_file, 'w')
   
-  print 'RUN gelman_rubin.py'
+  print('RUN gelman_rubin.py')
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'gelman_rubin.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', '0', '-m', str(cli.m_type), '-t', str(cli.temp_status), '-s', str(cli.sel_steps)],
                  #stdout = sp.PIPE, stderr = sp.PIPE,
@@ -49,7 +49,7 @@ def gelman_rubin(cli):
                  )
   
   sout, serr = run.communicate()  
-  print 'COMPLETED gelman_rubin.py'
+  print('COMPLETED gelman_rubin.py')
   olog.close()
   
   return
@@ -62,7 +62,7 @@ def chains(cli):
   log_file = os.path.join(log_folder, 'log_chains.txt')
   olog = open(log_file, 'w')
   
-  print 'RUN chains_summary_plot.py'
+  print('RUN chains_summary_plot.py')
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'chains_summary_plot.py')
   run = sp.Popen(['python', pyscript, '-p',cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)],
                  #stdout = sp.PIPE, stderr = sp.PIPE,
@@ -70,7 +70,7 @@ def chains(cli):
                  bufsize=1
                  )
   sout, serr = run.communicate()  
-  print 'COMPLETED chains_summary_plot.py'
+  print('COMPLETED chains_summary_plot.py')
   olog.close()
   
   return
@@ -83,7 +83,7 @@ def correlation(cli):
   log_file = os.path.join(log_folder, 'log_corr_plot_fitted.txt')
   olog = open(log_file, 'w')
   
-  print 'RUN correlation_triangle_plot.py'
+  print('RUN correlation_triangle_plot.py')
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'correlation_triangle_plot.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '-c', str(cli.cumulative), '--overplot', str(cli.overplot) ],
                  #stdout = sp.PIPE, stderr = sp.PIPE,
@@ -91,7 +91,7 @@ def correlation(cli):
                  bufsize=1
                  )
   sout, serr = run.communicate()  
-  print 'COMPLETED correlation_triangle_plot.py'
+  print('COMPLETED correlation_triangle_plot.py')
   olog.close()
   
   return
@@ -104,7 +104,7 @@ def derived_correlation(cli):
   log_file = os.path.join(log_folder, 'log_corr_plot_derived.txt')
   olog = open(log_file, 'w')
   
-  print 'RUN derived_correlation_plot.py'
+  print('RUN derived_correlation_plot.py')
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'derived_correlation_plot.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)],
                  #stdout = sp.PIPE, stderr = sp.PIPE,
@@ -112,7 +112,7 @@ def derived_correlation(cli):
                  bufsize=1
                  )
   sout, serr = run.communicate()  
-  print 'COMPLETED derived_correlation_plot.py'
+  print('COMPLETED derived_correlation_plot.py')
   olog.close()
   
   return
@@ -125,7 +125,7 @@ def ci_chains_correlation(cli):
   log_file = os.path.join(log_folder, 'log_confidence_intervals.txt')
   olog = open(log_file, 'w')
   
-  print 'RUN confidence_intervals.py'
+  print('RUN confidence_intervals.py')
   pyscript = os.path.join(os.path.abspath(cli.pyscript), 'confidence_intervals.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--sample', str(cli.sample_str), '--seed', str(cli.seed), '--overplot', str(cli.overplot), '--ad-hoc', str(cli.adhoc), '--n-samples', str(cli.n_samples) ],
                  #stdout = sp.PIPE, stderr = sp.PIPE,
@@ -133,7 +133,7 @@ def ci_chains_correlation(cli):
                  bufsize=1
                  )
   sout, serr = run.communicate()  
-  print 'COMPLETED confidence_intervals.py'
+  print('COMPLETED confidence_intervals.py')
   olog.close()
   
   sub_th = []
@@ -158,7 +158,7 @@ def ci_chains_correlation(cli):
     
   # Check processes status
   for sub_pp in sub_th:
-    print "Process ",sub_pp, " @ ", sub_pp.pid, " is ", status(sub_pp)
+    print("Process ",sub_pp, " @ ", sub_pp.pid, " is ", status(sub_pp))
   # Wait processes to finish
   while len(sub_th) != 0:
     for sub_pp in sub_th:
@@ -223,7 +223,7 @@ def main():
   
   # Check processes status
   for pp in threads:
-    print "Process ",pp, " @ ", pp.pid, " is ", status(pp)
+    print("Process ",pp, " @ ", pp.pid, " is ", status(pp))
   # Wait processes to finish
   while len(threads) != 0:
     for pp in threads:
@@ -232,7 +232,7 @@ def main():
     # loose 10 seconds before checking again
     time.sleep(2.5)
   
-  print 'COMPLETED ALL SCRIPTS'
+  print('COMPLETED ALL SCRIPTS')
   
   return
 

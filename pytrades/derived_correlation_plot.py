@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os
 import sys
@@ -60,12 +60,13 @@ def main():
   # read derived posterior file
   derived_file = os.path.join(cli.full_path, 'derived_posterior.hdf5')
   h5f = h5py.File(derived_file, 'r')
-  derived_names = np.array(h5f['derived_names'], dtype='S10')
+  # derived_names = np.array(h5f['derived_names'], dtype='S10')
+  derived_names = anc.decode_list(h5f['derived_names'][...])
   derived_posterior_in = np.array(h5f['derived_posterior'], dtype=np.float64)
   h5f.close()
 
-  n_der = derived_names.shape[0]
-  n_flatchain = derived_posterior_in.shape[0]
+  n_der = np.shape(derived_names)[0]
+  # n_flatchain = np.shape(derived_posterior_in)[0]
 
   derived_posterior = anc.derived_posterior_check(derived_names, derived_posterior_in)
 
@@ -87,7 +88,7 @@ def main():
 
   labels_list = anc.derived_labels(derived_names, cli.m_type)
 
-  k = anc.get_bins(derived_posterior, rule='doane')
+  k = anc.get_auto_bins(derived_posterior)
   
   if(cli.overplot is not None):
     ## OPEN summary_parameters.hdf5 FILE
@@ -95,7 +96,7 @@ def main():
     # take only the selected sample
     s_overplot = '%04d' %(cli.overplot)
     #overp_der = s_h5f['parameters/%s/derived/parameters' %(s_overplot)][...]
-    read_der = s_h5f['parameters/%s/derived/parameters' %(s_overplot)][...]
+    read_der = s_h5f['parameters/{0:s}/derived/parameters'.format(s_overplot)][...]
     s_h5f.close()
   
     overp_der = anc.derived_parameters_check(derived_names, read_der, derived_posterior)
@@ -244,7 +245,7 @@ def main():
               ax.axvline(overp_der[ix], color='C0', ls='--', lw=1.1, alpha=0.7)
           ax.set_xlim([x_min, x_max])
         if(cli.overplot is not None):
-          print derived_names[ix], ' overplot val = ', overp_der[ix], ' min = ', x_data.min(), ' max = ', x_data.max()
+          print(derived_names[ix], ' overplot val = ', overp_der[ix], ' min = ', x_data.min(), ' max = ', x_data.max())
         
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)

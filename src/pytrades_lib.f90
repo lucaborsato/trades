@@ -345,7 +345,21 @@ module pytrades
 
     return
   end subroutine init_pso
+
+    ! ============================================================================
   
+  subroutine trades_rchisq(fit_parameters, rchisq, nfit)
+    integer,intent(in)::nfit
+    real(dp),dimension(nfit),intent(in)::fit_parameters
+    real(dp),intent(out)::rchisq
+    
+    rchisq=zero
+    
+    rchisq=base_fitness_function(system_parameters,fit_parameters)
+
+    return
+  end subroutine trades_rchisq
+
   ! ============================================================================
   
   subroutine fortran_loglikelihood(fit_parameters, lgllhd, check, nfit)
@@ -899,10 +913,7 @@ module pytrades
     
     integer,dimension(:),allocatable::nT0_perbody
   
-!     write(*,*)'f90: n_bodies = ',n_bodies
-!     write(*,*)'f90: size(P) = ',size(P),' => P = ',P
-  
-  ! compute number maximum of all transit times of all the planets from the
+    ! compute number maximum of all transit times of all the planets from the
     ! integration time (global variable tint)
     allocate(nT0_perbody(n_bodies-1))
     nT0_perbody = int((1.5_dp*tint)/P(2:n_bodies))+2 ! compute the number of transit for each planet ... avoid P(1)<->star
@@ -912,13 +923,34 @@ module pytrades
     ! compute the number of maximum rv from integration and write time
     ! (global variables tint, wrttime
     nrv_nmax=int(tint/wrttime)+2
-  
+
     return
   end subroutine get_max_nt0_nrv
   
   ! ============================================================================
 
-  
+  subroutine get_ntt_nrv(par_fit, nfit, ntt, nrv_max)
+    integer,intent(in)::nfit
+    real(dp),dimension(nfit),intent(in)::par_fit
+    integer,intent(out)::ntt,nrv_max
+
+
+    real(dp),dimension(NB)::mass,radius
+    real(dp),dimension(NB)::period,sma,ecc,argp,meanA,inc,longN
+    logical::tempcheck
+
+    call par2kel_fit(system_parameters,par_fit,mass,radius,&
+      &period,sma,ecc,argp,meanA,inc,longN,tempcheck)
+
+    ntt = sum(int(tint/period(2:NB)))+(NB-1)
+
+    nrv_max=int(tint/wrttime)+2
+
+    return
+  end subroutine get_ntt_nrv
+
+  ! ============================================================================
+
   subroutine wrapper_set_grid_orbelem_fullgrid(sim_id,idpert,perturber_grid,ngrid,ncol,&
     &m,R,P,sma,ecc,w,mA,inc,lN,n_bodies,nt0_full,nrv_nmax)
     integer,intent(in)::sim_id,idpert

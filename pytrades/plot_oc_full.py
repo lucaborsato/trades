@@ -4,7 +4,7 @@
 # ==============================================================================
 # IMPORT
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import numpy as np # array
 import os
@@ -15,16 +15,18 @@ import gc
 import matplotlib as mpl
 mpl.use('Agg', warn=False)
 import matplotlib.pyplot as plt
-#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-#plt.rc('text', usetex=True)
+# matplotlib rc params
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
+plt.rcParams['figure.figsize'] = [6, 6]
+plt.rcParams["figure.facecolor"] = 'white'
+plt.rcParams["savefig.facecolor"] = 'white'
+plt.rcParams["figure.dpi"]  = 200
+plt.rcParams["savefig.dpi"] = 300
+plt.rcParams["font.size"]   = 14
 
 # custom modules
 import ancillary as anc
-script_path = os.path.realpath(__file__)
-subpath = os.path.abspath(os.path.join(os.path.dirname(script_path), 'cheops'))
-sys.path.append(subpath)
 import gls
 
 # ==============================================================================
@@ -76,7 +78,7 @@ class Transit:
 
 def get_tra_file_list(folder_path, sim_id, lm_flag):
   
-  pattern = '%s_%s_NB*_tra.dat' %(str(sim_id), lm_flag)
+  pattern = '{0:s}_{1:s}_NB*_tra.dat'.format(str(sim_id), lm_flag)
   tra_file_list = np.sort(glob.glob(os.path.join(folder_path, pattern)))
   
   return tra_file_list
@@ -125,10 +127,13 @@ def main():
   
   plot_folder = os.path.join(cli.folder_path, 'plots')
   if(not os.path.isdir(plot_folder)): os.makedirs(plot_folder)
-  plot_file = os.path.join(plot_folder, '%d_%s_oc_full.png' %(cli.sim_id, cli.lm_flag))
+  plot_file = os.path.join(plot_folder, 
+                           '{0:d}_{1:s}_oc_full.png'.format(cli.sim_id, cli.lm_flag)
+                           )
   
   #fig = plt.figure(figsize=(12,12))
-  fig = plt.figure(figsize=(6,6))
+  # fig = plt.figure(figsize=(6,6))
+  fig = plt.figure()
   
   plt.tick_params(direction='in')
 
@@ -137,38 +142,39 @@ def main():
   tra_obj = []
   cnt = 0
   for ff in tra_file_list:
-    print 'READ FILE %s' %(ff)
+    print('READ FILE {}'.format(ff))
     oo = Transit(ff)
     oo.compute_TTV_gls()
     tra_obj.append(oo)
     
-    
-    print 'body n. %d' %(oo.body_id)
-    #print 'ephem: %20.8f + N x %20.8f' %(oo.Tref, oo.Pref)
+    print('body n. {0:d}'.format(oo.body_id))
+    #print 'ephem: %20.8f + N x %20.8f'.format(oo.Tref, oo.Pref)
     if(cnt == 0):
       xscale = oo.TTs[0]
-      plt.xlabel('BJD - %.6f' %(xscale), fontsize=12)
-      plt.ylabel('O-C (min)', fontsize=12)
-    print 'plotting O-C'
+      plt.xlabel('BJD - {0:.6f}'.format(xscale))
+      plt.ylabel('O-C (min)')
+    print('plotting O-C')
     cnt += 1
-    labTeph = 'TTlin $= %17.6f + N \\times %13.6f$' %(oo.Tref, oo.Pref)
-    print labTeph
-    labPTTV = '$P_\\textrm{TTV} = %13.6f$ days' %(oo.p_ttv)
-    labATTV = '$A_\\textrm{TTV} = %10.3f$ min' %(oo.amp_ttv*1440.)
-    print '%s , %s' %(labPTTV, labATTV)
+    labTeph = r'TTlin $= {0:17.6f} + N \times {1:13.6f}$'.format(oo.Tref, oo.Pref)
+    print(labTeph)
+    labPTTV = r'$P_\textrm{{TTV}} = {0:13.6f}$ days'.format(oo.p_ttv)
+    labATTV = r'$A_\textrm{{TTV}} = {0:10.3f}$ min'.format(oo.amp_ttv*1440.)
+    print('{} , {}'.format(labPTTV, labATTV))
     plt.plot(oo.TTs-xscale, oo.ocd*1440.,
              marker='o', ms=4, mec='None',
              ls='-', lw=0.45, alpha=0.77,
-             label='body \#%d: %s ; %s , %s' %(oo.body_id, labTeph,
+             label=r'body \#{}: {} ; {} , {}'.format(oo.body_id, labTeph,
                                                labPTTV, labATTV)
              )
   
-  print 'Saving file: %s' %(plot_file)
-  plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.0), fontsize=12, ncol=1)
+  print('Saving file: {}'.format(plot_file))
+  plt.legend(loc='lower center', bbox_to_anchor=(0.5, 1.0), fontsize=6, ncol=1)
   plt.draw()
-  fig.savefig(plot_file, dpi=300)
+  # fig.savefig(plot_file, dpi=300)
+  plt.tight_layout()
+  fig.savefig(plot_file)
   plt.close(fig)
-  print 'DONE'
+  print('DONE')
   
   return
 

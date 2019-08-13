@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import sys
 import argparse
 import os
@@ -72,11 +72,11 @@ def main():
     ax.yaxis.set_major_formatter(tick_formatter)
     return
 
-  print 
-  print ' ================== '
-  print ' CORRELATION PLOTS'
-  print ' ================== '
-  print
+  print() 
+  print(' ================== ')
+  print(' CORRELATION PLOTS')
+  print(' ================== ')
+  print()
 
   # read cli arguments
   cli = anc.get_args()

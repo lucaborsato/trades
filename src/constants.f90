@@ -13,21 +13,21 @@ module constants
   integer,parameter::qp=selected_real_kind(32) !define the KIND, the precision of all the constants
 !   integer,parameter::dp=selected_real_kind(32) !define the KIND, the precision of all the constants
 
-  integer,parameter::prec=precision(0._dp)
+  integer,parameter::prec=precision(0.0_dp)
   character(8)::sprec='es23.16'
 
   !various
-  real(dp),parameter::s24h=86400._dp !seconds in a day = 24h = 86400s
-  real(dp),parameter::m24h=1440._dp !minutes in a day = 24h = 1440m
-  real(dp),parameter::zero=0._dp,one=1._dp,two=2._dp,three=3._dp
-  real(dp),parameter::TOL_sp=epsilon(0._sp)
+  real(dp),parameter::s24h=86400.0_dp !seconds in a day = 24h = 86400s
+  real(dp),parameter::m24h=1440.0_dp !minutes in a day = 24h = 1440m
+  real(dp),parameter::zero=0.0_dp,one=1.0_dp,two=2.0_dp,three=3.0_dp
+  real(dp),parameter::TOL_sp=epsilon(0.0_sp)
   real(dp),parameter::TOL_dp=epsilon(zero)
-  real(dp),parameter::TOL_qp=epsilon(0._qp)
-  real(dp),parameter::TOLERANCE=1.e-9_dp
+  real(dp),parameter::TOL_qp=epsilon(0.0_qp)
+  real(dp),parameter::TOLERANCE=1.0e-9_dp
   real(dp),parameter::half=0.5_dp
   real(dp),parameter::sqrt_half=sqrt(half)
   real(dp),parameter::sqrt2=sqrt(two)
-  real(dp),parameter::sqrt_12=sqrt(12._dp) ! = 2*sqrt(3) needed for stability criterion with the mutual R_Hill
+  real(dp),parameter::sqrt_12=sqrt(12.0_dp) ! = 2*sqrt(3) needed for stability criterion with the mutual R_Hill
   real(dp),parameter::onethird=one/three
 
   !radiants, degrees conversions etc.
@@ -72,16 +72,16 @@ module constants
   real(dp),parameter::Mnep=Msun*Mneps   ! Neptune mass in kg
 
   !radii of Solar System objects
-  real(dp),parameter::Rsun=696000._dp   ! Sun radius in km
+  real(dp),parameter::Rsun=696000.0_dp   ! Sun radius in km
   real(dp),parameter::Rmer=2439.7_dp    ! Mercury radius in km
   real(dp),parameter::Rven=6051.8_dp    ! Venus radius in km
   real(dp),parameter::Rear=6378.1366_dp ! Earth radius in km
   real(dp),parameter::Rmar=3396.19_dp   ! Mars radius in km
-  real(dp),parameter::Rjup=71492._dp    ! Jupiter radius in km
-  real(dp),parameter::Rsat=60268._dp    ! Saturn radius in km
-  real(dp),parameter::Rura=25559._dp    ! Uranus radius in km
-  real(dp),parameter::Rnep=24764._dp    ! Neptune radius in km
-  real(dp),parameter::Rplu=1195._dp     ! Pluto radius in km
+  real(dp),parameter::Rjup=71492.0_dp    ! Jupiter radius in km
+  real(dp),parameter::Rsat=60268.0_dp    ! Saturn radius in km
+  real(dp),parameter::Rura=25559.0_dp    ! Uranus radius in km
+  real(dp),parameter::Rnep=24764.0_dp    ! Neptune radius in km
+  real(dp),parameter::Rplu=1195.0_dp     ! Pluto radius in km
   !
   ! Radius conversion
   real(dp),parameter::Rsunj=Rsun/Rjup   ! Rsun to Rjup

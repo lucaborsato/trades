@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os
 import numpy as np # array
@@ -51,18 +51,18 @@ def get_args():
 #
 # INITIALISE FOLDER AND LOG FILE
 #
-def init_folder(working_path, sub_folder):
-  working_folder = os.path.join(working_path, sub_folder)
-  if (not os.path.isdir(working_folder)):
-      os.makedirs(working_folder)
-  run_log = os.path.join(working_folder, "trades_run.log")
-  of_run = open(run_log, 'w')
-  of_run.write("# pyTRADES LOG FILE\n")
-  of_run.write("# working_path = %s\n" %(working_path))
-  of_run.write("# working_folder = %s\n" %(working_folder))
-  of_run.write("# run_log = %s\n" %(run_log))
+# def init_folder(working_path, sub_folder):
+#   working_folder = os.path.join(working_path, sub_folder)
+#   if (not os.path.isdir(working_folder)):
+#       os.makedirs(working_folder)
+#   run_log = os.path.join(working_folder, "trades_run.log")
+#   of_run = open(run_log, 'w')
+#   of_run.write("# pyTRADES LOG FILE\n")
+#   of_run.write("# working_path = %s\n" %(working_path))
+#   of_run.write("# working_folder = %s\n" %(working_folder))
+#   of_run.write("# run_log = %s\n" %(run_log))
   
-  return working_folder, run_log, of_run
+#   return working_folder, run_log, of_run
 
 #def compute_ln_err_const(ndata, dof, e_RVo, e_T0o, ln_flag):
   #if (ln_flag):

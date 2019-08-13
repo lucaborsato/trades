@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import sys
 import argparse
 import os
@@ -36,11 +36,11 @@ def get_args():
 
 def main():
 
-  print 
-  print ' ================== '
-  print ' PSO PLOTS'
-  print ' ================== '
-  print
+  print() 
+  print(' ================== ')
+  print(' PSO PLOTS')
+  print(' ================== ')
+  print()
 
   # read cli arguments
   cli = get_args()
@@ -73,7 +73,7 @@ def main():
   # parameter_names and parameters_minmax in pso_run.hdf5
   if(isinstance(parameter_names, type(population)) and isinstance(parameters_minmax,type(population_fitness))):
     for ii in range(0, nfit):
-      print 'parameter: %s' %(parameter_names[ii])
+      print('parameter: %s' %(parameter_names[ii]))
       if (parameter_names[ii][0] == 'm' and parameter_names[ii][1] != 'A'):
         population[ii,:,:] = population[ii,:,:]*m_factor
         y_min = parameters_minmax[ii,0]*m_factor
@@ -82,10 +82,10 @@ def main():
         y_min = parameters_minmax[ii,0]
         y_max = parameters_minmax[ii,1]
         
-      print 'boundaries: [%.6f, %.6f]' %(y_min, y_max)  
-      print '    minmax: [%.6f, %.6f]' %(np.min(population[ii,:,:]), np.max(population[ii,:,:]))
+      print('boundaries: [%.6f, %.6f]' %(y_min, y_max))  
+      print('    minmax: [%.6f, %.6f]' %(np.min(population[ii,:,:]), np.max(population[ii,:,:])))
       pso_fig_file = os.path.join(pso_plots, 'evolution_%s.png' %(parameter_names[ii]))
-      print ' %s' %(pso_fig_file),
+      print(' %s' %(pso_fig_file), end=' ')
       fig = plt.figure(figsize=(12,12))
       for jj in range(0, npop):
         #print jj,
@@ -103,7 +103,7 @@ def main():
       plt.ylabel(kel_legends[ii])
       plt.draw()
       fig.savefig(pso_fig_file, bbox_inches='tight', dpi=150)
-      print ' done'
+      print(' done')
   #elif ():
   
   return

@@ -1,24 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os
 import numpy as np # array
-import pytrades_lib
-import emcee
 import h5py
 import sys
 import time
+import glob
+import multiprocessing as mp
+
+import emcee
+
+from constants import Mjups
 import ancillary as anc
-
-#from matplotlib import use as mpluse
-##mpluse("Agg")
-#mpluse("Qt4Agg")
-#import matplotlib.pyplot as plt
-#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-#plt.rc('text', usetex=True)
-
+import pytrades_lib
 #
 #
 #
@@ -200,7 +197,7 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
   except:
     d_sigma = np.float64(1.e-4)
   delta_sigma_out = compute_proper_sigma(nfit, d_sigma, parameter_names)
-  print ' ',
+  print(' ', end=' ')
   # init all initial walkers
   while True:
       test_p0 = np.array([fitting_parameters[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
@@ -209,41 +206,41 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
       if(not np.isinf(test_lg)):
         i_p0 +=1
         p0.append(test_p0)
-        print i_p0,
+        print(i_p0, end=' ')
         if(i_p0 == nwalkers): break
   p0[-1] = fitting_parameters # I want the original fitting paramameters in the initial walkers
-  print
+  print()
   # if 'random' opt ==> create other Gaussian starting points (<->nwalkers)
   if('ran' in str(delta_sigma).strip().lower()):
     delta_parameters = np.abs(parameters_minmax[:,1] - parameters_minmax[:,0]) # DELTA BETWEEN MAX AND MIN OF BOUNDARIES
     nw_min = 30
     n_gpts = int((nwalkers-nw_min)/nw_min) # a new Gaussian starting point each nw_min walkers, keeping at least nw_min walkers Gaussian to the original fitting parameters
-    print ' new gaussian starting points: ',n_gpts
+    print(' new gaussian starting points: ',n_gpts)
     if(n_gpts > 0):
-      print ' doing random-gaussian points ... '
+      print(' doing random-gaussian points ... ')
       for i_gpt in range(0, n_gpts):
         # create new starting point, but check if lnL != -inf
         new_start = fitting_parameters.copy()
         sel_fit = int(np.random.random()*(nfit-1)) # change only parameter...
-        print 'gpt ',i_gpt+1
-        print 'selected sel_fit = ',sel_fit,' ==> ',parameter_names[sel_fit]
-        print 'val = ', new_start[sel_fit],' with min = ',parameters_minmax[sel_fit,0],' and delta = ',delta_parameters[sel_fit]
+        print('gpt ',i_gpt+1)
+        print('selected sel_fit = ',sel_fit,' ==> ',parameter_names[sel_fit])
+        print('val = ', new_start[sel_fit],' with min = ',parameters_minmax[sel_fit,0],' and delta = ',delta_parameters[sel_fit])
         while True:
           new_start[sel_fit] = parameters_minmax[sel_fit,0] + delta_parameters[sel_fit]*np.random.random()
           test_lg = lnprob(new_start)
           if(not np.isinf(test_lg)): break
         i_pos = nw_min * i_gpt
-        print 'i_pos = ',
+        print('i_pos = ', end=' ')
         while True:
           test_p0 = np.array([new_start[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
           test_lg = lnprob(test_p0)
           if(not np.isinf(test_lg)):
             p0[i_pos] = test_p0
-            print i_pos,
+            print(i_pos, end=' ')
             i_pos +=1
             if(i_pos%nw_min == 0): break
-      print
-    print
+      print()
+    print()
    
   anc.print_both(' done initial walkers.', of_run)
   
@@ -397,7 +394,8 @@ def main():
   # RUN PSO+EMCEE n_global TIMES
   for iter_global in range(0,n_global):
 
-    threads_pool = emcee.interruptible_pool.InterruptiblePool(1)
+    # threads_pool = emcee.interruptible_pool.InterruptiblePool(1)
+    threads_pool = mp.Pool(1)
 
     # CREATES PROPER WORKING PATH AND NAME
     i_global = iter_global + 1
@@ -430,7 +428,7 @@ def main():
       anc.print_both(' fitness = %.f' %(last_pso_fitness), of_run)
       
       # SAVE PSO SIMULATION IN pso_run.hdf5 FILE
-      print ' Creating pso hdf5 file: %s' %(os.path.join(pso_path, 'pso_run.hdf5'))
+      print(' Creating pso hdf5 file: %s' %(os.path.join(pso_path, 'pso_run.hdf5')))
       pso_hdf5 = h5py.File(os.path.join(pso_path, 'pso_run.hdf5'), 'w')
       pso_hdf5.create_dataset('population', data=pytrades_lib.pytrades.population, dtype=np.float64)
       pso_hdf5.create_dataset('population_fitness', data=pytrades_lib.pytrades.population_fitness, dtype=np.float64)
@@ -438,7 +436,7 @@ def main():
       pso_hdf5.create_dataset('pso_fitness', data=np.array(pso_fitness), dtype=np.float64)
       pso_hdf5.create_dataset('pso_best_evolution', data=pso_best_evolution, dtype=np.float64)
       pso_hdf5.create_dataset('parameters_minmax', data=parameters_minmax, dtype=np.float64)
-      pso_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
+      pso_hdf5.create_dataset('parameter_names', data=anc.encode_list(parameter_names), dtype='S10')
       pso_hdf5['population'].attrs['npop'] = np_pso
       pso_hdf5['population'].attrs['niter'] = nit_pso
       pso_hdf5['population'].attrs['iter_global'] = iter_global+1
@@ -489,10 +487,11 @@ def main():
     
     # close the pool of threads
     threads_pool.close()
-    threads_pool.terminate()
+    # threads_pool.terminate()
     threads_pool.join()
     
-    threads_pool = emcee.interruptible_pool.InterruptiblePool(nthreads)
+    # threads_pool = emcee.interruptible_pool.InterruptiblePool(nthreads)
+    threads_pool = mp.Pool(nthreads)
     sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, pool=threads_pool)
     
     anc.print_both(' ready to go', of_run)
@@ -508,7 +507,7 @@ def main():
       if(os.path.exists(os.path.join(pso_path, 'emcee_summary.hdf5')) and os.path.isfile(os.path.join(pso_path, 'emcee_summary.hdf5'))):
         os.remove(os.path.join(pso_path, 'emcee_summary.hdf5'))
       f_hdf5 = h5py.File(os.path.join(pso_path, 'emcee_summary.hdf5'), 'a')
-      f_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
+      f_hdf5.create_dataset('parameter_names', data=anc.encode_list(parameter_names), dtype='S10')
       f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
       temp_dset = f_hdf5.create_dataset('chains', (nwalkers, nruns, nfit), dtype=np.float64)
       f_hdf5['chains'].attrs['nwalkers'] = nwalkers
@@ -594,7 +593,7 @@ def main():
       f_hdf5['chains'].attrs['nfit'] = nfit
       f_hdf5['chains'].attrs['nfree'] = nfree
       f_hdf5['chains'].attrs['completed_steps'] = nruns
-      f_hdf5.create_dataset('parameter_names', data=parameter_names, dtype='S10')
+      f_hdf5.create_dataset('parameter_names', data=anc.encode_list(parameter_names), dtype='S10')
       f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
       f_hdf5.create_dataset('acceptance_fraction', data=acceptance_fraction, dtype=np.float64)
       f_hdf5.create_dataset('autocor_time', data=acor_time, dtype=np.float64)
@@ -607,7 +606,7 @@ def main():
 
     # close the pool of threads
     threads_pool.close()
-    threads_pool.terminate()
+    # threads_pool.terminate()
     threads_pool.join()
     
     anc.print_both('COMPLETED EMCEE', of_run)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os #  os: operating system
 import time # time: execution time
@@ -65,13 +65,13 @@ def get_sim_data(file_in, tscale=2440000.5):
   rvsetid = np.unique(sim_in[:,7].astype(int))
   nset = np.shape(rvsetid)[0]
   
-  print 'rvsetid: ',rvsetid
-  print 'nset = ', nset
+  print('rvsetid: ',rvsetid)
+  print('nset = ', nset)
   rv_os = [] # observations and simulations data
   for i in range(0,nset):
-    print 'create rv set for i = ',i
+    print('create rv set for i = ',i)
     rvsel = sim_in[:,7].astype(int) == rvsetid[i]
-    print 'nrvsel = ',np.sum(rvsel)
+    print('nrvsel = ',np.sum(rvsel))
     orv = rv_data(sim_in[rvsel,0], sim_in[rvsel,1], sim_in[rvsel,2],
                   sim_in[rvsel,3], sim_in[rvsel,4],
                   sim_in[rvsel,5], sim_in[rvsel,6],
@@ -109,9 +109,9 @@ def read_samples(cli, samples_file = None):
   if (samples_file is not None):
     
     sh5 = h5py.File(os.path.abspath(samples_file), 'r')
-    n_samples = len(sh5.keys())
+    # n_samples = len(list(sh5.keys()))
     samples = []
-    for igr in sh5.keys(): # loop on groups, one for each sample
+    for igr in list(sh5.keys()): # loop on groups, one for each sample
       tepoch = sh5[igr].attrs['tepoch']
       trv = sh5['%s/time_rv_mod' %(igr)][...]
       rv = sh5['%s/rv_mod' %(igr)][...]
@@ -161,9 +161,12 @@ def plot_rv(cli, samples=None):
   tscale = cli.tscale
   sim_file = get_sim_file(cli)
   rv_os = get_sim_data(sim_file, tscale)
-  tmod, rvmod = get_sim_model(cli)
+  try:
+    tmod, rvmod = get_sim_model(cli)
+  except:
+    tmod, rvmod = None, None
   
-  if(tscale == 0.):
+  if(tscale == 0.0):
     xlabel = 'BJD$_\\textrm{TDB}$'
   else:
     xlabel = 'BJD$_\\textrm{TDB} - %.3f$' %(tscale)
@@ -174,7 +177,7 @@ def plot_rv(cli, samples=None):
   nrows = 3
   ncols = 1
   
-  lfont=12
+  lfont=10
   tfont=8
   mso=5
   mss=4
@@ -193,7 +196,7 @@ def plot_rv(cli, samples=None):
   lobs_a = []
   lsim_a = []
   nset = len(rv_os)
-  label_data = ['RV dataset \#%d' %(i+1) for i in range(0,nset)]
+  label_data = [r'RV dataset \#%d' %(i+1) for i in range(0,nset)]
   if(cli.labels is not None):
     nlabels = len(list(cli.labels))
     label_data[0:nlabels] = [ll for ll in list(cli.labels)]
@@ -225,15 +228,16 @@ def plot_rv(cli, samples=None):
                     )
     lsim_a.append(lsim)
   xlims = ax.get_xlim()
-  # plot model and samples
-  lmod, = ax.plot(tmod, rvmod, 
-                  color='black', marker='None', ls='--', lw=0.8,
-                  zorder=6,
-                  label='RV model'
-                  )
+  if(tmod is not None):
+    # plot model and samples
+    lmod, = ax.plot(tmod, rvmod, 
+                    color='black', marker='None', ls='--', lw=0.8,
+                    zorder=6,
+                    label='RV model'
+                    )
   if(samples is not None):
     lsmp_a = []
-    nsmp = len(samples)
+    # nsmp = len(samples)
     for smp in samples:
       lsmp, = ax.plot(smp.time_plot, smp.rv_mod,
                       color='gray', marker='None', ls='-', lw=0.5,
@@ -245,8 +249,12 @@ def plot_rv(cli, samples=None):
       
   ax.set_xlim(xlims)
   
-  if(samples is None):
+  if(samples is None and tmod is None):
+    lhand = lobs_a + [lsim_a[0]]
+  elif(samples is None and tmod is not None):
     lhand = lobs_a + [lsim_a[0], lmod]
+  elif(samples is not None and tmod is None):
+    lhand = lobs_a + [lsim_a[0], lsmp_a[0]]
   else:
     lhand = lobs_a + [lsim_a[0], lmod, lsmp_a[0]]
   
@@ -278,17 +286,18 @@ def plot_rv(cli, samples=None):
                 zorder=5,
                 )
   
-  print 'full_path', cli.full_path
-  folder_out = os.path.join(os.path.dirname(cli.full_path), 'plots')
-  print 'folder_out', folder_out
+  print('full_path', cli.full_path)
+  # folder_out = os.path.join(os.path.dirname(cli.full_path), 'plots')
+  folder_out = os.path.join(cli.full_path, 'plots')
+  print('folder_out', folder_out)
   if(not os.path.isdir(folder_out)): os.makedirs(folder_out)
   fname = os.path.basename(sim_file)
   plt_file = os.path.join(folder_out, os.path.splitext(fname)[0])
   fig.savefig('%s.png' %(plt_file), bbox_inches='tight', dpi=200)
-  print 'Saved plot into:'
-  print '%s' %('%s.png' %(plt_file))
+  print('Saved plot into:')
+  print('%s' %('%s.png' %(plt_file)))
   fig.savefig('%s.pdf' %(plt_file), bbox_inches='tight', dpi=72)
-  print '%s' %('%s.pdf' %(plt_file))
+  print('%s' %('%s.pdf' %(plt_file)))
   plt.close(fig)
   
   return

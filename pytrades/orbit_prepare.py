@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os #  os: operating system
 #import time # time: execution time
@@ -49,12 +49,12 @@ def getArgs():
   idsim = args[1]
   lmf = args[2]
   zoom = args[3]
-  print 
-  print " FOLDER PATH: " + fpath
-  print "       IDsim: " + idsim
-  print "      LMflag: " + lmf
-  print "    plotting: " + zoom
-  print 
+  print() 
+  print(" FOLDER PATH: " + fpath)
+  print("       IDsim: " + idsim)
+  print("      LMflag: " + lmf)
+  print("    plotting: " + zoom)
+  print() 
   return fpath, idsim, lmf, zoom
 
 
@@ -69,7 +69,7 @@ def readStar(fpath):
   Mstar = float( ofstar.readline().split('\t')[0].split(' ')[0] )
   Rstar = float( ofstar.readline().split('\t')[0].split(' ')[0] )
   ofstar.close()
-  print " M_star = %.4f M_sun --- R_star = %.4f R_sun = %.12f R_au" %(Mstar, Rstar, Rstar*cst.RsunAU)
+  print(" M_star = %.4f M_sun --- R_star = %.4f R_sun = %.12f R_au" %(Mstar, Rstar, Rstar*cst.RsunAU))
   return Mstar, Rstar
 
 # read #_rotorbit.dat
@@ -77,17 +77,17 @@ def readOrbit(fpath, idsim, lmf):
   orbnm = str(idsim) + "_" + str(lmf) + "_rotorbit.dat"
   forb = os.path.join(fpath, orbnm)
   data = np.genfromtxt(forb)
-  print " read file " + forb
+  print(" read file " + forb)
   data0 = data[0].copy()
-  print " selected initial state vector "
+  print(" selected initial state vector ")
   idx = np.argsort(data[:,0])
   #print data.shape, data[0,0]
   datasorted = data[idx,:]
-  print " sorted orbit data "
+  print(" sorted orbit data ")
   #print datasorted.shape, datasorted[0,0]
   ncols = data.shape[1]
   nb = int((ncols - 3) / 6)
-  print " determined NB = ",nb
+  print(" determined NB = ",nb)
   #data0 = initial state vector
   #datasorted = orbit data sorted in time
   #nb = number of bodies of the system
@@ -138,7 +138,7 @@ def readElements(path, idsim, lmf):
   elef = str(idsim) + "_" + str(lmf) + "_initialElements.dat"
   fele = os.path.join(path, elef)
   elements = np.genfromtxt(fele)
-  print " read elements file: " + elef
+  print(" read elements file: " + elef)
   return elements
 
 # select X, Y, Z for Z values higher than selZ
@@ -247,7 +247,7 @@ def selOnePeriodOrbit(idb, elem, intTime, BJD, Xa, Ya, selAx):
     nmid = int(nsteps * 0.5)
   else:
     nmid = 0
-  print " nmid = ", nmid, " nsteps = ", nsteps
+  print(" nmid = ", nmid, " nsteps = ", nsteps)
   ntra = 0
   for i in range(nmid, nsteps):
     if selAx[idb-2] == 0:
@@ -266,19 +266,19 @@ def selOnePeriodOrbit(idb, elem, intTime, BJD, Xa, Ya, selAx):
   BJDt = BJD1[BJD1>=BJDmin]
   Xt = Xa1[BJD1>=BJDmin]
   Yt = Ya1[BJD1>=BJDmin]
-  print " BJDtra = ", BJDtra
-  print " BJDmin = ", BJDmin, " BJDt[0] = ", BJDt[0]
+  print(" BJDtra = ", BJDtra)
+  print(" BJDmin = ", BJDmin, " BJDt[0] = ", BJDt[0])
   BJDok = BJDt[BJDt<=BJDmax]
   Xok = Xt[BJDt<=BJDmax]
   Yok = Yt[BJDt<=BJDmax]
-  print " BJDmax = ", BJDmax, " BJDok[-1] = ", BJDok[-1]
+  print(" BJDmax = ", BJDmax, " BJDok[-1] = ", BJDok[-1])
   return BJDok, Xok, Yok
 
 # saves single body data for sky-plane plot
 def saveSkyFile(plotFolder, idsim, lmf, idb, BJD, Xa, Ya, selAx):
   skyF = str(idsim) + "_" + str(lmf) + "_NB" + str(idb) + "_skyplane.dat"
   skyP = os.path.join(plotFolder, skyF)
-  print " ready to write file " + skyP
+  print(" ready to write file " + skyP)
   oSky = open(skyP, 'w')
   ids = np.argsort(BJD)
   #if selAx[idb-2] == 0:
@@ -298,9 +298,9 @@ def saveSkyFile(plotFolder, idsim, lmf, idb, BJD, Xa, Ya, selAx):
 # saves all data for sky-plane plot
 def saveAllSky(plotFolder, idsim, lmf, nb, elem, iX, iY, iZ, intTime, BJD, Xall, Yall, Zall, selAx):
   for idb in range(2, nb+1):
-    print " body number " + str(idb)
+    print(" body number " + str(idb))
     BJDa, Xa, Ya, Za = selZhigher2(idb, BJD, Xall, Yall, Zall, 0.)
-    print " number of steps with Z > 0: %d" %(BJDa.shape[0])
+    print(" number of steps with Z > 0: %d" %(BJDa.shape[0]))
     if BJDa.shape[0] > 0:
       BJDok, Xok, Yok = selOnePeriodOrbit(idb, elem, intTime, BJDa, Xa, Ya, selAx)
       saveSkyFile(plotFolder, idsim, lmf, idb, BJDok, Xok, Yok, selAx)

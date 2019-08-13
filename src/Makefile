@@ -1,11 +1,15 @@
 # MY MAKEFILE
 #
+# UNSET LDFLAGS, DUE TO ANACONDA/ENV ISSUE
+undefine LDFLAGS
+
 # gfortran compiler
 CC = gfortran
 # CC = /usr/bin/mpif90
 # CC = /proper/path/to/gfortran/or/mpif90/compiler
 # f2py
-F2PYCC = f2py --f90exec=$(CC)
+# F2PYCC = f2py --f90exec=$(CC)
+F2PYCC = f2py --quiet --f90exec=$(CC)
 # WARNING: file .f2py_f2cmap must be present (it is within the src/ folder)
 
 # compiler options
@@ -20,7 +24,7 @@ COMP=-fopenmp
 # for MPI
 CMPI= -DMPI
 # for F2PY
-F2PYCF = -fPIC
+F2PYCF = -fPIC -shared
 TRADESLIB=pytrades_lib
 
 # executable
@@ -91,25 +95,29 @@ trades_parallel_release: obj_parallel_release
 # compile the python library only
 pylib_serial_debug:
 	$(F2PYCC) --f90flags='$(CFLAGS) $(F2PYCF)' -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-	cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
+	# cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
+	cp $(TRADESLIB).*.so ../pytrades/$(TRADESLIB).so
 
 pytrades_serial_debug: obj_serial_debug pylib_serial_debug
 
 pylib_serial_release:
 	$(F2PYCC) --f90flags='$(COPT) $(F2PYCF)' -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-	cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
+	# cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
+	cp $(TRADESLIB).*.so ../pytrades/$(TRADESLIB).so
 
 pytrades_serial_release: obj_serial_release pylib_serial_release
 
 pylib_parallel_debug:
 	$(F2PYCC) --f90flags='$(CFLAGS) $(F2PYCF) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-	cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
+	# cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
+	cp $(TRADESLIB).*.so ../pytrades/$(TRADESLIB).so
 
 pytrades_parallel_debug: obj_parallel_debug pylib_parallel_debug
 
 pylib_parallel_release:
 	$(F2PYCC) --f90flags='$(COPT) $(F2PYCF) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-	cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
+	# cp $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
+	cp $(TRADESLIB).*.so ../pytrades/$(TRADESLIB).so
 
 pytrades_parallel_release: obj_parallel_release pylib_parallel_release
 
@@ -127,7 +135,7 @@ clean:
 	rm -f *.o *.mod
 
 clean_pytrades: clean
-	rm -f $(TRADESLIB).so ../pytrades/$(TRADESLIB).so
+	rm -f $(TRADESLIB).*.so ../pytrades/$(TRADESLIB).so
 
 clean_exe:
 	rm -f $(TARGET_0)

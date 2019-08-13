@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import argparse
 import os
 import numpy as np # array
@@ -34,7 +34,7 @@ def get_args():
   return cli
 
 def print_both(line, of_log=None):
-  print line
+  print(line)
   if(of_log is not None):
     of_log.write(line + '\n')
   return

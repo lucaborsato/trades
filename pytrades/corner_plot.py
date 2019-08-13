@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import division # no more "zero" integer division bugs!:P
+ # no more "zero" integer division bugs!:P
 import sys
 import argparse
 import time
@@ -35,7 +35,7 @@ def main():
   parameter_names, posterior, nposterior, nfit = read_posterior(cli.full_path)
   # set label and legend names
   Kep_labels = anc.keplerian_legend(parameter_names, cli.m_type)
-  plot_labels = [u"%s" %(Kep_labels[ii]) for ii in range(0, nfit)]
+  plot_labels = ["%s" %(Kep_labels[ii]) for ii in range(0, nfit)]
   #print Kep_labels
   #print plot_labels
   plot_folder = os.path.join(cli.full_path, 'plots')
@@ -67,9 +67,9 @@ def main():
 
   
   fig.savefig('%s.png' %(corner_file), dpi=300)
-  print 'Saved plot %s.png' %(corner_file)
+  print('Saved plot %s.png' %(corner_file))
   fig.savefig('%s.pdf' %(corner_file), dpi=150)
-  print 'Saved plot %s.pdf' %(corner_file)
+  print('Saved plot %s.pdf' %(corner_file))
   #fig.savefig('%s.png' %(corner_file), bbox_inches='tight', dpi=300)
   #fig.savefig('%s.pdf' %(corner_file), bbox_inches='tight', dpi=150)
   
