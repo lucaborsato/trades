@@ -1,6 +1,6 @@
 # TRADES
     
-**`TRADES` v2.15.0 by Luca Borsato - 2016-2018**    
+**`TRADES` v2.15.1 by Luca Borsato - 2016-2019**    
 
 Most of the information can be found in the paper by  [Borsato et al. (2014)][Borsato2014] and
 at the webpage [TRADES@ESPG][TRADESESPG].    
@@ -12,7 +12,7 @@ Comments are welcome!
 **only tested on a Unix/Linux machine (i.e., Centos Rocks 5.3, Ubuntu > 12.04 and derivatives)**    
 **Please use `gfortran` version greater than `4.8.1`. Previous versions could fail to compile.**    
 **`openMP` required to compile parallel versions `TRADES`**    
-**Required `python` packages: `numpy`, `sys`, `argparse`, `os`, `scipy.stats`, `random`, `logging`, `warnings`, `glob`, `matplotlib`, [`veusz`][veusz] `h5py`, [`acor`][acor], [`emcee`][emcee], `subprocess`, `multiprocessing`, `time`, `shutil`**    
+**Required `python` packages: `numpy`, `sys`, `argparse`, `os`, `scipy.stats`, `random`, `glob`, `matplotlib`, `h5py`, [`emcee`][emcee], `subprocess`, `multiprocessing`, `time`, `shutil`**    
 **`pyPolyChord` required to use in combination with `pyTRADES`. 
 Follow `pyPolyChord` instructions to install it.**    
 
@@ -308,6 +308,8 @@ List of the files with explanation:
     (1) transit epoch (N), an integer number that identifies the transit w.r.t. a reference transit time `$T_\textrm{ref}$` and refined by a linear ephemeris of kind: `$T_N = T_\textrm{ref} + P_\textrm{ref} \times N$`;    
     (2) the transit time (`$T_0$`) in JD or the same time unit of the integration/epoch/start time;    
     (3) the uncertainty on the `$T_0$`.
+    (4) the total transit duration (`$T_{14}$`) in minutes. `[optional]`  
+    (5) the uncertainty on the `$T_{14}$` in minutes. `[optional]`
     Example file [`NB2_observations.dat`](trades_example/NB2_observations.dat)     
 
 8.  `NB3_observations.dat`: same kind of file `NB2_observations.dat`, but for the planet in the third row of `bodies.lst`, i.e., `c.dat` is planet 3.     
@@ -375,13 +377,20 @@ Check also other files in the `pytrades` folder to understand how to use the pyt
 ### Changes/Log
 **sorry, I will not be able to report all the small changes...**    
 
+#### `TRADES 2.15.1`
+Changes:  
+
+- moved `pytrades` from `python 2` to `python 3`;
+- removed unused variables;
+- added a subroutine/function to get only the reduced chi square (`$\chi^{2}_{r}$`).  
+
 #### `TRADES 2.15.0`
 Changed how TRADES stores and manages the observed and simulated data (Transit Times and Radial Velocities) 
 and it uses new data type.    
 TRADES can now fit the transit duration in minutes defined as the difference between 
 the last (T4) and the first (t1) contact time.    
 Improved the T0 and the T4/T1 determination, and now it uses the integrator in the Bisection-Newton-Raphson,
-in this way it avoids numericals issues with analytical f and g function when 
+in this way it avoids numericals issues with analytical `f` and `g` function when 
 assuming constants keplerian orbital elements during transit.     
 
 #### `TRADES 2.14.1`
