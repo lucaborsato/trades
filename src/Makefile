@@ -5,8 +5,11 @@ undefine LDFLAGS
 
 # gfortran compiler
 CC = gfortran
+# CC = /home/borsato/libraries/intel/bin/ifort
+
 # CC = /usr/bin/mpif90
 # CC = /proper/path/to/gfortran/or/mpif90/compiler
+
 # f2py
 # F2PYCC = f2py --f90exec=$(CC)
 F2PYCC = f2py --quiet --f90exec=$(CC)
@@ -14,6 +17,8 @@ F2PYCC = f2py --quiet --f90exec=$(CC)
 
 # compiler options
 CFLAGS=-cpp -Og -g -Wfatal-errors -Wall -fcheck=all -ffree-line-length-none -Wsurprising -Waliasing -Wimplicit-interface -fbacktrace -ffpe-trap=invalid,zero,overflow,underflow
+# for ifort
+# CFLAGS=-O0 -g -traceback -check all -check bounds -ftrapuv -debug all -gen-interfaces -align all
 # CFLAGS+=-pg # profiling 
 COPT=-cpp -O3 -ffree-line-length-none -ffpe-trap=invalid,zero,overflow,underflow
 # COPT+=-pg # profiling
@@ -66,31 +71,55 @@ obj_parallel_debug:
 	$(CC) $(CFLAGS) $(COMP) $(F2PYCF) -I. -c $(FSRCS)
 obj_parallel_release:
 	$(CC) $(COPT) $(COMP) $(F2PYCF) -I. -c $(FSRCS)
+# obj_serial_debug:
+# 	$(CC) $(CFLAGS) -I. -c $(FSRCS)
+# obj_serial_release:
+# 	$(CC) $(COPT) -I. -c $(FSRCS)
+# obj_parallel_debug:
+# 	$(CC) $(CFLAGS) $(COMP) -I. -c $(FSRCS)
+# obj_parallel_release:
+# 	$(CC) $(COPT) $(COMP) -I. -c $(FSRCS)
 
 # compile the executables FORTRAN only
 trades_serial_debug: obj_serial_debug
-	$(CC) $(CFLAGS) $(F2PYCF) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_SER_4)
-	$(CC) $(CFLAGS) $(F2PYCF) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_SER_2)
-	$(CC) $(CFLAGS) $(F2PYCF) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
-	$(CC) $(CFLAGS) $(F2PYCF) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_SER_3)
+	$(CC) $(CFLAGS) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_SER_4)
+	$(CC) $(CFLAGS) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_SER_2)
+	$(CC) $(CFLAGS) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
+	$(CC) $(CFLAGS) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_SER_3)
+	# $(CC) $(CFLAGS) $(F2PYCF) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_SER_4)
+	# $(CC) $(CFLAGS) $(F2PYCF) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_SER_2)
+	# $(CC) $(CFLAGS) $(F2PYCF) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
+	# $(CC) $(CFLAGS) $(F2PYCF) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_SER_3)
 
 trades_serial_release: obj_serial_release
-	$(CC) $(COPT) $(F2PYCF) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_SER_4)
-	$(CC) $(COPT) $(F2PYCF) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_SER_2)
-	$(CC) $(COPT) $(F2PYCF) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
-	$(CC) $(COPT) $(F2PYCF) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_SER_3)
+	$(CC) $(COPT) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_SER_4)
+	$(CC) $(COPT) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_SER_2)
+	$(CC) $(COPT) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
+	$(CC) $(COPT) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_SER_3)
+	# $(CC) $(COPT) $(F2PYCF) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_SER_4)
+	# $(CC) $(COPT) $(F2PYCF) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_SER_2)
+	# $(CC) $(COPT) $(F2PYCF) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
+	# $(CC) $(COPT) $(F2PYCF) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_SER_3)
 
 trades_parallel_debug: obj_parallel_debug
-	$(CC) $(CFLAGS) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_OMP_4)
-	$(CC) $(CFLAGS) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_OMP_2)
-	$(CC) $(CFLAGS) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
-	$(CC) $(CFLAGS) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_OMP_3)
+	$(CC) $(CFLAGS) $(COMP) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_OMP_4)
+	$(CC) $(CFLAGS) $(COMP) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_OMP_2)
+	$(CC) $(CFLAGS) $(COMP) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
+	$(CC) $(CFLAGS) $(COMP) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_OMP_3)
+	# $(CC) $(CFLAGS) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_OMP_4)
+	# $(CC) $(CFLAGS) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_OMP_2)
+	# $(CC) $(CFLAGS) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
+	# $(CC) $(CFLAGS) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_OMP_3)
 
 trades_parallel_release: obj_parallel_release
-	$(CC) $(COPT) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_OMP_4)
-	$(CC) $(COPT) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_OMP_2)
-	$(CC) $(COPT) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
-	$(CC) $(COPT) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_OMP_3)
+	$(CC) $(COPT) $(COMP) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_OMP_4)
+	$(CC) $(COPT) $(COMP) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_OMP_2)
+	$(CC) $(COPT) $(COMP) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
+	$(CC) $(COPT) $(COMP) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_OMP_3)
+	# $(CC) $(COPT) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_grid.f90 -o $(TARGET_OMP_4)
+	# $(CC) $(COPT) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_OMP_2)
+	# $(CC) $(COPT) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
+	# $(CC) $(COPT) $(COMP) $(F2PYCF) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_OMP_3)
 
 # compile the python library only
 pylib_serial_debug:

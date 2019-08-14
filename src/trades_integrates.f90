@@ -46,7 +46,7 @@ program main_integrates
   ! IT INTEGRATES THE ORBITS AND WRITES RESULTS TO SCREEN AND FILES
   call ode_integrates(cpuid,sim_id,0,m,R,P,a,e,w,mA,inc,lN)
   
-! deallocate all the variables
+  ! deallocate all the variables
   if(allocated(m)) deallocate(m,R,P,a,e,w,mA,inc,lN)
   call deallocate_all()
 
