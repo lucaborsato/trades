@@ -231,7 +231,7 @@ def plot_oc_T41(cli, file_in, samples):
   tfont=8
   
   if(tscale > 0.0):
-    xlabel = r'BJD$_\textrm{TDB} - {0:.3f}$'.format(tscale)
+    xlabel = r'BJD$_\textrm{{TDB}} - {0:.3f}$'.format(tscale)
   else:
     xlabel = r'BJD$_\textrm{TDB}$'
 

@@ -203,9 +203,10 @@ def plot_rv(cli, samples=None):
   
   for i in range(0, nset):
     rv = rv_os[i]
+    sort_obs = np.argsort(rv.time_plot)
     # data
-    lobs = ax.errorbar(rv.time_plot, rv.rvo,
-                       yerr=rv.eRVo,
+    lobs = ax.errorbar(rv.time_plot[sort_obs], rv.rvo[sort_obs],
+                       yerr=rv.eRVo[sort_obs],
                        color='black', ecolor='gray',
                        #fmt=filled_markers[i], ms=mso, mec='None',
                        fmt=filled_markers[i], ms=mso, mfc='white', mec='black',
@@ -217,7 +218,7 @@ def plot_rv(cli, samples=None):
                        )
     lobs_a.append(lobs)
     # trades
-    lsim, = ax.plot(rv.time_plot, rv.rvs,
+    lsim, = ax.plot(rv.time_plot[sort_obs], rv.rvs[sort_obs],
                     #marker=filled_markers[i], ms=mss, mfc='None',
                     color='C0',
                     marker=filled_markers[i], ms=mss,
@@ -230,7 +231,8 @@ def plot_rv(cli, samples=None):
   xlims = ax.get_xlim()
   if(tmod is not None):
     # plot model and samples
-    lmod, = ax.plot(tmod, rvmod, 
+    sort_mod = np.argsort(tmod)
+    lmod, = ax.plot(tmod[sort_mod], rvmod[sort_mod], 
                     color='black', marker='None', ls='--', lw=0.8,
                     zorder=6,
                     label='RV model'
@@ -239,7 +241,8 @@ def plot_rv(cli, samples=None):
     lsmp_a = []
     # nsmp = len(samples)
     for smp in samples:
-      lsmp, = ax.plot(smp.time_plot, smp.rv_mod,
+      sort_smp = np.argsort(smp.time_plot)
+      lsmp, = ax.plot(smp.time_plot[sort_smp], smp.rv_mod[sort_smp],
                       color='gray', marker='None', ls='-', lw=0.5,
                       alpha=0.33,
                       zorder=5,
@@ -274,8 +277,9 @@ def plot_rv(cli, samples=None):
   
   for i in range(0, nset):
     rv = rv_os[i]
-    ax.errorbar(rv.time_plot, rv.dRVos,
-                yerr=rv.eRVo,
+    sort_obs = np.argsort(rv.time_plot)
+    ax.errorbar(rv.time_plot[sort_obs], rv.dRVos[sort_obs],
+                yerr=rv.eRVo[sort_obs],
                 #fmt=filled_markers[i], ms=4, mec='None',
                 color='C0',
                 fmt=filled_markers[i], ms=mss, mec='lightgray', mew=0.5,
@@ -351,7 +355,7 @@ def get_args():
 
   cli = parser.parse_args()
   
-  full_path = os.path.abspath(cli.full_path)
+  cli.full_path = os.path.abspath(cli.full_path)
   
   cli.idsim = int(cli.idsim)
   

@@ -2225,6 +2225,7 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         w_chi2r=real(ndata,dp)/real(nRV,dp)
         chi2wr_RV=chi2r_RV*w_chi2r
         deallocate(resw_temp)
+        write(*,'(a)')' DEBUG: set_RV_resw, chi2r_RV, deallocated resw_temp'
         ! 2016-04-08: added gls check
         if(present(gls_scale))then
           call check_and_write_periodogram(cpuid,isim,wrtid,&
@@ -2236,6 +2237,8 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
             &obsData%obsRV%eRV,P,gls_check)
         end if
         if(.not.gls_check)resw=set_max_residuals(ndata)
+
+        write(*,'(a)')' DEBUG: gls check'
 
       else
 
@@ -2283,6 +2286,7 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 !     if(ndata.gt.0)then
 !       if(.not.checkpar.or..not.Hc) resw=set_max_residuals(ndata)
       fitness = sum(resw*resw)
+      write(*,'(a)')' DEBUG: fitness'
 
       if(present(to_screen))then
         if(present(fit_scale))then
@@ -2310,15 +2314,19 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
     end if  ! ndata
 
+    write(*,'(a)')' DEBUG: deallocating simRV'
 !     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
 !     if(allocated(gamma)) deallocate(gamma)
 !     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
     call deallocate_dataRV(simRV)
+    write(*,'(a)')' DEBUG: deallocating simT0'
     if(nTTs.gt.0)then
       do ibd=1,NB-1
         call deallocate_dataT0(simT0(ibd))
       end do
     end if
+
+    write(*,'(a)')' DEBUG: ode_out deallocated simRV and simT0...now deallocating kep/ra'
 
     if(allocated(m))   deallocate(m,R,P,sma,ecc,w,mA,inc,lN,clN)
     if(allocated(ra0)) deallocate(ra0,ra1)
