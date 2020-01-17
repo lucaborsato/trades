@@ -336,7 +336,8 @@ def main():
 # ==============================================================================
   # nbins = anc.get_auto_bins(flatchain_posterior_0)
 
-  hdi_ci, mode_parameters = anc.compute_hdi_full(flatchain_posterior_0, mode_output=True)
+  # hdi_ci, mode_parameters = anc.compute_hdi_full(flatchain_posterior_0, mode_output=True)
+  hdi_ci = anc.compute_hdi_full(flatchain_posterior_0)
   ci_fitted = hdi_ci.T
   print(' shape: hdi_ci = ', np.shape(hdi_ci), ' ci_fitted = ', np.shape(ci_fitted))
   # hdi_ci: nfit x nci
@@ -407,7 +408,7 @@ def main():
 # ==============================================================================
   #npost_der, nder = np.shape(der_posterior)
   #k_der = anc.get_auto_bins(der_posterior)
-  hdi_ci_derived = anc.compute_hdi_full(der_posterior, mode_output=False)
+  hdi_ci_derived = anc.compute_hdi_full(der_posterior)
   ci_derived = hdi_ci_derived.T
   
   s_h5f.create_dataset('confidence_intervals/derived/ci', 
@@ -458,17 +459,9 @@ def main():
     anc.print_both(' Saving into %s' %(samples_file))
     smp_h5 = h5py.File(samples_file, 'w')
     save_ttra_and_rv_from_samples(samples_fit_par, names_par, NB, cli.n_samples, smp_h5)
-    #tra_gr = smp_h5.create_group('T0')
-    #for key in ttra_samples.keys():
-      #tra_gr.create_dataset(key, data=ttra_samples[key], dtype=np.float64, compression='gzip')
-    #rv_gr =  smp_h5.create_group('RV')
-    #for key in rv_samples.keys():
-      #rv_gr.create_dataset(key, data=rv_samples[key], dtype=np.float64, compression='gzip')
-    #rv_gr['time_rv_mod'].attrs['tepoch'] = pytrades_lib.pytrades.tepoch
     smp_h5.close()
     anc.print_both(' ... done')
     sys.stdout.flush()
-  #sys.exit()
 # ==============================================================================
 
   print()
@@ -477,12 +470,8 @@ def main():
 # ==============================================================================
 ## MODE-LIKE PARAMETERS -> id 3050
 # ==============================================================================
-  ## take the mean of 5 bin centered to the higher bin
-
-  #anc.print_both('nbins = %d' %(nbins))
-  #sys.stdout.flush()
-  #mode_bin, mode_parameters = anc.get_mode_parameters(flatchain_posterior_0, nbins)
-  # mode_parameters computed at the beginning with hdi
+  # mode_parameters computed as the 3xmedian - 2xmean
+  mode_parameters = 3*median_parameters - 2*np.mean(flatchain_posterior_0, axis=0)
   
   if(np.any(np.isnan(mode_parameters))):
     print('Some values are Nan, skip the mode parameters')

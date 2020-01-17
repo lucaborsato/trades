@@ -266,6 +266,16 @@ def get_args():
 
   return cli
 
+# ==============================================================================
+def period_to_semimajoraxis(Ms_Msun,Mp_Msun,P_days):
+
+  mu = cst.Giau * (Ms_Msun+Mp_Msun)
+  P2 = P_days*P_days
+  twopi2 = cst.dpi*cst.dpi
+  sma = ((mu*P2)/twopi2)**cst.onethird
+
+  return sma
+
 
 # ==============================================================================
 
@@ -540,7 +550,8 @@ def rescale_angle(angle):
 def renormalize_parameters(parameters, parameter_names):
   
   new_parameters = parameters.copy()
-  nfit = np.array(new_parameters).shape[0]
+  # nfit = np.array(new_parameters).shape[0]
+  nfit, _ = np.shape(new_parameters)
   for i in range(0, nfit):
     if (parameter_names[i][:2] == 'mA'):
       new_parameters[i] = (parameters[i] + 360.) % 360.
@@ -1785,45 +1796,20 @@ def compute_intervals(flatchain, parameters, percentiles):
 
 # ==============================================================================
 
-def compute_hdi_full(flatchains, mode_output=False):
+def compute_hdi_full(flatchains):
   
-  alpha=[0.3173, 0.0456, 0.0026]
+  # alpha=[0.3173, 0.0456, 0.0026]
   _, npar = np.shape(flatchains)
-  #print '\n^^^\nIN compute_hdi_full WITH (npost , npar) = (%d , %d)' %(npost, npar)
-  
-  nbins = get_auto_bins(flatchains)
-  #print 'nbins = ',nbins
-  
-  #print 'Computing hdi_full ....',
-  hdi_full = [(calculate_hdi(flatchains[:,ipar],
-               nbins,
-               alpha,
-               mode_output=mode_output
-               )
-               ) for ipar in range(npar)
-             ]
-  #print 'done with shape ', np.shape(hdi_full), ' and type ',type(hdi_full)
-  #print hdi_full
-  
-  #print 'Reformatting hdi_full to hdi_l:'
+  hdi_full = [calculate_hpd(flatchains[:,ipar]) for ipar in range(npar)]
+
   hdi_l = [[hdi_full[ipar][0][0], hdi_full[ipar][0][1], # -1sigma +1sigma
             hdi_full[ipar][1][0], hdi_full[ipar][1][1], # -2sigma +2sigma
             hdi_full[ipar][2][0], hdi_full[ipar][2][1]  # -3sigma +3sigma
           ] for ipar in range(npar)]
-  #print 'hdi_l with shape ',np.shape(hdi_l), ' and type ',type(hdi_l)
   
   hdi_a = np.array(hdi_l, dtype=np.float64)
-  #print 'hdi_a with shape ',np.shape(hdi_a), ' and type ',type(hdi_a)
   
   hdi = np.reshape(hdi_a, newshape=((npar,-1)))
-  #print 'hdi   with shape ',np.shape(hdi), ' and type ',type(hdi)
-  
-  if(mode_output):
-    mode = np.array([hdi_full[ipar][3] for ipar in range(npar)], dtype=np.float64)
-    #print '^^^\n'
-    return hdi, mode
-  
-  #print '^^^\n'
   
   return hdi
 
@@ -1831,17 +1817,18 @@ def compute_hdi_full(flatchains, mode_output=False):
 
 def compute_sigma_hdi(flatchains, parameters):
   
-  alpha=[0.3173, 0.0456, 0.0026]
+  # alpha=[0.3173, 0.0456, 0.0026]
   
   _, npar = np.shape(flatchains)
   #print '\n^^^\nIN compute_sigma_hdi WITH (npost , npar) = (%d , %d)\n^^^\n' %(npost, npar)
-  nbins = get_auto_bins(flatchains)
+  # nbins = get_auto_bins(flatchains)
   
-  hdi_full = [(calculate_hdi(flatchains[:,ipar],
-                            nbins, alpha, 
-                            mode_output=False
-                            )
-                      ) for ipar in range(npar)]
+  # hdi_full = [(calculate_hdi(flatchains[:,ipar],
+  #                           nbins, alpha, 
+  #                           mode_output=False
+  #                           )
+  #                     ) for ipar in range(npar)]
+  hdi_full = [calculate_hpd(flatchains[:,ipar]) for ipar in range(npar)]
   
   sigma_par = np.array([[hdi_full[ipar][0][0] - parameters[ipar],
                          hdi_full[ipar][0][1] - parameters[ipar],
@@ -2299,7 +2286,7 @@ def derived_posterior_check(derived_names_in, derived_posterior_in):
       cosp = np.cos(derived_posterior_in[:, ider] * deg2rad)
       sinp = np.sin(derived_posterior_in[:, ider] * deg2rad)
       p_scale = np.arctan2(sinp, cosp) * rad2deg
-      p_mod = (p_scale + 360.) % 360.
+      p_mod = (p_scale + 360.0) % 360.0
       _, temp_post = get_good_distribution(p_scale, p_mod)
       derived_posterior[:, ider] = temp_post
 
@@ -2440,7 +2427,7 @@ def compute_derived_posterior(idpar, kep_elem_in, id_fit, case_list, cols_list, 
 
 # ==============================================================================
 
-def compute_derived_parameters(idpar, kep_elem_in, id_fit, case_list, cols_list, parameters, conv_factor=1.):
+def compute_derived_parameters(idpar, kep_elem_in, id_fit, case_list, cols_list, parameters, conv_factor=1.0):
   NB = len(case_list)
   # nfit = len(id_fit)
   #print 'NB =', NB
@@ -2848,14 +2835,6 @@ def calculate_hdi(x, nbins, alpha=[0.05], mode_output=False):
   
   if(mode_output):
     max_bin = np.argmax(np.array(counts))
-    #if (max_bin == 0 or max_bin == nbins):
-      #ext_bin = 0
-    #elif (max_bin == 1 or max_bin == nbins-1):
-      #ext_bin = 1
-    #else:
-      #ext_bin = 2
-    #sel_bin = np.logical_and(x >= bin_edges[max_bin-ext_bin],
-                             #x < bin_edges[max_bin+ext_bin+1])
     sel_bin = np.logical_and(x >= bin_edges[max_bin],
                              x < bin_edges[max_bin+1])
     
@@ -2863,6 +2842,68 @@ def calculate_hdi(x, nbins, alpha=[0.05], mode_output=False):
     hdi_ci.append(mode)
   
   return hdi_ci
+
+# ==============================================================================
+# COMPUTES THE HDI/HPD FROM PYASTRONOMY
+# ==============================================================================
+def hpd(trace, cred=0.6827):
+    """
+    Estimate the highest probability density interval.
+
+    This function determines the shortest, continuous interval
+    containing the specified fraction (cred) of steps of
+    the Markov chain. Note that multi-modal distribution
+    may require further scrutiny.
+
+    Parameters
+    ----------
+    trace : array
+        The steps of the Markov chain.
+    cred : float
+        The probability mass to be included in the
+        interval (between 0 and 1).
+
+    Returns
+    -------
+    start, end : float
+        The start and end points of the interval.
+    """
+    cred_def = 0.6827
+    if (cred > 1.0) or (cred < 0.0):
+      print('CRED HAS TO BE: 0 < cred < 1 ==> setting to cred = {}'.format(cred_def))
+      cred = cred_def
+
+    # Sort the trace steps in ascending order
+    st = np.sort(trace)
+
+    # Number of steps in the chain
+    n = len(st)
+    # Number of steps to be included in the interval
+    nin = int(n * cred)
+
+    # All potential intervals must be 1) continuous and 2) cover
+    # the given number of trace steps. Potential start and end
+    # points of the HPD are given by
+    starts = st[0:-nin]
+    ends = st[nin:]
+    # All possible widths are
+    widths = ends - starts
+    # The density is highest in the shortest one
+    imin = np.argmin(widths)
+    return starts[imin], ends[imin]
+
+# ==============================================================================
+def calculate_hpd(trace):
+
+  # cred = 0.6827 <-> -/+ 1 sigma
+  # cred = 0.9544 <-> -/+ 2 sigma
+  # cred = 0.9974 <-> -/+ 3 sigma
+
+  credval = [0.6827, 0.9544, 0.9974]
+  hdi = [hpd(trace, cred=c) for c in credval]
+
+  return hdi
+
 
 # ==============================================================================
 # ==============================================================================
@@ -3228,4 +3269,91 @@ def compute_lin_ephem(T0, eT0=None, epoin=None, modefit='wls'):
   return epo, Tref, Pref, TP_err
 
 # ==============================================================================
+# ==============================================================================
+
+def read_priors(full_path):
+
+  prior_file = os.path.join(full_path, 'priors.in')
+  priors = {}
+  if(os.path.exists(prior_file)):
+    of = open(prior_file, 'r')
+    lines = of.readlines()
+    for line_raw in lines:
+      line = line_raw.strip()
+      if(line[0] != "#" and len(line) > 0):
+        l = line.split('#')[0].split()
+        key_p = l[0]
+        val_p = [np.float64(x) for x in l[1:]]
+        priors[key_p] = val_p
+    of.close()
+
+  return priors
+
+# =============================================================================
+# Computes the log-penalty due to a Gaussian (asymmetric) prior
+# =============================================================================
+def set_gaussian_lnpar(par, pv): # par = fitted, pv = prior value [value, nerr, perr]
+
+  lp = par - pv[0]
+  if(lp < 0.0):
+    lnpar = -0.5 * (lp*lp / (pv[1]*pv[1]))
+  else:
+    lnpar = -0.5 * (lp*lp / (pv[2]*pv[2]))
+
+  return lnpar
+
+# ==============================================================================
+
+def lnL_priors(p, priors, names_par, kep_elem, id_fit, case_list, cols_list, m_factor):
+
+  # compute_derived_parameters(idpar, kep_elem_in, id_fit, case_list, cols_list, parameters, conv_factor=1.0)
+  names_phy, p_phy = compute_derived_parameters(names_par, kep_elem, 
+                                                id_fit, case_list, cols_list, 
+                                                p,
+                                                conv_factor=m_factor
+                                                )
+  p_phy = np.array(p_phy)
+  ln_penalty = 0.0
+  if(len(priors)>0):
+    for k, v in priors.items():
+      # print(k, v)
+      if(k in names_phy):
+        ln_penalty += set_gaussian_lnpar([p_phy[i] for i, n in enumerate(names_phy) if n == k][0], v)
+        # print("phy ln_penalty: ", ln_penalty)
+      elif(k in names_par):
+        ln_penalty += set_gaussian_lnpar([p[i] for i, n in enumerate(names_par) if n == k][0], v)
+        # print("fit ln_penalty: ", ln_penalty)
+  
+  # print("final ln_penalty: ", ln_penalty)
+
+  return ln_penalty
+
+# ==============================================================================
+
+def all_parameters_to_kep_elem(all_par, NB):
+
+  # based on how I wrote with trades the XXX_initialElements.dat file
+  # M_Msun R_Rsun P_d a_AU e w_deg mA_deg inc_deg lN_deg
+  # planet id 2
+  # planet id ...
+  # no star line!
+
+  kep_elem = np.zeros((NB-1,9))
+  # # M and R star
+  # kep_elem[0,0] = all_par[0]
+  # kep_elem[0,1] = all_par[1]
+
+  for i in range(1,NB):
+    kep_elem[i-1,0] = all_par[2+(i-1)*8] # Mplanet
+    kep_elem[i-1,1] = all_par[3+(i-1)*8] # Rplanet
+    kep_elem[i-1,2] = all_par[4+(i-1)*8] # Pplanet
+    kep_elem[i-1,3] = period_to_semimajoraxis(all_par[0], kep_elem[i-1,0], all_par[4+(i-1)*8]) # aplanet
+    kep_elem[i-1,4] = all_par[5+(i-1)*8] # eplanet
+    kep_elem[i-1,5] = all_par[6+(i-1)*8] # wplanet
+    kep_elem[i-1,6] = all_par[7+(i-1)*8] # mAplanet
+    kep_elem[i-1,7] = all_par[8+(i-1)*8] # iplanet
+    kep_elem[i-1,8] = all_par[9+(i-1)*8] # lNplanet
+
+  return kep_elem
+
 # ==============================================================================

@@ -24,7 +24,7 @@ plt.rcParams['font.family'] = 'serif'
 
 # read command line (cli) arguments
 def get_args():
-  parser = argparse.ArgumentParser(description='TRADES+EMCEE PLOT')
+  parser = argparse.ArgumentParser(description='TRADES+PSO PLOT')
   parser.add_argument('-p', '--path', action='store', dest='full_path', required=True, help='The path (absolute or relative) with simulation files.')
   parser.add_argument('-m', '--mtype', '--mass-type', action='store', dest='m_type', default='e', help='Mass type: j = Jupiter, e = Earth, s = Sun. Default is Earth = e.')
   

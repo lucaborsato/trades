@@ -6,10 +6,10 @@ import numpy as np # array
 
 
 # radiants, degrees conversions etc.
-pi = 4.*np.arctan(1.)
-dpi = 2.*pi
-deg2rad = pi/180.
-rad2deg = 180./pi
+pi = 4.0*np.arctan(1.)
+dpi = 2.0*pi
+deg2rad = pi/180.0
+rad2deg = 180.0/pi
 
 # various
 TOLERANCE = np.finfo(np.float64(1.0)).eps
@@ -88,3 +88,5 @@ RjupAU = (Rjup*1.e3)/AU #Jupiter radius in AU
 
 MJD = 2400000.5 # MJD ref time to convert to JD
 
+# others
+onethird = 1.0/3.0

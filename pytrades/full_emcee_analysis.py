@@ -26,7 +26,8 @@ def geweke(cli):
                  stdout = olog, stderr = olog,
                  bufsize=1
                  )
-  sout, serr = run.communicate()
+  # sout, serr = run.communicate()
+  _, _ = run.communicate()
   print('COMPLETED geweke.py')
   olog.close()
   
@@ -48,7 +49,7 @@ def gelman_rubin(cli):
                  bufsize=1
                  )
   
-  sout, serr = run.communicate()  
+  _, _ = run.communicate()  
   print('COMPLETED gelman_rubin.py')
   olog.close()
   
@@ -69,7 +70,7 @@ def chains(cli):
                  stdout = olog, stderr = olog,
                  bufsize=1
                  )
-  sout, serr = run.communicate()  
+  _, _ = run.communicate()  
   print('COMPLETED chains_summary_plot.py')
   olog.close()
   
@@ -90,7 +91,7 @@ def correlation(cli):
                  stdout = olog, stderr = olog,
                  bufsize=1
                  )
-  sout, serr = run.communicate()  
+  _, _ = run.communicate()  
   print('COMPLETED correlation_triangle_plot.py')
   olog.close()
   
@@ -111,7 +112,7 @@ def derived_correlation(cli):
                  stdout = olog, stderr = olog,
                  bufsize=1
                  )
-  sout, serr = run.communicate()  
+  _, _ = run.communicate()  
   print('COMPLETED derived_correlation_plot.py')
   olog.close()
   
@@ -132,7 +133,7 @@ def ci_chains_correlation(cli):
                  stdout = olog, stderr = olog,
                  bufsize=1
                  )
-  sout, serr = run.communicate()  
+  _, _ = run.communicate()  
   print('COMPLETED confidence_intervals.py')
   olog.close()
   

@@ -14,11 +14,14 @@ import h5py
 import matplotlib as mpl
 mpl.use('Agg', warn=False)
 import matplotlib.pyplot as plt
-#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-#plt.rc('font',**{'family':'serif','serif':['Latin Modern Roman']})
-#plt.rc('text', usetex=True)
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
+plt.rcParams['figure.figsize'] = [6, 6]
+plt.rcParams["figure.facecolor"] = 'white'
+plt.rcParams["savefig.facecolor"] = 'white'
+plt.rcParams["figure.dpi"]  = 200
+plt.rcParams["savefig.dpi"] = 300
+plt.rcParams["font.size"]   = 14
 
 # custom modules
 import constants as cst
@@ -171,7 +174,7 @@ def plot_rv(cli, samples=None):
   else:
     xlabel = 'BJD$_\\textrm{TDB} - %.3f$' %(tscale)
   
-  fig = plt.figure(figsize=(6,6))
+  fig = plt.figure()
   fig.subplots_adjust(hspace=0.05, wspace=0.25)
   
   nrows = 3
@@ -192,7 +195,6 @@ def plot_rv(cli, samples=None):
   
   ax.axhline(0., color='black', ls='-',lw=0.7)
   
-  
   lobs_a = []
   lsim_a = []
   nset = len(rv_os)
@@ -201,9 +203,19 @@ def plot_rv(cli, samples=None):
     nlabels = len(list(cli.labels))
     label_data[0:nlabels] = [ll for ll in list(cli.labels)]
   
+  x = []
+  y = []
+  px = 0.05
+  py = 0.05
+
   for i in range(0, nset):
     rv = rv_os[i]
     sort_obs = np.argsort(rv.time_plot)
+    x.append(np.tile(rv.time_plot[sort_obs], 3)) # for obs limits
+    y.append(np.concatenate((rv.rvo[sort_obs]-rv.eRVo[sort_obs],
+                             rv.rvo[sort_obs]+rv.eRVo[sort_obs],
+                             rv.rvs[sort_obs]
+                            ))) # for obs limits
     # data
     lobs = ax.errorbar(rv.time_plot[sort_obs], rv.rvo[sort_obs],
                        yerr=rv.eRVo[sort_obs],
@@ -228,7 +240,19 @@ def plot_rv(cli, samples=None):
                     label='simulations'
                     )
     lsim_a.append(lsim)
-  xlims = ax.get_xlim()
+
+  # prepare limits
+  x = np.concatenate(x)
+  dx = np.max(x) - np.min(x)
+  minx = np.min(x) - px*dx
+  maxx = np.max(x) + px*dx
+  y = np.concatenate(y)
+  dy = np.max(y) - np.min(y)
+  miny = np.min(y) - py*dy
+  maxy = np.max(y) + py*dy
+  # xlims = ax.get_xlim()
+
+  
   if(tmod is not None):
     # plot model and samples
     sort_mod = np.argsort(tmod)
@@ -239,10 +263,14 @@ def plot_rv(cli, samples=None):
                     )
   if(samples is not None):
     lsmp_a = []
+    xx     = x
+    yy     = y
     # nsmp = len(samples)
     for smp in samples:
       sort_smp = np.argsort(smp.time_plot)
-      lsmp, = ax.plot(smp.time_plot[sort_smp], smp.rv_mod[sort_smp],
+      xx       = np.concatenate((xx,smp.time_plot[sort_smp]))
+      yy       = np.concatenate((yy,smp.rv_mod[sort_smp]))
+      lsmp,    = ax.plot(smp.time_plot[sort_smp], smp.rv_mod[sort_smp],
                       color='gray', marker='None', ls='-', lw=0.5,
                       alpha=0.33,
                       zorder=5,
@@ -250,7 +278,22 @@ def plot_rv(cli, samples=None):
                       )
       lsmp_a.append(lsmp)
       
-  ax.set_xlim(xlims)
+    if(cli.limits == 'sam'):
+      dx = np.max(xx) - np.min(xx)
+      minx = np.min(xx) - px*dx
+      maxx = np.max(xx) + px*dx
+      dy = np.max(yy) - np.min(yy)
+      miny = np.min(yy) - py*dy
+      maxy = np.max(yy) + py*dy
+    else: # if obs & samples not None adjust y limits
+      yyy = yy[np.logical_and(xx>=minx, xx<=maxx)]
+      dy  = np.max(yyy) - np.min(yyy)
+      miny = np.min(yyy) - py*dy
+      maxy = np.max(yyy) + py*dy
+
+  # ax.set_xlim(xlims)
+  ax.set_xlim(minx, maxx)
+  ax.set_ylim(miny, maxy)
   
   if(samples is None and tmod is None):
     lhand = lobs_a + [lsim_a[0]]
@@ -290,6 +333,8 @@ def plot_rv(cli, samples=None):
                 zorder=5,
                 )
   
+  ax.set_xlim(minx, maxx)
+
   print('full_path', cli.full_path)
   # folder_out = os.path.join(os.path.dirname(cli.full_path), 'plots')
   folder_out = os.path.join(cli.full_path, 'plots')
@@ -352,6 +397,12 @@ def get_args():
                       default='None',
                       help='HDF5 file with T0 and RV from emcee samples to overplot on O-Cs.'
                       )
+  parser.add_argument('-limits', '--limits',
+                      action='store',
+                      dest='limits',
+                      default='obs',
+                      help='Axis limits based on observations (obs) or synthetic samples (sam). Default obs.'
+                      )
 
   cli = parser.parse_args()
   
@@ -385,6 +436,11 @@ def get_args():
     else:
       cli.samples_file = None
       
+  if(cli.limits.lower()[:3] == 'sam'):
+    cli.limits = 'sam'
+  else:
+    cli.limits = 'obs'
+
   return cli
 
 # ==============================================================================

@@ -128,8 +128,10 @@ def get_simT0_file_list(cli):
 def read_samples(samples_file = None):
   
   if (samples_file is not None):
-    
-    sh5 = h5py.File(os.path.abspath(samples_file), 'r')
+
+    read_file = os.path.abspath(samples_file)
+    print('Reading samples file {}'.format(read_file))
+    sh5 = h5py.File(read_file, 'r')
     # n_samples = len(list(sh5.keys()))
     samples = []
     for igr in list(sh5.keys()): # loop on groups, one for each sample
@@ -226,7 +228,7 @@ def plot_oc_T41(cli, file_in, samples):
     nsmp = len(samples_plt)
   else:
     nsmp = 0
-  
+
   lfont=12
   tfont=8
   
@@ -249,6 +251,9 @@ def plot_oc_T41(cli, file_in, samples):
   mso=5
   mss=4
 
+  px = 0.05
+  py = 0.05
+
   # O-C
   ax = plt.subplot2grid((nrows, ncols), (0,0), rowspan=2)
   set_axis_default(ax, ticklabel_size=tfont, aspect='auto', labeldown=False)
@@ -259,13 +264,17 @@ def plot_oc_T41(cli, file_in, samples):
   
   ax.axhline(0., color='black', ls='-',lw=0.7)
   
-  #x = sim.TTo - tscale
-  x = sim.TTlin - tscale
-  # minx, maxx = np.min(x)-0.88*sim.Peph, np.max(x)+0.88*sim.Peph
+  x = sim.TTo - tscale
   dx = np.max(x) - np.min(x)
-  px = 0.05
   minx = np.min(x) - px*dx
   maxx = np.max(x) + px*dx
+  y = np.concatenate((sim.oc_o*ocu[0]-sim.eTTo*ocu[0],
+                      sim.oc_o*ocu[0]+sim.eTTo*ocu[0],
+                      sim.oc_s*ocu[0]
+                      ))
+  dy = np.max(y) - np.min(y)
+  miny = np.min(y) - py*dy
+  maxy = np.max(y) + py*dy
 
   # data
   lobs = ax.errorbar(x, sim.oc_o*ocu[0],
@@ -291,9 +300,14 @@ def plot_oc_T41(cli, file_in, samples):
   # samples
   if(nsmp > 0):
     lsmp = []
+    yy   = y
+    # needed for obs limits
+    xxx  = np.concatenate((x,x,x))
     for ss in samples_plt:
       ss.update(sim.Teph, sim.Peph)
       xx = ss.TTlin - tscale
+      xxx = np.concatenate((xxx, xx))
+      yy  = np.concatenate((yy, ss.oc*ocu[0]))
       ll, = ax.plot(xx, ss.oc*ocu[0],
                     color='gray',
                     marker='None', ls='-', lw=0.4,
@@ -303,13 +317,28 @@ def plot_oc_T41(cli, file_in, samples):
                     )
       lsmp.append(ll)
   
+    if(cli.limits == 'sam'):
+      dx = np.max(xxx) - np.min(xxx)
+      minx = np.min(xxx) - px*dx
+      maxx = np.max(xxx) + px*dx
+      dy = np.max(yy) - np.min(yy)
+      miny = np.min(yy) - py*dy
+      maxy = np.max(yy) + py*dy
+    else: # if obs & nsmp > 0 adjust y limits
+      yyy = yy[np.logical_and(xxx>=minx, xxx<=maxx)]
+      dy = np.max(yyy) - np.min(yyy)
+      miny = np.min(yyy) - py*dy
+      maxy = np.max(yyy) + py*dy
+
+
     ax.legend(handles=[lobs, lsim, lsmp[0]], loc='best', fontsize=lfont-2)
   else:
     ax.legend(loc='best', fontsize=lfont-2)
   
   ax.set_xlim(minx, maxx)
-  xlims = ax.get_xlim()
-  
+  # xlims = ax.get_xlim()
+  ax.set_ylim(miny, maxy)
+    
   # residuals TTo-TTs
   ax = plt.subplot2grid((nrows, ncols), (2,0), rowspan=1)
   set_axis_default(ax, ticklabel_size=tfont, aspect='auto')
@@ -329,11 +358,19 @@ def plot_oc_T41(cli, file_in, samples):
               zorder=6,
               )
   
-  # ax.set_xlim(minx, maxx)
-  ax.set_xlim(xlims)
+  ax.set_xlim(minx, maxx)
+
   
   if(sim.ncols == 11):
     # T41 duration
+
+    y = np.concatenate((sim.T41o*ocu[0]-sim.eT41o*ocu[0],
+                        sim.T41o*ocu[0]+sim.eT41o*ocu[0],
+                        sim.T41s*ocu[0]
+                        ))
+    dy = np.max(y) - np.min(y)
+    miny = np.min(y) - py*dy
+    maxy = np.max(y) + py*dy
 
     ax = plt.subplot2grid((nrows, ncols), (0,1), rowspan=2)
     set_axis_default(ax, ticklabel_size=tfont, aspect='auto', labeldown=False)
@@ -367,8 +404,10 @@ def plot_oc_T41(cli, file_in, samples):
     
     # samples
     if(nsmp > 0):
+      yy = y
       for ss in samples_plt:
         xx = ss.TTlin - tscale
+        yy  = np.concatenate((yy, ss.T41s*ocu[0]))
         #print np.min(ss.T41s*ocu[0]),np.max(ss.T41s*ocu[0])
         ax.plot(xx, ss.T41s*ocu[0],
                 color='gray',
@@ -376,9 +415,23 @@ def plot_oc_T41(cli, file_in, samples):
                 zorder=4,
                 alpha=0.4,
                 )
-        
-    # ax.set_xlim(minx, maxx)
-    ax.set_xlim(xlims)
+
+      if(cli.limits == 'sam'):
+        dx = np.max(xxx) - np.min(xxx)
+        minx = np.min(xxx) - px*dx
+        maxx = np.max(xxx) + px*dx
+        dy = np.max(yy) - np.min(yy)
+        miny = np.min(yy) - py*dy
+        maxy = np.max(yy) + py*dy
+      else: # if obs & nsmp > 0 adjust y limits
+        yyy = yy[np.logical_and(xxx>=minx, xxx<=maxx)]
+        dy = np.max(yyy) - np.min(yyy)
+        miny = np.min(yyy) - py*dy
+        maxy = np.max(yyy) + py*dy
+    
+    ax.set_xlim(minx, maxx)
+    # ax.set_xlim(xlims)
+    ax.set_ylim(miny, maxy)
     
     # residuals T41o - T41s
     ax = plt.subplot2grid((nrows, ncols), (2,1), rowspan=1)
@@ -399,8 +452,8 @@ def plot_oc_T41(cli, file_in, samples):
                 zorder=6,
                 )
       
-    # ax.set_xlim(minx, maxx)
-    ax.set_xlim(xlims)
+    ax.set_xlim(minx, maxx)
+    # ax.set_xlim(xlims)
   
   folder_out = os.path.join(os.path.dirname(file_in), 'plots')
   if(not os.path.isdir(folder_out)): os.makedirs(folder_out)
@@ -464,6 +517,13 @@ def get_args():
                       default='None',
                       help='HDF5 file with T0 and RV from emcee samples to overplot on O-Cs.'
                       )
+  parser.add_argument('-limits', '--limits',
+                      action='store',
+                      dest='limits',
+                      default='obs',
+                      help='Axis limits based on observations (obs) or synthetic samples (sam). Default obs.'
+                      )
+
 
   cli = parser.parse_args()
   
@@ -480,6 +540,11 @@ def get_args():
       cli.samples_file = os.path.abspath(cli.samples_file)
     else:
       cli.samples_file = None
+  
+  if(cli.limits.lower()[:3] == 'sam'):
+    cli.limits = 'sam'
+  else:
+    cli.limits = 'obs'
       
   return cli
 

@@ -67,19 +67,19 @@ def createARG(fpath):
   ofarg.write(line + "\n")
   print(line)
 
-  linel = "tstart = 2454965." # time start
+  linel = "tstart = 2454965.0" # time start
   liner = "# time start of the integration [JD]. Set this to a value > 9.e7 if you want to use the tepoch (next parameter) "
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
   print(line)
 
-  linel = "tint = 500." # integration time
+  linel = "tint = 500.0" # integration time
   liner = "# time duration of the integration in days"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
   print(line)
 
-  linel = "step = 1.e-3" # initial step size
+  linel = "step = 1.0e-3" # initial step size
   liner = "# initial time step size in days"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
@@ -103,7 +103,7 @@ def createARG(fpath):
   ofarg.write(line + "\n")
   print(line)
   
-  line = "# oc_fit: define if the program has to fit: resw_T0=T0_obs-R0_sim (set to 0); resw_OC=OC_obs-OC_sim (set 1) where OC_obs(sim)=T0_obs(sim)-T0_lin,obs(sim); set to 2 to use both (resw=(resw_T0+resw_OC)/2). By default it is set to 0\noc_fit = 0"
+  line = "# oc_fit: define if the program has to fit:\n# resw_T0=T0_obs-R0_sim (set to 0);\n# resw_OC=OC_obs-OC_sim (set to 1) where OC_obs(sim)=T0_obs(sim)-T0_lin,obs(sim);\n# set to 2 to use both (resw=(resw_T0+resw_OC)/2).\n# By default it is set to 0\noc_fit = 0"
   ofarg.write(line + "\n")
   print(line)
 
@@ -113,7 +113,7 @@ def createARG(fpath):
   ofarg.write(line + "\n")
   print(" " + line)
 
-  linel = "tol_int = 1.e-13" # TOLERANCE
+  linel = "tol_int = 1.0e-13" # TOLERANCE
   liner = "# tolerance in the integration (stepsize selection etc)"
   line = liner + "\n" + linel
   ofarg.write(line + "\n")
@@ -159,7 +159,7 @@ def createARG(fpath):
   ofarg.write(line + "\n")
   print(line)
 
-  line = "# secondary_parameters: define if the program has to check only boundarie for derived parameters (1) or if it has also to fix values due to derived parameters (2) or do nothing (0) with derived parameters.\n# Default secondary_parameters = 0.\nsecondary_parameters = 0"
+  line = "# secondary_parameters: define if the program has to check only boundaries for derived parameters (1) or if it has also to fix values due to derived parameters (2) or do nothing (0) with derived parameters.\n# Default secondary_parameters = 0.\nsecondary_parameters = 0"
   ofarg.write(line + "\n")
   print(line)
   
@@ -537,7 +537,7 @@ def createPSO(fpath):
   ofpso.write("0      # wrtAll = 0 [not writing all individuals for each iteration] 1 [writing all individuals for each iteration]\n")
   ofpso.write("1      # nGlobal = number of global search, number of times that PSO will be run, i.e., Npart x Niter x nGlobal\n")
   ofpso.write("123456  # seed\n")
-  # 2017-05-18 add control parameters
+  # 2017-05-18 add control parameters -- OPTIONALS
   ofpso.write("0.9    # inertia parameter (0.9 is recommended)\n")
   ofpso.write("2.0    # self intention parameter (2.0 is recommended)\n")
   ofpso.write("2.0    # swarm intention parameter (2.0 is recommended)\n")
@@ -546,6 +546,7 @@ def createPSO(fpath):
   ofpso.write("0.07   # velocity perturbation parameter (0.0-0.1 is recommended)\n")
   ofpso.close()
 
+# NOT USED
 # create PolyChord configuration file
 def createPC(fpath):
   fpc = os.path.join(fpath, "PolyChord.opt")
@@ -737,6 +738,22 @@ def createNB3OBS(fpath):
   ofNB3obs.write("  2  2455164.18168  0.00055\n")
   ofNB3obs.close()
 
+def createPriorsIn(fpath):
+
+  fpriors = os.path.join(fpath, 'priors.in')
+
+  of = open(fpriors, 'w')
+  of.write('# priors of physical parameters\n')
+  of.write('# label val -1sigma +1sigma\n')
+  of.write('# possible label: mX, PX, eX, wX, mAX, iX, lNX\n')
+  of.write('# X the id number of the body, where the first planet has X == 2, and last X = NB: X = 2, 3, 4, ..., NB\n')
+  of.write('# mX : mass of planet X in Mearth!\n')
+  of.write('# PX : period of planet X in days\n')
+  of.write('# angles wX, mAX, iX, lNX in degree\n')
+  of.close()
+
+  return
+
 
 def main():
   # --------------------------------------------------------------------------
@@ -760,8 +777,10 @@ def main():
   print("")
   createPSO(fpath)
   print("")
-  createPC(fpath)
+  createPriorsIn(fpath)
   print("")
+  # createPC(fpath)
+  # print("")
   createOBSRV(fpath)
   print("")
   createNB2OBS(fpath)

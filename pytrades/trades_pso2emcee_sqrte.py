@@ -9,7 +9,10 @@ import h5py
 import sys
 import time
 import glob
-import multiprocessing as mp
+
+# import multiprocessing as mp
+from multiprocessing import Pool
+# from schwimmbad import JoblibPool as Pool
 
 import emcee
 
@@ -17,9 +20,8 @@ from constants import Mjups
 import ancillary as anc
 import pytrades_lib
 
-#
-#
-#
+# =============================================================================
+
 def get_args():
   parser = argparse.ArgumentParser(description='TRADES+PSO+EMCEE')
   
@@ -58,10 +60,7 @@ def get_args():
                       action='store', dest='nsave', default='False', 
                       help='Number of iterations to do for save temporary chain. default each 0.1 of nruns.'
                       )
-  
-  # # NUMBER OF BURNIN TO SKIP FOR PRELIMINARY ANALYSIS
-  # parser.add_argument('-nb', '--nburn', '--npost', action='store', dest='npost', default=1000, help='Number of burn in, or number of posterior to discard at the beginning of the each chain. default npost = 1000.')
-  
+    
   # COMPUTE OR NOT CONSTANT TO ADD TO THE LGLIKELIHOOD: - (1/2dof) * SUM( ln 2pi * sigma_obs^2 )
   parser.add_argument('-l', '--ln-err', '--ln-err-const', 
                       action='store', dest='ln_flag', default=True, 
@@ -93,7 +92,6 @@ def get_args():
   
   cli.nwalkers = int(cli.nwalkers)
   cli.nruns = int(cli.nruns)
-  # cli.npost = int(cli.npost)
   
   cli.ln_flag = anc.set_bool_argument(cli.ln_flag)
 
@@ -105,83 +103,23 @@ def get_args():
     if(cli.seed <= 0): cli.seed = None
   except:
     cli.seed = None
-  
     
   return cli
 
-
-# 
-# LOGPROBABILITY FUNCTION NEEDED BY EMCEE
-#
-def lnprob(fitting_parameters):
-  
-  loglhd = 0.
-  check = 1
-  loglhd, check = pytrades_lib.pytrades.fortran_loglikelihood(np.asarray(fitting_parameters,dtype=np.float64))
-  #print loglhd, ln_err_const
-  loglhd = loglhd + ln_err_const # ln_err_const: global variable
-  #print loglhd
-  if ( check == 0 ):
-    loglhd = -np.inf
-  
-  return loglhd
-
-def lnprob_sq(fitting_parameters, names_par):
-  
-  fitting_trades = anc.sqrte_to_e_fitting(fitting_parameters, names_par)
-  loglhd = lnprob(fitting_trades)
-  
-  return loglhd
-
-#
+# =============================================================================
 # INITIALISE FOLDER AND LOG FILE
-#
-# def init_folder(working_path, sub_folder):
-  
-#   working_folder = os.path.join(working_path, sub_folder)
-#   if (not os.path.isdir(working_folder)):
-#       os.makedirs(working_folder)
-      
-#   # copy files
-#   anc.copy_simulation_files(working_path, working_folder)
-  
-#   run_log = os.path.join(working_folder, "trades_run.log")
-#   of_run = open(run_log, 'w')
-#   anc.print_both("# pyTRADES LOG FILE", of_run)
-#   anc.print_both("# working_path = %s" %(working_path), of_run)
-#   anc.print_both("# working_folder = %s" %(working_folder), of_run)
-#   anc.print_both("# run_log = %s" %(run_log), of_run)
-  
-#   return working_folder, run_log, of_run
 init_folder = anc.init_folder
 
-#def compute_ln_err_const(ndata, dof, e_RVo, e_T0o, ln_flag=False):
-  
-  #if (ln_flag):
-    #eRV = e_RVo[e_RVo > 0.]
-    #eT0 = e_T0o[e_T0o > 0.]
-    
-    #ln_e_RVo = np.sum(np.log(eRV*eRV))
-    #ln_e_T0o = np.sum(np.log(eT0*eT0))
-
-    ##ln_err_const = -(0.5*inv_dof) * (ndata*np.log(2.*np.pi) + ln_e_RVo + ln_e_T0o)
-    #ln_err_const = - 0.5 * dof * np.log(2.*np.pi) - 0.5 * ( ln_e_RVo + ln_e_T0o)
-  #else:
-    #ln_err_const = 0.
-    
-  #return ln_err_const
-
+# =============================================================================
 
 def get_emcee_arguments(cli,nfit):
   
-  #
   # NUMBER OF WALKERS
   if (cli.nwalkers < nfit*2):
     nwalkers = nfit * 2
   else:
     nwalkers = cli.nwalkers
   if (nwalkers % 2) != 0:
-    #print ' Provided odd nwalkers = %d ==> using nwalkers+1 = %d' %(nwalkers, nwalkers+1)
     nwalkers += 1
 
   # NUMBER OF STEPS/RUNS FOR EACH WALKER
@@ -190,16 +128,6 @@ def get_emcee_arguments(cli,nfit):
   else:
     nruns = cli.nruns
 
-  # NUMBER OF SAVE STEPS
-  # if (cli.nsave != 'False'):
-  #   if (int(cli.nsave) > 0 and int(cli.nsave) < nruns):
-  #     nsave = int(cli.nsave)
-  #   elif (int(cli.nsave) <= 0):
-  #     nsave = False
-  #   else:
-  #     nsave = nruns/10
-  # else:
-  #   nsave = False
   try:
     nsave = int(cli.nsave)
     if(nsave <= 0 or nsave >= nruns):
@@ -207,16 +135,11 @@ def get_emcee_arguments(cli,nfit):
   except:
     nsave = False
 
-  # NUMBER OF BURNIN/POSTERIOR TO DISCARD
-  # if (cli.npost < 0):
-  #   npost = 1000
-  # else:
-  #   npost = cli.npost
-  #print nwalkers, nruns, npost
   npost = 0
 
   return nwalkers, nruns, nsave, npost
 
+# =============================================================================
 
 def compute_proper_sigma(nfit, delta_sigma, parameter_names):
   
@@ -233,11 +156,9 @@ def compute_proper_sigma(nfit, delta_sigma, parameter_names):
   
   return delta_sigma_out
       
+# =============================================================================
 
-def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minmax, parameter_names, delta_sigma, of_run):
-  
-  # initial walkers as input fitting_parameters + N(loc=0.,sigma=1.,size=nwalkers)*delta_sigma
-  #p0 = [parameters_minmax[:,0] + np.random.random(nfit)*delta_parameters for i in range(0, nwalkers)]
+def compute_initial_walkers(lnprob_sq, nfit, nwalkers, fitting_parameters, parameters_minmax, parameter_names, delta_sigma, of_run):
   anc.print_both(' Inititializing walkers with delta_sigma = %s' %(str(delta_sigma).strip()), of_run)
   p0 = []
   i_p0 = 0
@@ -254,7 +175,6 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
   # init all initial walkers
   while True:
       test_p0 = np.array([fitting_parameters[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
-      #test_lg = lnprob(test_p0)
       test_lg = lnprob_sq(test_p0, parameter_names)
       if(not np.isinf(test_lg)):
         i_p0 +=1
@@ -301,424 +221,379 @@ def compute_initial_walkers(nfit, nwalkers, fitting_parameters, parameters_minma
   
   return p0
 
-# TOBECHECKED -- NOT USED AT THE MOMENT
-# PSO SIMULATION TO EMCEE p0
+# =============================================================================
+# =============================================================================
+# MAIN SCRIPT - NOT IN FUNCTION DUE TO ISSUE WITH PARALLEL AND PICKLE FUNCTION OF LNPROB..
+# =============================================================================
+# =============================================================================
+
+# def main():
+  
+# MAIN -- TRADES + EMCEE
+# READ COMMAND LINE ARGUMENTS
+cli = get_args()
+
+# STARTING TIME
+start = time.time()
+
+# RENAME 
+working_path = cli.full_path
+nthreads=cli.nthreads
+np.random.RandomState(cli.seed)
+
+# INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
+pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
+
+# RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
+
+n_bodies = pytrades_lib.pytrades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
+n_planets = n_bodies - 1 # NUMBER OF PLANETS IN THE SYSTEM
+ndata = pytrades_lib.pytrades.ndata # TOTAL NUMBER OF DATA AVAILABLE
+nfit  = pytrades_lib.pytrades.nfit # NUMBER OF PARAMETERS TO FIT
+nfree  = pytrades_lib.pytrades.nfree # NUMBER OF FREE PARAMETERS (ie nrvset)
+dof   = pytrades_lib.pytrades.dof # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
+global inv_dof
+inv_dof = pytrades_lib.pytrades.inv_dof
+
+# READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
+str_len = pytrades_lib.pytrades.str_len
+temp_names = pytrades_lib.pytrades.get_parameter_names(nfit,str_len)
+trades_names = anc.convert_fortran_charray2python_strararray(temp_names)
+parameter_names = anc.trades_names_to_emcee(trades_names)
+trades_parameters = pytrades_lib.pytrades.fitting_parameters # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
+fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
+
+trades_minmax = pytrades_lib.pytrades.parameters_minmax # PARAMETER BOUNDARIES
+parameters_minmax = anc.e_to_sqrte_boundaries(trades_minmax, trades_names)
+
+# RADIAL VELOCITIES SET
+n_rv = pytrades_lib.pytrades.nrv
+n_set_rv = pytrades_lib.pytrades.nrvset
+
+# TRANSITS SET
+n_t0 = pytrades_lib.pytrades.nt0
+n_t0_sum = pytrades_lib.pytrades.ntts
+n_set_t0 = 0
+for i in range(0, n_bodies-1):
+  if (n_t0[i] > 0): n_set_t0 += 1
+
+# compute global constant for the loglhd
+global ln_err_const
+ln_err_const = pytrades_lib.pytrades.ln_err_const
+
+# SET EMCEE PARAMETERS:
+nwalkers, nruns, nsave, _ = get_emcee_arguments(cli,nfit)
+
+# uses the ancillary.get_fitted(full_path)
+# to obtain info for the conversion from fitted to physical parameters
+# nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case =  anc.get_fitted(working_path)
+_, _, _, id_fit, _, _, cols_list, case =  anc.get_fitted(working_path)
+# stellar mass in solar unit to earth, priors m in Earth masses
+m_factor = pytrades_lib.pytrades.mr_star[0,0]*Msear 
+# read priors file: priors.in
+priors = anc.read_priors(working_path)
+kep_elem = anc.all_parameters_to_kep_elem(pytrades_lib.pytrades.system_parameters, n_bodies)
+# lnL_priors(p, priors, names_par, kep_elem, id_fit, case_list, cols_list, m_factor)
+ln_prior = anc.lnL_priors(fitting_parameters, priors, parameter_names,
+                          kep_elem,
+                          id_fit, case, cols_list, 
+                          m_factor
+                          )
+
+# 
+# LOGPROBABILITY FUNCTION NEEDED BY EMCEE
 #
-# def pso_to_emcee(nfit, nwalkers, pso_population, pso_population_fitness, pso_parameters, pso_fitness, pso_best_evolution):
+def lnprob(fitting_parameters):
   
-#   np_pso, ni_pso = np.shape(pso_population_fitness)
-#   np_ni = np_pso * ni_pso
-#   #print np_ni
-#   pso_fitness_p0 = np.zeros(nwalkers)
-#   p0 = np.zeros((nwalkers, nfit))
+  loglhd = 0.
+  check = 1
+  loglhd, check = pytrades_lib.pytrades.fortran_loglikelihood(np.asarray(fitting_parameters,dtype=np.float64))
+  loglhd = loglhd + ln_err_const # ln_err_const: global variable
+  if ( check == 0 ):
+    loglhd = -np.inf
   
-#   flat_pop_fitness = pso_population_fitness.reshape((np_ni))
-#   #print flat_pop_fitness.shape
-#   flat_pop = pso_population.reshape((nfit, np_ni))
-#   #print flat_pop.shape
-#   sort_idx = np.argsort(flat_pop_fitness)
+  return loglhd
+
+def lnprob_sq(fitting_parameters, names_par):
   
-#   if (str(pso_best_evolution) != 'False'):
-#     nw_best = int(nwalkers*0.25)+1
-#     #print nw_best
-#     sel_best = np.random.choice(ni_pso, nw_best)
-#     for i in range(1,nw_best+1):
-#       #print i, sel_best[i-1]
-#       p0[i,:] = pso_best_evolution[:nfit,sel_best[i-1]]
-#       pso_fitness_p0[i] = pso_best_evolution[-1,sel_best[i-1]]
-#       if (pso_fitness_p0[i] >= 1.e10):
-#         one_sel = np.random.choice(int(ni_pso*0.5), 1)
-#         p0[i,:] = pso_best_evolution[:nfit, one_sel[0]]
-#         pso_fitness_p0[i] = pso_best_evolution[-1, one_sel[0]]
+  fitting_trades = anc.sqrte_to_e_fitting(fitting_parameters, names_par)
+  loglhd = lnprob(fitting_trades)
+  if(np.isfinite(loglhd)):
+    ln_prior = anc.lnL_priors(fitting_parameters, priors, parameter_names,
+                              kep_elem,
+                              id_fit, case, cols_list, m_factor
+                              )
+    loglhd += ln_prior
+  
+  return loglhd
+
+
+# INITIALISE SCRIPT FOLDER/LOG FILE
+working_folder, _, of_run = init_folder(working_path, cli.sub_folder)
+
+anc.print_both('',of_run)
+anc.print_both(' ======== ',of_run)
+anc.print_both(' pyTRADES' ,of_run)
+anc.print_both(' ======== ',of_run)
+anc.print_both('',of_run)
+anc.print_both(' WORKING PATH = %s' %(working_path),of_run)
+anc.print_both(' NUMBER OF THREADS = %d' %(nthreads),of_run)
+anc.print_both(' dof = ndata(%d) - nfit(%d) - nfree(%d) = %d' %(ndata, nfit, nfree, dof),of_run)
+anc.print_both(' Total N_RV = %d for %d set(s)' %(n_rv, n_set_rv),of_run)
+anc.print_both(' Total N_T0 = %d for %d out of %d planet(s)' %(n_t0_sum, n_set_t0, n_planets),of_run)
+anc.print_both(' %s = %.7f' %('log constant error = ', ln_err_const),of_run)
+anc.print_both(' %s = %.7f' %('IN FORTRAN log constant error = ', pytrades_lib.pytrades.ln_err_const),of_run)
+anc.print_both(' seed = %s' %(str(cli.seed)), of_run)
+
+# INITIALISE PSO ARGUMENTS FROM pso.opt FILE
+pytrades_lib.pytrades.init_pso(1,working_path) # read PSO options
+# PSO VARIABLES
+np_pso   = pytrades_lib.pytrades.np_pso
+nit_pso  = pytrades_lib.pytrades.nit_pso
+n_global = pytrades_lib.pytrades.n_global
+#n_global = 1
+anc.print_both(' PSO n_global = {} npop = {} ngen = {}'.format(n_global, np_pso, nit_pso), of_run)
+
+# RUN PSO+EMCEE n_global TIMES
+for iter_global in range(0,n_global):
+  
+  # commented 2019-05-21
+  # threads_pool = mp.Pool(1)
+
+  # CREATES PROPER WORKING PATH AND NAME
+  i_global = iter_global + 1
+  pso_path = os.path.join(os.path.join(working_folder, '{0:04d}_pso2emcee'.format(i_global)), '')
+  pytrades_lib.pytrades.path_change(pso_path)
+  
+  anc.print_both('\n\n GLOBAL RUN {0:04d} INTO PATH: {1:s}\n'.format(i_global, pso_path), of_run)
+
+  if (cli.pso_type == 'run'):
+    # RUN PSO
+    anc.print_both(' RUN PSO ...', of_run)
+
+    pso_start = time.time()
+    if(not os.path.exists(pso_path)): os.makedirs(pso_path)
+    # copy files
+    anc.copy_simulation_files(working_path, pso_path)
+
+    # CALL RUN_PSO SUBROUTINE FROM TRADES_LIB: RUNS PSO AND COMPUTES THE BEST SOLUTION, SAVING ALL THE POPULATION EVOLUTION
+    pso_parameters = trades_parameters.copy()
+    pso_fitness    = 0.0
+    pso_parameters, pso_fitness = pytrades_lib.pytrades.pyrun_pso(nfit, i_global)
+    anc.print_both(' completed run_pso', of_run)
     
-#     nw_pop = nwalkers - nw_best - 1
-#     #print nw_pop
-#     for i in range(0, nw_pop):
-#       ii=i+nw_best+1
-#       p0[ii,:] = flat_pop[:, sort_idx[i]]
-#       pso_fitness_p0[ii] = flat_pop_fitness[sort_idx[i]]
-
-#   else:
-#     for i in range(0,nwalkers-1):
-#       p0[i+1,:] = flat_pop[:, sort_idx[i]]
-#       pso_fitness_p0[i+1] = flat_pop_fitness[sort_idx[i]]
-  
-#   #print pso_fitness, pso_parameters[1]
-#   p0[0,:] = np.asarray(pso_parameters, dtype=np.float64)
-#   pso_fitness_p0[0] = pso_fitness
-  
-#   return p0, pso_fitness_p0
-
-
-def main():
-  
-  # MAIN -- TRADES + EMCEE
-  # READ COMMAND LINE ARGUMENTS
-  cli = get_args()
-
-  # STARTING TIME
-  start = time.time()
-
-  # RENAME 
-  working_path = cli.full_path
-  nthreads=cli.nthreads
-  np.random.RandomState(cli.seed)
-
-  # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
-  pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
-  
-  # RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
-  
-  #global n_bodies, n_planets, ndata, npar, nfit, dof, inv_dof
-  n_bodies = pytrades_lib.pytrades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
-  n_planets = n_bodies - 1 # NUMBER OF PLANETS IN THE SYSTEM
-  ndata = pytrades_lib.pytrades.ndata # TOTAL NUMBER OF DATA AVAILABLE
-  # npar  = pytrades_lib.pytrades.npar # NUMBER OF TOTAL PARAMATERS ~n_planets X 6
-  nfit  = pytrades_lib.pytrades.nfit # NUMBER OF PARAMETERS TO FIT
-  nfree  = pytrades_lib.pytrades.nfree # NUMBER OF FREE PARAMETERS (ie nrvset)
-  dof   = pytrades_lib.pytrades.dof # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
-  global inv_dof
-  #inv_dof = np.float64(1.0 / dof)
-  inv_dof = pytrades_lib.pytrades.inv_dof
-  
-  # READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
-
-  #temp_names = pytrades_lib.pytrades.parameter_names
-  #trades_names = anc.convert_fortran2python_strarray(temp_names, nfit, str_len=10)
-  str_len = pytrades_lib.pytrades.str_len
-  temp_names = pytrades_lib.pytrades.get_parameter_names(nfit,str_len)
-  trades_names = anc.convert_fortran_charray2python_strararray(temp_names)
-  parameter_names = anc.trades_names_to_emcee(trades_names)
-  #parameter_names = trades_names
-  
-  trades_parameters = pytrades_lib.pytrades.fitting_parameters # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
-  fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
-  
-  trades_minmax = pytrades_lib.pytrades.parameters_minmax # PARAMETER BOUNDARIES
-  parameters_minmax = anc.e_to_sqrte_boundaries(trades_minmax, trades_names)
-  
-  # RADIAL VELOCITIES SET
-  n_rv = pytrades_lib.pytrades.nrv
-  n_set_rv = pytrades_lib.pytrades.nrvset
-
-  # TRANSITS SET
-  n_t0 = pytrades_lib.pytrades.nt0
-  n_t0_sum = pytrades_lib.pytrades.ntts
-  n_set_t0 = 0
-  for i in range(0, n_bodies-1):
-    if (n_t0[i] > 0): n_set_t0 += 1
-
-  # compute global constant for the loglhd
-  global ln_err_const
-
-  #try:
-    #e_RVo = np.asarray(pytrades_lib.pytrades.ervobs[:], dtype=np.float64) # fortran variable RV in python will be rv!!!
-  #except:
-    #e_RVo = np.asarray([0.], dtype=np.float64)
-  #try:
-    #e_T0o = np.asarray(pytrades_lib.pytrades.et0obs[:,:], dtype=np.float64).reshape((-1))
-  #except:
-    #e_T0o = np.asarray([0.], dtype=np.float64)
-  #ln_err_const = anc.compute_ln_err_const(ndata, dof, e_RVo, e_T0o, cli.ln_flag)
-  ln_err_const = pytrades_lib.pytrades.ln_err_const
-
-  # SET EMCEE PARAMETERS:
-  nwalkers, nruns, nsave, _ = get_emcee_arguments(cli,nfit)
-
-  # INITIALISE SCRIPT FOLDER/LOG FILE
-  working_folder, _, of_run = init_folder(working_path, cli.sub_folder)
-
-  anc.print_both('',of_run)
-  anc.print_both(' ======== ',of_run)
-  anc.print_both(' pyTRADES' ,of_run)
-  anc.print_both(' ======== ',of_run)
-  anc.print_both('',of_run)
-  anc.print_both(' WORKING PATH = %s' %(working_path),of_run)
-  anc.print_both(' NUMBER OF THREADS = %d' %(nthreads),of_run)
-  anc.print_both(' dof = ndata(%d) - nfit(%d) - nfree(%d) = %d' %(ndata, nfit, nfree, dof),of_run)
-  anc.print_both(' Total N_RV = %d for %d set(s)' %(n_rv, n_set_rv),of_run)
-  anc.print_both(' Total N_T0 = %d for %d out of %d planet(s)' %(n_t0_sum, n_set_t0, n_planets),of_run)
-  anc.print_both(' %s = %.7f' %('log constant error = ', ln_err_const),of_run)
-  anc.print_both(' %s = %.7f' %('IN FORTRAN log constant error = ', pytrades_lib.pytrades.ln_err_const),of_run)
-  anc.print_both(' seed = %s' %(str(cli.seed)), of_run)
-
-  # INITIALISE PSO ARGUMENTS FROM pso.opt FILE
-  pytrades_lib.pytrades.init_pso(1,working_path) # read PSO options
-  # PSO VARIABLES
-  np_pso   = pytrades_lib.pytrades.np_pso
-  nit_pso  = pytrades_lib.pytrades.nit_pso
-  n_global = pytrades_lib.pytrades.n_global
-  #n_global = 1
-  anc.print_both(' PSO n_global = {} npop = {} ngen = {}'.format(n_global, np_pso, nit_pso), of_run)
-
-  # RUN PSO+EMCEE n_global TIMES
-  for iter_global in range(0,n_global):
+    pso_best_evolution = np.asarray(pytrades_lib.pytrades.pso_best_evolution[...], dtype=np.float64)
+    anc.print_both(' pso_best_evolution retrieved', of_run)
     
-    # commented 2019-05-21
-    # threads_pool = mp.Pool(1)
-
-    # CREATES PROPER WORKING PATH AND NAME
-    i_global = iter_global + 1
-    pso_path = os.path.join(os.path.join(working_folder, '{0:04d}_pso2emcee'.format(i_global)), '')
-    pytrades_lib.pytrades.path_change(pso_path)
+    anc.print_both(' last pso_best_evolution', of_run)
+    last_pso_fitness = pso_best_evolution[-1,-1].astype(np.float64)
+    anc.print_both(' fitness = {}'.format(last_pso_fitness), of_run)
     
-    anc.print_both('\n\n GLOBAL RUN {0:04d} INTO PATH: {1:s}\n'.format(i_global, pso_path), of_run)
+    # SAVE PSO SIMULATION IN pso_run.hdf5 FILE
+    print(' Creating pso hdf5 file: {}'.format(os.path.join(pso_path, 'pso_run.hdf5')))
+    pso_hdf5 = h5py.File(os.path.join(pso_path, 'pso_run.hdf5'), 'w')
+    pso_hdf5.create_dataset('population',         data=pytrades_lib.pytrades.population, dtype=np.float64)
+    pso_hdf5.create_dataset('population_fitness', data=pytrades_lib.pytrades.population_fitness, dtype=np.float64)
+    pso_hdf5.create_dataset('pso_parameters',     data=pso_parameters, dtype=np.float64)
+    pso_hdf5.create_dataset('pso_fitness',        data=np.array(pso_fitness), dtype=np.float64)
+    pso_hdf5.create_dataset('pso_best_evolution', data=pso_best_evolution, dtype=np.float64)
+    pso_hdf5.create_dataset('parameters_minmax',  data=trades_minmax, dtype=np.float64)
+    pso_hdf5.create_dataset('parameter_names',    data=anc.encode_list(trades_names), dtype='S10')
+    pso_hdf5['population'].attrs['npop']        = np_pso
+    pso_hdf5['population'].attrs['niter']       = nit_pso
+    pso_hdf5['population'].attrs['iter_global'] = iter_global+1
+    pso_hdf5['population'].attrs['nfit']        = nfit
+    pso_hdf5.close()
 
-    if (cli.pso_type == 'run'):
-      # RUN PSO
-      anc.print_both(' RUN PSO ...', of_run)
-
-      pso_start = time.time()
-      if(not os.path.exists(pso_path)): os.makedirs(pso_path)
-      # copy files
-      anc.copy_simulation_files(working_path, pso_path)
-
-      # CALL RUN_PSO SUBROUTINE FROM TRADES_LIB: RUNS PSO AND COMPUTES THE BEST SOLUTION, SAVING ALL THE POPULATION EVOLUTION
-      pso_parameters = trades_parameters.copy()
-      pso_fitness    = 0.0
-      pso_parameters, pso_fitness = pytrades_lib.pytrades.pyrun_pso(nfit, i_global)
-      anc.print_both(' completed run_pso', of_run)
-      
-      pso_best_evolution = np.asarray(pytrades_lib.pytrades.pso_best_evolution[...], dtype=np.float64)
-      anc.print_both(' pso_best_evolution retrieved', of_run)
-      
-      anc.print_both(' last pso_best_evolution', of_run)
-      # last_pso_parameters = np.asarray(pso_best_evolution[:nfit,-1],dtype=np.float64)
-      last_pso_fitness = pso_best_evolution[-1,-1].astype(np.float64)
-      anc.print_both(' fitness = {}'.format(last_pso_fitness), of_run)
-      
-      # SAVE PSO SIMULATION IN pso_run.hdf5 FILE
-      print(' Creating pso hdf5 file: {}'.format(os.path.join(pso_path, 'pso_run.hdf5')))
-      pso_hdf5 = h5py.File(os.path.join(pso_path, 'pso_run.hdf5'), 'w')
-      pso_hdf5.create_dataset('population',         data=pytrades_lib.pytrades.population, dtype=np.float64)
-      pso_hdf5.create_dataset('population_fitness', data=pytrades_lib.pytrades.population_fitness, dtype=np.float64)
-      pso_hdf5.create_dataset('pso_parameters',     data=pso_parameters, dtype=np.float64)
-      pso_hdf5.create_dataset('pso_fitness',        data=np.array(pso_fitness), dtype=np.float64)
-      pso_hdf5.create_dataset('pso_best_evolution', data=pso_best_evolution, dtype=np.float64)
-      pso_hdf5.create_dataset('parameters_minmax',  data=trades_minmax, dtype=np.float64)
-      pso_hdf5.create_dataset('parameter_names',    data=anc.encode_list(trades_names), dtype='S10')
-      pso_hdf5['population'].attrs['npop']        = np_pso
-      pso_hdf5['population'].attrs['niter']       = nit_pso
-      pso_hdf5['population'].attrs['iter_global'] = iter_global+1
-      pso_hdf5['population'].attrs['nfit']        = nfit
-      pso_hdf5.close()
-
-      # population = np.asarray(pytrades_lib.pytrades.population, dtype=np.float64)
-      # population_fitness = np.asarray(pytrades_lib.pytrades.population_fitness, dtype=np.float64)
-      
-      anc.print_both(' ', of_run)
-      # fitness_iter, lgllhd_iter, check_iter = pytrades_lib.pytrades.write_summary_files(i_global, pso_parameters)
-      elapsed = time.time() - pso_start
-      elapsed_d, elapsed_h, elapsed_m, elapsed_s = anc.computation_time(elapsed)
-      anc.print_both(' ', of_run)
-      anc.print_both(' PSO FINISHED in {0:2d} day {1:02d} hour {2:02d} min {3:.2f} sec - bye bye'.format(
-                     int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s),
-                     of_run
-                     )
-      
-      # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
-      emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
-      #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
-      p0 = compute_initial_walkers(nfit, nwalkers, 
-           emcee_parameters, parameters_minmax, parameter_names, 
-           cli.delta_sigma, 
-           of_run
-           )
-
-    elif (cli.pso_type == 'exists'):
-      # READ PREVIOUS PSO_RUN.HDF5 FILE AND INITIALISE POPULATION FOR EMCEE
-      anc.print_both(' READ PREVIOUS PSO_RUN.HDF5 FILE AND INITIALISE POPULATION FOR EMCEE', of_run)
-      
-      # population, population_fitness, \
-      _, _, \
-        pso_parameters, pso_fitness, pso_best_evolution, \
-        _, _, _ = anc.get_pso_data(os.path.join(pso_path, 'pso_run.hdf5'))
-        # pso_parameters_minmax, pso_parameter_names, pop_shape = get_pso_data(os.path.join(pso_path, 'pso_run.hdf5'))
-      
-      # fitness_iter, lgllhd_iter, check_iter = pytrades_lib.pytrades.write_summary_files(i_global, pso_parameters)
-      _, _, _ = pytrades_lib.pytrades.write_summary_files(i_global, pso_parameters)
-      
-      anc.print_both(' read pso_run.hdf5 file with best pso_fitness = {1:.7f}'.format(pso_fitness), of_run)
-      
-      # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
-      emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
-      #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
-      p0 = compute_initial_walkers(nfit, nwalkers, 
-           emcee_parameters, parameters_minmax, parameter_names, 
-           cli.delta_sigma, 
-           of_run
-           )
-          
-      
-    elif (cli.pso_type == 'skip'):
-      # DO NOT RUN PSO, ONLY EMCEE
-      anc.print_both(' DO NOT RUN PSO, ONLY EMCEE', of_run)
-      
-      #p0 = [parameters_minmax[:,0] + np.random.random(nfit)*delta_parameters for i in range(0, nwalkers)]
-      p0 = compute_initial_walkers(nfit, nwalkers,
-           fitting_parameters, parameters_minmax, parameter_names, 
-           cli.delta_sigma, 
-           of_run
-           )
-    # end if cli.pso_type
-
-    anc.print_both(' emcee chain: nwalkers = {} nruns = {}'.format(nwalkers, nruns), of_run)
-    anc.print_both(' sampler ... ',of_run)
+    anc.print_both(' ', of_run)
+    # fitness_iter, lgllhd_iter, check_iter = pytrades_lib.pytrades.write_summary_files(i_global, pso_parameters)
+    elapsed = time.time() - pso_start
+    elapsed_d, elapsed_h, elapsed_m, elapsed_s = anc.computation_time(elapsed)
+    anc.print_both(' ', of_run)
+    anc.print_both(' PSO FINISHED in {0:2d} day {1:02d} hour {2:02d} min {3:.2f} sec - bye bye'.format(
+                    int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s),
+                    of_run
+                    )
     
-    # close the pool of threads
-    # commented 2019-05-21
-    # threads_pool.close()
-    # threads_pool.join()
+    # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
+    emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
+    #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
+    p0 = compute_initial_walkers(lnprob_sq, nfit, nwalkers, 
+          emcee_parameters, parameters_minmax, parameter_names, 
+          cli.delta_sigma, 
+          of_run
+          )
+
+  elif (cli.pso_type == 'exists'):
+    # READ PREVIOUS PSO_RUN.HDF5 FILE AND INITIALISE POPULATION FOR EMCEE
+    anc.print_both(' READ PREVIOUS PSO_RUN.HDF5 FILE AND INITIALISE POPULATION FOR EMCEE', of_run)
     
-    # threads_pool = emcee.interruptible_pool.InterruptiblePool(nthreads)
-    threads_pool = mp.Pool(nthreads)
-    #sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob, pool=threads_pool)
-    sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, pool=threads_pool, args=[parameter_names]) # needed to use sqrt(e) in emcee instead of e (in fortran)
+    # population, population_fitness, \
+    _, _, \
+      pso_parameters, pso_fitness, pso_best_evolution, \
+      _, _, _ = anc.get_pso_data(os.path.join(pso_path, 'pso_run.hdf5'))
+      # pso_parameters_minmax, pso_parameter_names, pop_shape = get_pso_data(os.path.join(pso_path, 'pso_run.hdf5'))
+    
+    # fitness_iter, lgllhd_iter, check_iter = pytrades_lib.pytrades.write_summary_files(i_global, pso_parameters)
+    _, _, _ = pytrades_lib.pytrades.write_summary_files(i_global, pso_parameters)
+    
+    anc.print_both(' read pso_run.hdf5 file with best pso_fitness = {1:.7f}'.format(pso_fitness), of_run)
+    
+    # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
+    emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
+    #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
+    p0 = compute_initial_walkers(nfit, nwalkers, 
+          emcee_parameters, parameters_minmax, parameter_names, 
+          cli.delta_sigma, 
+          of_run
+          )
+        
+    
+  elif (cli.pso_type == 'skip'):
+    # DO NOT RUN PSO, ONLY EMCEE
+    anc.print_both(' DO NOT RUN PSO, ONLY EMCEE', of_run)
+    
+    #p0 = [parameters_minmax[:,0] + np.random.random(nfit)*delta_parameters for i in range(0, nwalkers)]
+    p0 = compute_initial_walkers(nfit, nwalkers,
+          fitting_parameters, parameters_minmax, parameter_names, 
+          cli.delta_sigma, 
+          of_run
+          )
+  # end if cli.pso_type
+
+  anc.print_both(' emcee chain: nwalkers = {} nruns = {}'.format(nwalkers, nruns), of_run)
+  anc.print_both(' sampler ... ',of_run)
   
-    anc.print_both(' A PRE-EMCEE OF {} STEPS'.format(int(0.05*nruns)), of_run)
-    p0 = sampler.run_mcmc(p0, int(0.05*nruns))
-    anc.print_both(' RESET OF THE SAMPLER', of_run)
-    sampler.reset()
+  # close the pool of threads
+  # commented 2019-05-21
+  # threads_pool.close()
+  # threads_pool.join()
 
-    anc.print_both(' ready to go', of_run)
-    anc.print_both(' with nsave = {}'.format(nsave), of_run)
+  if(nthreads > 1):  
+    threads_pool = Pool(nthreads)
+  else:
+    threads_pool = None
+
+  sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, pool=threads_pool, args=[parameter_names]) # needed to use sqrt(e) in emcee instead of e (in fortran)
+
+  anc.print_both(' A PRE-EMCEE OF {} STEPS'.format(int(0.05*nruns)), of_run)
+  p0 = sampler.run_mcmc(p0, int(0.05*nruns))
+  anc.print_both(' RESET OF THE SAMPLER', of_run)
+  sampler.reset()
+
+  anc.print_both(' ready to go', of_run)
+  anc.print_both(' with nsave = {}'.format(nsave), of_run)
+  sys.stdout.flush()
+
+  if (nsave != False):
+    # save temporary sampling during emcee every nruns*10%
+    if(os.path.exists(os.path.join(pso_path, 'emcee_summary.hdf5')) \
+      and os.path.isfile(os.path.join(pso_path, 'emcee_summary.hdf5'))):
+      os.remove(os.path.join(pso_path, 'emcee_summary.hdf5'))
+
+    f_hdf5 = h5py.File(os.path.join(pso_path, 'emcee_summary.hdf5'), 'a')
+    f_hdf5.create_dataset('parameter_names', data=anc.encode_list(parameter_names), dtype='S10')
+    f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
+    f_hdf5.create_dataset('chains', (nwalkers, nruns, nfit), dtype=np.float64)
+    f_hdf5['chains'].attrs['nwalkers'] = nwalkers
+    f_hdf5['chains'].attrs['nruns']    = nruns
+    f_hdf5['chains'].attrs['nfit']     = nfit
+    f_hdf5['chains'].attrs['nfree']    = nfree
+    f_hdf5.create_dataset('lnprobability', (nwalkers, nruns), dtype=np.float64)
+    f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
+    f_hdf5.create_dataset('acceptance_fraction', data=np.zeros((nfit)), dtype=np.float64)
+    f_hdf5.create_dataset('autocor_time', data=np.zeros((nfit)), dtype=np.float64)
+    f_hdf5.close()
+
+    pos = p0
+    niter_save = int(nruns/nsave)
+    anc.print_both(' Running emcee with temporary saving', of_run)
     sys.stdout.flush()
-
-    #sys.exit()
-
-    if (nsave != False):
-      # save temporary sampling during emcee every nruns*10%
-      #if(os.path.exists(os.path.join(pso_path, 'emcee_temp.hdf5')) and os.path.isfile(os.path.join(pso_path, 'emcee_temp.hdf5'))):
-        #os.remove(os.path.join(pso_path, 'emcee_temp.hdf5'))
-      if(os.path.exists(os.path.join(pso_path, 'emcee_summary.hdf5')) \
-        and os.path.isfile(os.path.join(pso_path, 'emcee_summary.hdf5'))):
-        os.remove(os.path.join(pso_path, 'emcee_summary.hdf5'))
+    for i in range(0, niter_save):
+      anc.print_both('', of_run)
+      anc.print_both(' iter: {0:6d} '.format(i+1), of_run)
+      aaa = i*nsave
+      bbb = aaa+nsave
+      pos = sampler.run_mcmc(pos, nsave)
+      anc.print_both('completed {0:d} steps of {1:d}'.format(bbb, nruns), of_run)
 
       f_hdf5 = h5py.File(os.path.join(pso_path, 'emcee_summary.hdf5'), 'a')
-
-      f_hdf5.create_dataset('parameter_names', data=anc.encode_list(parameter_names), dtype='S10')
-      f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
-
-      f_hdf5.create_dataset('chains', (nwalkers, nruns, nfit), dtype=np.float64)
-      f_hdf5['chains'].attrs['nwalkers'] = nwalkers
-      f_hdf5['chains'].attrs['nruns']    = nruns
-      f_hdf5['chains'].attrs['nfit']     = nfit
-      f_hdf5['chains'].attrs['nfree']    = nfree
-
-      f_hdf5.create_dataset('lnprobability', (nwalkers, nruns), dtype=np.float64)
-      f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
-
-      f_hdf5.create_dataset('acceptance_fraction', data=np.zeros((nfit)), dtype=np.float64)
-
-      f_hdf5.create_dataset('autocor_time', data=np.zeros((nfit)), dtype=np.float64)
-      f_hdf5.close()
-
-      pos = p0
-      niter_save = int(nruns/nsave)
-      anc.print_both(' Running emcee with temporary saving', of_run)
-      sys.stdout.flush()
-      for i in range(0, niter_save):
-        anc.print_both('', of_run)
-        anc.print_both(' iter: {0:6d} '.format(i+1), of_run)
-        aaa = i*nsave
-        bbb = aaa+nsave
-        # pos, prob, state = sampler.run_mcmc(pos, N=nsave, rstate0=state)
-        pos = sampler.run_mcmc(pos, nsave)
-        anc.print_both('completed {0:d} steps of {1:d}'.format(bbb, nruns), of_run)
-
-        f_hdf5 = h5py.File(os.path.join(pso_path, 'emcee_summary.hdf5'), 'a')
-
-        temp_dset = f_hdf5['chains'] #[:,:,:]
-        temp_dset[:,aaa:bbb,:] = sampler.chain[:, aaa:bbb, :]
-        temp_dset.attrs['completed_steps'] = bbb
-        
-        temp_lnprob = f_hdf5['lnprobability'] #[:,:]
-        try:
-          temp_lnprob[:, aaa:bbb] = sampler.lnprobability[:, aaa:bbb]
-        except:
-          temp_lnprob[:, aaa:bbb] = sampler.lnprobability.T[:, aaa:bbb]
-        # shape_lnprob = sampler.lnprobability.shape
-        
-        # temp_acp_fra = f_hdf5['acceptance_fraction']
-        # temp_acp_fra[...] = sampler.acceptance_fraction
-        mean_acceptance_fraction = np.mean(sampler.acceptance_fraction)
-        # temp_acp_fra.attrs['mean_acceptance_fraction'] = mean_acceptance_fraction
-
-        acor_time = anc.compute_acor_time(sampler, steps_done=bbb)
-        temp_acor = f_hdf5['autocor_time']
-        temp_acor[...] = acor_time
-        
-        #f_hdf5.create_dataset('autocor_time', data=np.array(acor_temp, dtype=np.float64), dtype=np.float64)
-        #f_hdf5.create_dataset('autocor_time', data=np.array(sampler.acor, dtype=np.float64), dtype=np.float64) # not working
-        #print 'aaa = %6d bbb = %6d -> sampler.lnprobability.shape = (%6d , %6d)' %(aaa, bbb, shape_lnprob[0], shape_lnprob[1])
-        f_hdf5.close()
-        sys.stdout.flush()
-      anc.print_both('', of_run)
-      anc.print_both('...done with saving temporary total shape = %s' %(str(np.shape(sampler.chain))), of_run)
-      anc.print_both('', of_run)
-      sys.stdout.flush()
-
-    else:
-      # GOOD COMPLETE SINGLE RUNNING OF EMCEE, WITHOUT REMOVING THE BURN-IN
-      anc.print_both(' Running full emcee ...', of_run)
-      sys.stdout.flush()
-      sampler.run_mcmc(p0, nruns)
-      anc.print_both('done', of_run)
-      anc.print_both('', of_run)
-      sys.stdout.flush()
-      # flatchains = sampler.chain[:, :, :].reshape((nwalkers*nruns, nfit)) # full chain values
+      temp_dset = f_hdf5['chains']
+      temp_dset[:,aaa:bbb,:] = sampler.chain[:, aaa:bbb, :]
+      temp_dset.attrs['completed_steps'] = bbb
+      temp_lnprob = f_hdf5['lnprobability']
+      try:
+        temp_lnprob[:, aaa:bbb] = sampler.lnprobability[:, aaa:bbb]
+      except:
+        temp_lnprob[:, aaa:bbb] = sampler.lnprobability.T[:, aaa:bbb]
       mean_acceptance_fraction = np.mean(sampler.acceptance_fraction)
-      #autocor_time = sampler.acor
-      #temp_chains_T = np.zeros((bbb, nwalkers, nfit))
-      #for ifit in range(0,nfit):
-        #temp_chains_T[:,:,ifit] = sampler.chain[:, :, ifit].T
-      #acor_time = anc.compute_autocor_time(temp_chains_T, walkers_transposed=True)
-      acor_time = anc.compute_acor_time(sampler)
-      lnprobability = sampler.lnprobability
-
-      # save chains with original shape as hdf5 file
-      f_hdf5 = h5py.File(os.path.join(pso_path, 'emcee_summary.hdf5'), 'w')
-      f_hdf5.create_dataset('chains', data=sampler.chain, dtype=np.float64)
-      f_hdf5['chains'].attrs['nwalkers']        = nwalkers
-      f_hdf5['chains'].attrs['nruns']           = nruns
-      f_hdf5['chains'].attrs['nfit']            = nfit
-      f_hdf5['chains'].attrs['nfree']           = nfree
-      f_hdf5['chains'].attrs['completed_steps'] = nruns
-      f_hdf5.create_dataset('parameter_names', data=anc.encode_list(parameter_names), dtype='S10')
-      f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
-      f_hdf5.create_dataset('acceptance_fraction', data=sampler.acceptance_fraction, dtype=np.float64)
-      f_hdf5['acceptance_fraction'].attrs['mean_acceptance_fraction'] = mean_acceptance_fraction
-      f_hdf5.create_dataset('autocor_time', data=acor_time, dtype=np.float64)
-      f_hdf5.create_dataset('lnprobability', data=lnprobability, dtype=np.float64)
-      f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
+      acor_time = anc.compute_acor_time(sampler, steps_done=bbb)
+      temp_acor = f_hdf5['autocor_time']
+      temp_acor[...] = acor_time
       f_hdf5.close()
+      sys.stdout.flush()
 
-    anc.print_both(" Mean_acceptance_fraction should be between [0.25-0.5] = {0:.6f}".format(mean_acceptance_fraction),
-                   of_run)
     anc.print_both('', of_run)
+    anc.print_both('...done with saving temporary total shape = %s' %(str(np.shape(sampler.chain))), of_run)
+    anc.print_both('', of_run)
+    sys.stdout.flush()
 
+  else:
+    # GOOD COMPLETE SINGLE RUNNING OF EMCEE, WITHOUT REMOVING THE BURN-IN
+    anc.print_both(' Running full emcee ...', of_run)
+    sys.stdout.flush()
+    sampler.run_mcmc(p0, nruns)
+    anc.print_both('done', of_run)
+    anc.print_both('', of_run)
+    sys.stdout.flush()
+    mean_acceptance_fraction = np.mean(sampler.acceptance_fraction)
+    acor_time = anc.compute_acor_time(sampler)
+    lnprobability = sampler.lnprobability
+
+    # save chains with original shape as hdf5 file
+    f_hdf5 = h5py.File(os.path.join(pso_path, 'emcee_summary.hdf5'), 'w')
+    f_hdf5.create_dataset('chains', data=sampler.chain, dtype=np.float64)
+    f_hdf5['chains'].attrs['nwalkers']        = nwalkers
+    f_hdf5['chains'].attrs['nruns']           = nruns
+    f_hdf5['chains'].attrs['nfit']            = nfit
+    f_hdf5['chains'].attrs['nfree']           = nfree
+    f_hdf5['chains'].attrs['completed_steps'] = nruns
+    f_hdf5.create_dataset('parameter_names', data=anc.encode_list(parameter_names), dtype='S10')
+    f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
+    f_hdf5.create_dataset('acceptance_fraction', data=sampler.acceptance_fraction, dtype=np.float64)
+    f_hdf5['acceptance_fraction'].attrs['mean_acceptance_fraction'] = mean_acceptance_fraction
+    f_hdf5.create_dataset('autocor_time', data=acor_time, dtype=np.float64)
+    f_hdf5.create_dataset('lnprobability', data=lnprobability, dtype=np.float64)
+    f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
+    f_hdf5.close()
+
+  anc.print_both(" Mean_acceptance_fraction should be between [0.25-0.5] = {0:.6f}".format(mean_acceptance_fraction),
+                  of_run)
+  anc.print_both('', of_run)
+
+  if(threads_pool is not None):
     # close the pool of threads
     threads_pool.close()
     # threads_pool.terminate()
     threads_pool.join()
-    
-    anc.print_both('COMPLETED EMCEE', of_run)
+  
+  anc.print_both('COMPLETED EMCEE', of_run)
 
-    elapsed = time.time() - start
-    elapsed_d, elapsed_h, elapsed_m, elapsed_s = anc.computation_time(elapsed)
+  elapsed = time.time() - start
+  elapsed_d, elapsed_h, elapsed_m, elapsed_s = anc.computation_time(elapsed)
 
-    anc.print_both('', of_run)
-    anc.print_both(' pyTRADES: EMCEE FINISHED in {0:2d} day {1:02d} hour {2:02d} min {3:.2f} sec - bye bye'.format(
-                 int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s
-                 ), of_run)
-    anc.print_both('', of_run)
-    
-  of_run.close()
-  pytrades_lib.pytrades.deallocate_variables()
+  anc.print_both('', of_run)
+  anc.print_both(' pyTRADES: EMCEE FINISHED in {0:2d} day {1:02d} hour {2:02d} min {3:.2f} sec - bye bye'.format(
+                int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s
+                ), of_run)
+  anc.print_both('', of_run)
+  
+of_run.close()
+pytrades_lib.pytrades.deallocate_variables()
 
-  return
+  # return
 
-if __name__ == "__main__":
-  main()
+# if __name__ == "__main__":
+#   main()
 
 

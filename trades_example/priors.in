@@ -1,0 +1,7 @@
+# priors of physical parameters
+# label val -1sigma +1sigma
+# possible label: mX, PX, eX, wX, mAX, iX, lNX
+# X the id number of the body, where the first planet has X == 2, and last X = NB: X = 2, 3, 4, ..., NB
+# mX : mass of planet X in Mearth!
+# PX : period of planet X in days
+# angles wX, mAX, iX, lNX in degree

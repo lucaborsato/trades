@@ -7,11 +7,11 @@ bootstrap_scaling = T
 # epoch of the elements [JD].
 tepoch = 2455088.212
 # time start of the integration [JD]. Set this to a value > 9.e7 if you want to use the tepoch (next parameter) 
-tstart = 2454965.
+tstart = 2454965.0
 # time duration of the integration in days
-tint = 500.
+tint = 500.0
 # initial time step size in days
-step = 1.e-3
+step = 1.0e-3
 # time interval in days of write data in files (if < stepsize the program will write every step)
 wrttime = 0.04167
 # number of bodies to use (from 2 to N, where the max N is the number of files in bodies.lst)
@@ -26,7 +26,7 @@ oc_fit = 0
 # 0/1=no/yes duration fit
 durcheck = 0
 # tolerance in the integration (stepsize selection etc)
-tol_int = 1.e-13
+tol_int = 1.0e-13
 # write orbit condition: 1[write], 0[do not write]
 wrtorb = 1
 # write constants condition: 1[write], 0[do not write]
@@ -44,7 +44,7 @@ lmon = 0
 # where Chi^2_wr is the reduced Chi Square but weighted by the number of data for each data set (Chi2r * Ndata/Nset for all dataset).
 # Default weight_chi_square = 1.
 weight_chi_square = 1.
-# secondary_parameters: define if the program has to check only boundarie for derived parameters (1) or if it has also to fix values due to derived parameters (2) or do nothing (0) with derived parameters.
+# secondary_parameters: define if the program has to check only boundaries for derived parameters (1) or if it has also to fix values due to derived parameters (2) or do nothing (0) with derived parameters.
 # Default secondary_parameters = 0.
 secondary_parameters = 0
 # Hill check

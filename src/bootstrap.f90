@@ -104,6 +104,7 @@ module bootstrap
     !$omp& shared(allpar, parok, ndata, nfit, obsData, storeboot,&
     !$omp& scale_errorbar, nboot, bootRV, bootDAta, bootT0, NB, nRV, &
     !$omp& Ms_boot, Rs_boot)
+    
     bootstrap: do iboot=1,nboot
 
       cpu=1
