@@ -22,6 +22,7 @@ module pytrades
   
   !f2py real(dp),parameter::resmax=1.e10_dp
   !f2py real(dp)::tepoch,tint
+  !f2py integer::idpert
   
   !f2py real(dp),dimension(2,2)::MR_star
   !f2py real(dp),dimension(:),allocatable::system_parameters

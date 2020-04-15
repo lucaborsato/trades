@@ -13,8 +13,13 @@ rad2deg = 180.0/pi
 
 # various
 TOLERANCE = np.finfo(np.float64(1.0)).eps
-d2s = 86400. # seconds in a day  =  24h  =  86400 s
-d2m = 1440.  # min in a day  =  1440. min
+day2sec   = 86400.0 # seconds in a day  =  24h  =  86400 s
+day2min   = 1440.0  # min in a day  =  1440. min
+day2hour  = 24.0
+sec2day   = 1.0/86400.0
+min2day   = 1.0/1440.0
+hour2day  = 1.0/24.0
+
 
 # masses conversions
 Msmer = 6.0236e6 # Msun to Mmer
@@ -72,14 +77,14 @@ Rjear = Rjup/Rear # Rjupiter to Rearth
 
 
 # astronomical constants
-AU = 149597870700. #Astronomical Unit in meters
-kappa = 0.01720209895 # Gaussian gravitational constant
-Giau = kappa*kappa # G [AU^3/Msun/d^2]
-Gsi = 6.67428e-11 #Gravitational Constants in SI system [m^3/kg/s^2]
-Gaumjd = Gsi*d2s*d2s*Mjup/(AU**3) # G in [AU,Mjup,day]
-speed = 299792458. # speed of light (c) in [m/s]
-speedaud = speed*d2s/AU # speed of light in [AU/d]
-pc2AU = 206264.806 
+AU       = 149597870700. #Astronomical Unit in meters
+kappa    = 0.01720209895 # Gaussian gravitational constant
+Giau     = kappa*kappa # G [AU^3/Msun/d^2]
+Gsi      = 6.67428e-11 #Gravitational Constants in SI system [m^3/kg/s^2]
+Gaumjd   = Gsi*day2sec*day2sec*Mjup/(AU**3) # G in [AU,Mjup,day]
+speed    = 299792458. # speed of light (c) in [m/s]
+speedaud = speed*day2sec/AU # speed of light in [AU/d]
+pc2AU    = 206264.806 
 
 
 # others

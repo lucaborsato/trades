@@ -3125,7 +3125,7 @@ def compute_Kms(Ms_sun, Mp_jup, inc_deg, P_day, ecc):
   Ms_jup = Ms_sun * cst.Msjup
   sini = np.sin(inc_deg * cst.deg2rad)
   G_m_mj_s = cst.Gsi * cst.Mjup
-  P_sec = P_day * cst.d2s
+  P_sec = P_day * cst.day2sec
 
   P_factor = np.power((cst.dpi * G_m_mj_s / P_sec), 1.0 / 3.0)
   M_factor = (Mp_jup * sini) / np.power((Ms_jup + Mp_jup), 2.0 / 3.0)
@@ -3262,7 +3262,7 @@ def compute_lin_ephem(T0, eT0=None, epoin=None, modefit='wls'):
     if(eT0 is not None):
       wls = sm.WLS(T0, X, weights=1.0/(eT0*eT0)).fit()
     else:
-      wls = sm.WLS(T0, X)
+      wls = sm.WLS(T0, X).fit()
     Tref, Pref = wls.params[0], wls.params[1]
     TP_err =  wls.bse
   

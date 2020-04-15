@@ -255,7 +255,7 @@ module driver
     write(*,*)'n_grid = ',n_grid
     
     ! needed to update the max allowed value of the semi-major axis
-    amax=5._dp*maxval(perturber_grid(:,4))
+    amax=5.0_dp*maxval(perturber_grid(:,4))
 !     write(*,'(2(a,f20.12))')' amin = ',amin,' amax = ',amax
     
     ! ------------------------------------------

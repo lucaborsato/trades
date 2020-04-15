@@ -439,62 +439,60 @@ subroutine ode_a(m,R,rin,time,clN,simRV,simT0,Hc)
         rmean(j)=half*( rsky(r1(X(j):Y(j))) + rsky(r2(X(j):Y(j))) )
       end do
 
-      if((idtra.gt.0).and.(idtra.le.NB))then
-!         if(cntT0.lt.sum(nT0))then
-        if(sum(simT0(:)%nT0).lt.nTTs)then
-          if(idtra.eq.1)then
+      if((idtra.gt.0).and.(idtra.le.NB))then ! if 1
+        ! if((sum(simT0(:)%nT0).lt.nTTs)then ! if 2
+          if(idtra.eq.1)then ! if 3
             do j=2,NB
-              if(rmean(j).le.cR(j))then
-                if(clN(j).eq.0)then
+              if(rmean(j).le.cR(j))then ! if 4
+                if(clN(j).eq.0)then ! if 5
 
                     ! ---
                     ! WARNING: CHANGE FROM HERE!!
                     ! ---
-                  if((cX(j).le.zero).and.(r1(Z(j)).gt.zero))then
+                  if((cX(j).le.zero).and.(r1(Z(j)).gt.zero))then ! if 6
 !                     call check_T0(j,m,R,r1,r2,&
 !                       &itime,hok,T0_stat,T0_sim,Hc)
                     call check_T0(j,m,R,r1,r2,itime,hok,simT0,Hc)
                     if(.not.Hc) return
-                  end if
+                  end if ! end if 6
 
                 else
 
-                  if((cY(j).le.zero).and.(r1(Z(j)).gt.zero))then
+                  if((cY(j).le.zero).and.(r1(Z(j)).gt.zero))then ! if 7
 !                     call check_T0(j,m,R,r1,r2,&
 !                       &itime,hok,T0_stat,T0_sim,Hc)
                     call check_T0(j,m,R,r1,r2,itime,hok,simT0,Hc)
                     if(.not.Hc) return
-                  end if
+                  end if ! end if 7
 
-                end if
-              end if
+                end if ! end if 5
+              end if ! end if 4
             end do
           else
-            if(rmean(idtra).le.cR(idtra))then
-              if(clN(idtra).eq.0)then
+            if(rmean(idtra).le.cR(idtra))then ! if 8
+              if(clN(idtra).eq.0)then ! if 9
 
-                if((cX(idtra).le.zero).and.(r1(Z(idtra)).gt.zero))then
+                if((cX(idtra).le.zero).and.(r1(Z(idtra)).gt.zero))then ! if 10
 !                   call check_T0(idtra,m,R,r1,r2,&
 !                     &itime,hok,T0_stat,T0_sim,Hc)
                   call check_T0(idtra,m,R,r1,r2,itime,hok,simT0,Hc)
                   if(.not.Hc) return
-                end if
+                end if ! end if 10
 
               else
 
-                if((cY(idtra).le.zero).and.(r1(Z(idtra)).gt.zero))then
+                if((cY(idtra).le.zero).and.(r1(Z(idtra)).gt.zero))then ! if 11
 !                   call check_T0(idtra,m,R,r1,r2,&
 !                     &itime,hok,T0_stat,T0_sim,Hc)
                   call check_T0(idtra,m,R,r1,r2,itime,hok,simT0,Hc)
                   if(.not.Hc) return
-                end if
+                end if ! end if 11
 
-              end if
-            end if
-          end if
-!           cntT0=sum(T0_stat)
-        end if
-      end if
+              end if ! end if 9
+            end if ! end if 8
+          end if ! end if 3
+        ! end if ! end if 2
+      end if ! end if 1
 
       itime=itime+hok
       if(abs(itime).ge.abs(time)) exit integration
