@@ -43,7 +43,7 @@ module ode_run
         bRV=bRV+nRVs
         allocate(xRV(nRVs),wi(nRVs))
         xRV=zero
-        xRV=obsRV%RV(aRV:bRV)-simRV%RV(aRV:bRV)
+        xRV=obsRV%RV(aRV:bRV)-(simRV%RV(aRV:bRV)+simRV%trend(aRV:bRV))
         wi=one/(obsRV%eRV(aRV:bRV)*obsRV%eRV(aRV:bRV))
         simRV%gamma(j,1)=wmean(xRV,wi)
         simRV%gamma(j,2)=sqrt(one/sum(wi))
@@ -422,15 +422,11 @@ subroutine ode_a(m,R,rin,time,clN,simRV,simT0,Hc)
       call eqmastro(m,r1,dr)
       call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err)
 
-!       Hc=Hillcheck(m,r2)
-!       if(do_hill_check) Hc=mutual_Hill_check(m,r2)
       Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
-!       if(Hc) return
       if(.not.Hc) return
 
       ! RV check
-!       if(cntRV.lt.nRV) call check_RV(m,r1,dr,itime,hok,cntRV,RV_stat,RV_sim)
-      if(simRV%nRV.lt.nRV) call check_RV(m,r1,dr,itime,hok,simRV)
+      if((nRV.gt.0).and.(simRV%nRV.lt.nRV)) call check_RV(m,r1,dr,itime,hok,simRV)
 
       ! T0 check
       do j=2,NB
@@ -446,12 +442,7 @@ subroutine ode_a(m,R,rin,time,clN,simRV,simT0,Hc)
               if(rmean(j).le.cR(j))then ! if 4
                 if(clN(j).eq.0)then ! if 5
 
-                    ! ---
-                    ! WARNING: CHANGE FROM HERE!!
-                    ! ---
                   if((cX(j).le.zero).and.(r1(Z(j)).gt.zero))then ! if 6
-!                     call check_T0(j,m,R,r1,r2,&
-!                       &itime,hok,T0_stat,T0_sim,Hc)
                     call check_T0(j,m,R,r1,r2,itime,hok,simT0,Hc)
                     if(.not.Hc) return
                   end if ! end if 6
@@ -459,8 +450,6 @@ subroutine ode_a(m,R,rin,time,clN,simRV,simT0,Hc)
                 else
 
                   if((cY(j).le.zero).and.(r1(Z(j)).gt.zero))then ! if 7
-!                     call check_T0(j,m,R,r1,r2,&
-!                       &itime,hok,T0_stat,T0_sim,Hc)
                     call check_T0(j,m,R,r1,r2,itime,hok,simT0,Hc)
                     if(.not.Hc) return
                   end if ! end if 7
@@ -473,8 +462,6 @@ subroutine ode_a(m,R,rin,time,clN,simRV,simT0,Hc)
               if(clN(idtra).eq.0)then ! if 9
 
                 if((cX(idtra).le.zero).and.(r1(Z(idtra)).gt.zero))then ! if 10
-!                   call check_T0(idtra,m,R,r1,r2,&
-!                     &itime,hok,T0_stat,T0_sim,Hc)
                   call check_T0(idtra,m,R,r1,r2,itime,hok,simT0,Hc)
                   if(.not.Hc) return
                 end if ! end if 10
@@ -482,8 +469,6 @@ subroutine ode_a(m,R,rin,time,clN,simRV,simT0,Hc)
               else
 
                 if((cY(idtra).le.zero).and.(r1(Z(idtra)).gt.zero))then ! if 11
-!                   call check_T0(idtra,m,R,r1,r2,&
-!                     &itime,hok,T0_stat,T0_sim,Hc)
                   call check_T0(idtra,m,R,r1,r2,itime,hok,simT0,Hc)
                   if(.not.Hc) return
                 end if ! end if 11
@@ -510,8 +495,6 @@ subroutine ode_a(m,R,rin,time,clN,simRV,simT0,Hc)
   ! subroutine that integrates orbit, computes, stores and
   ! writes orbits, orbital elements, constants of motion, transit time and RV into files
   ! it is called by ode_out, that check in which direction (in time) integrates
-!   subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
-!       &m,R,rin,time,clN,cntRV,RV_stat,RV_sim,cntT0,T0_stat,T0_sim,Hc)
 subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     &m,R,rin,time,clN,simRV,simT0,Hc)
     integer,intent(in)::uorb,ucon
@@ -521,12 +504,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     real(dp),intent(in)::time
     integer,dimension(:),intent(in)::clN
 
-!     integer,intent(inout)::cntRV
-!     integer,dimension(:),intent(inout)::RV_stat
-!     real(dp),dimension(:),intent(inout)::RV_sim
-!     integer,intent(inout)::cntT0
-!     real(dp),dimension(:,:),intent(inout)::T0_sim
-!     integer,dimension(:,:),intent(inout)::T0_stat
     type(dataRV),intent(inout)::simRV
     type(dataT0),dimension(:),intent(inout)::simT0
 
@@ -666,14 +643,13 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
       Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
       if(.not.Hc)then
-!         write(*,'(a,l)')'do_hill_check = ',do_hill_check
-        write(*,'(a,l)')' INLOOP Hc: ',Hc
+        ! write(*,'(a,l)')' INLOOP Hc: ',Hc
         return
       end if
 
       ! RV check
-!       if(cntRV.lt.nRV) call check_RV(m,r1,dr,itime,hok,cntRV,RV_stat,RV_sim)
-      if(simRV%nRV.lt.nRV) call check_RV(m,r1,dr,itime,hok,simRV)
+      if((nRV.gt.0).and.(simRV%nRV.lt.nRV)) call check_RV(m,r1,dr,itime,&
+        &hok,simRV)
 
       ! T0 check (to compare and all)
       do j=2,NB
@@ -682,15 +658,12 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         rmean(j)=half*( rsky(r1(X(j):Y(j))) + rsky(r2(X(j):Y(j))) )
       end do
       if((idtra.gt.0).and.(idtra.le.NB))then
-        !if(cntT0.lt.sum(nT0))then
         if(idtra.eq.1)then
           do j=2,NB
             if(rmean(j).le.cR(j))then
               if(clN(j).eq.0)then
 
                 if((cX(j).le.zero).and.(r1(Z(j)).gt.zero))then
-!                   if(nT0(j).gt.0) call check_T0(j,m,R,r1,r2,&
-!                     &itime,hok,T0_stat,T0_sim,Hc)
                   if(obsData%obsT0(j-1)%nT0.gt.0) &
                     &call check_T0(j,m,R,r1,r2,itime,hok,simT0,Hc)
                   if(.not.Hc) return
@@ -702,8 +675,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
               else
 
                 if((cY(j).le.zero).and.(r1(Z(j)).gt.zero))then
-!                   if(nT0(j).gt.0) call check_T0(j,m,R,r1,r2,&
-!                     &itime,hok,T0_stat,T0_sim,Hc)
                   if(obsData%obsT0(j-1)%nT0.gt.0) &
                     &call check_T0(j,m,R,r1,r2,itime,hok,simT0,Hc)
                   if(.not.Hc) return
@@ -721,8 +692,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
               if((cX(idtra).le.zero).and.&
                 &(r1(Z(idtra)).gt.zero))then
-!                 if(nT0(idtra).gt.0)call check_T0(idtra,m,R,r1,r2,&
-!                   &itime,hok,T0_stat,T0_sim,Hc)
                 if(obsData%obsT0(idtra-1)%nT0.gt.0) &
                     &call check_T0(idtra,m,R,r1,r2,itime,hok,simT0,Hc)
                 if(.not.Hc) return
@@ -735,8 +704,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
               if((cY(idtra).le.zero).and.&
                 &(r1(Z(idtra)).gt.zero))then
-!                 if(nT0(idtra).gt.0)call check_T0(idtra,m,R,r1,r2,&
-!                   &itime,hok,T0_stat,T0_sim,Hc)
                 if(obsData%obsT0(idtra-1)%nT0.gt.0) &
                     &call check_T0(idtra,m,R,r1,r2,itime,hok,simT0,Hc)
                 if(.not.Hc) return
@@ -748,7 +715,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
             end if
           end if
         end if
-!         if(sum(nT0).gt.0) cntT0=sum(T0_stat)
 
         if(jtra.eq.DIMMAX)then
           call write_tra(jtra,utra,stat_tra,storetra)
@@ -941,7 +907,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         rmean(j)=half*( rsky(r1(X(j):Y(j))) + rsky(r2(X(j):Y(j))) )
       end do
       if((idtra.gt.0).and.(idtra.le.NB))then
-        !if(cntT0.lt.sum(nT0))then
         if(idtra.eq.1)then
           do j=2,NB
             if(rmean(j).le.cR(j))then
@@ -1005,7 +970,8 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
     end do integration
 
-    if((idtra.ge.1).and.(idtra.le.NB)) call write_tra(jtra,utra,stat_tra,storetra)
+    if((idtra.ge.1).and.(idtra.le.NB)) call write_tra(jtra,utra,&
+      &stat_tra,storetra)
 
     if((wrtorb.eq.1).or.(wrtel.eq.1))then
       if(j2.gt.0)then
@@ -1041,25 +1007,14 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     real(dp),dimension(:),allocatable::ra0,ra1
     real(dp)::dt1,dt2
     logical::Hc
-    !real(dp),parameter::resmax=huge(0._dp)
-    !real(dp),parameter::resmax=1.e6_dp
 
-! !     integer::cntRV
-! !     real(dp),dimension(:),allocatable::RV_sim
-! !     integer,dimension(:),allocatable::RV_stat
-! !     real(dp),dimension(:,:),allocatable::gamma
     type(dataRV)::simRV
 
-!     integer::cntT0,nTs
-!     real(dp),dimension(:,:),allocatable::T0_sim
-!     integer,dimension(:,:),allocatable::T0_stat
     type(dataT0),dimension(:),allocatable::simT0
 
     logical::checkpar,gls_check
 
     integer::ndata,nRV,nTTs,nT0,ibd
-
-!     real(dp)::fit_scale,gls_scale
 
     ndata=obsData%ndata
     nRV=obsData%obsRV%nRV
@@ -1069,15 +1024,11 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     resw=zero
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
-!     fit_scale=one
-!     gls_scale=one
     call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
     if(.not.checkpar)then
       resw=set_max_residuals(ndata)
       return
     end if
-
-!     call convert_parameters_scale(allpar,par,m,R,P,a,e,w,mA,inc,lN,fit_scale)
 
     ! it is needed to define which is the alarm coordinate for the transit detection
     call lNset(lN,clN)
@@ -1085,58 +1036,25 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
 
-    ! OLD VERSION
-    ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-!     call initial_state(P,a,e,mA,ra0)
-    ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-!     call orb2obs(ra0,-lN,-inc,-w,ra1)
-
     ! NEW VERSION 2017-11-21
     call kepelements2statevector(m,a,e,mA,w,inc,lN,ra0)
     ra1=ra0
 
-
-!     cntRV=0
-!     if(nRV.gt.0)then
-!       allocate(RV_stat(nRV),RV_sim(nRV))
-!       RV_stat=0
-!       RV_sim=zero
-!     end if
-
     if(nRV.gt.0)then
-!       allocate(simRV%jd(nRV),simRV%RV(nRV),simRV%eRV(nRV),simRV%RV_stat(nRV))
-!       simRV%RV_stat=0
-!       simRV%RV=zero
       call init_dataRV(nRV,simRV)
       simRV%nRV=0
     end if
-
-!     cntT0=0
-!     nTs=maxval(nT0)
-!     if(nTs.gt.0)then
-!       allocate(T0_stat(nTs,NB),T0_sim(nTs,NB))
-!       T0_stat=0
-!       T0_sim=zero
-!     end if
 
     if(nTTs.gt.0)then
       allocate(simT0(NB-1))
       do ibd=1,NB-1
         nT0=obsData%obsT0(ibd)%nT0
-!         allocate(simT0(ibd)%epo(nT0),simT0(ibd)%T0(nT0),&
-!           &simT0(ibd)%eT0(nT0),simT0(ibd)%T0_stat(nT0))
-!         simT0(ibd)%T0_stat=0
-!         if(durcheck.eq.1)then
-!           allocate(simT0(ibd)%dur(nT0),&
-!             &simT0(ibd)%edur(nT0),simT0(ibd)%dur_stat(nT0))
-!           simT0(ibd)%dur_stat=0
-!         end if
         call init_dataT0(nT0,simT0(ibd),durcheck)
         simT0(ibd)%nT0=0
         simT0(ibd)%nDur=0
         !  let's set error on TT and Dur to 1 sec! It is needed to avoid divisione by zero
-        simT0(ibd)%eT0=1./s24h ! 1s in day
-        simT0(ibd)%edur=1./60.0_dp ! 1s in min
+        simT0(ibd)%eT0=one/s24h ! 1s in day
+        simT0(ibd)%edur=one/60.0_dp ! 1s in min
       end do
     end if
 
@@ -1144,52 +1062,44 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     dt2=dt1+tint
     if(dt1.lt.zero)then
 
-!       call ode_a(m,R,ra1,dt1,clN,cntRV,RV_stat,RV_sim,&
-!         &cntT0,T0_stat,T0_sim,Hc)
       call ode_a(m,R,ra1,dt1,clN,simRV,simT0,Hc)
       if(Hc)then
         if(abs(dt1).le.tint)then
-!           call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
-!             &cntT0,T0_stat,T0_sim,Hc)
           call ode_a(m,R,ra1,dt2,clN,simRV,simT0,Hc)
         end if
       end if
 
     else
 
-!       call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
-!         &cntT0,T0_stat,T0_sim,Hc)
       call ode_a(m,R,ra1,dt2,clN,simRV,simT0,Hc)
 
     end if
 
     gls_check=.true.
     if(.not.Hc) then
-!       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
     else
 
-!       call setval_1(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw,oc_fit)
+      ! compute RV trend
+      if(rv_trend_order.gt.0)then
+        call addRVtrend(simRV%jd, par(nfit-rv_trend_order:nfit), simRV%trend)
+      end if
+
       call setval_1(obsData,simRV,simT0,resw,oc_fit)
 
-! !       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
-!       if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
       if(simRV%nRV.gt.0) call check_periodogram(obsData%obsRV%jd,&
-        &obsData%obsRV%RV-simRV%RV,obsData%obsRV%eRV,P,gls_check)
+        &obsData%obsRV%RV-simRV%RV-simRV%trend,obsData%obsRV%eRV,&
+        &P,gls_check)
 
       if(.not.gls_check)then
         resw=set_max_residuals(ndata)
       else
         call check_max_residuals(resw,ndata)
       end if
-!       resw=resw*fit_scale*gls_scale
       call check_max_residuals(resw,ndata)
 
     end if
 
-!     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
-!     if(allocated(gamma)) deallocate(gamma)
-!     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
     call deallocate_dataRV(simRV)
     if(nTTs.gt.0)then
       do ibd=1,NB-1
@@ -1207,12 +1117,9 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
   ! ------------------------------------------------------------------ !
   ! subroutines called by the bootstrap to calculate the new set of T_0 and RV from
   ! the fitted parameters
-!   subroutine ode_parok(allpar,par,RVok,T0ok,resw,fitness)
   subroutine ode_parok(allpar,par,simRV,simT0,resw,fitness)
     real(dp),dimension(:),intent(in)::allpar,par
 
-!     real(dp),dimension(:),intent(out)::RVok
-!     real(dp),dimension(:,:),intent(out)::T0ok
     type(dataRV),intent(inout)::simRV
     type(dataT0),dimension(:),intent(inout)::simT0
 
@@ -1224,22 +1131,10 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     real(dp),dimension(:),allocatable::ra0,ra1
     real(dp)::dt1,dt2
     logical::Hc
-    !real(dp),parameter::resmax=huge(0._dp)
-    !real(dp),parameter::resmax=1.e6_dp
-
-!     integer::cntRV
-!     real(dp),dimension(:),allocatable::RV_sim
-!     integer,dimension(:),allocatable::RV_stat
-!     real(dp),dimension(:,:),allocatable::gamma
-!     integer::cntT0,nTs
-!     real(dp),dimension(:,:),allocatable::T0_sim
-!     integer,dimension(:,:),allocatable::T0_stat
 
     logical::checkpar,gls_check
 
     integer::ndata,nRV,nTTs,nT0
-
-!     real(dp)::fit_scale,gls_scale
 
     integer::ii,ibd
 
@@ -1250,50 +1145,20 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     Hc=.true.
     resw=zero
     fitness=zero
-!     nTs=maxval(nT0)
 
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),&
         &w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
-!     fit_scale=one
-!     gls_scale=one
     call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
 
-!     cntRV=0
-!     if(nRV.gt.0)then
-!       allocate(RV_stat(nRV),RV_sim(nRV))
-!       RV_stat=0
-!       RV_sim=zero
-!     end if
     if(nRV.gt.0)then
-!       if(.not.allocated(simRV%jd))then
-!         allocate(simRV%jd(nRV),simRV%RV(nRV),simRV%eRV(nRV),simRV%RV_stat(nRV))
-!         simRV%RV_stat=0
-!         simRV%RV=zero
-!       end if
       call init_dataRV(nRV,simRV)
       simRV%nRV=0
     end if
 !
-!     cntT0=0
-!     if(nTs.gt.0)then
-!       allocate(T0_stat(nTs,NB),T0_sim(nTs,NB))
-!       T0_stat=0
-!       T0_sim=zero
-!     end if
     if(nTTs.gt.0)then
       do ibd=1,NB-1
-!         if(.not.allocated(simT0(ibd)%epo))then
         nT0=obsData%obsT0(ibd)%nT0
-!           allocate(simT0(ibd)%epo(nT0),simT0(ibd)%T0(nT0),&
-!             &simT0(ibd)%eT0(nT0),simT0(ibd)%T0_stat(nT0))
-!           simT0(ibd)%T0_stat=0
-!           if(durcheck.eq.1)then
-!             allocate(simT0(ibd)%dur(nT0),&
-!               &simT0(ibd)%edur(nT0),simT0(ibd)%dur_stat(nT0))
-!             simT0(ibd)%dur_stat=0
-!           end if
-!         end if
         call init_dataT0(nT0,simT0(ibd),durcheck)
         simT0(ibd)%nT0=0
         simT0(ibd)%nDur=0
@@ -1304,9 +1169,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     end if
 
     if(.not.checkpar)then
-!       if(nRV.gt.0) RVok=zero
-!       if(nTs.gt.0) T0ok=zero
-
       if(nRV.gt.0) simRV%RV=zero
 
       if(nTTs.gt.0)then
@@ -1319,7 +1181,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
       fitness=resmax
       return
     end if
-!     call convert_parameters_scale(allpar,par,m,R,P,a,e,w,mA,inc,lN,fit_scale)
 
     do ii=1,NB
       if(m(ii).lt.zero)then
@@ -1334,30 +1195,19 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
 
-    ! OLD VERSION
-    ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-!     call initial_state(P,a,e,mA,ra0)
-    ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-!     call orb2obs(ra0,-lN,-inc,-w,ra1)
-
     ! NEW VERSION 2017-11-21
     call kepelements2statevector(m,a,e,mA,w,inc,lN,ra0)
     ra1=ra0
-
 
     dt1=tstart-tepoch
     dt2=dt1+tint
     if(dt1.lt.zero)then
 
-!       call ode_a(m,R,ra1,dt1,clN,cntRV,RV_stat,RV_sim,&
-!           &cntT0,T0_stat,T0_sim,Hc)
       call ode_a(m,R,ra1,dt1,clN,simRV,simT0,Hc)
 
       if(Hc)then
         if(abs(dt1).le.tint)then
           dt2=dt1+tint
-!           call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
-!               &cntT0,T0_stat,T0_sim,Hc)
           call ode_a(m,R,ra1,dt2,clN,simRV,simT0,Hc)
         end if
       end if
@@ -1365,14 +1215,10 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     else
 
       dt2=dt1+tint
-!       call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
-!           &cntT0,T0_stat,T0_sim,Hc)
       call ode_a(m,R,ra1,dt2,clN,simRV,simT0,Hc)
 
     end if
     if(.not.Hc) then
-!       if(nRV.gt.0) RVok = zero
-!       if(nTs.gt.0) T0ok = zero
       if(nRV.gt.0) simRV%RV=zero
 
       if(nTTs.gt.0)then
@@ -1386,29 +1232,21 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
     else
 
-!       call setval_1(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw,oc_fit)
+      ! compute RV trend
+      if(rv_trend_order.gt.0)then
+        call addRVtrend(simRV%jd, par(nfit-rv_trend_order:nfit), simRV%trend)
+      end if
       call setval_1(obsData,simRV,simT0,resw,oc_fit)
 
-!       if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
-! !       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
-!       resw=resw*fit_scale*gls_scale
-
       if(simRV%nRV.gt.0) call check_periodogram(obsData%obsRV%jd,&
-        &obsData%obsRV%RV-simRV%RV,obsData%obsRV%eRV,P,gls_check)
+        &obsData%obsRV%RV-simRV%RV-simRV%trend,obsData%obsRV%eRV,&
+        &P,gls_check)
 
       call check_max_residuals(resw,ndata)
-!       if(nRV.gt.0)then
-!         call setRVok(RV_sim,gamma,RVok)
-!       end if
-!       if(nTs.gt.0) T0ok=T0_sim
-      ! not neede previous stuff because it is done in the computations
 
       fitness=sum(resw*resw)
     end if
 
-!     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
-!     if(allocated(gamma)) deallocate(gamma)
-!     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
     if(allocated(m)) deallocate(m,R,P,a,e,w,mA,inc,lN,clN)
     if(allocated(ra0)) deallocate(ra0,ra1)
 
@@ -1416,12 +1254,9 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
   end subroutine ode_parok
 
   ! subroutine called by the L-M to fit the parameters with observations in input (RV and T0)
-!   subroutine ode_boot(allpar,nm,nn,par,RV_obs,T0_obs,resw,iflag)
   subroutine ode_boot(allpar,nm,nn,par,oDataIn,resw,iflag)
     integer,intent(in)::nm,nn
     real(dp),dimension(:),intent(in)::allpar,par
-!     real(dp),dimension(:),intent(in)::allpar,par,RV_obs
-!     real(dp),dimension(:,:),intent(in)::T0_obs
     type(dataObs),intent(in)::oDataIn
 
     real(dp),dimension(:),intent(out)::resw
@@ -1432,16 +1267,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     real(dp),dimension(:),allocatable::ra0,ra1
     real(dp)::dt1,dt2
     logical::Hc
-    !real(dp),parameter::resmax=huge(0._dp)
-    !real(dp),parameter::resmax=1.e6_dp
-
-!     integer::cntRV
-!     real(dp),dimension(:),allocatable::RV_sim
-!     integer,dimension(:),allocatable::RV_stat
-!     real(dp),dimension(:,:),allocatable::gamma
-!     integer::cntT0,nTs
-!     real(dp),dimension(:,:),allocatable::T0_sim
-!     integer,dimension(:,:),allocatable::T0_stat
 
     type(dataRV)::simRV
     type(dataT0),dimension(:),allocatable::simT0
@@ -1449,8 +1274,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     integer::ndata,nRV,nTTs,nT0,ibd
 
     logical::checkpar,gls_check
-
-!     real(dp)::fit_scale,gls_scale
 
     ndata=oDataIn%ndata
     nRV=oDataIn%obsRV%nRV
@@ -1461,16 +1284,11 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     allocate(m(NB),R(NB),P(NB),a(NB),e(NB),&
         &w(NB),mA(NB),inc(NB),lN(NB),clN(NB))
 
-!     fit_scale=one
-!     gls_scale=one
     call convert_parameters(allpar,par,m,R,P,a,e,w,mA,inc,lN,checkpar)
     if(.not.checkpar)then
-!       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
       return
     end if
-!     call convert_parameters_scale(allpar,par,m,R,P,a,e,w,mA,inc,lN,fit_scale)
-
 
     ! it is needed to define the which is the alarm coordinate for the transit detection
     call lNset(lN,clN)
@@ -1478,49 +1296,19 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
 
-    ! OLD VERSION
-    ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-!     call initial_state(P,a,e,mA,ra0)
-    ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-!     call orb2obs(ra0,-lN,-inc,-w,ra1)
-
     ! NEW VERSION 2017-11-21
     call kepelements2statevector(m,a,e,mA,w,inc,lN,ra0)
     ra1=ra0
 
-!     cntRV=0
-!     if(nRV.gt.0)then
-!       allocate(RV_stat(nRV),RV_sim(nRV))
-!       RV_stat=0
-!       RV_sim=zero
-!     end if
     if(nRV.gt.0)then
-!       allocate(simRV%jd(nRV),simRV%RV(nRV),simRV%eRV(nRV),simRV%RV_stat(nRV))
-!       simRV%RV_stat=0
-!       simRV%RV=zero
       call init_dataRV(nRV,simRV)
       simRV%nRV=0
     end if
 
-!     cntT0=0
-!     nTs=maxval(nT0)
-!     if(nTs.gt.0)then
-!       allocate(T0_stat(nTs,NB),T0_sim(nTs,NB))
-!       T0_stat=0
-!       T0_sim=zero
-!     end if
     if(nTTs.gt.0)then
       allocate(simT0(NB-1))
       do ibd=1,NB-1
         nT0=obsData%obsT0(ibd)%nT0
-!         allocate(simT0(ibd)%epo(nT0),simT0(ibd)%T0(nT0),&
-!           &simT0(ibd)%eT0(nT0),simT0(ibd)%T0_stat(nT0))
-!         simT0(ibd)%T0_stat=-
-!         if(durcheck.eq.1)then
-!           allocate(simT0(ibd)%dur(nT0),&
-!             &simT0(ibd)%edur(nT0),simT0(ibd)%dur_stat(nT0))
-!           simT0(ibd)%dur_stat=0
-!         end if
         call init_dataT0(nT0,simT0(ibd),durcheck)
         simT0(ibd)%nT0=0
         simT0(ibd)%nDur=0
@@ -1532,44 +1320,34 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
     dt1=tstart-tepoch
     if(dt1.lt.zero)then
-!       call ode_a(m,R,ra1,dt1,clN,cntRV,RV_stat,RV_sim,&
-!           &cntT0,T0_stat,T0_sim,Hc)
       call ode_a(m,R,ra1,dt1,clN,simRV,simT0,Hc)
       if(Hc)then
         if(abs(dt1).le.tint)then
           dt2=dt1+tint
-!           call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
-!               &cntT0,T0_stat,T0_sim,Hc)
           call ode_a(m,R,ra1,dt2,clN,simRV,simT0,Hc)
         end if
       end if
     else
       dt2=dt1+tint
-!       call ode_a(m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
-!           &cntT0,T0_stat,T0_sim,Hc)
       call ode_a(m,R,ra1,dt2,clN,simRV,simT0,Hc)
     end if
     if(.not.Hc) then
-!       resw=sqrt(resmax)/real(ndata,dp)
       resw=set_max_residuals(ndata)
     else
-!       call setval_1(RV_obs,RV_sim,eRVobs,gamma,epoT0obs,T0_obs,eT0obs,T0_sim,resw,oc_fit)
+
+      ! compute RV trend
+      if(rv_trend_order.gt.0)then
+        call addRVtrend(simRV%jd, par(nfit-rv_trend_order:nfit), simRV%trend)
+      end if
       call setval_1(oDataIn,simRV,simT0,resw,oc_fit)
 
-!       if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
       if(simRV%nRV.gt.0) call check_periodogram(oDataIn%obsRV%jd,&
-        &oDataIn%obsRV%RV-simRV%RV,oDataIn%obsRV%eRV,P,gls_check)
-
-! !       if(cntRV.gt.0) call check_periodogram_scale(jdRV,RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
-!       resw=resw*fit_scale*gls_scale
+        &oDataIn%obsRV%RV-simRV%RV-simRV%trend,oDataIn%obsRV%eRV,&
+        &P,gls_check)
 
       call check_max_residuals(resw,ndata)
 
     end if
-
-!     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
-!     if(allocated(gamma)) deallocate(gamma)
-!     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
 
     call deallocate_dataRV(simRV)
     if(nTTs.gt.0)then
@@ -1586,9 +1364,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
   ! ------------------------------------------------------------------ !
 
 
-!   subroutine ode_full_args(m,R,rin,time,step_in,clN,&
-!     &cntRV,tRV,RV_stat,RV_sim,id_transit_body,transit_flag,dur_check,&
-!     &cntT0,n_T0,T0_num,T0_stat,T0_sim,Hc)
     subroutine ode_full_args(m,R,rin,time,step_in,clN,simRV,&
       &id_transit_body,transit_flag,dur_check,simT0,Hc)
 
@@ -1596,21 +1371,12 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     real(dp),intent(in)::time,step_in
     integer,dimension(:),intent(in)::clN
 
-!     integer,intent(inout)::cntRV
-!     real(dp),dimension(:),intent(in)::tRV
-!     integer,dimension(:),intent(inout)::RV_stat
-!     real(dp),dimension(:),intent(inout)::RV_sim
     type(dataRV),intent(inout)::simRV
 
     integer,intent(in)::id_transit_body
     logical,dimension(:),intent(in)::transit_flag
     integer,intent(in)::dur_check
 
-!     integer,intent(inout)::cntT0
-!     integer,dimension(:),intent(in)::n_T0
-!     integer,dimension(:,:),intent(in)::T0_num
-!     integer,dimension(:,:),intent(inout)::T0_stat
-!     real(dp),dimension(:,:),intent(inout)::T0_sim
     type(dataT0),dimension(:),intent(inout)::simT0
 
     logical,intent(inout)::Hc
@@ -1624,8 +1390,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
     integer::nRV,nTTs
 
-
-!     if(do_hill_check) Hc=mutual_Hill_check(m,rin)
     Hc = separation_mutual_Hill_check(m,R,rin,do_hill_check)
     if(.not.Hc) return
 
@@ -1658,8 +1422,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     r2=zero
     err=zero
 
-!     nRV=size(tRV)
-
     j1=0
     integration: do
       j1=j1+1
@@ -1667,13 +1429,10 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
       call eqmastro(m,r1,dr)
       call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err)
 
-!       if(do_hill_check) Hc=mutual_Hill_check(m,r2)
       Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
       if(.not.Hc) return
 
       ! RV check
-!       if(cntRV.lt.nRV) call check_RV&
-!         &(m,r1,dr,itime,hok,cntRV,tRV,RV_stat,RV_sim)
       if(simRV%nRV.lt.nRV) call check_RV(m,r1,dr,itime,hok,simRV)
 
       ! T0 check
@@ -1684,7 +1443,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
       end do
 
       if((id_transit_body.gt.0).and.(id_transit_body.le.n_body))then
-!         if(cntT0.lt.sum(n_T0))then
         if(sum(simT0(:)%nT0).lt.nTTs)then
           if(id_transit_body.eq.1)then
             do j=2,n_body
@@ -1692,9 +1450,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
                 if(clN(j).eq.0)then
 
                   if((cX(j).le.zero).and.(r1(Z(j)).gt.zero))then
-!                     call check_T0(j,m,R,r1,r2,&
-!                       &itime,hok,transit_flag,dur_check,n_T0,&
-!                       &T0_num,T0_stat,T0_sim,Hc)
                       call check_T0(j,m,R,r1,r2,itime,hok,&
                         &transit_flag,dur_check,obsData,simT0,Hc)
                     if(.not.Hc) return
@@ -1703,9 +1458,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
                 else
 
                   if((cY(j).le.zero).and.(r1(Z(j)).gt.zero))then
-!                     call check_T0(j,m,R,r1,r2,&
-!                       &itime,hok,transit_flag,dur_check,n_T0,&
-!                       &T0_num,T0_stat,T0_sim,Hc)
                     call check_T0(j,m,R,r1,r2,itime,hok,&
                       &transit_flag,dur_check,obsData,simT0,Hc)
                     if(.not.Hc) return
@@ -1720,9 +1472,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
                 if((cX(id_transit_body).le.zero).and.&
                   &(r1(Z(id_transit_body)).gt.zero))then
-!                   call check_T0(id_transit_body,m,R,r1,r2,&
-!                     &itime,hok,transit_flag,dur_check,n_T0,&
-!                     &T0_num,T0_stat,T0_sim,Hc)
                   call check_T0(id_transit_body,m,R,r1,r2,itime,hok,&
                     &transit_flag,dur_check,obsData,simT0,Hc)
                   if(.not.Hc) return
@@ -1732,9 +1481,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
                 if((cY(id_transit_body).le.zero).and.&
                   &(r1(Z(id_transit_body)).gt.zero))then
-!                   call check_T0(id_transit_body,m,R,r1,r2,&
-!                     &itime,hok,transit_flag,dur_check,n_T0,&
-!                     &T0_num,T0_stat,T0_sim,Hc)
                   call check_T0(id_transit_body,m,R,r1,r2,itime,hok,&
                     &transit_flag,dur_check,obsData,simT0,Hc)
                   if(.not.Hc) return
@@ -1743,7 +1489,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
               end if
             end if
           end if
-!           cntT0=sum(T0_stat)
         end if
       end if
 
@@ -1758,15 +1503,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     return
   end subroutine ode_full_args
 
-
-!   subroutine orbits_to_data(t_start,t_epoch,step_in,t_int,&
-!     &m,R,P,ecc,argp,mA,inc,lN,&
-!     &tRV,RV_sim,&
-!     &id_transit_body,transit_flag,dur_check,n_T0,T0_num,T0_sim)
-
-!     subroutine orbits_to_data(t_start,t_epoch,step_in,t_int,&
-!     &m,R,P,ecc,argp,mA,inc,lN,id_transit_body,transit_flag,dur_check,&
-!     &oDataIn,simRV,simT0)
 
   subroutine orbits_to_data(t_start,t_epoch,step_in,t_int,&
     &m,R,P,ecc,argp,mA,inc,lN,&
@@ -1783,8 +1519,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     logical,dimension(:),intent(in)::transit_flag
     integer,intent(in)::dur_check
 
-!     integer,dimension(:),intent(in)::n_T0
-!     integer,dimension(:,:),intent(in)::T0_num
     real(dp),dimension(:,:),allocatable,intent(out)::T0_sim
 
 
@@ -1798,16 +1532,10 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     real(dp)::dt1,dt2
     logical::Hc
 
-!     integer::cntRV,n_rv
-!     integer,dimension(:),allocatable::RV_stat
-!     integer::cntT0,nTs
-!     integer,dimension(:,:),allocatable::T0_stat
-
     integer::nRV,nTTs
     integer::ibd,nT0
 
     nRV=size(tRV)
-!     nRV=obsData%obsRV%nRV
     nTTs=obsData%nTTs
 
     Hc=.true.
@@ -1823,27 +1551,11 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     nb_dim=6*n_body
     if(.not.allocated(ra0)) allocate(ra0(nb_dim),ra1(nb_dim))
 
-    ! OLD VERSION
-    ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-!     call initial_state(P,sma,ecc,mA,ra0)
-    ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-!     call orb2obs(ra0,-lN,-inc,-argp,ra1)
-
     ! NEW VERSION 2017-11-21
     call kepelements2statevector(m,sma,ecc,mA,argp,inc,lN,ra0)
     ra1=ra0
 
-!     cntRV=0
-!     n_rv=size(tRV)
-!     if(n_rv.gt.0)then
-!       allocate(RV_stat(n_rv),RV_sim(n_rv))
-!       RV_stat=0
-!       RV_sim=zero
-!     end if
     if(nRV.gt.0)then
-!       allocate(simRV%jd(nRV),simRV%RV(nRV),simRV%eRV(nRV),simRV%RV_stat(nRV))
-!       simRV%RV_stat=0
-!       simRV%RV=zero
       call init_dataRV(nRV,simRV)
       simRV%nRV=0
       allocate(RV_sim(nRV))
@@ -1851,25 +1563,10 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
       simRV%jd=tRV
     end if
 
-!     nTs=maxval(n_T0)
-!     cntT0=0
-!     if(nTs.gt.0)then
-!       allocate(T0_stat(nTs,n_body),T0_sim(nTs,n_body))
-!       T0_stat=0
-!       T0_sim=zero
-!     end if
     if(nTTs.gt.0)then
       allocate(simT0(n_body-1))
       do ibd=1,n_body-1
         nT0=obsData%obsT0(ibd)%nT0
-!         allocate(simT0(ibd)%epo(nT0),simT0(ibd)%T0(nT0),&
-!           &simT0(ibd)%eT0(nT0),simT0(ibd)%T0_stat(nT0))
-!         simT0(ibd)%T0_stat=0
-!         if(dur_check.eq.1)then
-!           allocate(simT0(ibd)%dur(nT0),&
-!             &simT0(ibd)%edur(nT0),simT0(ibd)%dur_stat(nT0))
-!           simT0(ibd)%dur_stat=0
-!         end if
         call init_dataT0(nT0,simT0(ibd),dur_check)
         simT0(ibd)%nT0=0
         simT0(ibd)%nDur=0
@@ -1884,20 +1581,12 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     dt1=t_start-t_epoch
     dt2=dt1+t_int
     if(dt1.lt.zero)then
-!       call ode_full_args(m,R,ra1,dt1,step_in,clN,&
-!         &cntRV,tRV,RV_stat,RV_sim,id_transit_body,&
-!         &transit_flag,dur_check,&
-!         &cntT0,n_T0,T0_num,T0_stat,T0_sim,Hc)
       call ode_full_args(m,R,ra1,dt1,step_in,clN,simRV,&
         &id_transit_body,transit_flag,dur_check,simT0,Hc)
 
       if(Hc)then
         if(abs(dt1).le.t_int)then
           dt2=dt1+t_int
-!           call ode_full_args(m,R,ra1,dt2,step_in,clN,&
-!             &cntRV,tRV,RV_stat,RV_sim,id_transit_body,&
-!             &transit_flag,dur_check,&
-!             &cntT0,n_T0,T0_num,T0_stat,T0_sim,Hc)
           call ode_full_args(m,R,ra1,dt2,step_in,clN,simRV,&
             &id_transit_body,transit_flag,dur_check,simT0,Hc)
 
@@ -1905,23 +1594,17 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
       end if
     else
       dt2=dt1+t_int
-!       call ode_full_args(m,R,ra1,dt2,step_in,clN,&
-!         &cntRV,tRV,RV_stat,RV_sim,id_transit_body,&
-!         &transit_flag,dur_check,&
-!         &cntT0,n_T0,T0_num,T0_stat,T0_sim,Hc)
       call ode_full_args(m,R,ra1,dt2,step_in,clN,simRV,&
         &id_transit_body,transit_flag,dur_check,simT0,Hc)
 
     end if
 
     if(.not.Hc) then
-!       if(n_rv.gt.0) RV_sim = zero
         if(nRV.gt.0)then
           simRV%RV=zero
           simRV%RV_stat=0
           RV_sim=zero
         end if
-!       if(nTs.gt.0) T0_sim = zero
         if(nTTs.gt.0)then
           do ibd=1,n_body-1
             if(simT0(ibd)%nT0.gt.0)then
@@ -1948,8 +1631,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
     end if
 
-!     if(allocated(RV_stat)) deallocate(RV_stat)
-!     if(allocated(T0_stat)) deallocate(T0_stat)
     if(allocated(ra0)) deallocate(ra0,ra1)
 
     call deallocate_dataRV(simRV)
@@ -1979,14 +1660,7 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     real(dp)::dt1,dt2
     logical::Hc
 
-!     integer::cntRV
-!     real(dp),dimension(:),allocatable::RV_sim
-!     integer,dimension(:),allocatable::RV_stat
-!     real(dp),dimension(:,:),allocatable::gamma
     type(dataRV)::simRV
-!     integer::cntT0,nTs
-!     real(dp),dimension(:,:),allocatable::T0_sim
-!     integer,dimension(:,:),allocatable::T0_stat
     type(dataT0),dimension(:),allocatable::simT0
 
     logical::checkpar,gls_check
@@ -2005,7 +1679,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
     write(*,'(a)')''
     write(*,'(a)')" EXECUTING SIMPLE INTEGRATION AND WRITING FINAL FILES"
-!     write(*,'(a,i3)')" LM on[1]/off[0] = ",wrtid
     write(*,'(a)')''
 
     ndata=obsData%ndata
@@ -2028,18 +1701,15 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
       gls_scale=one
       call convert_parameters_scale(allpar,par,m,R,P,sma,ecc,w,mA,inc,lN,fit_scale)
     else
-!       call convert_parameters(allpar,par,m,R,P,sma,ecc,w,mA,inc,lN,checkpar,.true.)
       call convert_parameters(allpar,par,m,R,P,sma,ecc,w,mA,inc,lN,checkpar)
       if(.not.checkpar)then
         write(*,'(a)')' checkpar after convert_parameters is FALSE ... BAD'
-  !       resw=sqrt(resmax)/real(ndata,dp)
       if(ndata > 0) resw=set_max_residuals(ndata)
       end if
     end if
 
 
     if(present(fit_scale)) write(*,'(a,es23.16)')' fit_scale = ',fit_scale
-!     write(*,*)
     flush(6)
 
     ! write orbital elements into a file
@@ -2051,53 +1721,21 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
 
-    ! OLD VERSION
-    ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-!     call initial_state(P,sma,ecc,mA,ra0)
-    ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-!     call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
-
     ! NEW VERSION 2017-11-21
     call kepelements2statevector(m,sma,ecc,mA,w,inc,lN,ra0)
     ra1=ra0
 
-!     cntRV=0
-!     if(nRV.gt.0)then
-!       allocate(RV_stat(nRV),RV_sim(nRV))
-!       RV_stat=0
-!       RV_sim=zero
-!     end if
     if(nRV.gt.0)then
-!       allocate(simRV%jd(nRV),&
-!         &simRV%RV(nRV),simRV%eRV(nRV),simRV%RV_stat(nRV))
-!       simRV%RV_stat=0
-!       simRV%RV=zero
       call init_dataRV(nRV,simRV)
       simRV%nRV=0
     end if
 
     if((idtra.ge.1).and.(idtra.le.NB)) call set_file_tra(cpuid,isim,wrtid,utra,fltra)
-!     cntT0=0
-!     nTs=maxval(nT0)
-!     if(nTs.gt.0)then
-!       allocate(T0_stat(nTs,NB),T0_sim(nTs,NB))
-!       T0_stat=0
-!       T0_sim=zero
-!     end if
 
     allocate(simT0(NB-1))
     if(nTTs.gt.0)then
-!       allocate(simT0(NB-1))
         do ibd=1,NB-1
           nT0=obsData%obsT0(ibd)%nT0
-!           allocate(simT0(ibd)%epo(nT0),simT0(ibd)%T0(nT0),&
-!             &simT0(ibd)%eT0(nT0),simT0(ibd)%T0_stat(nT0))
-!           simT0(ibd)%T0_stat=0
-!           if(durcheck.eq.1)then
-!             allocate(simT0(ibd)%dur(nT0),&
-!               &simT0(ibd)%edur(nT0),simT0(ibd)%dur_stat(nT0))
-!             simT0(ibd)%dur_stat=0
-!           end if
           call init_dataT0(nT0,simT0(ibd),durcheck)
           simT0(ibd)%nT0=0
           simT0(ibd)%nDur=0
@@ -2114,40 +1752,21 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     fmele=fmtele()
     if(wrtel.eq.1) call set_file_elem(cpuid,isim,wrtid,uele,flele)
 
-!     write(*,'(a,l)')' 0 ode_out Hc = ',Hc
-
     dt1=tstart-tepoch
     dt2=dt1+tint
     if(dt1.lt.zero)then
-!       write(*,'(a,g25.14,a)')" dt1 = ",dt1,&
-!           &"< 0 => backward integration"
-!       call ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
-!           &m,R,ra1,dt1,clN,cntRV,RV_stat,RV_sim,&
-!           &cntT0,T0_stat,T0_sim,Hc)
         call ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
           &m,R,ra1,dt1,clN,simRV,simT0,Hc)
       if(Hc)then
         if(abs(dt1).le.tint)then
-!           write(*,'(a,g25.14,a)')" dt2 =  ",dt2,&
-!               &" => forward integration"
-!           call ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
-!               &m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
-!               &cntT0,T0_stat,T0_sim,Hc)
           call ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
             &m,R,ra1,dt2,clN,simRV,simT0,Hc)
         end if
       end if
     else
-!       write(*,'(a,g25.14,a)')" dt2 = ",dt2,&
-!           &" => only forward integration"
-!       call ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
-!           &m,R,ra1,dt2,clN,cntRV,RV_stat,RV_sim,&
-!           &cntT0,T0_stat,T0_sim,Hc)
       call ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         &m,R,ra1,dt2,clN,simRV,simT0,Hc)
     end if
-
-!     write(*,'(a,l)')' 1 ode_out Hc = ',Hc
 
     write(*,*)
     if(.not.Hc) then
@@ -2166,24 +1785,22 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     if(ndata.gt.0)then
 
       if(.not.Hc) then
-  !       resw=sqrt(resmax)/real(ndata,dp)
         resw=set_max_residuals(ndata)
 
-        ! needed to add the allocation of gamma offset otherwise it returns a segfault
-!         if(.not.allocated(gamma)) allocate(gamma(nRVset,2))
-!         gamma=zero
         if(.not.allocated(simRV%gamma)) &
           &allocate(simRV%gamma(obsData%obsRV%nRVset,2))
         simRV%gamma=zero
       else
-!         call setval_1(RVobs,RV_sim,eRVobs,gamma,epoT0obs,T0obs,eT0obs,T0_sim,resw,oc_fit)
+        ! compute RV trend
+        if(rv_trend_order.gt.0)then
+          call addRVtrend(simRV%jd, par(nfit-rv_trend_order:nfit), simRV%trend)
+        end if
         call setval_1(obsData,simRV,simT0,resw,oc_fit)
 
         if(present(fit_scale))then
-!           if(cntRV.gt.0) call check_periodogram_scale(jdRV,&
-!             &RVobs-RV_sim,eRVobs,P,gls_check,gls_scale)
           if(simRV%nRV.gt.0) call check_periodogram_scale(obsData%obsRV%jd,&
-            &obsData%obsRV%RV-simRV%RV,obsData%obsRV%eRV,P,gls_check,gls_scale)
+            &obsData%obsRV%RV-simRV%RV-simRV%trend,obsData%obsRV%eRV,&
+            P,gls_check,gls_scale)
           write(*,*)
           write(*,'(a)')' CHECK GLS RESIDUALS-RV'
           write(*,'(a,es23.16)')' gls_scale = ',gls_scale
@@ -2191,9 +1808,9 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
           flush(6)
           resw=resw*fit_scale*gls_scale
         else
-!           if(cntRV.gt.0) call check_periodogram(jdRV,RVobs-RV_sim,eRVobs,P,gls_check)
           if(simRV%nRV.gt.0) call check_periodogram(obsData%obsRV%jd,&
-            &obsData%obsRV%RV-simRV%RV,obsData%obsRV%eRV,P,gls_check)
+            &obsData%obsRV%RV-simRV%RV-simRV%trend,obsData%obsRV%eRV,&
+            &P,gls_check)
         end if
         call check_max_residuals(resw,ndata)
       end if
@@ -2211,13 +1828,10 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         write(*,'(a,i4)')" RADIAL VELOCITIES found: ",simRV%nRV
         write(*,*)""
 
-!         if(present(to_screen)) call write_RV(gamma,RV_sim,RV_stat)
         if(present(to_screen)) call write_RV(simRV)
-!         call write_RV(cpuid,isim,wrtid,gamma,RV_sim,RV_stat)
         call write_RV(cpuid,isim,wrtid,simRV)
 
         allocate(resw_temp(nRV))
-!         call set_RV_resw(RVobs,RV_sim,eRVobs,gamma,resw_temp)
         call set_RV_resw(obsData%obsRV,simRV,resw_temp)
         chi2r_RV=sum(resw_temp*resw_temp)*obsData%inv_dof
         w_chi2r=real(ndata,dp)/real(nRV,dp)
@@ -2227,11 +1841,11 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         ! 2016-04-08: added gls check
         if(present(gls_scale))then
           call check_and_write_periodogram(cpuid,isim,wrtid,&
-            &obsData%obsRV%jd,obsData%obsRV%RV-simRV%RV,&
+            &obsData%obsRV%jd,obsData%obsRV%RV-simRV%RV-simRV%trend,&
             &obsData%obsRV%eRV,P,gls_check,gls_scale)
         else
           call check_and_write_periodogram(cpuid,isim,wrtid,&
-            &obsData%obsRV%jd,obsData%obsRV%RV-simRV%RV,&
+            &obsData%obsRV%jd,obsData%obsRV%RV-simRV%RV-simRV%trend,&
             &obsData%obsRV%eRV,P,gls_check)
         end if
         if(.not.gls_check)resw=set_max_residuals(ndata)
@@ -2256,12 +1870,9 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         allocate(resw_temp(nTTs))
         resw_temp=zero
         call set_T0_resw(obsData%obsT0,simT0,resw_temp)
-  !       resw_temp=(T0obs-T0_sim)/eT0obs
         chi2r_T0=sum(resw_temp*resw_temp)*obsData%inv_dof
         w_chi2r=real(ndata,dp)/real(nTTs,dp)
         chi2wr_T0=chi2r_T0*w_chi2r
-  !       deallocate(resw_temp)
-  !       allocate(resw_temp(sum(nT0)))
         resw_temp=zero
         call set_oc_resw(obsData%obsT0,simT0,resw_temp)
         chi2r_oc=sum(resw_temp*resw_temp)*obsData%inv_dof
@@ -2281,8 +1892,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         write(*,*)
       end if
 
-!     if(ndata.gt.0)then
-!       if(.not.checkpar.or..not.Hc) resw=set_max_residuals(ndata)
       fitness = sum(resw*resw)
       write(*,'(a)')' DEBUG: fitness'
 
@@ -2313,9 +1922,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     end if  ! ndata
 
     write(*,'(a)')' DEBUG: deallocating simRV'
-!     if(allocated(RV_sim)) deallocate(RV_stat,RV_sim)
-!     if(allocated(gamma)) deallocate(gamma)
-!     if(allocated(T0_sim)) deallocate(T0_stat,T0_sim)
     call deallocate_dataRV(simRV)
     write(*,'(a)')' DEBUG: deallocating simT0'
     if(nTTs.gt.0)then
@@ -2351,7 +1957,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
     write(*,'(a)')''
     write(*,'(a)')" EXECUTING SIMPLE INTEGRATION AND WRITING FINAL FILES"
-!     write(*,'(a,i3)')" LM on[1]/off[0] = ",wrtid
     write(*,'(a)')''
 
 !     resw=zero
@@ -2365,12 +1970,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
-
-    ! OLD VERSION
-    ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-!     call initial_state(P,sma,ecc,mA,ra0)
-    ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-!     call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
 
     ! NEW VERSION 2017-11-21
     call kepelements2statevector(m,sma,ecc,mA,w,inc,lN,ra0)
@@ -2507,7 +2106,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
     ! set the iteration write time: updated each wrt_time passed
     step_write=wrt_time
-!     if(wrt_time.lt.zero) step_write=-step_write
     if(time_int.lt.zero) step_write=-step_write
     iter_write=step_write
 
@@ -2518,7 +2116,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
       call eqmastro(m,r1,dr) ! computes the eq. of motion
       call int_rk_a(m,r1,dr,hw,hok,hnext,r2,err) ! computes the next orbit step
 
-!       if(do_hill_check) Hc=mutual_Hill_check(m,r2)
       Hc = separation_mutual_Hill_check(m,R,r2,do_hill_check)
       if(.not.Hc) return
 
@@ -2553,10 +2150,8 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         ! transit time check variables
         cX(j)=r1(X(j))*r2(X(j))
         cY(j)=r1(Y(j))*r2(Y(j))
-!         rmean(j)=half*( rsky(r1(X(j):Y(j))) + rsky(r2(X(j):Y(j))) )
 
         ! check the transit criteria for each body
-!         if(rmean(j).le.cR(j))then
 
         check_ttra=.false. ! initialise to .false.
         ttra_temp=-9.e10_dp     !               zero
@@ -2611,9 +2206,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
       hw=hnext
       r1=r2
 
-!       ! TESTING
-! !       if(step_num.eq.10)exit integration
-
     end do integration
 
     deallocate(X,Y,Z,cX,cY,cR,rmean)
@@ -2631,21 +2223,17 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     &time_rv_nmax,rv_nmax,stats_rv)
     real(dp),intent(in)::wrt_time
     real(dp),dimension(:),intent(in)::m,R,P,a,e,w,mA,inc,lN
-!     integer,intent(in)::nT0_full
+
     real(dp),dimension(:),intent(out)::ttra_full,dur_full
     integer,dimension(:),intent(out)::id_ttra_full
     logical,dimension(:),intent(out)::stats_ttra
-!     integer,intent(in)::n_rv_nmax
     real(dp),dimension(:),intent(out)::time_rv_nmax,rv_nmax
     logical,dimension(:),intent(out)::stats_rv
 
     integer,dimension(:),allocatable::clN
     real(dp),dimension(:),allocatable::ra0,ra1
 
-!     integer,dimension(:),allocatable::nT0_perbody
-
     integer::last_tra,last_rv
-!     integer,dimension(:),allocatable::idx_sort
 
     real(dp)::dt1,dt2
     logical::Hc
@@ -2658,25 +2246,17 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     NBDIM=6*NB
     if(.not.allocated(ra0)) allocate(ra0(NBDIM),ra1(NBDIM))
 
-    ! OLD VERSION
-    ! IT CREATES THE INITIAL STATE VECTOR FROM KEPLERIAN ORBITAL ELEMENS IN THE ORBITAL PLANE
-!     call initial_state(P,a,e,mA,ra0)
-    ! IT ROTATES THE STATE VECTORS FROM ORBITAL REF. SYSTEM TO THE OBSERVER REF. SYSTEM
-!     call orb2obs(ra0,-lN,-inc,-w,ra1) !OK 3T 1T 3T
-
     ! NEW VERSION 2017-11-21
     call kepelements2statevector(m,a,e,mA,w,inc,lN,ra0)
     ra1=ra0
 
     ! prepare rv arrays
-!     allocate(time_rv_nmax(n_rv_nmax),rv_nmax(n_rv_nmax),stats_rv(n_rv_nmax))
     time_rv_nmax=zero
     rv_nmax=zero
     stats_rv=.false.
     last_rv=0
 
     ! prepare ttra arrays
-!     allocate(ttra_full(nT0_full),id_ttra_full(nT0_full),stats_ttra(nT0_full))
     ttra_full=-9.e10_dp
     dur_full=-9.e10_dp
     id_ttra_full=0
@@ -2718,37 +2298,6 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     end if
 
     if(allocated(ra0)) deallocate(ra0,ra1)
-
-    ! NOT HERE
-!     ! take only the good rv
-!     time_rv_all=pack(time_rv_nmax,stats_rv) ! select only for stats_rv==.true. values and allocate array
-!     rv_all=pack(rv_nmax,stats_rv)
-!     if(allocated(time_rv_nmax)) deallocate(time_rv_nmax,rv_nmax,stats_rv)
-!     ! sort the rv with time
-!     allocate(idx_sort(size(time_rv_all)))
-!     call indexx(time_rv_all,idx_sort)
-!     time_rv_all=time_rv_all(idx_sort)
-!     rv_all=rv_all(idx_sort)
-!     deallocate(idx_sort)
-!
-!     ! take only the good transit times (with proper id)
-!     ! and sort them all
-!     ttra_all=pack(ttra_full,stats_ttra)
-!     id_ttra_all=pack(id_ttra_full,stats_ttra)
-!     if(allocated(ttra_full)) deallocate(ttra_full,id_ttra_full,stats_ttra)
-!     ! sort the transit times
-!     allocate(idx_sort(size(ttra_all)))
-!     call indexx(ttra_all,idx_sort)
-!     ttra_all=ttra_all(idx_sort)
-!     id_ttra_all=id_ttra_all(idx_sort)
-!     deallocate(idx_sort)
-
-
-!     write(*,'(2(a,f14.8))')' dt1 = ',dt1,' dt2 = ',dt2
-!
-!     write(*,'(a)')' FIRST time_rv_nmax(1:10)'
-!     write(*,'(1000(1x,f14.8))')time_rv_nmax(1:10)
-
 
     return
   end subroutine ode_all_ttra_rv

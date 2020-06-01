@@ -20,25 +20,37 @@ module radial_velocities
     real(dp),dimension(:),intent(in)::ri,drdt
     real(dp),intent(in)::stepRV
     real(dp),intent(out)::RVsim
+
     real(dp),dimension(:),allocatable::ro,err,rbarRV
     real(dp),dimension(:),allocatable::barRV
 
     allocate(barRV(6),rbarRV(NBDIM),ro(NBDIM),err(NBDIM))
     call rkck_a(m,ri,drdt,stepRV,ro,err) ! call integrator
-!     write(*,*)m
-!     write(*,*)ri
-!     write(*,*)drdt
-!     write(*,*)stepRV
-!     write(*,*)ro
     call barycenter(m,ro,barRV,rbarRV) ! astrocentric 2 barycentric
     RVsim=-rbarRV(6)*AU/s24h ! rv as -Zstar,bar m/s
-!     write(*,*)barRV
-!     write(*,*)rbarRV
-!     write(*,*)RVsim
     deallocate(barRV,rbarRV,ro,err)
 
     return
   end subroutine calcRV
+
+  ! calculation of the trend of RV, order == gamma, non taken into account
+  subroutine addRVtrend(t, coeff, trend)
+    real(dp),dimension(:),intent(in)::t
+    real(dp),dimension(:),intent(in)::coeff
+    real(dp),dimension(:),intent(out)::trend
+
+    real(dp),dimension(size(t))::w
+    integer::o,order
+
+    w = t - half*(maxval(t)-maxval(t))
+    trend = zero
+    order = size(coeff)
+    do o=1,order
+      trend = coeff(o)*w**o
+    end do ! o -> order
+
+    return
+  end subroutine addRVtrend
 
   ! checks the RV, it uses the calcRV subroutine
 !   subroutine check_RV_1(m,ri,drdt,ttemp,hok,cntRV,RV_stat,RV_sim)

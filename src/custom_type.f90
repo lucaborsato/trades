@@ -11,7 +11,7 @@ module custom_type
     ! nRV will be used as the number of RV datapoints for the observed one,
     ! and as a counter for the simulated one
     integer::nRV=0
-    real(dp),dimension(:),allocatable::jd,RV,eRV
+    real(dp),dimension(:),allocatable::jd,RV,eRV,trend
     integer,dimension(:),allocatable::RV_stat
     real(dp),dimension(:,:),allocatable::gamma
     integer,dimension(:),allocatable::RVsetID,nRVsingle
@@ -70,11 +70,12 @@ module custom_type
     type(dataRV),intent(inout)::RV
     
     RV%nRV=nRV
-    allocate(RV%jd(nRV),RV%RV(nRV),RV%eRV(nRV))
+    allocate(RV%jd(nRV),RV%RV(nRV),RV%eRV(nRV),RV%trend(nRV))
     allocate(RV%RV_stat(nRV),RV%RVsetID(nRV))
     RV%jd=zero
     RV%RV=zero
     RV%eRV=zero
+    RV%trend=zero
     RV%RV_stat=0
     RV%RVsetID=0
     
@@ -93,6 +94,7 @@ module custom_type
     if(allocated(RV%jd)) deallocate(RV%jd)
     if(allocated(RV%RV)) deallocate(RV%RV)
     if(allocated(RV%eRV)) deallocate(RV%eRV)
+    if(allocated(RV%trend)) deallocate(RV%trend)
     if(allocated(RV%RV_stat)) deallocate(RV%RV_stat)
     if(allocated(RV%gamma)) deallocate(RV%gamma)
     if(allocated(RV%RVsetID)) deallocate(RV%RVsetID)

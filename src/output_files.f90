@@ -438,19 +438,27 @@ module output_files
     return
   end subroutine setGammaWrt
 
-  subroutine setRVok(RV_sim,gamma,RVok)
-    real(dp),dimension(:),intent(in)::RV_sim
-    real(dp),dimension(:,:),intent(in)::gamma
-    real(dp),dimension(:),intent(out)::RVok
-    integer::j,aRV,bRV
+  ! subroutine setRVok(RV_sim,gamma,RVok)
+  !   real(dp),dimension(:),intent(in)::RV_sim
+  !   real(dp),dimension(:,:),intent(in)::gamma
+  !   real(dp),dimension(:),intent(out)::RVok
+  !   integer::j,aRV,bRV
 
-    aRV=0
-    bRV=0
-    do j=1,obsData%obsRV%nRVset
-      aRV=bRV+1
-      bRV=bRV+obsData%obsRV%nRVsingle(j)
-      RVok(aRv:bRV)=RV_sim(aRv:bRV)+gamma(j,1)
-    end do
+  !   aRV=0
+  !   bRV=0
+  !   do j=1,obsData%obsRV%nRVset
+  !     aRV=bRV+1
+  !     bRV=bRV+obsData%obsRV%nRVsingle(j)
+  !     RVok(aRv:bRV)=RV_sim(aRv:bRV)+gamma(j,1)
+  !   end do
+
+  !   return
+  ! end subroutine setRVok
+  subroutine setRVok(simRV,RVok)
+    type(dataRV),intent(in)::simRV
+    real(dp),dimension(:),intent(out)::RVok
+
+    RVok = simRV%RV+simRV%gamma(:,1)+simRV%trend
 
     return
   end subroutine setRVok
@@ -469,7 +477,7 @@ module output_files
 
     call setGammaWrt(simRV%gamma,gamma_wrt)!use this subroutine to set gamma_wrt
 
-    call setRVok(simRV%RV,simRV%gamma,RV_simwrt)
+    call setRVok(simRV,RV_simwrt)
 
     return
   end subroutine setWriteRV
@@ -490,20 +498,15 @@ module output_files
 
     nRV=simRV%nRV
     allocate(RV_simwrt(nRV),gamma_wrt(nRV,2))
-!     call setWriteRV(RV_sim,gamma,RV_simwrt,gamma_wrt)
     call setWriteRV(simRV,RV_simwrt,gamma_wrt)
-!     write(*,'(2(a,es23.16))')" RV -> gamma = ",gamma(1),&
-!         &" +/- ",gamma(2)
-    write(*,'(a)')"# JD RVobs eRVobs rv_sim RV_sim gamma e_gamma RVsetID &
-    &RV_stat"
-    fmt=adjustl("(7("//trim(sprec)//",1x),i3,1x,i3)")
+    write(*,'(a)')"# JD RVobs eRVobs rv_sim RV_sim gamma e_gamma trend &
+      &RVsetID RV_stat"
+    fmt=adjustl("(8("//trim(sprec)//",1x),i3,1x,i3)")
     do j=1,nRV
-!       write(*,trim(fmt))jdRV(j),RVobs(j),eRVobs(j),RV_sim(j),&
-!       &RV_simwrt(j),gamma_wrt(j,1),gamma_wrt(j,2),RVsetID(j),&
-!       &RV_stat(j)
       write(*,trim(fmt))obsData%obsRV%jd(j),obsData%obsRV%RV(j),&
         &obsData%obsRV%eRV(j),simRV%RV(j),RV_simwrt(j),&
-        &gamma_wrt(j,1),gamma_wrt(j,2),obsData%obsRV%RVsetID(j),&
+        &gamma_wrt(j,1),gamma_wrt(j,2),simRV%trend(j),&
+        &obsData%obsRV%RVsetID(j),&
         &simRV%RV_stat(j)
     end do
     deallocate(RV_simwrt,gamma_wrt)
@@ -516,9 +519,6 @@ module output_files
 !   subroutine write_RV_f(cpuid,isim,wrtid,gamma,RV_sim,RV_stat)
   subroutine write_RV_f(cpuid,isim,wrtid,simRV)
     integer,intent(in)::cpuid,isim,wrtid ! wrtid = if 0 original parameters before LM, 1 parameters after LM
-!     real(dp),dimension(:,:),intent(in)::gamma
-!     real(dp),dimension(:),intent(in)::RV_sim
-!     integer,dimension(:),intent(in)::RV_stat
     type(dataRV),intent(in)::simRV
     real(dp),dimension(:),allocatable::RV_simwrt
     real(dp),dimension(:,:),allocatable::gamma_wrt
@@ -538,17 +538,15 @@ module output_files
     flRV=trim(adjustl(flRV))
     open(uRV,file=trim(flRV))
 !     fmt=adjustl("(a,28x,a,19x,a,18x,a,10x,2(a,"//trim(sprec)//"))")
-    write(uRV,'(a)')"# JD RVobs eRVobs rv_sim RV_sim gamma e_gamma RVsetID &
-    &RV_stat"
+    write(uRV,'(a)')"# JD RVobs eRVobs rv_sim RV_sim gamma e_gamma trend &
+      &RVsetID RV_stat"
     fmt=""
-    fmt=adjustl("(7("//trim(sprec)//",1x),i3,1x,i3)")
+    fmt=adjustl("(8("//trim(sprec)//",1x),i3,1x,i3)")
     do j=1,nRV
-!       write(uRV,trim(fmt))jdRV(j),RVobs(j),eRVobs(j),RV_sim(j),&
-!       &RV_simwrt(j),gamma_wrt(j,1),gamma_wrt(j,2),RVsetID(j),&
-!       &RV_stat(j)
       write(uRV,trim(fmt))obsData%obsRV%jd(j),obsData%obsRV%RV(j),&
         &obsData%obsRV%eRV(j),simRV%RV(j),RV_simwrt(j),&
-        &gamma_wrt(j,1),gamma_wrt(j,2),obsData%obsRV%RVsetID(j),&
+        &gamma_wrt(j,1),gamma_wrt(j,2),simRV%trend(j),&
+        &obsData%obsRV%RVsetID(j),&
         &simRV%RV_stat(j)
     end do
     close(uRV)

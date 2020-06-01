@@ -45,7 +45,7 @@ def get_sim_file(cli):
 # ==============================================================================
 class rv_data:
   
-  def __init__(self, t, RVo, eRVo, rvs, RVs, g, eg, RVset, tscale):
+  def __init__(self, t, RVo, eRVo, rvs, RVs, g, eg, trend, RVset, tscale):
     self.RVset = RVset
     self.t = t
     self.time_plot = self.t - tscale
@@ -56,6 +56,7 @@ class rv_data:
     self.RVs = RVs
     self.gamma = g
     self.egamma = eg
+    self.trend = trend
     self.dRVos = RVo - RVs
     self.nRV = np.shape(self.RVo)[0]
 
@@ -65,7 +66,7 @@ def get_sim_data(file_in, tscale=2440000.5):
   
   # JD 0 RVobs 1 eRVobs 2 rv_sim 3 RV_sim 4 gamma 5 e_gamma 6 RVsetID 7 RV_stat 8
   sim_in = np.genfromtxt(file_in)
-  rvsetid = np.unique(sim_in[:,7].astype(int))
+  rvsetid = np.unique(sim_in[:,8].astype(int))
   nset = np.shape(rvsetid)[0]
   
   print('rvsetid: ',rvsetid)
@@ -73,11 +74,11 @@ def get_sim_data(file_in, tscale=2440000.5):
   rv_os = [] # observations and simulations data
   for i in range(0,nset):
     print('create rv set for i = ',i)
-    rvsel = sim_in[:,7].astype(int) == rvsetid[i]
+    rvsel = sim_in[:,8].astype(int) == rvsetid[i]
     print('nrvsel = ',np.sum(rvsel))
     orv = rv_data(sim_in[rvsel,0], sim_in[rvsel,1], sim_in[rvsel,2],
                   sim_in[rvsel,3], sim_in[rvsel,4],
-                  sim_in[rvsel,5], sim_in[rvsel,6],
+                  sim_in[rvsel,5], sim_in[rvsel,6], sim_in[rvsel,7],
                   rvsetid[i], tscale
                  )
     rv_os.append(orv)

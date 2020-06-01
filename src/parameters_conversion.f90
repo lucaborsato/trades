@@ -29,69 +29,12 @@ module parameters_conversion
     return
   end subroutine set_all_parameter_names
   
-!   ! determines the id of the parameters to be fitted ... only for helpful write
-!   subroutine idpar()
-!     integer::pos,cntid,j,body
-!     character(5),dimension(3:10)::elid
-!     data elid /"m", "R", "P", "e", "w", "mA", "i", "lN"/
-! 
-!     if(.not.allocated(id)) allocate(id(nfit),idall(nfit),parid(nfit))
-!     pos=0
-!     cntid=2
-!     do j=1,npar
-!       if(j.gt.2) cntid=cntid+1
-!       if(tofit(j).eq.1)then
-!         if(cntid.eq.6)then ! ecc
-!           tofit(j+1)=1
-!           tofit(j+2)=1
-!         end if
-!         pos=pos+1
-!         id(pos)=cntid
-!         idall(pos)=j
-!         body=int(int(j-3)/8)+2
-!         parid(pos)=trim(adjustl(elid(cntid)))//trim(adjustl(string(body)))
-!         parid(pos)=trim(adjustl(parid(pos)))
-!       end if
-!       if(cntid.eq.10) cntid=2
-!     end do
-! 
-!     call set_all_parameter_names(elid)
-!     
-!     return
-!   end subroutine idpar
-! 
-!   subroutine idpar_fit()
-!     integer::pos,cntid,j,body
-!     character(5),dimension(3:10)::elid
-!     data elid /"m", "R", "P", "ecosw", "esinw", "mA", "i", "lN"/
-! 
-!     if(.not.allocated(id)) allocate(id(nfit),idall(nfit),parid(nfit))
-!     pos=0
-!     cntid=2
-!     do j=1,npar
-!       if(j.gt.2) cntid=cntid+1
-!       if(tofit(j).eq.1)then
-!         pos=pos+1
-!         id(pos)=cntid
-!         idall(pos)=j
-!         body=int(int(j-3)/8)+2
-!         parid(pos)=trim(adjustl(elid(cntid)))//trim(adjustl(string(body)))
-!         parid(pos)=trim(adjustl(parid(pos)))
-!       end if
-!       if(cntid.eq.10) cntid=2
-!     end do
-! 
-!     call set_all_parameter_names(elid)
-!     
-!     return
-!   end subroutine idpar_fit
-
   subroutine idpar()
     integer::pos,cntid,j,body
-!     character(6),dimension(3:10)::elid_1,elid_2,elid_3,elid
     character(6),dimension(3:10)::elid
     data elid/"m", "R", "P", "e", "w", "mA", "i", "lN"/
-
+    integer::nkep,order
+    
     if(.not.allocated(id)) allocate(id(nfit),idall(nfit),parid(nfit))
     pos=0
     cntid=2
@@ -111,7 +54,8 @@ module parameters_conversion
 
     call set_all_parameter_names(elid)
     
-    do j=1,nfit
+    nkep = nfit - rv_trend_order
+    do j=1,nkep
       
       body=int(int(idall(j)-3)/8)+2
       
@@ -119,7 +63,7 @@ module parameters_conversion
         parid(j)="m"//trim(adjustl(string(body)))//"Ms"
         
       else if(id(j).eq.6)then
-        if(j.lt.nfit)then
+        if(j.lt.nkep)then
           if(id(j+1).eq.7)then !e,w
             parid(j)="ecosw"//trim(adjustl(string(body)))
             parid(j+1)="esinw"//trim(adjustl(string(body)))
@@ -130,7 +74,7 @@ module parameters_conversion
         parid(j)="lambda"//trim(adjustl(string(body)))
         
       else if(id(j).eq.9)then
-        if(j.lt.nfit)then
+        if(j.lt.nkep)then
           if(id(j+1).eq.10)then !i,lN
             parid(j)="icoslN"//trim(adjustl(string(body)))
             parid(j+1)="isinlN"//trim(adjustl(string(body)))
@@ -139,8 +83,16 @@ module parameters_conversion
          
       end if
       
-    end do
-    
+    end do ! end do j=1,nkep
+
+    if(rv_trend_order.gt.0)then
+      j=nkep
+      do order=1,rv_trend_order
+        j = j+1
+        parid(j) = trim(adjustl("c_"//trim(adjustl(string(order)))))
+      end do ! end j->rv_trend_order
+    end if
+
     return
   end subroutine idpar
 
@@ -154,10 +106,6 @@ module parameters_conversion
       paridlist=trim(paridlist)//" "//trim(adjustl(parid(i)))
       sig_paridlist=trim(sig_paridlist)//" sig_"//trim(adjustl(parid(i)))
     end do
-!     write(*,'(a)')" ID Parameters to fit:"
-!     write(*,'(a)')trim(paridlist)
-!     write(*,'(a)')trim(sig_paridlist)
-!     write(*,*)
 
     return
   end subroutine set_parid_list
@@ -175,12 +123,7 @@ module parameters_conversion
       if(tofit(ipar).eq.1)then
         ifit=ifit+1
         
-        
-        if(.not.done(ifit))then
-  !         ! default setting
-  !         minpar(ifit)=par_min(ipar)
-  !         maxpar(ifit)=par_max(ipar)
-          
+        if(.not.done(ifit))then          
           ! fit m(3)==> mp/Ms
           if(id(ifit).eq.3)then
             minpar(ifit)=par_min(ipar)/MR_star(1,1)
@@ -189,17 +132,12 @@ module parameters_conversion
             
           ! fit e(6) & w(7)==>(ecosw,esinw) [-e,+e],[-e,+e]
           else if(id(ifit).eq.6)then
-  !           minpar(ifit)=par_min(ipar)
-  !           maxpar(ifit)=par_max(ipar)
             if(ifit.lt.nfit)then
               if(id(ifit+1).eq.7)then
                 minpar(ifit)  = -par_max(ipar)
                 minpar(ifit+1)= -par_max(ipar)
                 maxpar(ifit)  = par_max(ipar)
                 maxpar(ifit+1)= par_max(ipar)
-  !               write(*,*)id(ifit), id(ifit+1)
-  !               write(*,*)minpar(ifit),maxpar(ifit)
-  !               write(*,*)minpar(ifit+1),maxpar(ifit+1)
                 done(ifit)=.true.
                 done(ifit+1)=.true.
               end if
@@ -207,8 +145,6 @@ module parameters_conversion
 
           ! fit mA(8) ==> lambda[0,360]
           else if(id(ifit).eq.8)then
-!             minpar(ifit)=zero
-!             maxpar(ifit)=circ
             minpar(ifit)=-circ
             maxpar(ifit)=720._dp
             done(ifit)=.true.
@@ -231,12 +167,6 @@ module parameters_conversion
               end if
             end if
             
-!           else if(ifit.gt.1)then
-!             if((id(ifit-1).eq.6.and.id(ifit).eq.7).or.&
-!               &(id(ifit-1).eq.9.and.id(ifit).eq.10))&
-!               &cycle
-! 
-!           else
           end if
         end if ! .not.done(ifit)
 
@@ -248,7 +178,17 @@ module parameters_conversion
         end if
       
       end if ! tofit(j)
-    end do
+    end do ! ipar
+
+    ! check if rv_trend_order and set minmax to (-1,1)
+    if(rv_trend_order.gt.0)then
+      do ipar=1,rv_trend_order
+        ifit = ifit + 1
+        minpar(ifit) = -one
+        maxpar(ifit) = one
+        done(ifit) = .true.
+      end do ! ipar -> rv_trend_order
+    end if
 
     return
   end subroutine set_minmax
@@ -296,52 +236,53 @@ module parameters_conversion
   subroutine init_param(allpar,par)
     real(dp),dimension(:),intent(in)::allpar
     real(dp),dimension(:),allocatable,intent(out)::par
-    integer::j,cnt
+    integer::j,ifit
     logical,dimension(:),allocatable::done
     
     allocate(done(nfit))
     done=.false.
     if(.not.allocated(par)) allocate(par(nfit))
-    cnt=0
+    par = zero
+    ifit=0
     do j=1,npar
       if(tofit(j).eq.1)then
-        cnt=cnt+1
+        ifit=ifit+1
 
-        if(.not.done(cnt))then
+        if(.not.done(ifit))then
           
           ! m(3) ==> mp/Ms
-          if(id(cnt).eq.3)then
-            par(cnt)=allpar(j)/MR_star(1,1)
-            done(cnt)=.true.
+          if(id(ifit).eq.3)then
+            par(ifit)=allpar(j)/MR_star(1,1)
+            done(ifit)=.true.
           
           ! e(6),w(7)==>(ecosw,esinw)
-          else if(id(cnt).eq.6)then
-            par(cnt)=allpar(j)
-            done(cnt)=.true.
-            if(cnt.lt.nfit)then
-              if(id(cnt+1).eq.7)then
-                par(cnt)=allpar(j)*cos(allpar(j+1)*deg2rad)
-                par(cnt+1)=allpar(j)*sin(allpar(j+1)*deg2rad)
-                done(cnt)=.true.
-                done(cnt+1)=.true.
+          else if(id(ifit).eq.6)then
+            par(ifit)=allpar(j)
+            done(ifit)=.true.
+            if(ifit.lt.nfit)then
+              if(id(ifit+1).eq.7)then
+                par(ifit)=allpar(j)*cos(allpar(j+1)*deg2rad)
+                par(ifit+1)=allpar(j)*sin(allpar(j+1)*deg2rad)
+                done(ifit)=.true.
+                done(ifit+1)=.true.
               end if
             end if
 
           ! mA(8) ==> lambda=mA(j)+w(j-1)+lN(j+2)
-          else if(id(cnt).eq.8)then
-            par(cnt)=mod(mod(allpar(j)+allpar(j-1)+allpar(j+2),circ)+circ,circ)
-            done(cnt)=.true.
+          else if(id(ifit).eq.8)then
+            par(ifit)=mod(mod(allpar(j)+allpar(j-1)+allpar(j+2),circ)+circ,circ)
+            done(ifit)=.true.
           
           ! i(9),lN(10)==>(icoslN,isinlN)
-          else if(id(cnt).eq.9)then
-            par(cnt)=allpar(j)
-            done(cnt)=.true.
-            if(cnt.lt.nfit)then
-              if(id(cnt+1).eq.10)then
-                par(cnt)=allpar(j)*cos(allpar(j+1)*deg2rad)
-                par(cnt+1)=allpar(j)*sin(allpar(j+1)*deg2rad)
-                done(cnt)=.true.
-                done(cnt+1)=.true.
+          else if(id(ifit).eq.9)then
+            par(ifit)=allpar(j)
+            done(ifit)=.true.
+            if(ifit.lt.nfit)then
+              if(id(ifit+1).eq.10)then
+                par(ifit)=allpar(j)*cos(allpar(j+1)*deg2rad)
+                par(ifit+1)=allpar(j)*sin(allpar(j+1)*deg2rad)
+                done(ifit)=.true.
+                done(ifit+1)=.true.
               end if
             end if
           
@@ -349,16 +290,22 @@ module parameters_conversion
         
         end if
         
-        if(.not.done(cnt))then
-          par(cnt)=allpar(j)
-          done(cnt)=.true.
+        if(.not.done(ifit))then
+          par(ifit)=allpar(j)
+          done(ifit)=.true.
         end if
-!         write(*,'("id = ",i3," => par(cnt=",i2,") = ",f23.8," = allpar(j=",i3,") = ",f23.8)')&
-!           &id(cnt),cnt,par(cnt),j,allpar(j)
-!         flush(6)
-        
       end if ! tofit(j)
-    end do
+    end do ! j
+
+    ! Probably not needed because par = zero initially
+    ! check if rv_trend_order > 0
+    if(rv_trend_order.gt.0)then
+      do j=1,rv_trend_order
+        ifit = ifit + 1
+        par(ifit) = zero
+        done(ifit) = .true.
+      end do ! j -> rv_trend_order
+    end if
     
     deallocate(done)
     
@@ -427,7 +374,7 @@ module parameters_conversion
     
     if(nfit.gt.0)then
       ! update atemp with fit_parameters
-      do j1=1,nfit
+      do j1=1,nfit-rv_trend_order
           atemp(idall(j1))=fit_parameters(j1)
       end do
     end if
@@ -936,29 +883,5 @@ module parameters_conversion
 
     return
   end subroutine norm2par
-
-!   ! conversion from parameter boundaries [0, 1] --> [ParMin, ParMax]
-!   subroutine norm2par_2(norm,par,allpar)
-!     real(dp),dimension(:),intent(in)::norm
-!     real(dp),dimension(:),intent(out)::par
-! !     real(dp),dimension(:),intent(out)::allpar
-!     real(dp),dimension(:)::allpar
-!     real(dp)::dpar
-!     integer::j,j1
-! 
-!     j1=0
-!     do j=1,npar
-!       if(tofit(j).eq.1)then
-!         j1=j1+1
-!         dpar=abs(par_max(j)-par_min(j))
-!         par(j1)=par_min(j)+dpar*norm(j1)
-!         allpar(j)=par(j1)
-!       end if
-!     end do
-! 
-!     return
-!   end subroutine norm2par_2
-
-
 
 end module parameters_conversion
