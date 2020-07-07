@@ -1,5 +1,4 @@
 {
-  "python.pythonPath": "/home/borsato/anaconda/envs/py3a/bin/python",
   "python.linting.pylintEnabled": true,
   "python.linting.enabled": true
 }
