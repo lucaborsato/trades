@@ -23,16 +23,16 @@ plt.rcParams['font.family'] = 'serif'
 import gls
 # ==============================================================================
 # custom modules
-script_path = os.path.realpath(__file__)
-module_path = os.path.abspath(os.path.join(os.path.dirname(script_path),
-                                           '../pytrades'))
-if(module_path not in sys.path):
-  print(module_path)
-  sys.path.append(module_path)
+# script_path = os.path.realpath(__file__)
+# module_path = os.path.abspath(os.path.join(os.path.dirname(script_path),
+#                                            '../pytrades'))
+# if(module_path not in sys.path):
+#   print(module_path)
+#   sys.path.append(module_path)
   
 import ancillary as anc
 import constants as cst
-from pytrades_lib import pytrades
+# from pytrades_lib import pytrades
 # ==============================================================================
 
 def get_args():

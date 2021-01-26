@@ -907,7 +907,7 @@ module pytrades
   
   ! ============================================================================
   
-    subroutine get_max_nt0_nrv(P,n_bodies,nt0_full,nrv_nmax)
+  subroutine get_max_nt0_nrv(P,n_bodies,nt0_full,nrv_nmax)
     integer,intent(in)::n_bodies
     real(dp),dimension(n_bodies),intent(in)::P
     integer,intent(out)::nt0_full,nrv_nmax
