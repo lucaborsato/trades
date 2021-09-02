@@ -12,7 +12,7 @@ import numpy as np # array
 import h5py
 
 import matplotlib as mpl
-mpl.use('Agg', warn=False)
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'

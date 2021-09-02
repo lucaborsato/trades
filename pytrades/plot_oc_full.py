@@ -13,7 +13,7 @@ import glob
 import gc
 
 import matplotlib as mpl
-mpl.use('Agg', warn=False)
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 # matplotlib rc params
 plt.rcParams['text.usetex'] = True

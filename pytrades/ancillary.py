@@ -363,7 +363,8 @@ def keplerian_legend(parameter_names, m_type):
     unit_mass   = r'M_\mathrm{Nep}'
     unit_radius = r'R_\mathrm{Nep}'
   else:
-    unit_mass = ' '
+    unit_mass   = ' '
+    unit_radius = ' '
 
   nfit = np.shape(parameter_names)[0]
   kel_legends = np.zeros((nfit), dtype='|S256')
@@ -872,7 +873,8 @@ def get_pso_data(pso_file):
   else:
     parameters_minmax = False
   if ('parameter_names' in list(of_pso.keys())):
-    parameter_names = np.array(of_pso['parameter_names'], dtype='S10')
+    temp_names = np.array(of_pso['parameter_names'], dtype='S10')
+    parameter_names = [pn.decode("utf-8") for pn in temp_names]
   else:
     parameter_names = False
   of_pso.close()
@@ -880,6 +882,17 @@ def get_pso_data(pso_file):
 
   return population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution, parameters_minmax, parameter_names, pop_shape
 
+def pso_to_emcee(nfit, nwalkers, pso_population, names_par, sqrt_par=True):
+
+  # _, npop, niter = np.shape(pso_population)
+  pop_flat = np.reshape(np.swapaxes(pso_population, 2, 1), newshape=(nfit, -1))
+  p0trades = pop_flat[:, -nwalkers:]
+  p0 = []
+  if(sqrt_par):
+    for i_w in range(0, nwalkers):
+      p0.append(e_to_sqrte_fitting(p0trades[:,i_w], names_par))
+
+  return p0
 
 # ==============================================================================
 

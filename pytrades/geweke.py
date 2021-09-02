@@ -12,16 +12,18 @@ import time
 #import constants as cst # local constants module
 #from scipy.stats import norm as scipy_norm
 import ancillary as anc
-from matplotlib import use as mpluse
-mpluse("Agg")
-#mpluse("Qt4Agg")
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
-#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-#plt.rc('text', usetex=True)
+# matplotlib rc params
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
-#from matplotlib import rcParams
-#rcParams['text.latex.unicode']=True
+plt.rcParams['figure.figsize'] = [6, 6]
+plt.rcParams["figure.facecolor"] = 'white'
+plt.rcParams["savefig.facecolor"] = 'white'
+plt.rcParams["figure.dpi"]  = 200
+plt.rcParams["savefig.dpi"] = 300
+plt.rcParams["font.size"]   = 14
 
 import logging
 import warnings
@@ -51,25 +53,27 @@ def main():
   logger.addHandler(slog)
 
   # computes mass conversion factor
-  #m_factor = anc.mass_conversion_factor(cli.m_type)
-  m_factor, m_unit = anc.mass_type_factor(1., cli.m_type, False)
-
+  # m_factor, m_unit = anc.mass_type_factor(1., cli.m_type, False)
+  m_factor, _ = anc.mass_type_factor(1., cli.m_type, False)
+  
   # set emcee and trades folder
   emcee_folder = cli.full_path
-  trades_folder = os.path.join(os.path.dirname(cli.full_path), '')
+  # trades_folder = os.path.join(os.path.dirname(cli.full_path), '')
   # and best folder
-  emcee_file, emcee_best, folder_best = anc.get_emcee_file_and_best(emcee_folder, cli.temp_status)
+  # emcee_file, emcee_best, folder_best = anc.get_emcee_file_and_best(emcee_folder, cli.temp_status)
+  emcee_file, _, _ = anc.get_emcee_file_and_best(emcee_folder, cli.temp_status)
 
   # get data from the hdf5 file
-  parameter_names_emcee, parameter_boundaries, chains, acceptance_fraction, autocor_time, lnprobability, ln_err_const, completed_steps = anc.get_data(emcee_file, cli.temp_status)
+  # parameter_names_emcee, parameter_boundaries, chains, acceptance_fraction, autocor_time, lnprobability, ln_err_const, completed_steps = anc.get_data(emcee_file, cli.temp_status)
+  parameter_names_emcee, parameter_boundaries, chains, _, _, _, _, completed_steps = anc.get_data(emcee_file, cli.temp_status)
   # print Memory occupation of ...
   anc.print_memory_usage(chains)
 
   nfit, nwalkers, nruns, nburnin, nruns_sel = anc.get_emcee_parameters(chains, cli.temp_status, cli.nburnin, completed_steps)
-  logger.info('nfit(%d), nwalkers(%d), nruns(%d), nburnin(%d), nruns_sel(%d)' %(nfit, nwalkers, nruns, nburnin, nruns_sel))
+  logger.info('nfit({:d}), nwalkers({:d}), nruns({:d}), nburnin({:d}), nruns_sel({:d})'.format(nfit, nwalkers, nruns, nburnin, nruns_sel))
 
   # set label and legend names
-  kel_labels= anc.keplerian_legend(parameter_names_emcee, cli.m_type)
+  # kel_labels= anc.keplerian_legend(parameter_names_emcee, cli.m_type)
 
   chains_T, parameter_boundaries = anc.select_transpose_convert_chains(nfit, nwalkers, nburnin, nruns, nruns_sel, m_factor, parameter_names_emcee, parameter_boundaries, chains)
 
@@ -82,29 +86,25 @@ def main():
   if (sel_steps == 0):
     sel_steps = n_steps
 
-  cols=1 + int(np.rint(nwalkers/40.))
+  cols=1 + int(np.rint(nwalkers/40.0))
 
   for ifit in range(0, nfit):
-    logger.info('Parameter: %13s' %(parameter_names_emcee[ifit]))
-    #fig = plt.figure(figsize=(12,12))
-    fig = plt.figure(figsize=(6,6))
+    logger.info('Parameter: {:13s}'.format(parameter_names_emcee[ifit]))
+    fig = plt.figure()
     
     lower_interval, z_score = anc.geweke_test(chains_T[:,:,ifit], start_frac=0.01, n_sel_steps=sel_steps)
 
     ax = plt.subplot2grid((1, 1), (0,0))
     for i_c in range(0, nwalkers):
-      ax.plot(lower_interval, z_score[:,i_c], '.-', label='walker %d' %(i_c+1), alpha=0.8)
+      ax.plot(lower_interval, z_score[:,i_c], '.-', label='walker {:d}'.format(i_c+1), alpha=0.8)
     
     ax.axhline(2., color='lightgray')
     ax.axhline(-2., color='lightgray')
-    ax.set_xlabel('steps (%s)' %(parameter_names_emcee[ifit].strip()))
+    ax.set_xlabel('steps ({:s})'.format(parameter_names_emcee[ifit].strip()))
     
-    #plt.legend(loc='best',fontsize=9)
-    #ax.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5), ncol=cols)
-    
-    fig.savefig(os.path.join(emcee_plots, 'geweke_%03d_%s.png' %(ifit+1, parameter_names_emcee[ifit])), bbox_inches='tight', dpi=200)
+    fig.savefig(os.path.join(emcee_plots, 'geweke_{:03d}_{:s}.png'.format(ifit+1, parameter_names_emcee[ifit])), bbox_inches='tight', dpi=200)
     plt.close(fig)
-    logger.info('saved plot %s' %(os.path.join(emcee_plots, 'geweke_trace_pam_%s.png' %(parameter_names_emcee[ifit]))))
+    logger.info('saved plot {:s}'.format(os.path.join(emcee_plots, 'geweke_trace_pam_{:s}.png'.format(parameter_names_emcee[ifit]))))
     
   logger.info('')
 

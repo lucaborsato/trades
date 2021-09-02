@@ -10,11 +10,11 @@ import sys
 import time
 import shutil
 #from emcee.utils import MPIPool
-from constants import Mjups
+from constants import Mjups, deg2rad, rad2deg
 import ancillary as anc
 
-deg2rad = np.pi/180.0
-rad2deg = 180.0/np.pi
+# deg2rad = np.pi/180.0
+# rad2deg = 180.0/np.pi
 
 #
 def get_args():

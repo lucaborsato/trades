@@ -13,7 +13,7 @@ import multiprocessing as mp
 
 import emcee
 
-from constants import Mjups
+from constants import Mjups, Msear
 import ancillary as anc
 import pytrades_lib
 

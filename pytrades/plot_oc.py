@@ -12,17 +12,24 @@ import numpy as np # array
 import h5py
 
 import matplotlib as mpl
-mpl.use('Agg', warn=False)
+mpl.use('Agg')
 import matplotlib.pyplot as plt
+
 # matplotlib rc params
-plt.rcParams['text.usetex'] = True
-plt.rcParams['font.family'] = 'serif'
-plt.rcParams['figure.figsize'] = [6, 6]
-plt.rcParams["figure.facecolor"] = 'white'
+# plt.rcParams['text.usetex'] = True
+plt.rcParams['text.usetex']       = False
+# plt.rcParams['font.family']       = 'sans-serif'
+plt.rcParams['font.family']       = 'serif'
+plt.rcParams['font.serif']        = ['Computer Modern Roman', 'Palatino', 'DejaVu Serif']
+plt.rcParams['mathtext.fontset']  = 'cm'
+plt.rcParams['figure.figsize']    = [5, 5]
+plt.rcParams["figure.facecolor"]  = 'white'
 plt.rcParams["savefig.facecolor"] = 'white'
-plt.rcParams["figure.dpi"]  = 200
-plt.rcParams["savefig.dpi"] = 300
-plt.rcParams["font.size"]   = 14
+plt.rcParams["figure.dpi"]        = 200
+plt.rcParams["savefig.dpi"]       = 300
+plt.rcParams["font.size"]         = 12
+plt.rcParams["xtick.labelsize"]   = 10
+plt.rcParams["ytick.labelsize"]   = plt.rcParams["xtick.labelsize"]
 
 # custom modules
 import constants as cst
@@ -116,11 +123,16 @@ def get_sim_data(file_in):
 
 def get_simT0_file_list(cli):
   
-  file_pattern = os.path.join(cli.full_path, '%d_%d_NB*_simT0.dat' \
-                                              %(cli.idsim, cli.lmflag)
-                              )
+  # file_pattern = os.path.join(cli.full_path, '%d_%d_NB*_simT0.dat' \
+  #                                             %(cli.idsim, cli.lmflag)
+  #                             )
+  pttrn = "{:d}_{:d}_NB*_simT0.dat".format(cli.idsim, cli.lmflag)
+  file_pattern = os.path.join(cli.full_path, pttrn)
   file_list = np.sort(glob.glob(file_pattern))
-  
+  if len(file_list) == 0:
+    print("Cannot find in path {:s}".format(cli.full_path))
+    print("files with pattern {:s}".format(pttrn))
+
   return file_list
 
 # ==============================================================================
@@ -176,7 +188,7 @@ def set_unit(cli):
 
 # ==============================================================================
 
-def set_axis_default(ax, ticklabel_size=10, aspect='equal', labeldown=True):
+def set_axis_default(ax, ticklabel_size=plt.rcParams["xtick.labelsize"], aspect='equal', labeldown=True):
   
   ax.ticklabel_format(useOffset=False)
   ax.tick_params(direction='inout', labelsize=ticklabel_size,
@@ -193,7 +205,7 @@ def set_symmetric_lim(ax, val):
   
   return
 
-def axtitle(ax, labtitle='', fontsize=8):
+def axtitle(ax, labtitle='', fontsize=plt.rcParams["xtick.labelsize"]):
   
   ax.text(0.5, 1.02, labtitle,
           horizontalalignment='center',
@@ -229,13 +241,13 @@ def plot_oc_T41(cli, file_in, samples):
   else:
     nsmp = 0
 
-  lfont=12
-  tfont=8
+  lfont=plt.rcParams["font.size"]
+  tfont=plt.rcParams["xtick.labelsize"]
   
   if(tscale > 0.0):
-    xlabel = r'BJD$_\textrm{{TDB}} - {0:.3f}$'.format(tscale)
+    xlabel = r'BJD$_\mathrm{{TDB}} - {0:.3f}$'.format(tscale)
   else:
-    xlabel = r'BJD$_\textrm{TDB}$'
+    xlabel = r'BJD$_\mathrm{TDB}$'
 
   
   fig = plt.figure(figsize=(6,6))
@@ -558,8 +570,6 @@ def main():
   sims = []
   for f in file_list:
     sims.append(plot_oc_T41(cli, f, samples))
-
-  
 
   return
 

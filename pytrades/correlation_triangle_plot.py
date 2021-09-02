@@ -197,8 +197,7 @@ def main():
           x_data, y_data, bins=k, 
           range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]],
           cmap=cm.gray_r,
-          normed=False
-          #density=False
+          density=False
           )
         
        #new_k = int(k/3)
@@ -206,25 +205,17 @@ def main():
         hist2d_counts_2, xedges_2, yedges_2 = np.histogram2d(\
           x_data, y_data, bins=new_k, 
           range=[[x_data.min(), x_data.max()],[y_data.min(), y_data.max()]],
-          #normed=True
-          density=False
+          density=True
           )
         
         x_bins = [0.5*(xedges_2[i]+xedges_2[i+1]) for i in range(0, new_k)]
         y_bins = [0.5*(yedges_2[i]+yedges_2[i+1]) for i in range(0, new_k)]
 
-        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, 3, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
         nl = 5
         levels = [1.-np.exp(-0.5*ii) for ii in range(0,nl)] # 2D sigmas: 0sigma, 1sigma, 2sigma, 3sigma, ..
-        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, levels, cmap=cm.gray, linestyle='solid', linewidths=(0.7, 0.7, 0.7))
-        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, levels, cmap=cm.viridis, linestyle='solid', linewidths=1.)
-        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, cmap=cm.viridis, linestyle='solid', linewidths=0.7)
-        
-        #ax.contour(x_bins, y_bins, hist2d_counts_2.T, levels, cmap=cm.viridis, linestyle='solid', linewidths=0.7, normed=True)
         ax.contour(x_bins, y_bins, hist2d_counts_2.T,
                    nl, cmap=cm.viridis,
                    linestyles='solid', linewidths=0.5,
-                   #normed=True
                    )
         
         
@@ -265,7 +256,6 @@ def main():
                                                edgecolor='None',
                                                align='mid', 
                                                orientation=hist_orientation, 
-                                               #normed=True,
                                                density=True,
                                                stacked=True
                                                )

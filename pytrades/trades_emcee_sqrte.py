@@ -243,7 +243,7 @@ start = time.time()
 # RENAME
 working_path = cli.full_path
 nthreads = cli.nthreads
-np.random.RandomState(cli.seed)
+np.random.seed(cli.seed)
 
 # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
 pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
@@ -407,10 +407,10 @@ sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq,
                                 args=[parameter_names]
                                 ) # needed to use sqrt(e) in emcee instead of e (in fortran)
 
-anc.print_both(' A PRE-EMCEE OF {} STEPS'.format(int(0.05*nruns)), of_run)
-p0 = sampler.run_mcmc(p0, int(0.05*nruns))
-anc.print_both(' RESET OF THE SAMPLER', of_run)
-sampler.reset()
+# anc.print_both(' A PRE-EMCEE OF {} STEPS'.format(int(0.05*nruns)), of_run)
+# p0 = sampler.run_mcmc(p0, int(0.05*nruns))
+# anc.print_both(' RESET OF THE SAMPLER', of_run)
+# sampler.reset()
 
 anc.print_both(' ready to go', of_run)
 anc.print_both(' with nsave = {}'.format(nsave), of_run)

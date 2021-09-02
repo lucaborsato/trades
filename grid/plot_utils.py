@@ -19,11 +19,18 @@ import constants as cst
 
 # TTV data
 class TTVdata:
-  def __init__(self, TTV_file):
-    self.sim_num, _, _, \
-      self.Mpert, self.Ppert, _, _, \
-        self.ATTV, self.PTTV, _, self.dof, self.rchisqr, \
-          self.ATTV_MC, self.PTTV_MC = np.genfromtxt(TTV_file, unpack=True)
+  def __init__(self, TTV_file, old_type=False):
+    if old_type:
+      self.sim_num, _, _, \
+        self.Mpert, self.Ppert, _, _, \
+          self.ATTV, self.PTTV, _, \
+            self.dof, self.rchisqr = np.genfromtxt(TTV_file, unpack=True)
+      self.ATTV_MC, self.PTTV_MC = self.ATTV, self.PTTV
+    else:
+      self.sim_num, _, _, \
+        self.Mpert, self.Ppert, _, _, \
+          self.ATTV, self.PTTV, _, self.dof, self.rchisqr, \
+            self.ATTV_MC, self.PTTV_MC = np.genfromtxt(TTV_file, unpack=True)
 
 # RV data
 class RVdata:
@@ -55,6 +62,8 @@ def scatter_plot_TTV(TTV):
   plt.ylabel(r"$M_\mathrm{perturber}$ ($M_\oplus$)")
   plt.show()
   return fig
+
+# ======================================================================
 
 def grid_plot(TTV, RV, grid_on=True, rchisq=False):
     
@@ -91,11 +100,12 @@ def grid_plot(TTV, RV, grid_on=True, rchisq=False):
   
   # RV amplitude in m/s
 #   RVlevels_mps = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0] # m/s
-  RVlevels_mps = [float(i) for i in range(1, 11)] + [int(0.5*(10.0+np.max(RV.Krv_mps)))]  # m/s
+  # RVlevels_mps = [float(i) for i in range(1, 11)] + [int(0.5*(10.0+np.max(RV.Krv_mps)))]  # m/s
+  RVlevels_mps = [float(i) for i in range(2, 12, 2)] + [int(0.5*(10.0+np.max(RV.Krv_mps)))]  # m/s
 #   print(RVlevels_mps)
-  nRVlev       = len(RVlevels_mps)
+  # nRVlev       = len(RVlevels_mps)
   gval         = 0.5
-  RV_colors    = [(gval, gval, gval, i) for i in np.linspace(0.0, 1.0, num=nRVlev, endpoint=True)]
+  # RV_colors    = [(gval, gval, gval, i) for i in np.linspace(0.0, 1.0, num=nRVlev, endpoint=True)]
   
 #   RV_ax = ax.contourf(mesh_P, mesh_M, mesh_RV,
 #                       levels=RVlevels_mps,
@@ -118,7 +128,7 @@ def grid_plot(TTV, RV, grid_on=True, rchisq=False):
     antialiased=True,
     zorder=7
   )
-  clabels = ax.clabel(RV_lines, inline=True, fontsize=8, colors='white', fmt='%.0f m/s')
+  clabels = ax.clabel(RV_lines, inline=True, fontsize=plt.rcParams['font.size']-4, colors='white', fmt='%.0f m/s')
   for clabel in clabels:
     clabel.set_zorder(8)
   
@@ -145,7 +155,7 @@ def grid_plot(TTV, RV, grid_on=True, rchisq=False):
     c2r_bar.set_label(r'$\chi^2_r$')
     
   
-  if(grid_on): ax.plot(TTV.Ppert, TTV.Mpert, color='gray', marker='o', ms=1, mec='None', ls='', alpha=0.5, zorder=8)
+  if(grid_on): ax.plot(TTV.Ppert, TTV.Mpert, color='black', marker='o', ms=1.5, mec='None', ls='', alpha=0.5, zorder=8)
   
   
   scale = 0.01

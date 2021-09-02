@@ -16,7 +16,7 @@ from multiprocessing import Pool
 
 import emcee
 
-from constants import Mjups
+from constants import Mjups, Msear
 import ancillary as anc
 import pytrades_lib
 
@@ -239,7 +239,7 @@ start = time.time()
 # RENAME 
 working_path = cli.full_path
 nthreads=cli.nthreads
-np.random.RandomState(cli.seed)
+np.random.seed(cli.seed)
 
 # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
 pytrades_lib.pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
@@ -442,7 +442,7 @@ for iter_global in range(0,n_global):
     # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
     emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
     #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
-    p0 = compute_initial_walkers(nfit, nwalkers, 
+    p0 = compute_initial_walkers(lnprob_sq, nfit, nwalkers, 
           emcee_parameters, parameters_minmax, parameter_names, 
           cli.delta_sigma, 
           of_run
@@ -454,11 +454,11 @@ for iter_global in range(0,n_global):
     anc.print_both(' DO NOT RUN PSO, ONLY EMCEE', of_run)
     
     #p0 = [parameters_minmax[:,0] + np.random.random(nfit)*delta_parameters for i in range(0, nwalkers)]
-    p0 = compute_initial_walkers(nfit, nwalkers,
+    p0 = compute_initial_walkers(lnprob_sq, nfit, nwalkers,
           fitting_parameters, parameters_minmax, parameter_names, 
           cli.delta_sigma, 
           of_run
-          )
+    )
   # end if cli.pso_type
 
   anc.print_both(' emcee chain: nwalkers = {} nruns = {}'.format(nwalkers, nruns), of_run)
@@ -476,10 +476,10 @@ for iter_global in range(0,n_global):
 
   sampler = emcee.EnsembleSampler(nwalkers, nfit, lnprob_sq, pool=threads_pool, args=[parameter_names]) # needed to use sqrt(e) in emcee instead of e (in fortran)
 
-  anc.print_both(' A PRE-EMCEE OF {} STEPS'.format(int(0.05*nruns)), of_run)
-  p0 = sampler.run_mcmc(p0, int(0.05*nruns))
-  anc.print_both(' RESET OF THE SAMPLER', of_run)
-  sampler.reset()
+  # anc.print_both(' A PRE-EMCEE OF {} STEPS'.format(int(0.05*nruns)), of_run)
+  # p0 = sampler.run_mcmc(p0, int(0.05*nruns))
+  # anc.print_both(' RESET OF THE SAMPLER', of_run)
+  # sampler.reset()
 
   anc.print_both(' ready to go', of_run)
   anc.print_both(' with nsave = {}'.format(nsave), of_run)
