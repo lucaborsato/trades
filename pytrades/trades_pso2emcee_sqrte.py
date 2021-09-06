@@ -8,7 +8,7 @@ import numpy as np # array
 import h5py
 import sys
 import time
-import glob
+# import glob
 
 # import multiprocessing as mp
 from multiprocessing import Pool
@@ -16,7 +16,7 @@ from multiprocessing import Pool
 
 import emcee
 
-from constants import Mjups, Msear
+from constants import Msear
 import ancillary as anc
 import pytrades_lib
 
@@ -159,7 +159,7 @@ def compute_proper_sigma(nfit, delta_sigma, parameter_names):
 # =============================================================================
 
 def compute_initial_walkers(lnprob_sq, nfit, nwalkers, fitting_parameters, parameters_minmax, parameter_names, delta_sigma, of_run):
-  anc.print_both(' Inititializing walkers with delta_sigma = %s' %(str(delta_sigma).strip()), of_run)
+  anc.print_both(' Inititializing walkers with delta_sigma = {:s}'.format(str(delta_sigma).strip()), of_run)
   p0 = []
   i_p0 = 0
   
@@ -175,6 +175,9 @@ def compute_initial_walkers(lnprob_sq, nfit, nwalkers, fitting_parameters, param
   # init all initial walkers
   while True:
       test_p0 = np.array([fitting_parameters[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
+      for p_n in parameter_names:
+        if(('Ms' in p_n) or ('P' in p_n)):
+          test_p0[parameter_names.index(p_n)] = np.abs(test_p0[parameter_names.index(p_n)])
       test_lg = lnprob_sq(test_p0, parameter_names)
       if(not np.isinf(test_lg)):
         i_p0 +=1
@@ -220,6 +223,8 @@ def compute_initial_walkers(lnprob_sq, nfit, nwalkers, fitting_parameters, param
   anc.print_both(' done initial walkers.', of_run)
   
   return p0
+
+pso_to_emcee = anc.pso_to_emcee
 
 # =============================================================================
 # =============================================================================
@@ -336,14 +341,14 @@ anc.print_both(' ======== ',of_run)
 anc.print_both(' pyTRADES' ,of_run)
 anc.print_both(' ======== ',of_run)
 anc.print_both('',of_run)
-anc.print_both(' WORKING PATH = %s' %(working_path),of_run)
-anc.print_both(' NUMBER OF THREADS = %d' %(nthreads),of_run)
-anc.print_both(' dof = ndata(%d) - nfit(%d) - nfree(%d) = %d' %(ndata, nfit, nfree, dof),of_run)
-anc.print_both(' Total N_RV = %d for %d set(s)' %(n_rv, n_set_rv),of_run)
-anc.print_both(' Total N_T0 = %d for %d out of %d planet(s)' %(n_t0_sum, n_set_t0, n_planets),of_run)
-anc.print_both(' %s = %.7f' %('log constant error = ', ln_err_const),of_run)
-anc.print_both(' %s = %.7f' %('IN FORTRAN log constant error = ', pytrades_lib.pytrades.ln_err_const),of_run)
-anc.print_both(' seed = %s' %(str(cli.seed)), of_run)
+anc.print_both(' WORKING PATH = {:s}'.format(working_path),of_run)
+anc.print_both(' NUMBER OF THREADS = {:d}'.format(nthreads),of_run)
+anc.print_both(' dof = ndata({:d}) - nfit({:d}) - nfree({:d}) = {:d}'.format(ndata, nfit, nfree, dof),of_run)
+anc.print_both(' Total N_RV = {:d} for {:d} set(s)'.format(n_rv, n_set_rv),of_run)
+anc.print_both(' Total N_T0 = {:d} for {:d} out of {:d} planet(s)'.format(n_t0_sum, n_set_t0, n_planets),of_run)
+anc.print_both(' {:s} = {:.7f}'.format('log constant error = ', ln_err_const),of_run)
+anc.print_both(' {:s} = {:.7f}'.format('IN FORTRAN log constant error = ', pytrades_lib.pytrades.ln_err_const),of_run)
+anc.print_both(' seed = {:s}'.format(str(cli.seed)), of_run)
 
 # INITIALISE PSO ARGUMENTS FROM pso.opt FILE
 pytrades_lib.pytrades.init_pso(1,working_path) # read PSO options
@@ -353,6 +358,7 @@ nit_pso  = pytrades_lib.pytrades.nit_pso
 n_global = pytrades_lib.pytrades.n_global
 #n_global = 1
 anc.print_both(' PSO n_global = {} npop = {} ngen = {}'.format(n_global, np_pso, nit_pso), of_run)
+anc.print_both(" PSO run type: {:s}".format(cli.pso_type))
 
 # RUN PSO+EMCEE n_global TIMES
 for iter_global in range(0,n_global):
@@ -417,36 +423,47 @@ for iter_global in range(0,n_global):
     
     # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
     emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
-    #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
-    p0 = compute_initial_walkers(lnprob_sq, nfit, nwalkers, 
-          emcee_parameters, parameters_minmax, parameter_names, 
-          cli.delta_sigma, 
-          of_run
-          )
+    if(float(cli.delta_sigma) <= 0.0):
+      p0 = pso_to_emcee(nfit, nwalkers,
+        pytrades_lib.pytrades.population, parameter_names,
+        sqrt_par=True
+      )
+    else:
+      #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
+      p0 = compute_initial_walkers(lnprob_sq, nfit, nwalkers, 
+        emcee_parameters, parameters_minmax, parameter_names, 
+        cli.delta_sigma, 
+        of_run
+      )
 
   elif (cli.pso_type == 'exists'):
     # READ PREVIOUS PSO_RUN.HDF5 FILE AND INITIALISE POPULATION FOR EMCEE
     anc.print_both(' READ PREVIOUS PSO_RUN.HDF5 FILE AND INITIALISE POPULATION FOR EMCEE', of_run)
     
-    # population, population_fitness, \
-    _, _, \
-      pso_parameters, pso_fitness, pso_best_evolution, \
-      _, _, _ = anc.get_pso_data(os.path.join(pso_path, 'pso_run.hdf5'))
-      # pso_parameters_minmax, pso_parameter_names, pop_shape = get_pso_data(os.path.join(pso_path, 'pso_run.hdf5'))
+    population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution, parameters_minmax, parameter_names, pop_shape = \
+      anc.get_pso_data(os.path.join(pso_path, 'pso_run.hdf5'))
+    # population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution, parameters_minmax, parameter_names, pop_shape = get_pso_data(os.path.join(pso_path, 'pso_run.hdf5'))
     
     # fitness_iter, lgllhd_iter, check_iter = pytrades_lib.pytrades.write_summary_files(i_global, pso_parameters)
     _, _, _ = pytrades_lib.pytrades.write_summary_files(i_global, pso_parameters)
     
-    anc.print_both(' read pso_run.hdf5 file with best pso_fitness = {1:.7f}'.format(pso_fitness), of_run)
+    pso_fitness = float(pso_fitness)
+    anc.print_both(' read pso_run.hdf5 file with best pso_fitness = {:.7f}'.format(pso_fitness), of_run)
     
     # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
     emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
-    #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
-    p0 = compute_initial_walkers(lnprob_sq, nfit, nwalkers, 
-          emcee_parameters, parameters_minmax, parameter_names, 
-          cli.delta_sigma, 
-          of_run
-          )
+    if(float(cli.delta_sigma) <= 0.0):
+      p0 = pso_to_emcee(nfit, nwalkers,
+        population, trades_names,
+        sqrt_par=True
+      )
+    else:
+      #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
+      p0 = compute_initial_walkers(lnprob_sq, nfit, nwalkers, 
+        emcee_parameters, parameters_minmax, parameter_names, 
+        cli.delta_sigma, 
+        of_run
+      )
         
     
   elif (cli.pso_type == 'skip'):
@@ -455,9 +472,9 @@ for iter_global in range(0,n_global):
     
     #p0 = [parameters_minmax[:,0] + np.random.random(nfit)*delta_parameters for i in range(0, nwalkers)]
     p0 = compute_initial_walkers(lnprob_sq, nfit, nwalkers,
-          fitting_parameters, parameters_minmax, parameter_names, 
-          cli.delta_sigma, 
-          of_run
+      fitting_parameters, parameters_minmax, parameter_names, 
+      cli.delta_sigma, 
+      of_run
     )
   # end if cli.pso_type
 
@@ -534,7 +551,7 @@ for iter_global in range(0,n_global):
       sys.stdout.flush()
 
     anc.print_both('', of_run)
-    anc.print_both('...done with saving temporary total shape = %s' %(str(np.shape(sampler.chain))), of_run)
+    anc.print_both('...done with saving temporary total shape = {:s}'.format(str(np.shape(sampler.chain))), of_run)
     anc.print_both('', of_run)
     sys.stdout.flush()
 
@@ -552,23 +569,42 @@ for iter_global in range(0,n_global):
 
     # save chains with original shape as hdf5 file
     f_hdf5 = h5py.File(os.path.join(pso_path, 'emcee_summary.hdf5'), 'w')
-    f_hdf5.create_dataset('chains', data=sampler.chain, dtype=np.float64)
+    f_hdf5.create_dataset('chains', 
+      data=sampler.chain, 
+      dtype=np.float64
+    )
     f_hdf5['chains'].attrs['nwalkers']        = nwalkers
     f_hdf5['chains'].attrs['nruns']           = nruns
     f_hdf5['chains'].attrs['nfit']            = nfit
     f_hdf5['chains'].attrs['nfree']           = nfree
     f_hdf5['chains'].attrs['completed_steps'] = nruns
-    f_hdf5.create_dataset('parameter_names', data=anc.encode_list(parameter_names), dtype='S10')
-    f_hdf5.create_dataset('boundaries', data=parameters_minmax, dtype=np.float64)
-    f_hdf5.create_dataset('acceptance_fraction', data=sampler.acceptance_fraction, dtype=np.float64)
+    f_hdf5.create_dataset('parameter_names', 
+      data=anc.encode_list(parameter_names), 
+      dtype='S10'
+    )
+    f_hdf5.create_dataset('boundaries', 
+      data=parameters_minmax, 
+      dtype=np.float64
+    )
+    f_hdf5.create_dataset('acceptance_fraction', 
+      data=sampler.acceptance_fraction, 
+      dtype=np.float64
+    )
     f_hdf5['acceptance_fraction'].attrs['mean_acceptance_fraction'] = mean_acceptance_fraction
-    f_hdf5.create_dataset('autocor_time', data=acor_time, dtype=np.float64)
-    f_hdf5.create_dataset('lnprobability', data=lnprobability, dtype=np.float64)
+    f_hdf5.create_dataset('autocor_time', 
+      data=acor_time, 
+      dtype=np.float64
+    )
+    f_hdf5.create_dataset('lnprobability', 
+      data=lnprobability, 
+      dtype=np.float64
+    )
     f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
     f_hdf5.close()
 
   anc.print_both(" Mean_acceptance_fraction should be between [0.25-0.5] = {0:.6f}".format(mean_acceptance_fraction),
-                  of_run)
+    of_run
+  )
   anc.print_both('', of_run)
 
   if(threads_pool is not None):

@@ -109,7 +109,7 @@ def main():
         mfc=(0.8, 0.8, 0.8, 0.8),
         mec='None',
         ls='',
-        ms=2,
+        ms=0.5,
         zorder=6
       )
       # # SCATTER plot

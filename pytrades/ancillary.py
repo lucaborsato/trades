@@ -9,6 +9,7 @@ import numpy as np  # array
 import h5py
 # import trades_lib
 # import random
+
 import constants as cst  # local constants module
 
 # from emcee import autocorr as acor
@@ -242,8 +243,8 @@ def get_args():
   parser.add_argument('--ad-hoc', action='store', dest='adhoc', default='None',
                       help='Define adhoc file with fitted parameters to be overplotted with the id 777')
 
-  parser.add_argument('--script-folder', action='store', dest='pyscript', default='./',
-                      help='Folder of the python scripts... Default is "./"')
+  # parser.add_argument('--script-folder', action='store', dest='pyscript', default='./',
+  #                     help='Folder of the python scripts... Default is "./"')
 
   parser.add_argument('-n-samples', '--n-samples', action='store', dest='n_samples', default=0,
                       help='Number of sample parameter within CI to generate T0s and RVs to be overplotted in the O-C plots. Defautl is 0')
@@ -261,7 +262,7 @@ def get_args():
   cli.seed = set_int_or_none(cli.seed)
   cli.overplot = set_overplot(cli.overplot)
   cli.adhoc = set_adhoc_file(cli.adhoc)
-  cli.pyscript = os.path.abspath(cli.pyscript)
+  # cli.pyscript = os.path.abspath(cli.pyscript)
   cli.n_samples = set_int_argument(cli.n_samples, default=0)
 
   return cli
@@ -836,9 +837,9 @@ def prepare_plot_folder(full_path):
 def prepare_emcee_plot_folder(full_path):
   
   emcee_plots = os.path.join(full_path, 'plots')
-  if (not os.path.isdir(emcee_plots)):
-    if (not os.path.exists(emcee_plots)):
-      os.makedirs(emcee_plots)
+  # if (not os.path.isdir(emcee_plots)):
+  #   if (not os.path.exists(emcee_plots)):
+  os.makedirs(emcee_plots, exist_ok=True)
 
   return emcee_plots
 

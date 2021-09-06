@@ -11,18 +11,19 @@ import random
 import constants as cst # local constants module
 from scipy.stats import norm as scipy_norm
 import ancillary as anc
-from matplotlib import use as mpluse
-mpluse("Agg")
-#mpluse("Qt4Agg")
+
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
-#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-#plt.rc('text', usetex=True)
+# matplotlib rc params
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
-#from matplotlib import rcParams
-#rcParams['text.latex.unicode']=True
-#import corner
-
+plt.rcParams['figure.figsize'] = [6, 6]
+plt.rcParams["figure.facecolor"] = 'white'
+plt.rcParams["savefig.facecolor"] = 'white'
+plt.rcParams["figure.dpi"]  = 200
+plt.rcParams["savefig.dpi"] = 300
+plt.rcParams["font.size"]   = 14
 
 def main():
 
@@ -143,8 +144,8 @@ def main():
     else:
       conv_plot = 1.
     
-    emcee_fig_file = os.path.join(emcee_plots, 'chain_%03d_%s.png' %(i+1, parameter_names_emcee[i].strip()))
-    print(' %s' %(emcee_fig_file), end=' ')
+    emcee_fig_file = os.path.join(emcee_plots, 'chain_{:03d}_{:s}.png'.format(i+1, parameter_names_emcee[i].strip()))
+    print(' {:s}'.format(emcee_fig_file), end=' ')
     #fig, (axChain, axHist) = plt.subplots(nrows=1, ncols=2, figsize=(12,12))
     fig, (axChain, axHist) = plt.subplots(nrows=1, ncols=2, figsize=(6,6))
 
@@ -217,7 +218,11 @@ def main():
     y_max = flatchain_posterior_0[:,i].max()
     
     axChain.set_ylim([y_min, y_max])
-    axChain.set_title('Full chain %s:=[%.3f , %.3f]' %(kel_labels[i], parameter_boundaries[i,0], parameter_boundaries[i,1]))
+    axChain.set_title('Full chain {:s}:=[{:.3f} , {:.3f}]'.format(
+      kel_labels[i], parameter_boundaries[i,0], parameter_boundaries[i,1]
+      ),
+      fontsize=plt.rcParams['font.size']-2
+    )
     plt.draw()
 
     axHist.ticklabel_format(useOffset=False)
@@ -254,7 +259,9 @@ def main():
       axHist.axhline(ci_fitted[i,0]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 15.865th (%.5f)' %(ci_fitted[i,0]*conv_plot))
       axHist.axhline(ci_fitted[i,1]*conv_plot, marker='None', c='forestgreen',ls='-', lw=2.1, alpha=1.0, label='CI 84.135th (%.5f)' %(ci_fitted[i,1]*conv_plot))
     
-    axHist.set_title('Distribution of posterior chain')
+    axHist.set_title('Distribution of posterior chain',
+      fontsize=plt.rcParams['font.size']-2
+    )
     axHist.legend(loc='center left', fontsize=9, bbox_to_anchor=(1, 0.5))
     plt.draw()
 
@@ -268,7 +275,7 @@ def main():
   # lnprob
   xlabel = r'$N_\mathrm{steps}$'
   if(cli.use_thin):
-    xlabel = r'$N_\mathrm{steps} \\times %d$' %(thin_steps)
+    xlabel = r'$N_\mathrm{{steps}} \\times {:d}$'.format(thin_steps)
   
   ax = plt.subplot2grid((2,1), (0,0))
   ax.plot(lnprob_burnin.T, '-', alpha=0.3)
@@ -354,7 +361,7 @@ def main():
   ax.set_xlabel(xlabel)
   
   fig.savefig(os.path.join(emcee_plots, 'emcee_lnprobability.png'), bbox_inches='tight', dpi=150)
-  print(' %s saved' %(os.path.join(emcee_plots, 'emcee_lnprobability.png')))
+  print(' {:s} saved'.format(os.path.join(emcee_plots, 'emcee_lnprobability.png')))
 
 
   return

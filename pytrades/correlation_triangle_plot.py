@@ -13,18 +13,19 @@ import warnings
 import h5py
 from scipy.stats import norm as scipy_norm
 
-import matplotlib.cm as cm
-from matplotlib import use as mpluse
-mpluse("Agg")
-#mpluse("Qt4Agg")
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
-#plt.rc('font',**{'family':'serif','serif':['Computer Modern Roman']})
-#plt.rc('text', usetex=True)
+# matplotlib rc params
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
-import matplotlib.colors as colors
-#from matplotlib import rcParams
-#rcParams['text.latex.unicode']=True
+plt.rcParams['figure.figsize'] = [6, 6]
+plt.rcParams["figure.facecolor"] = 'white'
+plt.rcParams["savefig.facecolor"] = 'white'
+plt.rcParams["figure.dpi"]  = 200
+plt.rcParams["savefig.dpi"] = 300
+plt.rcParams["font.size"]   = 14
+import matplotlib.cm as cm
 from matplotlib.ticker import FormatStrFormatter
 
 warnings.simplefilter('ignore', np.RankWarning)

@@ -13,6 +13,8 @@ import ancillary as anc
 # ==============================================================================
 # ==============================================================================
 
+script_dir = os.path.dirname(os.path.realpath(__file__))
+
 def geweke(cli):
 
   log_folder = os.path.join(cli.full_path, 'logs')
@@ -20,7 +22,8 @@ def geweke(cli):
   olog = open(log_file, 'w')
   
   print('RUN geweke.py')
-  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'geweke.py')
+  # pyscript = os.path.join(os.path.abspath(cli.pyscript), 'geweke.py')
+  pyscript = os.path.join(script_dir, 'geweke.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', '0', '-m', str(cli.m_type), '-t', str(cli.temp_status), '-s', str(cli.sel_steps)], 
                  #stdout = sp.PIPE, stderr = sp.PIPE,
                  stdout = olog, stderr = olog,
@@ -42,7 +45,8 @@ def gelman_rubin(cli):
   olog = open(log_file, 'w')
   
   print('RUN gelman_rubin.py')
-  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'gelman_rubin.py')
+  # pyscript = os.path.join(os.path.abspath(cli.pyscript), 'gelman_rubin.py')
+  pyscript = os.path.join(script_dir, 'gelman_rubin.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', '0', '-m', str(cli.m_type), '-t', str(cli.temp_status), '-s', str(cli.sel_steps)],
                  #stdout = sp.PIPE, stderr = sp.PIPE,
                  stdout = olog, stderr = olog,
@@ -64,7 +68,8 @@ def chains(cli):
   olog = open(log_file, 'w')
   
   print('RUN chains_summary_plot.py')
-  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'chains_summary_plot.py')
+  # pyscript = os.path.join(os.path.abspath(cli.pyscript), 'chains_summary_plot.py')
+  pyscript = os.path.join(script_dir, 'chains_summary_plot.py')
   run = sp.Popen(['python', pyscript, '-p',cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)],
                  #stdout = sp.PIPE, stderr = sp.PIPE,
                  stdout = olog, stderr = olog,
@@ -85,7 +90,8 @@ def correlation(cli):
   olog = open(log_file, 'w')
   
   print('RUN correlation_triangle_plot.py')
-  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'correlation_triangle_plot.py')
+  # pyscript = os.path.join(os.path.abspath(cli.pyscript), 'correlation_triangle_plot.py')
+  pyscript = os.path.join(script_dir, 'correlation_triangle_plot.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '-c', str(cli.cumulative), '--overplot', str(cli.overplot) ],
                  #stdout = sp.PIPE, stderr = sp.PIPE,
                  stdout = olog, stderr = olog,
@@ -106,7 +112,8 @@ def derived_correlation(cli):
   olog = open(log_file, 'w')
   
   print('RUN derived_correlation_plot.py')
-  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'derived_correlation_plot.py')
+  # pyscript = os.path.join(os.path.abspath(cli.pyscript), 'derived_correlation_plot.py')
+  pyscript = os.path.join(script_dir, 'derived_correlation_plot.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--overplot', str(cli.overplot)],
                  #stdout = sp.PIPE, stderr = sp.PIPE,
                  stdout = olog, stderr = olog,
@@ -127,7 +134,8 @@ def ci_chains_correlation(cli):
   olog = open(log_file, 'w')
   
   print('RUN confidence_intervals.py')
-  pyscript = os.path.join(os.path.abspath(cli.pyscript), 'confidence_intervals.py')
+  # pyscript = os.path.join(os.path.abspath(cli.pyscript), 'confidence_intervals.py')
+  pyscript = os.path.join(script_dir, 'confidence_intervals.py')
   run = sp.Popen(['python', pyscript, '-p', cli.full_path, '-nb', str(cli.nburnin), '-m', str(cli.m_type), '-t', str(cli.temp_status), '-u', str(cli.use_thin), '--sample', str(cli.sample_str), '--seed', str(cli.seed), '--overplot', str(cli.overplot), '--ad-hoc', str(cli.adhoc), '--n-samples', str(cli.n_samples) ],
                  #stdout = sp.PIPE, stderr = sp.PIPE,
                  stdout = olog, stderr = olog,

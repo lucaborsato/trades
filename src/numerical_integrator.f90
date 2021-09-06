@@ -22,31 +22,31 @@ module numerical_integrator
     !coefficients A[s,s-1]
     !used in the intermediate state vector:
     !ks:=[t+Cs*h,y[t]+sum(A[s,s-1]*k[s-1])]
-    real(dp),parameter::A21=one/5._dp
-    real(dp),parameter::A31=three/40._dp,A32=9._dp/40._dp
-    real(dp),parameter::A41=three/10._dp,A42=-9._dp/10._dp,&
-        &A43=6._dp/5._dp
-    real(dp),parameter::A51=-11._dp/54._dp,A52=5._dp/2._dp,&
-        &A53=-70._dp/27._dp,A54=35._dp/27._dp
-    real(dp),parameter::A61=1631._dp/55296._dp,A62=175._dp/512._dp,&
-        &A63=575._dp/13824._dp,A64=44275._dp/110592._dp,A65=253._dp/4096._dp
+    real(dp),parameter::A21=one/5.0_dp
+    real(dp),parameter::A31=three/40.0_dp,A32=9.0_dp/40.0_dp
+    real(dp),parameter::A41=three/10.0_dp,A42=-9.0_dp/10.0_dp,&
+        &A43=6.0_dp/5.0_dp
+    real(dp),parameter::A51=-11.0_dp/54.0_dp,A52=5.0_dp/2.0_dp,&
+        &A53=-70.0_dp/27.0_dp,A54=35.0_dp/27.0_dp
+    real(dp),parameter::A61=1631.0_dp/55296.0_dp,A62=175.0_dp/512.0_dp,&
+        &A63=575.0_dp/13824.0_dp,A64=44275.0_dp/110592.0_dp,A65=253.0_dp/4096.0_dp
 
     !coefficients B[s]
     !used in the final state vector (4th order):
     !y[n+1]=y[n]+sum(B[s]*k[s])
-    real(dp),parameter::B1=37._dp/378._dp,B3=250._dp/621._dp,&
-        &B4=125._dp/594._dp,B6=512._dp/1771._dp
+    real(dp),parameter::B1=37.0_dp/378.0_dp,B3=250.0_dp/621.0_dp,&
+        &B4=125.0_dp/594.0_dp,B6=512.0_dp/1771.0_dp
 
     !coefficients C[s]
     !used in the intermediate state vector:
     !ks:=[t+Cs*h,y[t]+sum(A[s,s-1]*k[s-1])]
-    real(dp),parameter::C2=one/5._dp,C3=three/10._dp,C4=three/5._dp,&
-        &C6=7._dp/8._dp
+    real(dp),parameter::C2=one/5.0_dp,C3=three/10.0_dp,C4=three/5.0_dp,&
+        &C6=7.0_dp/8.0_dp
 
     !coefficients E[s], s=1,6 for the error
-    real(dp),parameter::E1=B1-2825._dp/27648._dp,&
-        &E3=B3-18575._dp/48384._dp,E4=B4-13525._dp/55296._dp,&
-        &E5=-277._dp/14336._dp,E6=B6-0.25_dp
+    real(dp),parameter::E1=B1-2825.0_dp/27648.0_dp,&
+        &E3=B3-18575.0_dp/48384.0_dp,E4=B4-13525.0_dp/55296.0_dp,&
+        &E5=-277.0_dp/14336.0_dp,E6=B6-0.25_dp
 
     allocate(rtemp(NBDIM),k2(NBDIM),k3(NBDIM),k4(NBDIM),k5(NBDIM),k6(NBDIM))
     !Numerical Recipes algorithm
@@ -104,7 +104,7 @@ module numerical_integrator
     real(dp)::emax,hh,scale_factor
     ! safety factor = sfac ;
     real(dp),parameter::sfac=0.9_dp
-    real(dp),parameter::exp1=one/5._dp
+    real(dp),parameter::exp1=one/5.0_dp
 
 
     hh=h !uses a temporary variable

@@ -181,6 +181,9 @@ def compute_initial_walkers(lnprob_sq, nfit, nwalkers, fitting_parameters, param
   # init all initial walkers
   while True:
     test_p0 = np.array([fitting_parameters[ifit] + np.random.normal(loc=0., scale=delta_sigma_out[ifit]) for ifit in range(0,nfit)], dtype=np.float64)
+    for p_n in parameter_names:
+      if(('Ms' in p_n) or ('P' in p_n)):
+        test_p0[parameter_names.index(p_n)] = np.abs(test_p0[parameter_names.index(p_n)])
     test_lg = lnprob_sq(test_p0, parameter_names)
     if(not np.isinf(test_lg)):
       i_p0 +=1

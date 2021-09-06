@@ -1411,7 +1411,7 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     cY=one
     cR=zero
     cR(2:n_body)=1.5_dp*(R(1)+R(2:n_body))*RsunAU ! RsunAU from constants module
-    rmean=9.e3_dp
+    rmean=9.0e3_dp
 
     nb_dim=6*n_body
     allocate(dr(nb_dim),r1(nb_dim),r2(nb_dim),err(nb_dim))
@@ -1571,8 +1571,8 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         simT0(ibd)%nT0=0
         simT0(ibd)%nDur=0
         !  let's set error on TT and Dur to 1 sec! It is needed to avoid divisione by zero
-        simT0(ibd)%eT0=1./s24h ! 1s in day
-        simT0(ibd)%edur=1./60.0_dp ! 1s in min
+        simT0(ibd)%eT0=1.0/s24h ! 1s in day
+        simT0(ibd)%edur=1.0/60.0_dp ! 1s in min
       end do
       allocate(T0_sim(maxval(obsData%obsT0(:)%nT0),n_body))
       T0_sim=zero
@@ -2086,7 +2086,7 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     cY=one
     cR=zero
     cR(2:NB)=1.5_dp*(R(1)+R(2:NB))*RsunAU
-    rmean=9.e9_dp
+    rmean=9.0e9_dp
 
     allocate(dr(NBDIM),r1(NBDIM),r2(NBDIM),err(NBDIM))
 
@@ -2154,8 +2154,8 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
         ! check the transit criteria for each body
 
         check_ttra=.false. ! initialise to .false.
-        ttra_temp=-9.e10_dp     !               zero
-        dur_tra_temp=-9.e10_dp  !               zero
+        ttra_temp=-9.0e10_dp     !               zero
+        dur_tra_temp=-9.0e10_dp  !               zero
 
         if(clN(j).eq.0)then ! condition to check X
 

@@ -12,6 +12,7 @@ import time
 #import constants as cst # local constants module
 #from scipy.stats import norm as scipy_norm
 import ancillary as anc
+
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -26,7 +27,6 @@ plt.rcParams["savefig.dpi"] = 300
 plt.rcParams["font.size"]   = 14
 
 import logging
-import warnings
 
 def main():
   # ---
