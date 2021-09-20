@@ -25,7 +25,7 @@ module rotations
       cosa=sign(one,cosa)
     end if
     
-    !        (0 0     1   )
+    !        (0 0     1   ) ?? (1 0 0)
     !mat(3x)=(0 cosa -sina)
     !        (0 sina  cosa)
 

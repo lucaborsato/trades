@@ -86,9 +86,17 @@ def main():
   if (sel_steps == 0):
     sel_steps = n_steps
 
-  steps = np.linspace(start=0, stop=n_steps, num=sel_steps, endpoint=True, dtype=np.int)
+  # logger.info("n_steps = {}".format(n_steps))
+  # logger.info('sel_steps: {}'.format(sel_steps))
+  steps = np.linspace(start=0, stop=n_steps, num=sel_steps, endpoint=True, dtype=int)
+  # logger.info('steps = {}'.format(steps))
   steps[0] = 10
-  sel_steps, _ = np.shape(steps)
+  # logger.info('steps = {}'.format(steps))
+  # logger.info('shape(steps) = {}'.format(np.shape(steps)))
+  # sel_steps, _ = np.shape(steps)
+  sel_steps = len(steps)
+  # logger.info('sel_steps: {}'.format(sel_steps))
+
 
   gr_Rc_2 = np.ones((sel_steps, nfit)) + 99.0
 

@@ -847,7 +847,7 @@ subroutine check_T0_1(id_body,mass,radii,r1,r2,itime,hok,simT0,Hc)
   end subroutine assign_T0_byNumber
 
   ! it finds all transits of the selected planet (id_body) and store them
-  ! in storetra variable, ready to be write into file
+  ! in storetra variable, ready to be written into file
   subroutine all_transits(pos,id_body,mass,radii,r1,r2,itime,hok,stat_tra,storetra)
     integer,intent(in)::pos,id_body
     real(dp),dimension(:),intent(in)::mass,radii,r1,r2

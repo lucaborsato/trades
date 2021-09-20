@@ -848,12 +848,12 @@ def prepare_emcee_plot_folder(full_path):
 
 def computation_time(elapsed):
   
-  elapsed_d = elapsed / 86400.
-  elapsed_h = (elapsed_d - int(elapsed_d)) * 24.
-  elapsed_m = (elapsed_h - int(elapsed_h)) * 60.
-  elapsed_s = (elapsed_m - int(elapsed_m)) * 60.
+  elapsed_d = elapsed / 86400.0
+  elapsed_h = (elapsed_d - int(elapsed_d)) * 24.0
+  elapsed_m = (elapsed_h - int(elapsed_h)) * 60.0
+  elapsed_s = (elapsed_m - int(elapsed_m)) * 60.0
 
-  return int(elapsed_d), elapsed_h, elapsed_m, elapsed_s
+  return int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s
 
 
 # ==============================================================================
@@ -1405,6 +1405,9 @@ def take_n_samples(posterior, lnprob=None, post_ci=None, n_samples=100):
 
   npost, nfit = np.shape(posterior)
 
+
+  print("take_n_samples")
+  print(np.shape(post_ci))
   # idx_post = np.arange(0, npost).astype(int)
 
   # if(lnprob is not None and post_ci is None):

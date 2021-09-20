@@ -143,6 +143,12 @@ def createARG(fpath):
   ofarg.write(line + "\n")
   print(line)
 
+  linel = "rv_trend_order = 0" # RV trend order
+  liner = "# Add a trend to the RV of a defined order"
+  line = liner + "\n" + linel
+  ofarg.write(line + "\n")
+  print(line)
+
   linel = "idpert = 3" # grid
   liner = "# grid option: id of the perturber body [integer >1, <= tot bodies; else no perturber]"
   line = liner + "\n" + linel

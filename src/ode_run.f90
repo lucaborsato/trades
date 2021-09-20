@@ -1755,8 +1755,8 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
     dt1=tstart-tepoch
     dt2=dt1+tint
     if(dt1.lt.zero)then
-        call ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
-          &m,R,ra1,dt1,clN,simRV,simT0,Hc)
+      call ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
+        &m,R,ra1,dt1,clN,simRV,simT0,Hc)
       if(Hc)then
         if(abs(dt1).le.tint)then
           call ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
@@ -1973,6 +1973,7 @@ subroutine ode_a_o(uorb,ucon,uele,utra,fmorb,fmcon,fmele,&
 
     ! NEW VERSION 2017-11-21
     call kepelements2statevector(m,sma,ecc,mA,w,inc,lN,ra0)
+
     ra1=ra0
 
     if((idtra.ge.1).and.(idtra.le.NB)) call set_file_tra(cpuid,isim,wrtid,utra,fltra)

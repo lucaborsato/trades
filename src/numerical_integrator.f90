@@ -67,24 +67,24 @@ module numerical_integrator
     return
   end subroutine rkck_a
 
-  function get_emax(emold,err,rscal) result(emax)
+  function get_emax(emold,error,rscal) result(emax)
     real(dp)::emax
     real(dp),intent(in)::emold
-    real(dp),dimension(:),intent(in)::err,rscal
+    real(dp),dimension(:),intent(in)::error,rscal
     real(dp),dimension(:),allocatable::ertemp
     real(dp)::maxtemp
     integer::i
 
-    allocate(ertemp(size(err)))
+    allocate(ertemp(size(error)))
     ertemp=zero
-!     ertemp(7:NBDIM)=abs(err(7:NBDIM))/rscal(7:NBDIM)
+!     ertemp(7:NBDIM)=abs(error(7:NBDIM))/rscal(7:NBDIM)
     do i=7,NBDIM
       !if(rscal(i).eq.zero)ertemp(i)=TOL_dp
 !       if(abs(rscal(i)-zero).le.TOL_dp)ertemp(i)=TOL_dp
       if(abs(rscal(i)).le.TOL_dp)then
         ertemp(i)=TOL_dp
       else
-        ertemp(i)=abs(err(i))/rscal(i)
+        ertemp(i)=abs(error(i))/rscal(i)
       end if
     end do
     maxtemp=maxval(ertemp(7:NBDIM))
@@ -135,11 +135,11 @@ module numerical_integrator
     real(dp),dimension(:),intent(out)::rout
     
     real(dp)::itime,hw,hok,hnext
-    real(dp),dimension(:),allocatable::r1,r2,drdt,err
+    real(dp),dimension(:),allocatable::r1,r2,drdt,error
     
     
     rout=zero
-    allocate(r1(NBDIM),r2(NBDIM),drdt(NBDIM),err(NBDIM))
+    allocate(r1(NBDIM),r2(NBDIM),drdt(NBDIM),error(NBDIM))
     r1=rin
     r2=rin
     
@@ -152,12 +152,12 @@ module numerical_integrator
       if(abs(itime+hw).gt.abs(dt))then
 
         hw=dt-itime
-        call rkck_a(m,r1,drdt,hw,r2,err)
+        call rkck_a(m,r1,drdt,hw,r2,error)
         itime=dt
 
       else
       
-        call int_rk_a(m,r1,drdt,hw,hok,hnext,r2,err)
+        call int_rk_a(m,r1,drdt,hw,hok,hnext,r2,error)
         itime=itime+hok
         hw=hnext
       
@@ -166,7 +166,7 @@ module numerical_integrator
       r1=r2
     end do loopint
     rout=r2
-    deallocate(r1,r2,drdt,err)
+    deallocate(r1,r2,drdt,error)
     
 
     return

@@ -483,13 +483,14 @@ module celestial_mechanics
       rval = sma(ibd)*oneme2/(one+ecc(ibd)*cosf) ! r = a (1-e^2)/ (1+e*cosf)
 !       vval = sqrt((mu/sma(ibd))/oneme2) ! v = sqrt(G(ms+mp)/a/(1-e^2))
       vval = sqrt(mu/(sma(ibd)*oneme2)) ! v = sqrt(G(ms+mp)/a/(1-e^2))
-!       write(*,*)"body: ",ibd
-!       write(*,*)" mA     = ",meanA(ibd),"e = ",ecc(ibd)," ==> f = ",trueA*rad2deg
-!       write(*,*)" cosf   = ",cosf," sinf = ",sinf
-!       write(*,*)" oneme2 = ",oneme2
-!       write(*,*)" sma    = ",sma(ibd)
-!       write(*,*)" rval   = ",rval
-!       write(*,*)" vval   = ",vval
+
+      ! write(*,*)"body: ",ibd
+      ! write(*,*)" mA     = ",meanA(ibd),"e = ",ecc(ibd)," ==> f = ",trueA*rad2deg
+      ! write(*,*)" cosf   = ",cosf," sinf = ",sinf
+      ! write(*,*)" oneme2 = ",oneme2
+      ! write(*,*)" sma    = ",sma(ibd)
+      ! write(*,*)" rval   = ",rval
+      ! write(*,*)" vval   = ",vval
 
       ! TEST ONE: x,y,z (vx,vy,vz) --> rotations --> X,Y,Z (VX,VY,VZ)
       nci=(ibd-1)*6
@@ -497,31 +498,32 @@ module celestial_mechanics
       rtemp(2+nci)=rval*sinf ! y = rsinf
       rtemp(4+nci)=-vval*sinf ! vx = v*(-sinf)
       rtemp(5+nci)=vval*(ecc(ibd)+cosf) ! vy = v*(e+cosf)
-!       write(*,*)"rtemp   = ",rtemp(1+nci:6+nci)
+
+      ! write(*,*)"rtemp   = ",rtemp(1+nci:6+nci)
       Rargp=zero
       call rotmat3(argp(ibd),Rargp)
-!       write(*,*)"Rargp"
-!       write(*,*)Rargp(1,:)
-!       write(*,*)Rargp(2,:)
-!       write(*,*)Rargp(3,:)
+      ! write(*,*)"Rargp"
+      ! write(*,*)Rargp(1,:)
+      ! write(*,*)Rargp(2,:)
+      ! write(*,*)Rargp(3,:)
       Rinc=zero
       call rotmat1(inc(ibd),Rinc)
-!       write(*,*)"Rinc"
-!       write(*,*)Rinc(1,:)
-!       write(*,*)Rinc(2,:)
-!       write(*,*)Rinc(3,:)
+      ! write(*,*)"Rinc"
+      ! write(*,*)Rinc(1,:)
+      ! write(*,*)Rinc(2,:)
+      ! write(*,*)Rinc(3,:)
       RlN=zero
       call rotmat3(longN(ibd),RlN)
-!       write(*,*)"RlN"
-!       write(*,*)RlN(1,:)
-!       write(*,*)RlN(2,:)
-!       write(*,*)RlN(3,:)
+      ! write(*,*)"RlN"
+      ! write(*,*)RlN(1,:)
+      ! write(*,*)RlN(2,:)
+      ! write(*,*)RlN(3,:)
       rout(1+nci:3+nci)=matmul(RlN,matmul(Rinc,matmul(Rargp,rtemp(1+nci:3+nci))))
       rout(4+nci:6+nci)=matmul(RlN,matmul(Rinc,matmul(Rargp,rtemp(4+nci:6+nci))))
-!       write(*,*)"rot3w     = ",matmul(Rargp,rtemp(1+nci:3+nci))
-!       write(*,*)"rot1i3w   = ",matmul(Rinc,matmul(Rargp,rtemp(1+nci:3+nci)))
-!       write(*,*)"rot3O1i3w = ",matmul(RlN,matmul(Rinc,matmul(Rargp,rtemp(1+nci:3+nci))))
-!       write(*,*)
+      ! write(*,*)"rot3w     = ",matmul(Rargp,rtemp(1+nci:3+nci))
+      ! write(*,*)"rot1i3w   = ",matmul(Rinc,matmul(Rargp,rtemp(1+nci:3+nci)))
+      ! write(*,*)"rot3O1i3w = ",matmul(RlN,matmul(Rinc,matmul(Rargp,rtemp(1+nci:3+nci))))
+      ! write(*,*)
     end do
 !     call orb2obs(rtemp,longN,inc,argp,rout)
     deallocate(rtemp)
