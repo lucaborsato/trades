@@ -1,6 +1,6 @@
 # TRADES
   
-**`TRADES` v2.16.0 by Luca Borsato - 2016-2020** 
+**`TRADES` v2.17.1 by Luca Borsato - 2016-2022** 
 
 Most of the information can be found in the papers:  
 
@@ -51,7 +51,6 @@ To solve the inverse problem, `TRADES` can be run in different modes:
 * **integration:**  
   it runs a simple integration of the orbits of the planetary system calculating the `$T_0$s` and the RVs.  
 
-  
 * **grid search:**  
   TRADES samples the orbital elements of one perturbing body 
   (all the parameters are allowed in the grid, but remember that the number of simulations
@@ -63,7 +62,6 @@ To solve the inverse problem, `TRADES` can be run in different modes:
   between the observed and computed `$T_0$s` and RVs are computed.
   For each combination of the parameters, the `LM` algorithm can be called and
   the best case is the one with the lowest residuals (lowest reduced chi-squared = `$\chi^{2}/\textrm{dof} = \chi^{2}_\textrm{r}$`).  
-
 
 * **Levenberg-Marquardt (`LM`, `lmdif` from [`MINPACK`][MINPACK]) algorithm:**  
   After an initial guess on the orbital parameters of the perturber,
@@ -244,7 +242,7 @@ List of the files with explanation:
 `obsRV.dat NB2_observations.dat NB3_observations.dat`  
 
 1. `arg.in`: file with program arguments, needed for the integration, fitting type, output files.  
-  Example file [`arg.in`](trades_example/arg.in).  
+  Example file [`arg.in`](trades_example/Kepler-9_example/arg.in).  
 
 2. `bodies.lst`: file with list of the files with the parameters for each body.  
   The first column is always the file name of the body, followed by `0` or `1` for each parameter. `0` means do not fit it, `1` means fit it.  
@@ -252,10 +250,11 @@ List of the files with explanation:
   From the second row, each line is the body file name followed by the parameters to fit in this order:  
   `mass radius period eccentricity argument_of_pericenter mean_anomaly inclination longitude_of_node`.  
   Remember that the number of the lines of this file has to match the `NB` parameter in the `arg.in` file.  
-  Example file [`bodies.lst`](trades_example/bodies.lst)  
+  Example file [`bodies.lst`](trades_example/Kepler-9_example/bodies.lst)  
+
   -  `star.dat`: Mass (and sigma) and Radius (and sigma) of the star in Solar units. First row the Mass, second the Radius.  
-    In the code will be identified with the id == 1.   
-    Example file [`star.dat`](trades_example/star.dat)  
+    In the code will be identified with the id == 1.  
+    Example file [`star.dat`](trades_example/Kepler-9_example/star.dat)  
   -  `b.dat`: file with parameters of the planet in the second row of the bodies.lst, that is in the code will be identified with the id == 2.  
     Each row is a different parameter (3 columns + flag for `grid`), in the order:  
     `mass min max [M_Jup]`  
@@ -264,30 +263,30 @@ List of the files with explanation:
     `semi-major_axis min max [au]`  
     `eccentricity min max`  
     `argument_of_pericenter min max [deg]`  
-    `mean_anomaly min max [deg]`   
+    `mean_anomaly min max [deg]` 
     `time_of_pericenter_passage min max [JD]`  
     `inclination min max [deg]`  
     `longitude_of_node min max [deg]`  
     When not specified the `min max` values are set by default (i.e. eccentricity < 1, angles between 0 and 360 deg, inclination between 0 and 180 deg, radius < 5 `R_Jup`, and mass < 1 `M_Sun` in `M_Jup`.  
-    In the `grid` mode the mean of the columns is: `min max step type`. The `step` is used as true step, or step number, and so on accordingly to the fourth column `type`.   
+    In the `grid` mode the mean of the columns is: `min max step type`. The `step` is used as true step, or step number, and so on accordingly to the fourth column `type`.  
     Keywords for column 4 are: `ss` (means step size), `rn` (random number), and `sn` (step number).  
-    Alternatives:   
-    `semi-major axis` in au instead of `period` (set `period` greater than `9000000.`, while setting semi-major axis equal to `999.` will let you use the period);   
+    Alternatives:  
+    `semi-major axis` in au instead of `period` (set `period` greater than `9000000.`, while setting semi-major axis equal to `999.` will let you use the period);  
     `time of passage at pericentre` is used if `mean anomaly` is greater than `999.`, while set `time of passage at pericentre` greater than `9.e8` to use `mean anomaly`.
-    Example file [`b.dat`](trades_example/b.dat)  
+    Example file [`b.dat`](trades_example/Kepler-9_example/b.dat)  
   -   `c.dat`: same as file `b.dat`, but with different parameter values for the body in the third row in `bodies.lst`, that is in the code will be identified with the id == 3.  
-    Example file [`c.dat`](trades_example/c.dat)  
+    Example file [`c.dat`](trades_example/Kepler-9_example/c.dat)  
 
 3.  `lm.opt`: parameter options for the Levenberg-Marquardt algorithm; they are based on the original manual. Keep it as it for standard analysis.  
-  Example file [`lm.opt`](trades_example/lm.opt)  
+  Example file [`lm.opt`](trades_example/Kepler-9_example/lm.opt)  
 
 4.  `pikaia.opt`: parameter options for the `GA` algorithm. The most important parameters to tune are  
-  (1pik) the number of individuals (row 1, ctrl(1)), that is the number of set of parameters for each generation;   
+  (1pik) the number of individuals (row 1, ctrl(1)), that is the number of set of parameters for each generation;  
   (2pik) the number of generation (row 2, ctrl(2)), that is the number of iteration that `GA` has to perform, the last iteration returns the best set of parameters;  
   (3pik) the seed (row 13), that is a integer number that defines the seed for the random generator, if you keep the same value it repeat the same analysis;  
   (4pik) the wrtAll (row 14) is a parameter that defines if you want to that the `GA` writes all the individuals for each generation, set it to `1` to write, `0` not write;  
-  (5pik) the nGlobal (row 15) is the number of global search to perform with the `GA`, each search returns a solution, and the seed of each analysis is different (seed + i, i=1..nGlobal).   
-  Example file [`pikaia.opt`](trades_example/pikaia.opt)   
+  (5pik) the nGlobal (row 15) is the number of global search to perform with the `GA`, each search returns a solution, and the seed of each analysis is different (seed + i, i=1..nGlobal).  
+  Example file [`pikaia.opt`](trades_example/Kepler-9_example/pikaia.opt)  
 
 5.  `pso.opt`: parameter options for the `PSO` algorithm. The rows 1, 2, 4, 5, and 6 are the same parameters explained for the `pikaia.opt` file.  
   In particular:  
@@ -296,7 +295,7 @@ List of the files with explanation:
   (4pso) row 4 is the same as (4pik) row 14 in `pikaia.opt`;  
   (5pso) row 5 is the same as (5pik) row 15 in `pikaia.opt`;  
   (6pso) row 6 is the same as (3pik) row 13 in `pikaia.opt`.  
-  Example file [`pso.opt`](trades_example/pso.opt)   
+  Example file [`pso.opt`](trades_example/Kepler-9_example/pso.opt)   
 
 6.  `obsRV.dat`: list of radial velocities (RVs) data.  
   Columns description:  
@@ -304,22 +303,22 @@ List of the files with explanation:
   (2) observed RVs in meter per seconds;  
   (3) observed RV uncertainties in meter per seconds;  
   (4) ID of the RV dataset, so if you have only one dataset set all column to `1`, else increas value untill the number of different datasets, i.e., `1`, `2` for 2 datasets (2 different facilities, or one facility before and after upgrade).  
-  Example file [`obsRV.dat`](trades_example/obsRV.dat)   
+  Example file [`obsRV.dat`](trades_example/Kepler-9_example/obsRV.dat)  
 
-7.  `NB2_observations.dat`: list of transit times (`$T_0$s`) observed for planet in the second row of `bodies.lst`, i.e., `b.dat` is planet 2.   
+7.  `NB2_observations.dat`: list of transit times (`$T_0$s`) observed for planet in the second row of `bodies.lst`, i.e., `b.dat` is planet 2.  
   Columns description:  
   (1) transit epoch (N), an integer number that identifies the transit w.r.t. a reference transit time `$T_\textrm{ref}$` and refined by a linear ephemeris of kind: `$T_N = T_\textrm{ref} + P_\textrm{ref} \times N$`;  
   (2) the transit time (`$T_0$`) in JD or the same time unit of the integration/epoch/start time;  
   (3) the uncertainty on the `$T_0$`.
-  Example file [`NB2_observations.dat`](trades_example/NB2_observations.dat)   
+  Example file [`NB2_observations.dat`](trades_example/Kepler-9_example/NB2_observations.dat)  
 
-8.  `NB3_observations.dat`: same kind of file `NB2_observations.dat`, but for the planet in the third row of `bodies.lst`, i.e., `c.dat` is planet 3.   
-  Example file [`NB3_observations.dat`](trades_example/NB3_observations.dat)   
+8.  `NB3_observations.dat`: same kind of file `NB2_observations.dat`, but for the planet in the third row of `bodies.lst`, i.e., `c.dat` is planet 3.  
+  Example file [`NB3_observations.dat`](trades_example/Kepler-9_example/NB3_observations.dat)  
   
 9. `derived_boundaries.dat`: this file a special file.  
   If you have some derived parameters (or other values) that can reduce your parameter space you have to create this file in your simulation folder.  
   if the argument `secondary_parameters` in `arg.in` file is set to `0`, this file will not be used.  
-  If `secondary_parameters = 1`, but the file does not exist it will not be used (no derived parameters will be checked).   
+  If `secondary_parameters = 1`, but the file does not exist it will not be used (no derived parameters will be checked).  
   The file should have a line for each parameter, the name in the first column (please keep it short), the min and the max value in the 2nd and 3rd column.
   Keep last line empty so the code can determine the end of file.  
   `derived_boundaries.dat` example:  
@@ -330,7 +329,7 @@ List of the files with explanation:
   In fitness_module.f90 check which subroutines/fuctions will be called to 'check_derived' or 'fix_derived' parameters.  
 
 10. `priors.in`: place here priors for Bayesian analysis with `emcee`.  
-  Follow the instructions in the file.  
+  Follow the instructions in the file [`priors.in`](trades_example/base_2p/priors.in).  
 
 ---
 
@@ -368,15 +367,33 @@ The `full_emcee_analysis.py` script is able to create all the summary reports an
 images of a `TRADES+EMCEE` analysis; it works also on a running simulation.  
 Check also other files in the `pytrades` folder to understand how to use the python library.
   
-  
-**TO BE CONTINUED**
+**TO BE CONTINUED**  
 
 ---
 
 ### Changes/Log
+
 **sorry, I will not be able to report all the small changes...**  
 
+#### `TRADES 2.17.1`  
+
+`pytrades_lib.f90` now has `kelements_to_data` subroutine that returns by default also the duration (T4 - T1, equal to zero if passed dur_check=0)
+and the keplerian orbital elements at each transit time.  
+The `pytrades/trades_test_2022-03-04.py` shows how to use it and it is based on the Kepler-9 example in `trades_example/Kepler-9_example`.  
+
+
+#### `TRADES 2.17.0`  
+
+New management of how it determines the transiting body to check during the integration of the orbits.  
+Removed the parameters (also in the `arg.in`) for weight the chi square in the fit.  
+Now fitting RV offset (called gamma) and jitter parameters for each RV data-set,
+and it can fit a trend on RV of specified order.  
+Some better management of plots and confidence intervals python scripts.  
+Updates in the `Makefile`.  
+Testing `ultranest` version.  
+
 #### `TRADES 2.16.0`  
+
 Moved unused python files in two folders (do not used them, just there as control).  
 Updated `plot_oc/rv.py` files for better x/y limits and visualisation.  
 Updated `confidence_intervals.py` with better HDI computation (based on [PyAstronomy][PyAstronomy]), mode determination.  
@@ -384,30 +401,35 @@ Updated `confidence_intervals.py` with better HDI computation (based on [PyAstro
 Added `priors.in` file for Bayesian analysis with [emcee][emcee].  
 
 #### `TRADES 2.15.2`  
+
 Fixed bug in Makefile that does create a segfault running TRADES executables.  
 
-#### `TRADES 2.15.1`
+#### `TRADES 2.15.1`  
+
 Changes:  
 
 - moved `pytrades` from `python 2` to `python 3`;
 - removed unused variables;
 - added a subroutine/function to get only the reduced chi square (`$\chi^{2}_{r}$`).  
 
-#### `TRADES 2.15.0`
-Changed how TRADES stores and manages the observed and simulated data (Transit Times and Radial Velocities) 
+#### `TRADES 2.15.0`  
+
+Changed how TRADES stores and manages the observed and simulated data (Transit Times and Radial Velocities)
 and it uses new data type.  
 TRADES can now fit the transit duration in minutes defined as the difference between 
 the last (T4) and the first (t1) contact time.  
 Improved the T0 and the T4/T1 determination, and now it uses the integrator in the Bisection-Newton-Raphson,
 in this way it avoids numericals issues with analytical f and g function when 
-assuming constants keplerian orbital elements during transit.   
+assuming constants keplerian orbital elements during transit.  
 
-#### `TRADES 2.14.1`
+#### `TRADES 2.14.1`  
+
 Updated computation of the initial state vector from the Keplerian orbital elements,
 and implemented the subroutine adapted from [`MERCURY`][MERCURY] to compute the 
 Keplerian orbital elements from the state vector.  
 
-#### `TRADES 2.14`
+#### `TRADES 2.14`  
+
 Old `PolyChord` version has been removed, now the 1.10 version can be used.
 Follow the `PolyChord` compile and install instruction, with python support.
 It will be available as python module and used in the script ``.  
@@ -418,7 +440,6 @@ Checking the conversion of the state vector to orbital elements during integrati
 
 Check few variable allocations when no data available.  
 Ready to move PolyChord to v1.12 with python support.  
-
 
 #### `TRADES 2.13.5`
 
@@ -435,7 +456,6 @@ Updated how it computes the orbits when the write step is smaller than the integ
 
 Nothing special, code-styling and better management of planet file names.  
 
-
 #### `TRADES 2.13.2`
 
 In `arg.in` file added keyword: `ncpu`.  
@@ -449,14 +469,12 @@ Python scripts: `trades_pso2emcee.py` and `trades_pso2emcee_sqrte.py`.
 Counterparts of `trades_emcee.py` and `trades_emcee_sqrte.py`, but it runs or reads `PSO` before `emcee`.  
 Testing.  
 
-
 #### `TRADES 2.11.1`
 
 Python script `trades_emcee_sqrte.py`, that allow to fit `$\sqrt{e}\cos\omega,\sqrt{e}\sin\omega$` (in the python module, not in the fortran subroutines).  
 Added script `plot_rv.py` that plot RV model and RV-phased curves.  
 Now the degrees of freedom (dof) take into account the free parameters (nfre, determined within the program, but not fitted). In particular they are the number of `$\gamma$` RV offset (`nfree = n_RVset`).  
 `dof = ndat - nfit - nfree`
-
 
 #### `TRADES 2.10.1`
 
@@ -473,7 +491,6 @@ Added more files in `pytrades` folder and added files to plot and summarise simu
 Small bugfixes in check of the physical parameters.  
 Added optional argument for debug in the output subroutine in `ode_run`.   
 
-
 #### `TRADES 2.9.0`
 
 Introduced flag in `arg.in` file: `oc_fit`.  
@@ -481,7 +498,6 @@ Introduced flag in `arg.in` file: `oc_fit`.
 `oc_fit = T` is true, it means that `$\chi^2$` is computed from the amplitude of the TTV, based on the O-C for the observed (`OC_obs`) and simulated data (`OC_sim`):  
   `OC_obs = T0_obs - T0_lin,obs`, where `T0_lin,obs` is the linear ephemeris of the observed data and  
   `OC_sim = T0_sim - T0_lin,sim`, where `T0_lin,sim` is the linear ephemeris of the simulated transit times.  
-
 
 #### `TRADES 2.8.0`
 
