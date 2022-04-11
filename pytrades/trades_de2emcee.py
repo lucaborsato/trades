@@ -4,6 +4,7 @@
 # no more "zero" integer division bugs!:P
 import argparse
 import os
+from random import seed
 import numpy as np  # array
 import h5py
 import sys
@@ -14,7 +15,9 @@ import time
 from multiprocessing import Pool
 # from schwimmbad import JoblibPool as Pool
 
+from pyde.de import DiffEvol
 import emcee
+import yaml
 
 from constants import Msear
 import ancillary as anc
@@ -73,16 +76,18 @@ def get_args():
                         help='Value of the sigma to compute initial walkers from initial solution. Default=1.e-4'
                         )
 
-    # HOW TO RUN PSO OR SKIP
-    parser.add_argument('-r', '--pso', '--pso-type',
-                        action='store', dest='pso_type', default='run',
-                        help='Define PSO run type: "skip" = do not run PSO, only emcee with random walkers; "run" = run PSO normally; "exists" = do not run PSO, but read previous PSO (pso_run.hdf5) file and start emcee from its population'
-                        )
-
     parser.add_argument('-seed', '--seed',
                         action='store', dest='seed', default='None',
                         help='Seed for random number generator. Default is None.'
                         )
+
+    parser.add_argument(
+        '-de', '--de', '-de-type', '--de-type',
+        action='store',
+        dest='de_type',
+        default='run',
+        help='DE run type: ir "run" (Default) it run a DE and overwrites files, "exist" reads previous de_run.hdf5 file, load the best-fit parameters and provides them to emcee.'
+    )
 
     cli = parser.parse_args()
 
@@ -96,8 +101,9 @@ def get_args():
 
     cli.ln_flag = anc.set_bool_argument(cli.ln_flag)
 
-    if (cli.pso_type not in ['skip', 'run', 'exists']):
-        cli.pso_type = 'run'
+    cli.de_type = str(cli.de_type).lower()
+    if cli.de_type != "exist":
+        cli.de_type = "run" 
 
     try:
         cli.seed = int(cli.seed)
@@ -150,7 +156,118 @@ compute_initial_walkers = anc.compute_initial_walkers
 
 # =============================================================================
 
-pso_to_emcee = anc.pso_to_emcee
+def load_de_configuration(cli):
+
+    de_file = os.path.join(
+        cli.full_path,
+        "de.yml"
+    )
+
+    de_conf_default = {
+        "npop": 84,
+        "ngen": 4200,
+        "n_global": 1,
+        "save": 100,
+        "f": 0.5,
+        "c": 0.5,
+        "maximize": True
+    }
+
+    de_yml = de_conf_default.copy()
+    de_labels = de_conf_default.keys()
+    with open(de_file, "r") as stream:
+        try:
+            de_yml_read = yaml.safe_load(stream)
+            for k, v in de_yml_read.items():
+                if k in  de_labels:
+                    de_yml[k] = v
+        except yaml.YAMLError as exc:
+            print("de.yml not present, using defaults.")
+
+    return de_yml
+
+# =============================================================================
+
+def hdf5_save_one_dataset(de_file, data_name, data, data_type, hdf5_mode='a'):
+
+    de_hdf5 = h5py.File(de_file, hdf5_mode,
+        # libver='latest'
+    )
+    # de_hdf5.swmr_mode = True # ERRORS WHEN ADDING/DELETING/UPDATING DATASETS AND ATTRS!!
+    if data_name in de_hdf5:
+        del de_hdf5[data_name]
+    de_hdf5.create_dataset(
+        data_name,
+        data=data,
+        dtype=data_type,
+        compression="gzip"
+    )
+    de_hdf5.close()
+
+    return 
+
+def hdf5_update_attr(de_file, data_name, attrs_name, attrs_value):
+
+    de_hdf5 = h5py.File(de_file, 'r+',
+        # libver='latest'
+    )
+    # de_hdf5.swmr_mode = True
+    de_hdf5[data_name].attrs[attrs_name] = attrs_value
+    de_hdf5.close()
+
+    return
+
+def save_de_evolution(de_file, npop_de, ngen_de, iter_de, iter_global, nfit, ndata, de_pop, de_fit, de_pop_best, de_fit_best, de_bounds, parameter_names, de_yml):
+
+    # de_file = os.path.join(de_path, 'de_run.hdf5')
+    hdf5_save_one_dataset(de_file, 'population', de_pop, 'f8')
+    hdf5_update_attr(de_file, 'population', 'npop', npop_de)
+    hdf5_update_attr(de_file, 'population', 'ngen', ngen_de)
+    hdf5_update_attr(de_file, 'population', 'iter_de', iter_de)
+    hdf5_update_attr(de_file, 'population', 'iter_global', iter_global + 1)
+    hdf5_update_attr(de_file, 'population', 'nfit', nfit)
+    hdf5_update_attr(de_file, 'population', 'ndata', ndata)
+
+    hdf5_save_one_dataset(de_file, 'population_fitness', de_fit, 'f8')
+  
+    hdf5_save_one_dataset(de_file, 'best_population', de_pop_best, 'f8')
+  
+    hdf5_save_one_dataset(de_file, 'best_fitness', de_fit_best, 'f8')
+  
+    hdf5_save_one_dataset(de_file, 'parameters_minmax', de_bounds, 'f8')
+  
+    # best_loc = np.argmax(de_fit_best[:iter_de])
+    # hdf5_save_one_dataset(de_file, 'de_parameters', de_pop_best[best_loc,:].copy(), 'f8')
+    de_parameters = get_best_de_parameters(de_fit_best, de_pop_best, de_yml)
+    hdf5_save_one_dataset(de_file, 'de_parameters', de_parameters, 'f8')
+
+    hdf5_save_one_dataset(de_file, 'parameter_names', parameter_names, 'S10')
+  
+  
+    return
+
+# =============================================================================
+
+def get_best_de_parameters(de_fit_best, de_pop_best, de_yml):
+
+    de_maximize = de_yml["maximize"]
+    loc_best = np.argmax(de_fit_best) if de_maximize else np.argmin(de_fit_best)
+
+    de_parameters = de_pop_best[loc_best, :].copy()
+
+    return de_parameters
+
+
+# =============================================================================
+def load_de_parameters(de_file):
+
+    de_hdf5 = h5py.File(de_file, 'r',
+        # libver='latest', swmr=True
+        )
+    de_parameters = de_hdf5["de_parameters"][...]
+    de_hdf5.close()
+
+    return de_parameters
 
 # =============================================================================
 # =============================================================================
@@ -251,7 +368,6 @@ ln_prior = anc.lnL_priors(
 # LOGPROBABILITY FUNCTION NEEDED BY EMCEE
 #
 
-
 def lnprob(fitting_parameters):
 
     loglhd = 0.0
@@ -318,177 +434,158 @@ anc.print_both(' Total N_T0 = {:d} for {:d} out of {:d} planet(s)'.format(
 )
 anc.print_both(' seed = {:s}'.format(str(cli.seed)), of_run)
 
-# INITIALISE PSO ARGUMENTS FROM pso.opt FILE
-pytrades.init_pso(1, working_path)  # read PSO options
-# PSO VARIABLES
-np_pso = pytrades.np_pso
-nit_pso = pytrades.nit_pso
-n_global = pytrades.n_global
-#n_global = 1
-anc.print_both(' PSO n_global = {} npop = {} ngen = {}'.format(
-    n_global, np_pso, nit_pso
+# INITIALISE DE ARGUMENTS FROM de.yml FILE
+de_yml = load_de_configuration(cli)
+anc.print_both("\nDE configuration: ", of_run)
+for k, v in de_yml.items():
+    anc.print_both(" {:10s} = {}".format(k, v))
+
+npop_de  = de_yml["npop"]
+ngen_de  = de_yml["ngen"]
+n_global = de_yml["n_global"]
+de_save  = de_yml["save"]
+de_bounds = parameters_minmax.copy()
+de_f = de_yml["f"]
+de_c = de_yml["c"]
+de_maximize = de_yml["maximize"]
+fit_type = -1 if de_maximize else 1
+anc.print_both(' DE n_global = {} npop = {} ngen = {}'.format(
+    n_global, npop_de, ngen_de
     ), 
     of_run
 )
-anc.print_both(" PSO run type: {:s}".format(cli.pso_type))
 
-# RUN PSO+EMCEE n_global TIMES
+# RUN DE+EMCEE n_global TIMES
 for iter_global in range(0, n_global):
-
-    # commented 2019-05-21
-    # threads_pool = mp.Pool(1)
 
     # CREATES PROPER WORKING PATH AND NAME
     i_global = iter_global + 1
-    pso_path = os.path.join(os.path.join(
-        working_folder, '{0:04d}_pso2emcee'.format(i_global)), '')
-    pytrades.path_change(pso_path)
+    de_path = os.path.join(os.path.join(
+        working_folder, '{0:04d}_de2emcee'.format(i_global)), '')
+    pytrades.path_change(de_path)
 
     anc.print_both('\n\n GLOBAL RUN {0:04d} INTO PATH: {1:s}\n'.format(
-        i_global, pso_path), of_run)
-
-    if (cli.pso_type == 'run'):
-        # RUN PSO
-        anc.print_both(' RUN PSO ...', of_run)
-
-        pso_start = time.time()
-        if(not os.path.exists(pso_path)):
-            os.makedirs(pso_path)
-        # copy files
-        anc.copy_simulation_files(working_path, pso_path)
-
-        # CALL RUN_PSO SUBROUTINE FROM TRADES_LIB: RUNS PSO AND COMPUTES THE BEST SOLUTION, SAVING ALL THE POPULATION EVOLUTION
-        pso_parameters = trades_parameters.copy()
-        pso_fitness = 0.0
-        pso_parameters, pso_fitness = pytrades.pyrun_pso(
-            nfit, i_global
-        )
-        anc.print_both(' completed run_pso', of_run)
-
-        pso_best_evolution = np.asarray(
-            pytrades.pso_best_evolution[...], dtype=np.float64)
-        anc.print_both(' pso_best_evolution retrieved', of_run)
-
-        anc.print_both(' last pso_best_evolution', of_run)
-        last_pso_fitness = pso_best_evolution[-1, -1].astype(np.float64)
-        anc.print_both(' fitness = {}'.format(last_pso_fitness), of_run)
-
-        # SAVE PSO SIMULATION IN pso_run.hdf5 FILE
-        print(' Creating pso hdf5 file: {}'.format(
-            os.path.join(pso_path, 'pso_run.hdf5')))
-        pso_hdf5 = h5py.File(os.path.join(pso_path, 'pso_run.hdf5'), 'w')
-        pso_hdf5.create_dataset(
-            'population', data=pytrades.population, dtype=np.float64)
-        pso_hdf5.create_dataset(
-            'population_fitness', data=pytrades.population_fitness, dtype=np.float64)
-        pso_hdf5.create_dataset(
-            'pso_parameters', data=pso_parameters, dtype=np.float64)
-        pso_hdf5.create_dataset('pso_fitness', data=np.array(
-            pso_fitness), dtype=np.float64)
-        pso_hdf5.create_dataset('pso_best_evolution',
-                                data=pso_best_evolution, dtype=np.float64)
-        pso_hdf5.create_dataset('parameters_minmax',
-                                data=trades_minmax, dtype=np.float64)
-        pso_hdf5.create_dataset(
-            'parameter_names', data=anc.encode_list(trades_names), dtype='S10')
-        pso_hdf5['population'].attrs['npop'] = np_pso
-        pso_hdf5['population'].attrs['niter'] = nit_pso
-        pso_hdf5['population'].attrs['iter_global'] = iter_global + 1
-        pso_hdf5['population'].attrs['nfit'] = nfit
-        pso_hdf5.close()
-
-        anc.print_both(' ', of_run)
-        # fitness_iter, lgllhd_iter, check_iter = pytrades.write_summary_files(i_global, pso_parameters)
-        elapsed = time.time() - pso_start
-        elapsed_d, elapsed_h, elapsed_m, elapsed_s = anc.computation_time(
-            elapsed)
-        anc.print_both(' ', of_run)
-        anc.print_both(' PSO FINISHED in {0:2d} day {1:02d} hour {2:02d} min {3:.2f} sec - bye bye'.format(
-            int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s),
-            of_run
-        )
-
-        # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
-        # emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
-        emcee_parameters = pso_parameters.copy()
-        if(float(cli.delta_sigma) <= 0.0):
-            p0 = pso_to_emcee(
-                nfit, nwalkers,
-                pytrades.population, parameter_names,
-            #   sqrt_par=True
-                sqrt_par=False
-            )
-        else:
-            #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
-            p0 = compute_initial_walkers(
-                lnprob_sq, nfit, nwalkers,
-                emcee_parameters, parameters_minmax, parameter_names,
-                cli.delta_sigma,
-                of_run
-            )
-
-    elif (cli.pso_type == 'exists'):
-        # READ PREVIOUS PSO_RUN.HDF5 FILE AND INITIALISE POPULATION FOR EMCEE
-        anc.print_both(
-            ' READ PREVIOUS PSO_RUN.HDF5 FILE AND INITIALISE POPULATION FOR EMCEE', of_run)
-
-        population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution, parameters_minmax, parameter_names, pop_shape = \
-            anc.get_pso_data(os.path.join(pso_path, 'pso_run.hdf5'))
-        # population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution, parameters_minmax, parameter_names, pop_shape = get_pso_data(os.path.join(pso_path, 'pso_run.hdf5'))
-
-        # fitness_iter, lgllhd_iter, check_iter = pytrades.write_summary_files(i_global, pso_parameters)
-        _, _, _ = pytrades.write_summary_files(
-            i_global, pso_parameters)
-
-        pso_fitness = float(pso_fitness)
-        anc.print_both(' read pso_run.hdf5 file with best pso_fitness = {:.7f}'.format(
-            pso_fitness), of_run)
-
-        # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
-        # emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
-        emcee_parameters = pso_parameters.copy()
-        if(float(cli.delta_sigma) <= 0.0):
-            p0 = pso_to_emcee(
-                nfit, nwalkers,
-                population, trades_names,
-                # sqrt_par=True
-                sqrt_par=False
-            )
-        else:
-            #p0, pso_fitness_p0 = pso_to_emcee(nfit, nwalkers, population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution)
-            p0 = compute_initial_walkers(
-                lnprob_sq, nfit, nwalkers,
-                emcee_parameters, parameters_minmax, parameter_names,
-                cli.delta_sigma,
-                of_run
-            )
-
-    elif (cli.pso_type == 'skip'):
-        # DO NOT RUN PSO, ONLY EMCEE
-        anc.print_both(' DO NOT RUN PSO, ONLY EMCEE', of_run)
-
-        #p0 = [parameters_minmax[:,0] + np.random.random(nfit)*delta_parameters for i in range(0, nwalkers)]
-        p0 = compute_initial_walkers(
-            lnprob_sq, nfit, nwalkers,
-            fitting_parameters, parameters_minmax, parameter_names,
-            cli.delta_sigma,
-            of_run
-        )
-    # end if cli.pso_type
-
-    anc.print_both(' emcee chain: nwalkers = {} nruns = {}'.format(
-        nwalkers, nruns), of_run)
-    anc.print_both(' sampler ... ', of_run)
-
-    # close the pool of threads
-    # commented 2019-05-21
-    # threads_pool.close()
-    # threads_pool.join()
+        i_global, de_path), of_run)
 
     if(nthreads > 1):
         threads_pool = Pool(nthreads)
     else:
         threads_pool = None
+
+    if cli.de_type == 'run':
+
+        # ==============================================================================
+        # START DE
+        anc.print_both(' RUN DE ...', of_run)
+
+        de_start = time.time()
+        if(not os.path.exists(de_path)):
+            os.makedirs(de_path)
+        # copy files
+        anc.copy_simulation_files(working_path, de_path)
+
+        de_file = os.path.join(de_path, 'de_run.hdf5')
+        if os.path.exists(de_file) and os.path.isfile(de_file):
+            anc.print_both("File {} exists: deleting it!".format(de_file), of_run)
+            os.remove(de_file)
+
+        # CALL RUN_PSO SUBROUTINE FROM TRADES_LIB: RUNS PSO AND COMPUTES THE BEST SOLUTION, SAVING ALL THE POPULATION EVOLUTION
+        de_parameters = trades_parameters.copy()
+        de_fitness = 0.0
+
+        de_pop, de_fit = np.zeros((ngen_de, npop_de, nfit)), np.zeros((ngen_de, npop_de))
+        de_pop_best, de_fit_best = np.zeros((ngen_de, nfit)), np.zeros((ngen_de))
+
+
+        # SAVE DE SIMULATION IN de_run.hdf5 FILE
+        # save_de_evolution(de_path, npop_de, ngen_de, 0, iter_global, nfit, ndata, de_pop, de_fit, de_pop_best, de_fit_best, de_bounds, parameter_names)
+        # print(' Created de hdf5 file: {}'.format(
+        #     os.path.join(de_path, 'de_run.hdf5')
+        # ))
+
+        de_evol = DiffEvol(
+            lnprob_sq,
+            de_bounds,
+            npop_de,
+            f=de_f,
+            c=de_c,
+            seed=cli.seed,
+            maximize=de_maximize,
+            vectorize=False,
+            pool=threads_pool,
+            args=(parameter_names,)
+        )
+        start_iter_de = time.time()
+        anc.print_both(" DE - START ")
+        for iter_de, res_de in enumerate(de_evol(ngen_de)):
+
+            de_pop[iter_de, :, :] = de_evol.population.copy()
+            de_fit[iter_de, :] = fit_type * de_evol._fitness.copy()
+            de_pop_best[iter_de, :] = de_evol.minimum_location.copy()
+            de_fit_best[iter_de] = fit_type * de_evol.minimum_value
+
+            if iter_de > 0:
+                if ((iter_de+1)%de_save == 0) or (iter_de + 1 >= ngen_de):
+                    anc.print_both(" DE - iter = {} ==> saving".format(iter_de))
+                    anc.print_both(' last best fitness = {}'.format(de_fit_best[iter_de]), of_run)
+                    
+                    # SAVE DE SIMULATION IN de_run.hdf5 FILE
+                    save_de_evolution(de_file, npop_de, ngen_de, iter_de, iter_global, nfit, ndata, de_pop, de_fit, de_pop_best, de_fit_best, de_bounds, parameter_names, de_yml)
+                    print(' Updated DE hdf5 file: {}'.format(
+                        de_file
+                    ))
+                    elapsed_de = time.time() - start_iter_de
+                    elapsed_de_d, elapsed_de_h, elapsed_de_m, elapsed_de_s = anc.computation_time(elapsed_de)
+                    anc.print_both(' DE: {:d} steps in {:2d} day {:02d} hour {:02d} min {:.2f} sec'.format(
+                        de_save,
+                        int(elapsed_de_d), int(elapsed_de_h), int(elapsed_de_m), elapsed_de_s),
+                        of_run
+                    )
+                    start_iter_de = time.time()
+
+        anc.print_both(' completed DE', of_run)
+        anc.print_both(' ', of_run)
+
+        elapsed = time.time() - de_start
+        elapsed_d, elapsed_h, elapsed_m, elapsed_s = anc.computation_time(
+            elapsed)
+        anc.print_both(' ', of_run)
+        anc.print_both(' DE FINISHED in {0:2d} day {1:02d} hour {2:02d} min {3:.2f} sec - bye bye'.format(
+            int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s),
+            of_run
+        )
+        # best_loc = np.argmax(de_fit_best)
+        # de_parameters = de_pop_best[best_loc,:].copy()
+        de_parameters = get_best_de_parameters(de_fit_best, de_pop_best, de_yml)
+        # END DE
+        # ==============================================================================
+        # sys.exit()
+    elif (cli.de_type == "exist") and (os.path.isdir(de_path)):
+        anc.print_both("DE RUN already exist --> loading best-fit parameters and send them to emcee...", of_run)
+        de_parameters = load_de_parameters(de_path)
+
+    # TRADES/PSO USES ECOSW/ESINW --> HERE EMCEE USES SQRTECOSW/SQRTESINW
+    # emcee_parameters = anc.e_to_sqrte_fitting(pso_parameters, trades_names)
+    emcee_parameters = de_parameters.copy()
+
+    if(float(cli.delta_sigma) <= 0.0):
+        delta_sigma = 1.0.e-4
+    delta_sigma = cli.delta_sigma
+    p0 = compute_initial_walkers(
+        lnprob_sq, nfit, nwalkers,
+        emcee_parameters, parameters_minmax, parameter_names,
+        delta_sigma,
+        of_run
+    )
+
+    anc.print_both(' emcee chain: nwalkers = {} nruns = {}'.format(
+        nwalkers, nruns), of_run)
+    anc.print_both(' sampler ... ', of_run)
+
+    # if(nthreads > 1):
+    #     threads_pool = Pool(nthreads)
+    # else:
+    #     threads_pool = None
 
     sampler = emcee.EnsembleSampler(
         nwalkers,
@@ -508,11 +605,11 @@ for iter_global in range(0, n_global):
 
     if (nsave != False):
         # save temporary sampling during emcee every nruns*10%
-        if(os.path.exists(os.path.join(pso_path, 'emcee_summary.hdf5'))
-           and os.path.isfile(os.path.join(pso_path, 'emcee_summary.hdf5'))):
-            os.remove(os.path.join(pso_path, 'emcee_summary.hdf5'))
+        if(os.path.exists(os.path.join(de_path, 'emcee_summary.hdf5'))
+           and os.path.isfile(os.path.join(de_path, 'emcee_summary.hdf5'))):
+            os.remove(os.path.join(de_path, 'emcee_summary.hdf5'))
 
-        f_hdf5 = h5py.File(os.path.join(pso_path, 'emcee_summary.hdf5'), 'a')
+        f_hdf5 = h5py.File(os.path.join(de_path, 'emcee_summary.hdf5'), 'a')
         f_hdf5.create_dataset('parameter_names', data=anc.encode_list(
             parameter_names), dtype='S10')
         f_hdf5.create_dataset(
@@ -550,7 +647,7 @@ for iter_global in range(0, n_global):
                 'completed {0:d} steps of {1:d}'.format(bbb, nruns), of_run)
 
             f_hdf5 = h5py.File(os.path.join(
-                pso_path, 'emcee_summary.hdf5'), 'a')
+                de_path, 'emcee_summary.hdf5'), 'a')
             temp_dset = f_hdf5['chains']
             temp_dset[:, aaa:bbb, :] = sampler.chain[:, aaa:bbb, :]
             temp_dset.attrs['completed_steps'] = bbb
@@ -589,7 +686,7 @@ for iter_global in range(0, n_global):
         lnprobability = sampler.lnprobability
 
         # save chains with original shape as hdf5 file
-        f_hdf5 = h5py.File(os.path.join(pso_path, 'emcee_summary.hdf5'), 'w')
+        f_hdf5 = h5py.File(os.path.join(de_path, 'emcee_summary.hdf5'), 'w')
         f_hdf5.create_dataset('chains',
                               data=sampler.chain,
                               dtype=np.float64

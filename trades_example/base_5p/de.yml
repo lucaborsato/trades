@@ -1,0 +1,15 @@
+# configuration file for DE
+# population size == number of different configurations for each iteration of the DE
+npop: 84
+# generation size == number of iterations
+ngen: 4200
+# number of repeatition of the full analysis DE+emcee (it changes the seed every time)
+n_global: 1
+# saving steps == number of steps for the save points ==> it creates a de_run.hdf5 file
+save: 100
+# Difference amplification factor. Values between 0.5-0.8 are good in most cases.
+f: 0.5
+# Cross-over probability. Use 0.9 to test for fast convergence, and smaller values (~0.1) for a more elaborate search.
+c: 0.5
+# maximize == True: maximize the function, maximize == False: minimize the function
+maximize: True

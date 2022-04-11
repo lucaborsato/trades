@@ -152,17 +152,20 @@ inv_dof = pytrades.inv_dof
 str_len = pytrades.str_len
 temp_names = pytrades.get_parameter_names(nfit, str_len)
 trades_names = anc.convert_fortran_charray2python_strararray(temp_names)
-parameter_names = anc.trades_names_to_emcee(trades_names)
+# parameter_names = anc.trades_names_to_emcee(trades_names)
+parameter_names = trades_names.copy()
 
 # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
 trades_parameters = pytrades.fitting_parameters
 
 # save initial_fitting parameters into array
 original_fit_parameters = trades_parameters.copy()
-fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
+# fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
+fitting_parameters = trades_parameters.copy()
 
 trades_minmax = pytrades.parameters_minmax  # PARAMETER BOUNDARIES
-parameters_minmax = anc.e_to_sqrte_boundaries(trades_minmax, trades_names)
+# parameters_minmax = anc.e_to_sqrte_boundaries(trades_minmax, trades_names)
+parameters_minmax = trades_minmax.copy()
 
 # RADIAL VELOCITIES SET
 n_rv = pytrades.nrv
@@ -223,10 +226,11 @@ def lnprob(fitting_parameters):
     return loglhd
 
 
-def lnprob_sq(fitting_parameters, names_par):
-
-    fitting_trades = anc.sqrte_to_e_fitting(fitting_parameters, names_par)
-    loglhd = lnprob(fitting_trades)
+# def lnprob_sq(fitting_parameters, names_par):
+#     fitting_trades = anc.sqrte_to_e_fitting(fitting_parameters, names_par)
+    # loglhd = lnprob(fitting_trades)
+def lnprob_sq(fitting_parameters, parameter_names):
+    loglhd = lnprob(fitting_parameters)
     # if np.isfinite(loglhd):
     ln_prior = anc.lnL_priors(
         fitting_parameters,

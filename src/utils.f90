@@ -146,28 +146,6 @@ contains
 
         integer::iRV, nRV, RVset
         real(dp)::xRV
-        ! real(dp),dimension(:),allocatable::xRV,wi
-        ! integer::j,aRV,bRV,nset,nRVs
-
-        ! nset=obsRV%nRVset
-        ! simRV%gamma=zero
-        ! if(obsRV%nRV.gt.0)then
-        !   aRV=0
-        !   bRV=0
-        !   do j=1,nset
-        !     nRVs=obsRV%nRVsingle(j)
-        !     aRV=bRV+1
-        !     bRV=bRV+nRVs
-        !     allocate(xRV(nRVs),wi(nRVs))
-        !     xRV=zero
-        !     xRV=obsRV%RV(aRV:bRV)-(simRV%RV(aRV:bRV)+simRV%gamma(j)+simRV%trend(aRV:bRV))
-        !     resw(aRV:bRV)=xRV/sqrt(obsRV%eRV(aRV:bRV)**2 + simRV%jitter(j)**2)
-        !     deallocate(xRV,wi)
-        !   end do
-        ! end if
-
-        ! write(*,*)" DEBUG: ++ set_RV_resw"
-        ! write(*,*)" iRV RVset RVo rvs gamma trend dRV jitter resw"
 
         nRV = obsRV%nRV
         if (nRV .gt. 0) then
@@ -245,17 +223,9 @@ contains
 !   subroutine set_oc_resw(epoT0_obs,T0_obs,eT0_obs,T0_sim,resw)
     subroutine set_oc_resw(obsT0, simT0, resw)
         use linear_ephem
-!     integer,dimension(:,:),intent(in)::epoT0_obs
-!     real(dp),dimension(:,:),intent(in)::T0_obs,eT0_obs,T0_sim
         type(dataT0), dimension(:), intent(in)::obsT0
         type(dataT0), dimension(:), intent(inout)::simT0
         real(dp), dimension(:), intent(out)::resw
-
-!     integer,dimension(:),allocatable::x
-!     real(dp),dimension(:),allocatable::y,ey
-!     real(dp)::Tref_sim,eTref_sim,Pref_sim,ePref_sim
-
-!     real(dp)::obs,sim,eobs
 
         integer::i_body, nTx, a, b
 
@@ -282,96 +252,7 @@ contains
         return
     end subroutine set_oc_resw
 
-    ! subroutine set_fitness(oDataIn,val,resw)
-    !   type(dataObs),intent(in)::oDataIn
-    !   real(dp),dimension(:),intent(in)::val
-    !   real(dp),dimension(:),intent(out)::resw
-
-    !   real(dp),dimension(:),allocatable::resa1,resa2,resb1,resb2
-    !   integer::nRV,nTTs,nDurs
-
-    !   nRV=oDataIn%obsRV%nRV
-    !   nTTs=oDataIn%nTTs
-    !   nDurs=oDataIn%nDurs
-
-    !   ! set the values scaled by the k_chi2r and k_chi2wr
-    !   ! They are set in such a way the sum of resw^2 is:
-    !   resw=zero
-    !   if(k_chi2wr.eq.zero)then
-    !     ! Chi2r (Normal way)
-    !     resw=val*sqrt(oDataIn%inv_dof) ! chi2r = chi2 / dof
-
-    !   else if(k_chi2r.eq.zero)then
-    !     ! Chi2wr (Only weighted chi2r)
-
-    !     ! only RV, no TT
-    !     if(nRV.ne.0.and.nTTs.eq.0)then
-    !       resw=val*k_b
-
-    !     ! only TT,no RV
-    !     else if(nRV.eq.0.and.nTTs.ne.0)then
-    !       resw(1:nTTs)=val(1:nTTS)*k_b(1)
-    !       if(durcheck.eq.1) resw(1+nTTs:nTTS+nDurs)=val(1+nTTs:nTTS+nDurs)*k_b(2)
-
-    !     else
-    !       resw(1:nRV)=val(1:nRV)*k_b(1)
-    !       resw(1+nRV:nRV+nTTs)=val(1+nRV:nRV+nTTs)*k_b(2)
-    !       if(durcheck.eq.1) &
-    !         &resw(1+nRV+nTTs:nRV+nTTs+nDurs)=val(1+nRV+nTTs:nRV+nTTs+nDurs)*k_b(3)
-
-    !     end if
-
-    !   else
-    !     ! fitness = Chi2r*k_chi2r + Chi2wr*k_chi2wr
-
-    !     ! NO T0: nRV!=0, nTTs==0
-    !     if(nRV.ne.0.and.nTTs.eq.0)then
-    !       allocate(resa1(nRV),resb1(nRV))
-    !       resa1=val*k_a
-    !       resb1=val*k_b
-    !       resw=sqrt(resa1*resa1 + resb1*resb1)
-    !       deallocate(resa1,resb1)
-
-    !     ! NO RV: nRV==0, nT0!=0
-    !     else if(nRV.eq.0.and.nTTs.ne.0)then
-    !       allocate(resa2(nTTs),resb2(nTTs))
-    !       resa2=val(1:nTTs)*k_a
-    !       resb2=val(1:nTTs)*k_b(1)
-    !       resw(1:nTTs)=sqrt(resa2*resa2 + resb2*resb2)
-    !       if(durcheck.eq.1)then
-    !         resa2=val(1+nTTs:nTTs+nDurs)*k_a
-    !         resb2=val(1+nTTs:nTTs+nDurs)*k_b(2)
-    !         resw(1+nTTs:nTTs+nDurs)=sqrt(resa2*resa2 + resb2*resb2)
-    !       end if
-    !       deallocate(resa2,resb2)
-
-    !     else
-
-    !       allocate(resa1(nRV),resb1(nRV),resa2(nTTs),resb2(nTTs))
-    !       ! RV
-    !       resa1=val(1:nRV)*k_a
-    !       resb1=val(1:nRV)*k_b(1)
-    !       resw(1:nRV)=sqrt(resa1*resa1 + resb1*resb1)
-    !       ! TT
-    !       resa2=val(1+nRV:nRV+nTTs)*k_a
-    !       resb2=val(1+nRV:nRV+nTTs)*k_b(2)
-    !       resw(nRV+1:nRV+nTTs)=sqrt(resa2*resa2 + resb2*resb2)
-    !       ! Dur
-    !       if(durcheck.eq.1)then
-    !         resa2=zero
-    !         resa2=val(1+nRV+nTTs:nRV+nTTs+nDurs)*k_a
-    !         resb2=zero
-    !         resb2=val(1+nRV+nTTs:nRV+nTTs+nDurs)*k_b(3)
-    !         resw(1+nRV+nTTs:nRV+nTTs+nDurs)=sqrt(resa2*resa2 + resb2*resb2)
-    !       end if
-    !       deallocate(resa1,resa2,resb1,resb2)
-    !     end if
-
-    !   end if
-
-    !   return
-    ! end subroutine set_fitness
-    ! ================================================================================
+! ===============================================================================================
 
     subroutine set_fitness_values(fit_parameters, chi_square, &
       &reduced_chi_square, lnLikelihood, ln_const, bic)

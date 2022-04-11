@@ -474,27 +474,6 @@ def createPIKAIA(fpath):
 
   ofpik = open(fpik, 'w')
   
-  #line = []
-  #line.append("10.     # ctrl(1) = number of individuals\n")
-  #line.append("10.     # ctrl(2) = number of generations\n")
-  #line.append("7.      # ctrl(3) = number of significant digits\n")
-  #line.append("0.85    # ctrl(4) = crossover probability; must be  <= 1.0 (default is 0.85)\n")
-  #line.append("2.      # ctrl(5) = mutation mode; 1/2=steady/variable (default is 2)\n")
-  #line.append("0.02    # ctrl(6) = initial mutation rate; should be small (default is 0.005) (Note: the mutation rate is the probability that any one gene locus will mutate in any one generation.)\n")
-  #line.append("0.0005  # ctrl(7) = minimum mutation rate; must be >= 0.0 (default is 0.0005)\n")
-  #line.append("0.3     # ctrl(8) = maximum mutation rate; must be <= 1.0 (default is 0.25)\n")
-  #line.append("1.      # ctrl(9) = relative fitness differential; range from 0 (none) to 1 (maximum).  (default is 1.)\n")
-  #line.append("1       # ctrl(10) = reproduction plan; 1/2/3=Full generational replacement/Steady-state-replace-random/Steady-state-replace-worst (default is 3)\n")
-  #line.append("0       # ctrl(11) = elitism flag; 0/1=off/on (default is 0) (Applies only to reproduction plans 1 and 2)\n")
-  #line.append("0       # ctrl(12) = printed output 0/1/2=None/Minimal/Verbose (default is 0)\n")
-  #line.append("123456  # seed\n")
-  #line.append("0       # wrtAll = 0 [not writing all individuals for each iteration] 1 [writing all individuals for each iteration]\n")
-  #line.append("1       # nGlobal = number of global search, number of times that GA will be run, i.e., Nindividual x Ngeneration x nGlobal\n")
-  #for ll in line:
-    #ofpik.write(ll)
-    #print ll.strip('\n')
-  #ofpik.close()
-
   ofpik.write("10.     # ctrl(1) = number of individuals\n")
   ofpik.write("10.     # ctrl(2) = number of generations\n")
   ofpik.write("7.      # ctrl(3) = number of significant digits\n")
@@ -526,17 +505,6 @@ def createPSO(fpath):
 
   ofpso = open(fpso, 'w')
   
-  #line = []
-  #line.append("10     # number of particle\n")
-  #line.append("10     # number of iterations to do\n")
-  #line.append("0      # counter to write to screen PSO run...if 0 = no write\n")
-  #line.append("0      # wrtAll = 0 [not writing all individuals for each iteration] 1 [writing all individuals for each iteration]\n")
-  #line.append("1      # nGlobal = number of global search, number of times that PSO will be run, i.e., Npart x Niter x nGlobal\n")
-  #for ll in line:
-    #ofpso.write(ll)
-    #print ll.strip('\n')
-  #ofpso.close()
-
   ofpso.write("10     # number of particle\n")
   ofpso.write("10     # number of iterations to do\n")
   ofpso.write("0      # counter to write to screen PSO run...if 0 = no write\n")
@@ -547,81 +515,10 @@ def createPSO(fpath):
   ofpso.write("0.9    # inertia parameter (0.9 is recommended)\n")
   ofpso.write("2.0    # self intention parameter (2.0 is recommended)\n")
   ofpso.write("2.0    # swarm intention parameter (2.0 is recommended)\n")
-  ofpso.write("1.e-5  # random search parameter (very small value is recommended)\n")
+  ofpso.write("1.0e-5  # random search parameter (very small value is recommended)\n")
   ofpso.write("0.5    # limit of vector length (0.5-1.0 is recommended)\n")
   ofpso.write("0.07   # velocity perturbation parameter (0.0-0.1 is recommended)\n")
   ofpso.close()
-
-# NOT USED
-# create PolyChord configuration file
-def createPC(fpath):
-  fpc = os.path.join(fpath, "PolyChord.opt")
-  print(" CREATING: " + fpc)
-  print("")
-
-  ofpc = open(fpc, 'w')
-  
-  ofpc.write("# The number of live points: nlive = [integer]\n")
-  ofpc.write("nlive = 500\n")
-  
-  ofpc.write("# The number of chords to draw: num_repeats = [integer]\n")
-  ofpc.write("num_repeats = 1\n")
-  
-  ofpc.write("# whether or not to do clustering: do_clustering = [logical] .false. or F, .true. or T\n")
-  ofpc.write("do_clustering = T\n")
-  
-  #ofpc.write("# The maximum number of active clusters (Memory storage considerations): ncluster = [integer]\n")
-  #ofpc.write("ncluster = 30\n")
-  
-  ofpc.write("# The degree of precision in the final answer: precision_criterion = [real]\n")
-  ofpc.write("precision_criterion = 1.e-3\n")
-  
-  ofpc.write("# The maximum number of dead points/samples: max_ndead = [integer], set to -1 for no maximum number\n")
-  ofpc.write("max_ndead = -1\n")
-  
-  ofpc.write("# The degree of feedback to provide: feedback = 0 [no feedback], 1 [normal feedback], 2 [high feedback]\n")
-  ofpc.write("feedback = 1.\n")
-  
-  ofpc.write("# Whether or not to calculate weighted posteriors: posteriors = [logical] .false. or F, .true. or T\n")
-  ofpc.write("posteriors = T\n")
-  
-  ofpc.write("# Whether or not to calculate equally weighted posteriors: equals = [logical] .false. or F, .true. or T\n")
-  ofpc.write("equals = T\n")
-  
-  ofpc.write("# Whether or not to calculate clustered posteriors: cluster_posteriors = [logical] .false. or F, .true. or T\n")
-  ofpc.write("cluster_posteriors = T\n")
-  
-  ofpc.write("# Whether or not to calculate weighted posterior: updated_posterior = [integer]\n")
-  ofpc.write("update_posterior = 500\n")
-  
-  ofpc.write("# What factor should we bulk up the posterior points by (usinginter-chain points): boost_posterior = [real], <=0 to use all of them \n")
-  ofpc.write("boost_posterior = 5.\n")
-  
-  ofpc.write("# Whether or not to resume from file: read_resume = [logical] .false. or F, .true. or T\n")
-  ofpc.write("read_resume = F\n")
-  
-  ofpc.write("# Whether or not to write resume files: write_resume = [logical] .false. or F, .true. or T\n")
-  ofpc.write("write_resume = T\n")
-  
-  #ofpc.write("# How often to update the resume file: update_resume = [integer], if omitted it will be set equal to nlive\n")
-  #ofpc.write("update_resume = 500\n")
-  
-  ofpc.write("# Whether or not to write phys_live points: write_live = [logical] .false. or F, .true. or T\n")
-  ofpc.write("write_live = T\n")
-  
-  ofpc.write("# Whether or not to write stats file: write_stats = [logical] .false. or F, .true. or T\n")
-  ofpc.write("write_stats = T\n")
-  
-  ofpc.write("# The directory to put outputs in: base_dir = [character(512)], if omitted it will be set to 'chains'\n")
-  ofpc.write("base_dir = 'chains'\n")
-  
-  ofpc.write("# The file root for outputs: file_root = [character(512)], if omitted it will be set to 'trades_PolyChord'\n")
-  ofpc.write("file_root = 'trades_PolyChord'\n")
-  
-  ofpc.write("# The fraction of time spent in each grade: grade_frac = [real] or list of [real]s, e.g. 1. or 0.3 0.3 0.4\n")
-  ofpc.write("grade_frac = 1.\n")
-  
-  ofpc.close()
 
 # CREATES obsRV.dat
 # JD RVobs eRVobs RVsetID
@@ -638,19 +535,6 @@ def createOBSRV(fpath):
 
   ofobsRV = open(fobsRV, 'w')
   
-  #line = []
-  #line.append("# JD RVobs eRVobs RVsetID\n")
-  #line.append("2455342.947836  17.15  2.51 1\n")
-  #line.append("2455344.061419   2.23  2.74 1\n")
-  #line.append("2455351.037415  -7.89  2.36 1\n")
-  #line.append("2455352.011289  -4.61  2.21 1\n")
-  #line.append("2455367.083543 -25.45  2.49 1\n")
-  #line.append("2455376.930532  17.39  2.61 1\n")
-  #for ll in line:
-    #ofobsRV.write(ll)
-    #print ll.strip('\n')
-  #ofobsRV.close()
-
   ofobsRV.write("# JD RVobs eRVobs RVsetID\n")
   ofobsRV.write("2455342.947836  17.15  2.51 1\n")
   ofobsRV.write("2455344.061419   2.23  2.74 1\n")
@@ -659,7 +543,6 @@ def createOBSRV(fpath):
   ofobsRV.write("2455367.083543 -25.45  2.49 1\n")
   ofobsRV.write("2455376.930532  17.39  2.61 1\n")
   ofobsRV.close()
-
 
 # CREATES NB2_observations.dat
 # epoch T_0 eT_0
@@ -678,22 +561,6 @@ def createNB2OBS(fpath):
   print("")
 
   ofNB2obs = open(fNB2obs, 'w')
-
-  #line = []
-  #line.append("# epoch T_0 eT_0\n"
-  #line.append(" -5  2454977.24875  0.00059\n")
-  #line.append(" -4  2454996.48240  0.00062\n")
-  #line.append(" -2  2455034.95437  0.00052\n")
-  #line.append(" -1  2455054.19058  0.00052\n")
-  #line.append("  0  2455073.43412  0.00072\n")
-  #line.append("  2  2455111.92589  0.00050\n")
-  #line.append("  3  2455131.17167  0.00048\n")
-  #line.append("  4  2455150.42951  0.00048\n")
-  #line.append("  5  2455169.68103  0.00046\n")
-  #for ll in line:
-    #ofNB2obs.write(ll)
-    #print ll.strip('\n')
-  #ofNB2obs.close()
 
   ofNB2obs.write("# epoch T_0 eT_0\n")
   ofNB2obs.write(" -5  2454977.24875  0.00059\n")
@@ -722,19 +589,6 @@ def createNB3OBS(fpath):
 
   ofNB3obs = open(fNB3obs, 'w')
   
-  #line = []
-  #line.append("# epoch T_0 eT_0\n")
-  #line.append(" -3  2454969.30577  0.00070\n")
-  #line.append(" -2  2455008.33086  0.00061\n")
-  #line.append(" -1  2455047.33560  0.00058\n")
-  #line.append("  0  2455086.31251  0.00059\n")
-  #line.append("  1  2455125.26284  0.00053\n")
-  #line.append("  2  2455164.18168  0.00055\n")
-  #for ll in line:
-    #ofNB3obs.write(ll)
-    #print ll.strip('\n')
-  #ofNB3obs.close()
-
   ofNB3obs.write("# epoch T_0 eT_0\n")
   ofNB3obs.write(" -3  2454969.30577  0.00070\n")
   ofNB3obs.write(" -2  2455008.33086  0.00061\n")
@@ -751,11 +605,14 @@ def createPriorsIn(fpath):
   of = open(fpriors, 'w')
   of.write('# priors of physical parameters\n')
   of.write('# label val -1sigma +1sigma\n')
-  of.write('# possible label: mX, PX, eX, wX, mAX, iX, lNX\n')
+  of.write('# possible label: mX, PX, eX, wX, mAX, iX, lNX, jitter_N, gamma_N, c_N\n')
   of.write('# X the id number of the body, where the first planet has X == 2, and last X = NB: X = 2, 3, 4, ..., NB\n')
   of.write('# mX : mass of planet X in Mearth!\n')
   of.write('# PX : period of planet X in days\n')
   of.write('# angles wX, mAX, iX, lNX in degree\n')
+  of.write('# jitter_N in m/s, gamma_N in m/s, c_N between -1 and 1.\n')
+  of.write('# example:\n')
+  of.write('m2 1.0 0.3\n')
   of.close()
 
   return
@@ -785,8 +642,6 @@ def main():
   print("")
   createPriorsIn(fpath)
   print("")
-  # createPC(fpath)
-  # print("")
   createOBSRV(fpath)
   print("")
   createNB2OBS(fpath)

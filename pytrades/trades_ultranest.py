@@ -85,60 +85,6 @@ def get_args():
         help="Ultranest resume flag: 'resume', 'resume-similar', 'overwrite' or 'subfolder'",
     )
 
-    # # NUMBER OF STEPS/RUNS TO DO FOR EACH WALKER OF EMCEE
-    # parser.add_argument(
-    #     "-nr",
-    #     "--nruns",
-    #     "-ns",
-    #     "--nsteps",
-    #     action="store",
-    #     dest="nruns",
-    #     default=10000,
-    #     help="Number of runs/steps to use for each chain. default nruns = 10000.",
-    # )
-
-    # # NUMBER OF STEPS/RUNS TO SAVE TEMPORARY EMCEE SIMULATION
-    # parser.add_argument(
-    #     "--isave",
-    #     "--iter-save",
-    #     "--iterations-save",
-    #     action="store",
-    #     dest="nsave",
-    #     default="False",
-    #     help="Number of iterations to do for save temporary chain. No intermediate save.",
-    # )
-
-    # parser.add_argument(
-    #     "-ds",
-    #     "--d-sigma",
-    #     "--delta-sigma",
-    #     action="store",
-    #     dest="delta_sigma",
-    #     default="1.e-4",
-    #     type=str,
-    #     help="Value of the sigma to compute initial walkers from initial solution. Default=1.e-4",
-    # )
-
-    # parser.add_argument(
-    #     "-e",
-    #     "--emcee-previous",
-    #     action="store",
-    #     dest="emcee_previous",
-    #     default="None",
-    #     type=str,
-    #     help='Provide an existing "emcee_summary.hdf5" file if you wanto to start from the last step of that simulation. Default is None, create new initial walkers.',
-    # )
-
-    # parser.add_argument(
-    #     "--trades-fin",
-    #     "--trades-final-previous",
-    #     "--trades-final",
-    #     action="store",
-    #     dest="trades_previous",
-    #     default="None",
-    #     help="Define file from a previous TRADES simulation. File name and structure should be of type X_Y_finalNpar.dat. The parameters from this file will be the new original parameters",
-    # )
-
     parser.add_argument(
         "-seed",
         "--seed",
@@ -156,10 +102,6 @@ def get_args():
     cli.nthreads = int(cli.nthreads)
 
     cli.n_live_points = int(cli.n_live_points)
-    # cli.nruns = int(cli.nruns)
-
-    # cli.emcee_previous = anc.set_adhoc_file(cli.emcee_previous)
-    # cli.trades_previous = anc.set_adhoc_file(cli.trades_previous)
 
     try:
         cli.seed = int(cli.seed)
@@ -216,51 +158,20 @@ inv_dof = pytrades.inv_dof
 str_len = pytrades.str_len
 temp_names = pytrades.get_parameter_names(nfit, str_len)
 trades_names = anc.convert_fortran_charray2python_strararray(temp_names)
-parameter_names = anc.trades_names_to_emcee(trades_names)
+# parameter_names = anc.trades_names_to_emcee(trades_names)
+parameter_names = trades_names.copy()
 
 # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
 trades_parameters = pytrades.fitting_parameters
 
 # save initial_fitting parameters into array
 original_fit_parameters = trades_parameters.copy()
-fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
+# fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
+fitting_parameters = trades_parameters.copy()
 
 trades_minmax = pytrades.parameters_minmax  # PARAMETER BOUNDARIES
-parameters_minmax = anc.e_to_sqrte_boundaries(trades_minmax, trades_names)
-
-# for iname, name in enumerate(parameter_names):
-#     print(
-#         trades_names[iname], trades_parameters[iname], trades_minmax[iname,:], " ==> ",
-#         name, fitting_parameters[iname], parameters_minmax[iname,:]
-#     )
-
-
-# mass = np.zeros(n_bodies)
-# radius = np.zeros(n_bodies)
-# period = np.zeros(n_bodies)
-# sma = np.zeros(n_bodies)
-# ecc = np.zeros(n_bodies)
-# argp = np.zeros(n_bodies)
-# meanA = np.zeros(n_bodies)
-# inc = np.zeros(n_bodies)
-# longN = np.zeros(n_bodies)
-# (
-#     mass,
-#     radius,
-#     period,
-#     sma,
-#     ecc,
-#     argp,
-#     meanA,
-#     inc,
-#     longN
-# ) = pytrades.convert_trades_par_to_kepelem(
-#     pytrades.system_parameters,
-#     trades_parameters,
-#     True,
-#     n_bodies
-# )
-# sys.exit()
+# parameters_minmax = anc.e_to_sqrte_boundaries(trades_minmax, trades_names)
+parameters_minmax = trades_minmax.copy()
 
 # RADIAL VELOCITIES SET
 n_rv = pytrades.nrv
@@ -321,11 +232,11 @@ def lnprob(fitting_parameters):
     return loglhd
 
 
-def lnprob_sq(fitting_parameters, names_par):
-
-    fitting_trades = anc.sqrte_to_e_fitting(fitting_parameters, names_par)
-    loglhd = lnprob(fitting_trades)
-    # if np.isfinite(loglhd):
+# def lnprob_sq(fitting_parameters, names_par):
+#     fitting_trades = anc.sqrte_to_e_fitting(fitting_parameters, names_par)
+#     loglhd = lnprob(fitting_trades)
+def lnprob_sq(fitting_parameters, parameter_names):
+    loglhd = lnprob(fitting_parameters)
     ln_prior = anc.lnL_priors(
         fitting_parameters,
         priors,

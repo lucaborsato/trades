@@ -1,6 +1,6 @@
 # TRADES
   
-**`TRADES` v2.17.1 by Luca Borsato - 2016-2022** 
+**`TRADES` v2.18.0 by Luca Borsato - 2016-2022**  
 
 Most of the information can be found in the papers:  
 
@@ -12,11 +12,10 @@ and at the webpage [TRADES@ESPG][TRADESESPG].
 Feel free to use or modify the code, but please cite the three above papers.  
 Comments are welcome!  
 
-
-**WARNING:** 
-**only tested on a Unix/Linux machine (i.e., Centos Rocks 5.3, Ubuntu > 12.04 and derivatives)** 
-**Please use `gfortran` version greater than `4.8.1`. Previous versions could fail to compile.** 
-**`openMP` required to compile parallel versions of `TRADES`** 
+**WARNING:**  
+**only tested on a Unix/Linux machine (i.e., Centos Rocks 5.3, Ubuntu > 12.04 and derivatives)**  
+**Please use `gfortran` version greater than `4.8.1`. Previous versions could fail to compile.**  
+**`openMP` required to compile parallel versions of `TRADES`**  
 **Required `python` packages: `numpy`, `sys`, `argparse`, `os`, `scipy.stats`, `random`, `logging`, `warnings`, `glob`, `matplotlib`, `h5py`, [`emcee`][emcee], `subprocess`, `multiprocessing`, `time`, `shutil`**  
 
 ---
@@ -36,92 +35,100 @@ We have developed a computer program (in Fortran 90, openMP, and MPI) for determ
 the possible physical and dynamical configurations of extra-solar planetary 
 systems from observational data, known as `TRADES`, which stands for TRAnsits and
 Dynamics of Exoplanetary Systems.  
-The program `TRADES` models the dynamics of multiple planet systems and 
-reproduces the observed transit times (`$T_0$`, or mid-transit times), 
-full transit durations (`$T_14$` or `$T_41$`),
+The program `TRADES` models the dynamics of multiple planet systems and
+reproduces the observed transit times ($T_0$, or mid-transit times),
+full transit durations ($T_14$ or $T_41$),
  and radial velocities (RVs).
-These `$T_0$s` and RVs are computed during the integration of the planetary orbits.  
-Hereafter, I will use the reduced chi-squared (`$\chi^{2}_\textrm{r} = \chi^{2}/\textrm{dof}$`)
-as the fitness parameter, but it would be also possible to use a `$\chi^{2}_\textrm{w,dof}$` weighted/scaled
-by the number of each type of data set: transits and radial velocities.  
-We have developed `TRADES` from zero because we want to avoid black-box programs,
+These $T_0$s and RVs are computed during the integration of the planetary orbits.  
+Hereafter, I will use the reduced chi-squared ($\chi^{2}_\textrm{r} = \chi^{2}/\textrm{dof}$)
+as the fitness parameter.
+<!-- , but it would be also possible to use a $\chi^{2}_\textrm{w,dof}$ weighted/scaled -->
+<!-- by the number of each type of data set: transits and radial velocities.   -->
+We have developed `TRADES` from scratch because we want to avoid black-box programs,
 it would be easier to parallelise it with openMP, and include additional algorithms.  
 To solve the inverse problem, `TRADES` can be run in different modes:  
 
-* **integration:**  
-  it runs a simple integration of the orbits of the planetary system calculating the `$T_0$s` and the RVs.  
+- **integration:**  
+  it runs a simple integration of the orbits of the planetary system calculating the $T_0$s and the RVs.  
 
-* **grid search:**  
+- **grid search:**  
   TRADES samples the orbital elements of one perturbing body 
   (all the parameters are allowed in the grid, but remember that the number of simulations
   will increase hugely).
   The grid parameters can be evenly sampled on a fixed grid by setting
   the number of steps, or the step size, or by a number of points
-  chosen randomly within the parameter bounds. 
+  chosen randomly within the parameter bounds.
   For any given set of values, the orbits are integrated, and the residuals
-  between the observed and computed `$T_0$s` and RVs are computed.
+  between the observed and computed $T_0$s and RVs are computed.
   For each combination of the parameters, the `LM` algorithm can be called and
-  the best case is the one with the lowest residuals (lowest reduced chi-squared = `$\chi^{2}/\textrm{dof} = \chi^{2}_\textrm{r}$`).  
+  the best case is the one with the lowest residuals
+  (lowest reduced chi-squared = $\chi^{2}/\textrm{dof} = \chi^{2}_\textrm{r}$).  
 
-* **Levenberg-Marquardt (`LM`, `lmdif` from [`MINPACK`][MINPACK]) algorithm:**  
+- **Levenberg-Marquardt (`LM`, `lmdif` from [`MINPACK`][MINPACK]) algorithm:**  
   After an initial guess on the orbital parameters of the perturber,
   which could be provided by the previously described grid approach,
   the LM algorithm exploits the Levenberg-Marquardt minimization method
   to find the solution with the lowest residuals.
   The LM algorithm requires the analytic derivative of the model with respect to
   the parameters to be fitted.
-  Since the `$T_0$s` are determined by an iterative method and the 
-  radial velocities are computed using the numerical integrator, 
-  we cannot express these as analytic functions of fitting parameters. 
+  Since the $T_0$s are determined by an iterative method and the
+  radial velocities are computed using the numerical integrator,
+  we cannot express these as analytic functions of fitting parameters.
   We have adopted the method described in [Moré et al. (1980)][Moré1980]
   to compute the Jacobian matrix, which is determined by a forward-difference
   approximation.
   The `epsfcn` parameter, which is the parameter that determines the first
   Jacobian matrix, is automatically selected in a logarithmic range from
-  the machine precision up to `$10^{−6}$` ; the best value is the one
-  that returns the lower `$\chi^2_\textrm{r}$`.
+  the machine precision up to $10^{−6}$ ; the best value is the one
+  that returns the lower $\chi^2_\textrm{r}$.
   This method has the advantage to be scale invariant, but it assumes that
-  each parameter is varied by the same `epsfcn` value (e.g., a variation of 
+  each parameter is varied by the same `epsfcn` value (e.g., a variation of
   10% of the period has a different effect than a variation of the same
   percentage of the argument of pericenter).  
   
-  
-* **genetic algorithm (`GA` or `PIK`, we used the implementation named [`PIKAIA`][PIKAIA],
-  Charbonneau 1995):** 
+- **genetic algorithm (`GA` or `PIK`, we used the implementation named [`PIKAIA`][PIKAIA],
+  Charbonneau 1995):**
   the `GA` mode searches for the best orbit by performing a genetic optimization
   (e.g. Holland 1975; Goldberg 1989), where the fitness parameter is set to
-  the inverse of the `$\chi^2_\textrm{r}$`.
+  the inverse of the $\chi^2_\textrm{r}$.
   This algorithm is inspired by natural selection which is the biological process
-  of evolution. 
+  of evolution.
   Each generation is a new population of *offspring* orbital configurations,
-  that are the result of *parent* pairs of orbital configurations that are 
+  that are the result of *parent* pairs of orbital configurations that are
   ranked following the fitness parameter. 
   A drawback of the `GA` is the slowness of the algorithm, when compared to other
-  optimizers. 
+  optimizers.
   However, the `GA` should converge to a global solution (if it exists)
   after the appropriate number of iterations.  
-  At the moment if the `GA` after the predefine iteration has a fitness (or `$\chi^2_\textrm{r}$`) higher than 1000, it will continue (it stops if it reaches the iteration step with fitness lower than 1000 or if it reaches fitness <= 1.).  
-    
+  At the moment if the `GA` after the predefine iteration has a fitness
+  (or $\chi^2_\textrm{r}$) higher than 1000,
+  it will continue (it stops if it reaches the iteration step with fitness lower than 1000 or
+   if it reaches fitness <= 1.).  
   
-* **particle swarm optimization ([`PSO`][PSO], Tada 2007):** 
+- **particle swarm optimization ([`PSO`][PSO], Tada 2007):**  
   the `PSO` is another optimization algorithm that searches for the global solution
   of the problem; this approach is inspired by the social behavior of
   bird flock and fish school (e.g., Kennedy & Eberhart 1995; Eberhart 2007).
-  The fitness parameter used is the same as the `GA`, the inverse of the `$\chi^2_\textrm{r}$`.
+  The fitness parameter used is the same as the `GA`,
+  <!-- the inverse of the `$\chi^2_\textrm{r}$`. -->
+  the log-likelihood ($\log{\mathcal{L}}$).
   For each *particle*, the next step (or iteration) in the space of the
   fitted parameters is mainly given by the combination of three terms:
   random walk, best *particle* position (combination of parameters),
   and best *global* position (best orbital configuration of the all particles
   and all iterations).  
 
-* **emcee ([`emcee`][emcee]):**  
-  see [`emcee`][emcee] docs and paper.  
+- **emcee ([`emcee`][emcee]):**  
+  see [`emcee`][emcee] docs and papers.  
+
+- **PyDE ([`PyDE`][PyDE]):**  
+  see [`PyDE`][PyDE] docs and papers.  
   
-In each mode, `TRADES` compares observed transit times (`$T_{0,\textrm{obs}}$`) and 
-radial velocities (RV`$_\textrm{obs}$`) with the simulated ones (`$T_{0,\textrm{sim}}$` and RV`$_\textrm{sim}$`).
+In each mode, `TRADES` compares observed transit times ($T_{0,\textrm{obs}}$) and 
+radial velocities (RV$_\textrm{obs}$) with the simulated ones ($T_{0,\textrm{sim}}$ and RV$_\textrm{sim}$).
 From version 1.1.2 of `TRADES`, it is possible to use different set of RV, with
 different RV offset (the so-called _gamma_ point);
-`TRADES` will compute a `$\gamma$` for each RV data set.  
+`TRADES` will compute a $\gamma$ for each RV data set.  
 The *grid* search is a good approach in case that we want to explore a limited
 subset of the parameter space or if we want to analyze the behavior of the system
 by varying some parameters, for example to test the effects of a growing mass
@@ -133,10 +140,10 @@ refined with the `LM` mode.
 with the nested sampling. It works also on parameter bounds, but it would be better to
 limit the boundaries, and not used them as wide as those for `GA` and `PSO`.  
 For each mode, but `PC`, `TRADES` can perform a **bootstrap** analysis to calculate the interval
-of confidence of the best-fit parameter set. We generate a set of `$T_0$s` and RVs
+of confidence of the best-fit parameter set. We generate a set of $T_0$s and RVs
 from the fitted parameters, and we add a Gaussian noise having the calculated value
-(of `$T_0$s` and RVs) as the mean and the corresponding measurement error as variance,
-scaled by the `$\sqrt{\chi^{2}_\textrm{reduced}}$`.
+(of $T_0$s and RVs) as the mean and the corresponding measurement error as variance,
+scaled by the $\sqrt{\chi^{2}_\textrm{reduced}}$.
 We fit each new set of observables with the `LM` with default options.
 We iterate the whole process thousands of times to analyze the distribution
 for each fitted parameter.  
@@ -147,41 +154,36 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
 
 ### Install and Compile {#install_compile}
 
-
 1. `TRADES` source is available at [github.com/lucaborsato/trades](ttps://github.com/lucaborsato/trades).  
    Download the .zip file or clone the repository (see github help).  
-  
-2. Extract the .zip file in your drive or enter the cloned repository. 
+2. Extract the .zip file in your drive or enter the cloned repository.
   It should contain a `README.md` file, `bin/`, `src/`, and `pytrades/` folders.  
   The `src/` folder should countains the following f90 source files:  
 
-  - **Module source files:** see `Makefile`
-  - **simple integration+`LM`+bootstrap main:** `trades_int_lm_bootstrap.f90`
-  - **simple grid main:** `trades_grid.f90`   
-  - **simple `PIK` and `PSO` main:** `trades_pik_pso.f90`   
-  - **Makefile:** `Makefile`  
-  - **python script to create example simulation folder:** `createSimFile.py`  
+    - **Module source files:** see `Makefile`
+    - **simple integration+`LM`+bootstrap main:** `trades_int_lm_bootstrap.f90`
+    - **simple grid main:** `trades_grid.f90`  
+    - **simple `PIK` and `PSO` main:** `trades_pik_pso.f90`  
+    - **Makefile:** `Makefile`  
+    - **python script to create example simulation folder:** `createSimFile.py`  
   
   Look at section 6. for the `pytrades/` folder (install and execution).  
-  
 3. Edit the `Makefile` with your Fortran 90 - MPI compiler, and with the needed compiling options.  
-
-  * flag `CC` for the compiler to use. From the implementation of `PC` the `mpif90` must be used;  
-  * flag `CFLAGS` for the compiler options;  
-    from the implementation of `PC` the `-ccp` preprocessor option must be used   
-    add options or uncomment following rows for other debugging options  
-  * flag `COPT` for the compiler optimization  
-    from the implementation of `PC` the `-ccp` preprocessor option must be used   
-  * flag `CFLAGS2` for the opemMP version  
-  * flag `TARGET_SER_X` is relative path and executable name for the serial program   
-  * flag `TARGET_OMP_X` is relative path and executable name for the `openMP` parallel program  
-  
+    - flag `CC` for the compiler to use. From the implementation of `PC` the `mpif90` must be used;  
+    - flag `CFLAGS` for the compiler options;  
+      from the implementation of `PC` the `-ccp` preprocessor option must be used   
+      add options or uncomment following rows for other debugging options  
+    - flag `COPT` for the compiler optimization  
+      from the implementation of `PC` the `-ccp` preprocessor option must be used   
+    - flag `CFLAGS2` for the opemMP version  
+    - flag `TARGET_SER_X` is relative path and executable name for the serial program   
+    - flag `TARGET_OMP_X` is relative path and executable name for the `openMP` parallel program  
 4. To compile:  
   in the `src/` folder type `make` and with `Tab` the user can see all the possible compile options. Check the `Makefile` for more information.  
   
-  **Remember to type `make clean` to remove `*.o` and `*.mod` files before re-compiling `TRADES`.** 
-  **Remember to type `make cleanall` to remove `*.o`, `*.mod`, and all the executable files before re-compiling `TRADES`.** 
-  **To compile in parallel mode the `openMP` libraries must be properly installed (as suggested by your Linux distribution).** 
+  **Remember to type `make clean` to remove `*.o` and `*.mod` files before re-compiling `TRADES`.**  
+  **Remember to type `make cleanall` to remove `*.o`, `*.mod`, and all the executable files before re-compiling `TRADES`.**  
+  **To compile in parallel mode the `openMP` libraries must be properly installed (as suggested by your Linux distribution).**  
   Please, change properly your `Fortran` compiler in the `Makefile`.  
   
 ---
@@ -189,13 +191,14 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
 ### How to run TRADES {#run_trades}
 
 Different ways to launch TRADES:
-- export the path of the executables in your ~/.bahsrc o ~/.profile:  
+
+- export the path of the executables in your `~/.bahsrc` or `~/.profile`:  
   > export PATH=$PATH:/path/to/trades/executables  
 - it is possible to execute trades from the `bin/` folder by typing:  
   > `./trades_s_xxx`  
   > `./trades_o_xxx`  
 
-**WARNING:** 
+**WARNING:**  
 Before running TRADES in parallel with `open-MP` (`trades_o_xxx`) remember to set the number of cpus (`Ncpu`) to use in the `arg.in` file or by exporting:  
 `OMP_NUM_THREADS=Ncpu`  
 `export OMP_NUM_THREADS`  
@@ -203,12 +206,12 @@ and type it in a terminal; in short way:
 `export OMP_NUM_THREADS=Ncpu`  
 
 If TRADES has been launched without any arguments, it will search for the needed files in the current folder:  
-e.g.:   
+e.g.:  
 
 > `cd /home/user/Simulation/`  
 > `trades_s_xxx`  
 
-it is equal to type:   
+it is equal to type:  
 
 > `cd /home/user/Simulation/`  
 > `trades_s_xxx .`  
@@ -223,10 +226,11 @@ In any of these three cases, `TRADES` will write the output files in the folder 
 Provide orbital elements (and boundaries) in the bodies file.  
 Algorithm selection in `arg.in`:  
 `progtype`:
-  1.  grid  
-  2.  integration + `LM` + bootstrap  
-  3.  `PIKAIA` (+ `LM` + bootstrap)  
-  4.  `PSO` (+ `LM` + bootstrap)  
+
+1. grid  
+2. integration + `LM` + bootstrap  
+3. `PIKAIA` (+ `LM` + bootstrap)  
+4. `PSO` (+ `LM` + bootstrap)  
 
 ---
 
@@ -252,10 +256,10 @@ List of the files with explanation:
   Remember that the number of the lines of this file has to match the `NB` parameter in the `arg.in` file.  
   Example file [`bodies.lst`](trades_example/Kepler-9_example/bodies.lst)  
 
-  -  `star.dat`: Mass (and sigma) and Radius (and sigma) of the star in Solar units. First row the Mass, second the Radius.  
+    - `star.dat`: Mass (and sigma) and Radius (and sigma) of the star in Solar units. First row the Mass, second the Radius.  
     In the code will be identified with the id == 1.  
     Example file [`star.dat`](trades_example/Kepler-9_example/star.dat)  
-  -  `b.dat`: file with parameters of the planet in the second row of the bodies.lst, that is in the code will be identified with the id == 2.  
+    - `b.dat`: file with parameters of the planet in the second row of the bodies.lst, that is in the code will be identified with the id == 2.  
     Each row is a different parameter (3 columns + flag for `grid`), in the order:  
     `mass min max [M_Jup]`  
     `radius min max [R_Jup]`  
@@ -263,7 +267,7 @@ List of the files with explanation:
     `semi-major_axis min max [au]`  
     `eccentricity min max`  
     `argument_of_pericenter min max [deg]`  
-    `mean_anomaly min max [deg]` 
+    `mean_anomaly min max [deg]`  
     `time_of_pericenter_passage min max [JD]`  
     `inclination min max [deg]`  
     `longitude_of_node min max [deg]`  
@@ -274,13 +278,13 @@ List of the files with explanation:
     `semi-major axis` in au instead of `period` (set `period` greater than `9000000.`, while setting semi-major axis equal to `999.` will let you use the period);  
     `time of passage at pericentre` is used if `mean anomaly` is greater than `999.`, while set `time of passage at pericentre` greater than `9.e8` to use `mean anomaly`.
     Example file [`b.dat`](trades_example/Kepler-9_example/b.dat)  
-  -   `c.dat`: same as file `b.dat`, but with different parameter values for the body in the third row in `bodies.lst`, that is in the code will be identified with the id == 3.  
+    - `c.dat`: same as file `b.dat`, but with different parameter values for the body in the third row in `bodies.lst`, that is in the code will be identified with the id == 3.  
     Example file [`c.dat`](trades_example/Kepler-9_example/c.dat)  
 
-3.  `lm.opt`: parameter options for the Levenberg-Marquardt algorithm; they are based on the original manual. Keep it as it for standard analysis.  
+3. `lm.opt`: parameter options for the Levenberg-Marquardt algorithm; they are based on the original manual. Keep it as it for standard analysis.  
   Example file [`lm.opt`](trades_example/Kepler-9_example/lm.opt)  
 
-4.  `pikaia.opt`: parameter options for the `GA` algorithm. The most important parameters to tune are  
+4. `pikaia.opt`: parameter options for the `GA` algorithm. The most important parameters to tune are  
   (1pik) the number of individuals (row 1, ctrl(1)), that is the number of set of parameters for each generation;  
   (2pik) the number of generation (row 2, ctrl(2)), that is the number of iteration that `GA` has to perform, the last iteration returns the best set of parameters;  
   (3pik) the seed (row 13), that is a integer number that defines the seed for the random generator, if you keep the same value it repeat the same analysis;  
@@ -288,16 +292,16 @@ List of the files with explanation:
   (5pik) the nGlobal (row 15) is the number of global search to perform with the `GA`, each search returns a solution, and the seed of each analysis is different (seed + i, i=1..nGlobal).  
   Example file [`pikaia.opt`](trades_example/Kepler-9_example/pikaia.opt)  
 
-5.  `pso.opt`: parameter options for the `PSO` algorithm. The rows 1, 2, 4, 5, and 6 are the same parameters explained for the `pikaia.opt` file.  
+5. `pso.opt`: parameter options for the `PSO` algorithm. The rows 1, 2, 4, 5, and 6 are the same parameters explained for the `pikaia.opt` file.  
   In particular:  
   (1pso) row 1 and (2pik) 2 are exactly the same as in `pikaia.opt`;  
   (3pso) row 3 is an integer that specifies when write a summary during the `PSO` analysis;  
   (4pso) row 4 is the same as (4pik) row 14 in `pikaia.opt`;  
   (5pso) row 5 is the same as (5pik) row 15 in `pikaia.opt`;  
   (6pso) row 6 is the same as (3pik) row 13 in `pikaia.opt`.  
-  Example file [`pso.opt`](trades_example/Kepler-9_example/pso.opt)   
+  Example file [`pso.opt`](trades_example/Kepler-9_example/pso.opt)  
 
-6.  `obsRV.dat`: list of radial velocities (RVs) data.  
+6. `obsRV.dat`: list of radial velocities (RVs) data.  
   Columns description:  
   (1) RV observation time (JD, or time in same units of the integration time);  
   (2) observed RVs in meter per seconds;  
@@ -305,14 +309,14 @@ List of the files with explanation:
   (4) ID of the RV dataset, so if you have only one dataset set all column to `1`, else increas value untill the number of different datasets, i.e., `1`, `2` for 2 datasets (2 different facilities, or one facility before and after upgrade).  
   Example file [`obsRV.dat`](trades_example/Kepler-9_example/obsRV.dat)  
 
-7.  `NB2_observations.dat`: list of transit times (`$T_0$s`) observed for planet in the second row of `bodies.lst`, i.e., `b.dat` is planet 2.  
+7. `NB2_observations.dat`: list of transit times (`$T_0$s`) observed for planet in the second row of `bodies.lst`, i.e., `b.dat` is planet 2.  
   Columns description:  
   (1) transit epoch (N), an integer number that identifies the transit w.r.t. a reference transit time `$T_\textrm{ref}$` and refined by a linear ephemeris of kind: `$T_N = T_\textrm{ref} + P_\textrm{ref} \times N$`;  
   (2) the transit time (`$T_0$`) in JD or the same time unit of the integration/epoch/start time;  
   (3) the uncertainty on the `$T_0$`.
   Example file [`NB2_observations.dat`](trades_example/Kepler-9_example/NB2_observations.dat)  
 
-8.  `NB3_observations.dat`: same kind of file `NB2_observations.dat`, but for the planet in the third row of `bodies.lst`, i.e., `c.dat` is planet 3.  
+8. `NB3_observations.dat`: same kind of file `NB2_observations.dat`, but for the planet in the third row of `bodies.lst`, i.e., `c.dat` is planet 3.  
   Example file [`NB3_observations.dat`](trades_example/Kepler-9_example/NB3_observations.dat)  
   
 9. `derived_boundaries.dat`: this file a special file.  
@@ -331,6 +335,8 @@ List of the files with explanation:
 10. `priors.in`: place here priors for Bayesian analysis with `emcee`.  
   Follow the instructions in the file [`priors.in`](trades_example/base_2p/priors.in).  
 
+11. `de.yml`: file `yaml` used for `PyDE` configuration. See an example in the file [`de.yml`](trades_example/base_2p/de.yml).  
+
 ---
 
 ### Output files by TRADES {#out_files}
@@ -338,11 +344,11 @@ List of the files with explanation:
 Each algorithm will write different files, and depends on the flag used in the `arg.in` and in the `*.opt` files.  
 Each file _should_ have an self-explaning header.  
 
-1.  **integration:** depends only on `arg.in` file  
+1. **integration:** depends only on `arg.in` file  
   `#ID_#LM_rotorbit.dat`, `#ID_#LM_constants.dat`, `#ID_#LM_NB#_elements.dat`, `#ID_#LM_NB#_tra.dat`, `#ID_#LM_gls_output.dat`  
   `#ID_#LM_rotorbit.dat`, if `wrtorb = 1`, where `#ID` is the simulation ID, `#LM` is the Levenberg-Marquardt flag (`lmon = 0` or `1`). Columns: 1 Time in JD; 2 Light-Time Travel Effect in days (LTE\_d); 3:3+NB\*6 {X,Y,Z,VX,VY,VZ} for each body (NB=number of bodies); last column is the radial velocity (RV) of the star due to the planets in m/s.  
   `#ID_#LM_constants.dat`, if `wrtcon = 1`, naming convenction as previous. Columns: 1 Time in JD; 2 momentum; 3 delta between initial and current momentum; 4 Total Energy; 5 delta between initial and current Total Energy.  
-  `#ID_#LM_gls_output.dat`, it is the output of the General Lomb-Scargle [(GLS)][GLS] applied to the residuals: `$\textrm{res}=\textrm{RV}_\textrm{obs}-\textrm{RV}_\textrm{sim}$`.  
+  `#ID_#LM_gls_output.dat`, it is the output of the General Lomb-Scargle [(GLS)][GLS] applied to the residuals: $\textrm{res}=\textrm{RV}_\textrm{obs}-\textrm{RV}_\textrm{sim}$.  
   `#ID_#LM_NB#_elements.dat`, if `wrtel = 1`, naming convenction as previous, plus the body id NB#, starting from 2 to the number of bodies used. Columns: 1 Time in JD; 2 Period in days, 3 semi-major axis in astronomical unit (au), 3 eccentricity, 4 inclination in degrees, 4 mean anomaly in degrees, 5 argument of the pericenter in degrees, 6 longitude of the node in degrees, 7 true anomaly in degrees, 8 difference between time of refence (epoch) and time of the passage of pericenter tau in days  
   `#ID_#LM_NB#_tra.dat`, if `idtra > 0`, naming convenction as previous. Columns: 1 trasit time, 2 LTE, 3 firt contact time, 4 second contact time, 5 third contact time, 6 fourth contact time, 7:7+NB*6 state vector {X,Y,Z,VX,VY,VZ} for each body (NB=number of bodies).  
   
@@ -356,14 +362,14 @@ In the `src/` folder there is the `pytrades_lib.f90` that is the library that in
   
 It creates the `pytrades_lib.so` and it copies it into the folder `../pytrades/`  
 Check if in the `src/` folder there is an hidden file `.f2py_f2cmap` that contains one row: `dict(real=dict(sp='float', dp='double'))`  
-**Run scripts:** 
+**Run scripts:**  
 <!--In folder `pytrades/`: `pytrades_lib.so`, `constants.py`, `ancillary.py`, `trades_pso2emcee.py`.  
 The script to run is `trades_pso2emcee.py`, that shows how to call the `pytrades_lib` and how to combine `PSO` algorithm with `emcee`.  
 Run as `python trades_pso2emcee.py -h` for instruction on the all the command line arguments to provide.  -->
 In folder `pytrades/` there are different scripts, look for the script to run beginning with `trades_`, that shows how to call the `pytrades_lib` and how to combine with `emcee`.  
 Run as `python trades_XXX.py -h` for instruction on the all the command line arguments to provide.  
 The `ancillary.py` file has different functions to write and read output files from `PSO` and `emcee` and other stuff helpful to manage the output of the simulations.  
-The `full_emcee_analysis.py` script is able to create all the summary reports and 
+The `full_emcee_analysis.py` script is able to create all the summary reports and
 images of a `TRADES+EMCEE` analysis; it works also on a running simulation.  
 Check also other files in the `pytrades` folder to understand how to use the python library.
   
@@ -374,6 +380,15 @@ Check also other files in the `pytrades` folder to understand how to use the pyt
 ### Changes/Log
 
 **sorry, I will not be able to report all the small changes...**  
+
+#### `TRADES 2.18.0`  
+
+`TRADES` now fit the combination of `ecccentricity` ($e$) and `argument of pericenter` ($\omega$) as
+$(\sqrt{e}\cos\omega, \sqrt{e}\sin\omega)$ (also in `PSO` and `GA`).  
+Added the script that uses [`PyDE`][PyDE] + [`emcee`][emcee].  
+The default fitness parameter for the `PSO` is now the $\log{\mathcal{L}}$.
+Added python modules to plot the evolution of the `PSO` and `PyDE`.  
+Converted example script `trades_test_2022-03-04.py` to `trades_python_test_read_data.py` and created `trades_python_test.py`.  
 
 #### `TRADES 2.17.1`  
 
@@ -542,7 +557,7 @@ In case of a positive signal, it means the period has been induced (bad `RV` fit
 [Borsato2014]: https://ui.adsabs.harvard.edu/abs/2014A%26A...571A..38B/abstract  
 [Malavolta2017]: https://ui.adsabs.harvard.edu/abs/2017AJ....153..224M/abstract  
 [Borsato2019]: https://ui.adsabs.harvard.edu/abs/2019MNRAS.484.3233B/abstract  
-[TRADESESPG]: http://groups.dfa.unipd.it/ESPG/trades.html    
+[TRADESESPG]: http://groups.dfa.unipd.it/ESPG/trades.html  
 [MINPACK]: http://www.netlib.org/minpack/  
 [Moré1980]: http://www.mcs.anl.gov/~more/ANL8074a.pdf  
 [PIKAIA]: http://www.hao.ucar.edu/modeling/pikaia/pikaia.php  
@@ -550,3 +565,4 @@ In case of a positive signal, it means the period has been induced (bad `RV` fit
 [GLS]: http://adsabs.harvard.edu/abs/2009A%26A...496..577Z  
 [MERCURY]: http://www.arm.ac.uk/~jec/  
 [PyAstronomy]: https://www.hs.uni-hamburg.de/DE/Ins/Per/Czesla/PyA/PyA/index.html#  
+[PyDE]: https://github.com/hpparvi/PyDE  
