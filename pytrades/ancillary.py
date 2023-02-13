@@ -7,6 +7,8 @@ import argparse
 import os
 import numpy as np  # array
 import h5py
+import sys
+import yaml
 
 # import trades_lib
 # import random
@@ -17,11 +19,13 @@ import constants as cst  # local constants module
 import emcee
 
 # import acor
+import matplotlib.pyplot as plt
 
 import scipy.optimize as sciopt
 import scipy.odr as sodr
 import sklearn.linear_model as sklm
-import scipy.stats as scits
+
+# import scipy.stats as scits
 import glob
 import shutil
 import statsmodels.api as sm
@@ -43,8 +47,36 @@ eps32bit = np.finfo(np.float32(1.0)).eps
 # sigma pos        0      1     2       3      4       5      6       7
 percentile_val = [68.27, 50.0, 15.865, 84.135, 2.265, 97.735, 0.135, 99.865]
 
+parameters_folders = [
+    "0000_sim_initial",
+    "0004_sim_pso",
+    "0006_sim_de",
+    "0777_sim_from_file",
+    "1050_sim_median",
+    "2050_sim_map",
+    "3050_sim_mode",
+    "0668_sim_mle",
+]
 
 # ==============================================================================
+def set_rcParams():
+
+    my_dpi = 300
+    plt.rcParams["text.usetex"] = False  # True
+    plt.rcParams["font.family"] = "serif"  #'sans-serif'
+    plt.rcParams["font.serif"] = ["Computer Modern Roman", "Palatino", "DejaVu Serif"]
+    plt.rcParams["mathtext.fontset"] = "cm"
+    plt.rcParams["figure.figsize"] = [5, 5]
+    plt.rcParams["figure.facecolor"] = "white"
+    plt.rcParams["savefig.facecolor"] = "white"
+    plt.rcParams["figure.dpi"] = my_dpi
+    plt.rcParams["savefig.dpi"] = 300
+    plt.rcParams["font.size"] = 10
+    plt.rcParams["xtick.labelsize"] = 9
+    plt.rcParams["ytick.labelsize"] = 9
+    plt.rcParams["animation.html"] = "jshtml"
+
+    return
 
 
 def print_both(line, output=None):
@@ -103,7 +135,7 @@ def copy_simulation_files(dir_src, dir_dest):
         shutil.copy(os.path.join(dir_src, "obsRV.dat"), os.path.join(dir_dest, ""))
 
     ## lm.opt pso.opt pik.opt
-    opt_files = "lm.opt pso.opt pik.opt".split()
+    opt_files = "lm.opt pso.opt pik.opt priors.in de.yml".split()
     for opt in opt_files:
         if os.path.exists(os.path.join(dir_src, opt)):
             shutil.copy(os.path.join(dir_src, opt), os.path.join(dir_dest, ""))
@@ -156,18 +188,30 @@ def set_int_argument(arg_in, default=0):
 # ==============================================================================
 
 
+# def set_overplot(arg_in):
+#     if str(arg_in).lower() == "none":
+#         arg_out = None
+#     else:
+#         arg_out = os.path.abspath(arg_in)
+#         if not os.path.isfile(arg_out):
+#             try:
+#                 arg_out = int(arg_in)
+#             except:
+#                 arg_out = None
+#             if arg_out not in [0, 666, 667, 668, 777, 1050, 1051, 2050, 3050, 3051]:
+#                 arg_out = None
+#     return arg_out
+
+
 def set_overplot(arg_in):
-    if str(arg_in).lower() == "none":
-        arg_out = None
-    else:
-        arg_out = os.path.abspath(arg_in)
-        if not os.path.isfile(arg_out):
-            try:
-                arg_out = int(arg_in)
-            except:
-                arg_out = None
-            if arg_out not in [0, 666, 667, 668, 777, 1050, 1051, 2050, 3050, 3051]:
-                arg_out = None
+
+    arg_str = str(arg_in).lower().strip()
+    arg_out = None
+    if arg_str != "none":
+        for p_folder in parameters_folders:
+            if arg_str in p_folder:
+                arg_out = p_folder
+
     return arg_out
 
 
@@ -236,31 +280,11 @@ def get_args():
 
     parser.add_argument(
         "-t",
-        "--temp-file",
+        "--temp",
         action="store",
         dest="temp_status",
         default=False,
-        help="If you want to read temporary emcee_temp.hdf5 file, because simulation is not finished yet. Default is False",
-    )
-
-    parser.add_argument(
-        "-b",
-        "--boot-file",
-        "--save-like-boot",
-        action="store",
-        dest="boot_id",
-        default=0,
-        help="If you want to save flatchain posterior as the posterior file, in order to be read by read_finalpar_v2.py. If set to 0 (default) it doesn't save anything. Bootstrap file output: boot_id_posterior_sim.dat",
-    )
-
-    parser.add_argument(
-        "-c",
-        "--cumulative",
-        "--cumulative-histogram",
-        action="store",
-        dest="cumulative",
-        default="False",
-        help='If you want to plot the cumulative histogram instead of normal histogram. Set it to "True/Yes/1" Default is False. ',
+        help="If you want to read temporary emcee analysis from file, because simulation is not finished yet. Default is False",
     )
 
     parser.add_argument(
@@ -268,9 +292,19 @@ def get_args():
         "--steps",
         "--gelmanrubin-steps",
         action="store",
-        dest="sel_steps",
+        dest="gr_steps",
         default=10,
-        help="Set to positive integer. It will allow to compute GelmanRubin/Geweke statistics of only sel_steps, and not for each step. Just to debug and overall view of the chains. Default is 10.",
+        help="Set to positive integer. It will allow to compute GelmanRubin statistics of only gr_steps, and not for each step. Just to debug and overall view of the chains. Default is 10.",
+    )
+    parser.add_argument(
+        "-gk-steps",
+        "--gk-steps",
+        "-gelweke-steps",
+        "--gelmanrubin-steps",
+        action="store",
+        dest="gk_steps",
+        default=10,
+        help="Set to positive integer. It will allow to compute Geweke statistics of only gk_steps, and not for each step. Just to debug and overall view of the chains. Default is 10.",
     )
 
     parser.add_argument(
@@ -304,7 +338,18 @@ def get_args():
         action="store",
         dest="overplot",
         default="None",
-        help="Define which parameter set to be overplotted on the correlation plot.\nInput the proper number:\n0 (starting parameters),\n666 (pick sample),\n777 (ad hoc sample),\n1050 (median, derived as median of the derived posterior),\n1051 (median, derived computed from median parameters), 2050 (max lnprob),\n3050 (mode, derived as mode of the derived posterior),\n3051 (mode, derived computed from mode parameters)",
+        help="""
+            Define which parameter set to be overplotted on the correlation plot.\n
+            Input the proper string:\n
+            initial,\n
+            adhoc,\n
+            pso,\n
+            de,\n
+            median,\n
+            map,\n
+            mode,\n
+            mle.
+            """,
     )
 
     parser.add_argument(
@@ -312,11 +357,8 @@ def get_args():
         action="store",
         dest="adhoc",
         default="None",
-        help="Define adhoc file with fitted parameters to be overplotted with the id 777",
+        help="Define adhoc file with fitted parameters to be overplotted as adhoc",
     )
-
-    # parser.add_argument('--script-folder', action='store', dest='pyscript', default='./',
-    #                     help='Folder of the python scripts... Default is "./"')
 
     parser.add_argument(
         "-n-samples",
@@ -327,23 +369,471 @@ def get_args():
         help="Number of sample parameter within CI to generate T0s and RVs to be overplotted in the O-C plots. Defautl is 0",
     )
 
+    parser.add_argument(
+        "-corner-type",
+        "--corner-type",
+        action="store",
+        dest="corner_type",
+        default="both",
+        help="Corner plot type: custom, pygtc, both. Default both.",
+    )
+
+    # which analysis and plot to do arguments
+    parser.add_argument(
+        "-all",
+        "--all",
+        nargs="?",
+        type=str,
+        const="True",
+        dest="all",
+        help="Do the full analysis and plots",
+    )
+
+    parser.add_argument(
+        "-save-posterior",
+        "--save-posterior",
+        "-save-post",
+        "--save-post",
+        nargs="?",
+        type=str,
+        const="True",
+        dest="save_posterior",
+        help="Save posterior (fitted and physical) to file.",
+    )
+
+    parser.add_argument(
+        "-save-parameters",
+        "--save-parameters",
+        "-save-par",
+        "--save-par",
+        nargs="?",
+        type=str,
+        const="True",
+        dest="save_parameters",
+        help="Save best-fit parameters to file. They will be read by overplot keyword.",
+    )
+
+    parser.add_argument(
+        "-chain",
+        "--chain",
+        "-chains",
+        "--chains",
+        "-trace",
+        "--trace",
+        nargs="?",
+        type=str,
+        const="False",
+        dest="chain",
+        help="Chains/trace plots",
+    )
+
+    parser.add_argument(
+        "-gelman-rubin",
+        "--gelman-rubin",
+        "-gr",
+        "--gr",
+        nargs="?",
+        type=str,
+        const="False",
+        dest="gelman_rubin",
+        help="Gelman-Rubin plots",
+    )
+
+    parser.add_argument(
+        "-geweke",
+        "--geweke",
+        "-ge",
+        "--ge",
+        nargs="?",
+        type=str,
+        const="False",
+        dest="geweke",
+        help="Geweke plots",
+    )
+
+    parser.add_argument(
+        "-correlation-fitted",
+        "--correlation-fitted",
+        "-triangle-fitted",
+        "--triangle-fitted",
+        nargs="?",
+        type=str,
+        const="False",
+        dest="correlation_fitted",
+        help="Correlation plot of fitted parameters",
+    )
+
+    parser.add_argument(
+        "-correlation-physical",
+        "--correlation-physical",
+        "-triangle-physical",
+        "--triangle-physical",
+        nargs="?",
+        type=str,
+        const="False",
+        dest="correlation_physical",
+        help="Correlation plot of physical parameters",
+    )
+
     cli = parser.parse_args()
 
     cli.full_path = os.path.abspath(cli.full_path)
     cli.nburnin = set_int_or_none(cli.nburnin)
     cli.m_type = cli.m_type.lower()
     cli.temp_status = set_bool_argument(cli.temp_status)
-    cli.cumulative = set_bool_argument(cli.cumulative)
-    cli.boot_id = set_int_argument(cli.boot_id)
+    # cli.boot_id = set_int_argument(cli.boot_id)
     cli.use_thin = set_int_argument(cli.use_thin, default=False)
     # cli.use_thin = set_bool_argument(cli.use_thin)
     cli.seed = set_int_or_none(cli.seed)
-    cli.overplot = set_overplot(cli.overplot)
+    # cli.overplot = set_overplot(cli.overplot)
     cli.adhoc = set_adhoc_file(cli.adhoc)
     # cli.pyscript = os.path.abspath(cli.pyscript)
     cli.n_samples = set_int_argument(cli.n_samples, default=0)
 
+    cli.all = set_bool_argument(cli.all)
+    if cli.all:
+        cli.save_posterior = True
+        cli.save_parameters = True
+        cli.chain = True
+        cli.gelman_rubin = True
+        cli.geweke = True
+        cli.correlation_fitted = True
+        cli.correlation_physical = True
+    else:
+        cli.save_posterior = set_bool_argument(cli.save_posterior)
+        cli.save_parameters = set_bool_argument(cli.save_parameters)
+        cli.chain = set_bool_argument(cli.chain)
+        cli.gelman_rubin = set_bool_argument(cli.gelman_rubin)
+        cli.geweke = set_bool_argument(cli.geweke)
+        cli.correlation_fitted = set_bool_argument(cli.correlation_fitted)
+        cli.correlation_physical = set_bool_argument(cli.correlation_physical)
+
     return cli
+
+
+# ==============================================================================
+
+
+def get_input_file():
+
+    parser = argparse.ArgumentParser(description="TRADES")
+
+    parser.add_argument(
+        "-input",
+        "--input",
+        "-input-file",
+        "--input-file",
+        action="store",
+        dest="input",
+        required=True,
+        help="The path (absolute or relative) with yaml configuration file (for run or analysis) for TRADES.",
+    )
+
+    cli = parser.parse_args()
+
+    input_file = os.path.abspath(cli.input)
+
+    return input_file
+
+
+# ==============================================================================
+class CLI_OC:
+    def __init__(
+        self,
+        full_path=os.path.abspath("."),
+        idsim=1,
+        lmflag=0,
+        tscale=2440000.5,
+        ocunit="d",
+        samples_file=None,
+        limits="obs",
+        kep_ele=False,
+    ):
+        self.full_path = os.path.abspath(full_path)
+        self.idsim = int(idsim)
+        self.sim_type = os.path.basename(full_path)
+        self.lmflag = int(lmflag)
+        self.tscale = tscale
+        self.ocunit = ocunit
+        self.samples_file = samples_file
+        self.limits = limits
+        self.kep_ele = kep_ele
+
+        return
+
+
+class CLI_RV:
+    def __init__(
+        self,
+        full_path=os.path.abspath("."),
+        idsim=1,
+        lmflag=0,
+        tscale=2440000.5,
+        labels="None",
+        samples_file=None,
+        limits="obs",
+        color_map="viridis",
+    ):
+        self.full_path = os.path.abspath(full_path)
+        self.sim_type = os.path.basename(full_path)
+        self.idsim = int(idsim)
+        self.lmflag = int(lmflag)
+        self.tscale = tscale
+        if str(labels).lower() != "none":
+            if isinstance(labels, str):
+                self.labels = labels.split()
+            else:
+                self.labels = labels
+        else:
+            self.labels = None
+        self.samples_file = samples_file
+        self.limits = limits
+        self.color_map = color_map
+
+        return
+
+
+# ==============================================================================
+
+
+class ConfigurationRun:
+    def __init__(self, yaml_file):
+
+        with open(yaml_file) as f:
+            conf_all = yaml.load(f, Loader=yaml.FullLoader)
+
+        conf = {
+            "full_path": os.path.abspath("."),
+            "sub_folder": "",
+            "seed": 42,
+            "mass_type": "e",
+            "delta_sigma": 1.0e-4,
+            "nthreads": 1,
+            "trades_previous": None,
+        }
+        conf_keys = conf.keys()
+
+        cemcee = {
+            "nwalkers": 42,
+            "nruns": 1,
+            "thin_by": 1,
+            "emcee_restart": False,
+            "emcee_progress": True,
+        }
+        emcee_keys = cemcee.keys()
+
+        cpyde = {
+            "type": False,  # False/no, run, resume, to_emcee
+            "npop": 42,
+            "ngen": 4200,
+            "save": 100,
+            "f": 0.5,
+            "c": 0.5,
+            "maximize": True,
+        }
+        pyde_keys = cpyde.keys()
+
+        if "run" in conf_all:
+            conf_input = conf_all["run"]
+            for k, v in conf_input.items():
+                if k in conf_keys:
+                    conf[k] = v
+                elif k == "pyde":
+                    for kp, vp in conf_input["pyde"].items():
+                        cpyde[kp] = vp
+                elif k == "emcee":
+                    for ke, ve in conf_input["emcee"].items():
+                        cemcee[ke] = ve
+
+        self.full_path = os.path.join(os.path.abspath(conf["full_path"]), "")
+        self.sub_folder = os.path.join(self.full_path, conf["sub_folder"], "")
+        self.seed = set_int_or_none(conf["seed"])
+        self.m_type = conf["mass_type"]
+        self.delta_sigma = conf["delta_sigma"]
+        self.nthreads = set_int_argument(conf["nthreads"], default=1)
+        self.trades_previous = set_adhoc_file(conf["trades_previous"])
+
+        # pyde
+        self.de_type = str(cpyde["type"]).lower()
+        self.npop_de = set_int_argument(cpyde["npop"], default=42)
+        self.ngen_de = set_int_argument(cpyde["ngen"], default=4200)
+        self.nsave_de = set_int_argument(cpyde["save"], default=100)
+        self.de_f = cpyde["f"]
+        self.de_c = cpyde["c"]
+        self.de_maximize = set_bool_argument(cpyde["maximize"])
+
+        # emcee
+        self.nwalkers = set_int_argument(cemcee["nwalkers"], default=42)
+        self.nruns = set_int_argument(cemcee["nruns"], default=1)
+        self.thin_by = set_int_argument(cemcee["thin_by"], default=1)
+        self.emcee_restart = set_bool_argument(cemcee["emcee_restart"])
+        self.emcee_progress = set_bool_argument(cemcee["emcee_progress"])
+
+        return
+
+
+# ==============================================================================
+
+
+class ConfigurationAnalysis:
+    def __init__(self, yaml_file):
+        with open(yaml_file) as f:
+            conf_all = yaml.load(f, Loader=yaml.FullLoader)
+
+        conf_analysis = {
+            "full_path": os.path.abspath("."),
+            "m_type": "e",
+            "nburnin": 0,
+            "emcee_old_save": False,
+            "temp_status": True,
+            "use_thin": 1,
+            "seed": None,
+            "from_file": None,
+            "n_samples": 0,
+            "corner_type": "pygtc",
+            "overplot": "mle",
+            "all_analysis": False,
+            "save_posterior": False,
+            "save_parameters": False,
+            "chain": False,
+            "gelman_rubin": False,
+            "gr_steps": 10,
+            "geweke": False,
+            "gk_steps": 10,
+            "correlation_fitted": False,
+            "correlation_physical": False,
+        }
+        conf_keys = conf_analysis.keys()
+
+        # conf = conf_all["analysis"]
+        if "analysis" in conf_all.keys():
+            conf_input = conf_all["analysis"]
+            for k, v in conf_input.items():
+                if k in conf_keys:
+                    conf_analysis[k] = v
+
+        self.full_path = os.path.abspath(conf_analysis["full_path"])
+
+        self.m_type = str(conf_analysis["m_type"]).lower()
+        self.nburnin = set_int_or_none(conf_analysis["nburnin"])
+        self.emcee_old_save = set_bool_argument(conf_analysis["emcee_old_save"])
+        self.temp_status = set_bool_argument(conf_analysis["temp_status"])
+        self.use_thin = set_int_argument(conf_analysis["use_thin"], default=1)
+        self.seed = set_int_or_none(conf_analysis["seed"])
+        self.from_file = set_adhoc_file(conf_analysis["from_file"])
+        self.n_samples = set_int_argument(conf_analysis["n_samples"], default=0)
+        self.corner_type = str(conf_analysis["corner_type"]).lower().strip()
+
+        self.overplot = str(conf_analysis["overplot"]).lower().strip()
+
+        self.gr_steps = set_int_argument(conf_analysis["gr_steps"], default=10)
+        self.gk_steps = set_int_argument(conf_analysis["gk_steps"], default=10)
+
+        self.all = set_bool_argument(conf_analysis["all_analysis"])
+        if self.all:
+            self.save_posterior = True
+            self.save_parameters = True
+            self.chain = True
+            self.gelman_rubin = True
+            self.geweke = True
+            self.correlation_fitted = True
+            self.correlation_physical = True
+        else:
+            self.save_posterior = set_bool_argument(conf_analysis["save_posterior"])
+            self.save_parameters = set_bool_argument(conf_analysis["save_parameters"])
+            self.chain = set_bool_argument(conf_analysis["chain"])
+            self.gelman_rubin = set_bool_argument(conf_analysis["gelman_rubin"])
+            self.geweke = set_bool_argument(conf_analysis["geweke"])
+            self.correlation_fitted = set_bool_argument(
+                conf_analysis["correlation_fitted"]
+            )
+            self.correlation_physical = set_bool_argument(
+                conf_analysis["correlation_physical"]
+            )
+
+        # === OC === #
+        conf_oc = {
+            "plot_oc": False,
+            "full_path": os.path.abspath("."),
+            "sim_name": ["mle", "median", "initial"],
+            "idplanet_name": None,
+            "lmflag": 0,
+            "tscale": None,
+            "unit": "auto",
+            "samples_file": None,
+            "limits": "obs",
+            "kep_ele": False,
+        }
+        conf_keys = conf_oc.keys()
+        if "OC" in conf_all.keys():
+            conf_input = conf_all["OC"]
+            for k, v in conf_input.items():
+                if k in conf_keys:
+                    conf_oc[k] = v
+
+        self.plot_oc = conf_oc["plot_oc"]
+        self.idplanet_name = conf_oc["idplanet_name"]
+        fpath = os.path.abspath(conf_oc["full_path"])
+        self.ocs = []
+        for sname in conf_oc["sim_name"]:
+            for pfolder in parameters_folders:
+                if sname in pfolder:
+                    fsim = pfolder
+                    isim = int(pfolder.split("_sim")[0])
+            self.ocs.append(
+                CLI_OC(
+                    full_path=os.path.join(fpath, fsim),
+                    idsim=isim,
+                    lmflag=conf_oc["lmflag"],
+                    tscale=conf_oc["tscale"],
+                    ocunit=conf_oc["unit"],
+                    samples_file=os.path.join(fpath, conf_oc["samples_file"]),
+                    limits=conf_oc["limits"],
+                    kep_ele=conf_oc["kep_ele"],
+                )
+            )
+
+        # === RV === #
+        conf_rv = {
+            "plot_rv": False,
+            "full_path": os.path.abspath("."),
+            "sim_name": ["mle", "median", "initial"],
+            "lmflag": 0,
+            "tscale": None,
+            "samples_file": None,
+            "limits": "obs",
+            "labels": None,
+            "color_map": "viridis",
+        }
+        conf_keys = conf_rv.keys()
+        if "RV" in conf_all.keys():
+            conf_input = conf_all["RV"]
+            for k, v in conf_input.items():
+                if k in conf_keys:
+                    conf_rv[k] = v
+        self.plot_rv = conf_rv["plot_rv"]
+        if self.plot_rv:
+            fpath = os.path.abspath(conf_oc["full_path"])
+            self.rvs = []
+            for sname in conf_rv["sim_name"]:
+                for pfolder in parameters_folders:
+                    if sname in pfolder:
+                        fsim = pfolder
+                        isim = int(pfolder.split("_sim")[0])
+                self.rvs.append(
+                    CLI_RV(
+                        full_path=os.path.join(fpath, fsim),
+                        idsim=isim,
+                        lmflag=conf_rv["lmflag"],
+                        tscale=conf_rv["tscale"],
+                        samples_file=os.path.join(fpath, conf_rv["samples_file"]),
+                        limits=conf_rv["limits"],
+                        labels=conf_rv["labels"],
+                        color_map=conf_rv["color_map"],
+                    )
+                )
+                
+        return
 
 
 # ==============================================================================
@@ -359,29 +849,10 @@ def period_to_semimajoraxis(Ms_Msun, Mp_Msun, P_days):
 
 # ==============================================================================
 
-
-def compute_ln_err_const(dof, e_RVo, e_T0o, ln_flag=False):
-
-    if ln_flag:
-        eRV = e_RVo[e_RVo > 0.0]
-        eT0 = e_T0o[e_T0o > 0.0]
-
-        ln_e_RVo = np.sum(np.log(eRV * eRV))
-        ln_e_T0o = np.sum(np.log(eT0 * eT0))
-
-        ln_err_const = -0.5 * dof * np.log(2.0 * np.pi) - 0.5 * (ln_e_RVo + ln_e_T0o)
-    else:
-        ln_err_const = 0.0
-
-    return ln_err_const
-
-
-# ==============================================================================
-
 # given the mass flag letter it computes the proper mass conversion factor
 def mass_type_factor(Ms=1.0, mtype="earth", mscale=True):
     if mtype.lower() in ["s", "su", "sun"]:
-        conv_factor = np.float64(1.0)
+        conv_factor = 1.0
         scale_factor = Ms
         mass_unit = "M_Sun"
     elif mtype.lower() in ["e", "ea", "ea", "eart", "earth"]:
@@ -402,38 +873,39 @@ def mass_type_factor(Ms=1.0, mtype="earth", mscale=True):
         return conv_factor, mass_unit
 
 
-# ==============================================================================
+# given the mass/radius flag letter it computes the proper mass/radius conversion factor
+def mass_radius_type_factor(mtype="earth"):
+    if mtype.lower() in ["s", "su", "sun"]:
+        mass_conv_factor = 1.0
+        mass_unit = "M_Sun"
+        radius_conv_factor = 1.0
+        radius_unit = "R_Sun"
+    elif mtype.lower() in ["e", "ea", "ea", "eart", "earth"]:
+        mass_conv_factor = cst.Msear
+        mass_unit = "M_Earth"
+        radius_conv_factor = 1.0 / cst.Rears
+        radius_unit = "R_Earth"
+    elif mtype.lower() in ["n", "ne", "nep", "nept", "neptu", "neptun", "neptune"]:
+        mass_conv_factor = cst.Msnep
+        mass_unit = "M_Nep"
+        radius_conv_factor = 1.0 / cst.Rneps
+        radius_unit = "R_Nep"
+    else:
+        mass_conv_factor = cst.Msjup
+        mass_unit = "M_Jup"
+        radius_conv_factor = 1.0 / cst.Rjups
+        radius_unit = "R_Jup"
 
-
-def get_proper_mass(m_type, parameter_names_emcee, full_path):
-
-    # nfit = np.size(parameter_names_emcee)
-
-    MR_star = np.ones((2, 2))
-
-    bodies = os.path.join(full_path, "bodies.lst")
-    obf = open(bodies, "r")
-    line_star = obf.readline()
-    obf.close()
-    file_star = line_star.split()[0].strip()
-    MR_star = np.genfromtxt(file_star)
-    if len(MR_star.shape) == 1:
-        MR_star = np.column_stack((MR_star, np.zeros((2))))
-
-    m_factor, m_unit = mass_type_factor(MR_star[0, 0], m_type, True)
-
-    return m_factor, m_unit
+    return mass_conv_factor, mass_unit, radius_conv_factor, radius_unit
 
 
 # ==============================================================================
 
 # prepare the labels of the Keplerian orbital elements for the legend
 def keplerian_legend(parameter_names, m_type):
-    _, m_unit = mass_type_factor(1.0, m_type, mscale=False)
-    # if (m_type in ['j', 'jup', 'jupiter']):
-    # unit_mass = '$[M_\mathrm{Jup}]$'
-    # elif (m_type in ['s', 'sun']):
-    # unit_mass = '$[M_{\odot}]$'
+    # _, m_unit = mass_type_factor(1.0, m_type, mscale=False)
+    _, m_unit, _, _ = mass_radius_type_factor(mtype=m_type)
+
     if m_unit == "M_Jup":
         unit_mass = "M_\mathrm{Jup}"
         unit_radius = "R_\mathrm{Jup}"
@@ -471,7 +943,7 @@ def keplerian_legend(parameter_names, m_type):
             planet_id = int(parameter_names[i][1:]) - 1
             kel_legends[i] = "$M_\mathrm{%s} [%s]$" % (letters[planet_id], unit_mass)
 
-        elif parameter_names[i][0] == "":
+        elif parameter_names[i][0] == "r":
             planet_id = int(parameter_names[i][1:]) - 1
             kel_legends[i] = "$R_\mathrm{%s}$ [%s]$" % (
                 letters[planet_id],
@@ -525,16 +997,26 @@ def keplerian_legend(parameter_names, m_type):
             planet_id = int(parameter_names[i].split("lambda")[1].strip()) - 1
             kel_legends[i] = "$\lambda_\mathrm{%s} [^\circ]$" % (letters[planet_id])
 
-        elif parameter_names[i][0] == "i":
+        # elif parameter_names[i][0] == "i":
+        #     if "icos" in parameter_names[i]:
+        #         planet_id = int(parameter_names[i].split("lN")[1].strip()) - 1
+        #         kel_legends[i] = "$i\cos\Omega_\mathrm{%s}$" % (letters[planet_id])
+        #     elif "isin" in parameter_names[i]:
+        #         planet_id = int(parameter_names[i].split("lN")[1].strip()) - 1
+        #         kel_legends[i] = "$\i\sin\Omega_\mathrm{%s}$" % (letters[planet_id])
+        #     else:
+        #         planet_id = int(parameter_names[i][1:]) - 1
+        #         kel_legends[i] = "$i_\mathrm{%s} [^\circ]$" % (letters[planet_id])
+        elif parameter_names[i][0:2] == "ci" or "cosi" in parameter_names[i]:
             if "icos" in parameter_names[i]:
                 planet_id = int(parameter_names[i].split("lN")[1].strip()) - 1
-                kel_legends[i] = "$i\cos\Omega_\mathrm{%s}$" % (letters[planet_id])
+                kel_legends[i] = "$\cosi\cos\Omega_\mathrm{%s}$" % (letters[planet_id])
             elif "isin" in parameter_names[i]:
                 planet_id = int(parameter_names[i].split("lN")[1].strip()) - 1
-                kel_legends[i] = "$\i\sin\Omega_\mathrm{%s}$" % (letters[planet_id])
-            else:
-                planet_id = int(parameter_names[i][1:]) - 1
-                kel_legends[i] = "$i_\mathrm{%s} [^\circ]$" % (letters[planet_id])
+                kel_legends[i] = "$\cosi\sin\Omega_\mathrm{%s}$" % (letters[planet_id])
+        elif parameter_names[i][0] == "i":
+            planet_id = int(parameter_names[i][1:]) - 1
+            kel_legends[i] = "$i_\mathrm{%s} [^\circ]$" % (letters[planet_id])
 
         elif parameter_names[i][0:2] == "lN":
             planet_id = int(parameter_names[i][2:]) - 1
@@ -559,17 +1041,24 @@ def keplerian_legend(parameter_names, m_type):
 
 
 def derived_labels(derived_names, m_type):
-    _, m_unit = mass_type_factor(1.0, m_type, mscale=False)
+    # _, m_unit = mass_type_factor(1.0, m_type, mscale=False)
+    _, m_unit, _, _ = mass_radius_type_factor(mtype=m_type)
+
     if m_unit == "M_Jup":
         unit_mass = "M_\mathrm{Jup}"
+        unit_radius = "R_\mathrm{Jup}"
     elif m_unit == "M_Earth":
         unit_mass = "M_\oplus"
+        unit_radius = "R_\oplus"
     elif m_unit == "M_Sun":
         unit_mass = "M_\odot"
+        unit_radius = "R_\odot"
     elif m_unit == "M_Nep":
         unit_mass = "M_\mathrm{Nep}"
+        unit_radius = "R_\mathrm{Nep}"
     else:
         unit_mass = " "
+        unit_radius = " "
 
     labels_list = []
     n_der = np.shape(derived_names)[0]
@@ -579,6 +1068,13 @@ def derived_labels(derived_names, m_type):
         if derived_names[ider][0] == "m" and derived_names[ider][1] != "A":
             planet_id = int(derived_names[ider].split("m")[1]) - 1
             labels_list.append("$M_\mathrm{%s} [%s]$" % (letters[planet_id], unit_mass))
+
+        # radius
+        elif derived_names[ider][0] == "r":
+            planet_id = int(derived_names[ider].split("r")[1]) - 1
+            labels_list.append(
+                "$R_\mathrm{%s} [%s]$" % (letters[planet_id], unit_radius)
+            )
 
         # eccentricity
         elif derived_names[ider][0] == "e":
@@ -650,9 +1146,6 @@ def read_check_good_parameters(full_path, good_status, m_factor, nfit):
             good_parameters_1 = check_good_parameters(
                 good_id, good_parameters_0, m_factor, nfit
             )
-            # for ii in range(0,nfit):
-            # if (parameter_names_emcee[ii][:2] == 'mA'):
-            # good_parameters_0[ii] = rescale_angle(good_parameters[ii])
 
     return good_parameters_0, good_parameters_1
 
@@ -691,14 +1184,9 @@ def renormalize_parameters(parameters, parameter_names):
 # get indices of max of an array
 def get_max_indices(array_values):
 
-    # print(' ++ from index = ', np.argmax(array_values))
-    # idx = np.unravel_index(np.argmax(array_values), np.shape(array_values))
     lmax = np.max(array_values)
-    # print(" ++ lnL_max = {}".format(lmax))
     xx = np.where(array_values == lmax)
-    # print(" ++ from index = ", xx)
     idx = [xx[0][0], xx[1][0]]
-    # print(" ++ to indexes = ", idx)
 
     return idx[0], idx[1]
 
@@ -756,41 +1244,47 @@ def get_data(emcee_file, temp_status):
     ## read data from hdf5 file
     completed_steps = 0
     # print ' reading file', emcee_file
-    f_read = h5py.File(emcee_file, "r")
-    data_names = [str(i) for i in list(f_read.keys())]
-    parameter_names_emcee, parameter_boundaries = [], []
-    chains = []
-    acceptance_fraction, autocor_time, lnprobability = [], [], []
+    # f_read = h5py.File(emcee_file, "r")
+    with h5py.File(emcee_file, mode="r", swmr=True) as f_read:
+        data_names = [str(i) for i in list(f_read.keys())]
+        parameter_names_emcee, parameter_boundaries = [], []
+        chains = []
+        acceptance_fraction, autocor_time, lnprobability = [], [], []
 
-    if "parameter_names" in data_names:
-        # parameter_names_emcee = np.array(f_read['parameter_names'], dtype='S15').astype(str)
-        names_temp = f_read["parameter_names"][...]
-        parameter_names_emcee = decode_list(names_temp)
-        # parameter_names_emcee = names_temp
+        if "parameter_names" in data_names:
+            # parameter_names_emcee = np.array(f_read['parameter_names'], dtype='S15').astype(str)
+            names_temp = f_read["parameter_names"][...]
+            parameter_names_emcee = decode_list(names_temp)
+            # parameter_names_emcee = names_temp
 
-    if "boundaries" in data_names:
-        parameter_boundaries = np.array(f_read["boundaries"][...], dtype=np.float64)
-    # if ('final_parameters' in data_names):  final_parameters = np.array(f_read['final_parameters'], dtype=np.float64)
-    if "chains" in data_names:
-        chains = np.array(
-            f_read["chains"], dtype=np.float64
-        )  # shape (nwalkers, nrusn, nfit)
-    if "acceptance_fraction" in data_names:
-        acceptance_fraction = np.array(f_read["acceptance_fraction"], dtype=np.float64)
-    if "autocor_time" in data_names:
-        autocor_time = np.array(f_read["autocor_time"], dtype=np.float64)
-    if "lnprobability" in data_names:
-        lnprobability = np.array(f_read["lnprobability"], dtype=np.float64)
-    try:
-        ln_err_const = f_read["lnprobability"].attrs["ln_err_const"]
-    except:
-        ln_err_const = 0.0
-    if temp_status:
-        completed_steps = f_read["chains"].attrs["completed_steps"]
-    else:
-        completed_steps = np.shape(chains)[1]
+        if "boundaries" in data_names:
+            parameter_boundaries = np.array(f_read["boundaries"][...], dtype=np.float64)
+        # if ('final_parameters' in data_names):  final_parameters = np.array(f_read['final_parameters'], dtype=np.float64)
+        if "chains" in data_names:
+            chains = np.array(
+                f_read["chains"], dtype=np.float64
+            )  # shape (nwalkers, nruns, nfit)
+            chains = np.swapaxes(chains, 1, 0)  # nruns x nwalkers x nfit
+        if "acceptance_fraction" in data_names:
+            acceptance_fraction = np.array(f_read["acceptance_fraction"], dtype=np.float64)
+        if "autocor_time" in data_names:
+            autocor_time = np.array(f_read["autocor_time"], dtype=np.float64)
+        if "lnprobability" in data_names:
+            lnprobability = np.array(
+                f_read["lnprobability"], dtype=np.float64
+            )  # nwalkers x nruns
+            lnprobability = np.swapaxes(lnprobability, 1, 0)
+
+        try:
+            ln_err_const = f_read["lnprobability"].attrs["ln_err_const"]
+        except:
+            ln_err_const = 0.0
+        if temp_status:
+            completed_steps = f_read["chains"].attrs["completed_steps"]
+        else:
+            completed_steps = np.shape(chains)[1]
     # close hdf5 file
-    f_read.close()
+    # f_read.close()
 
     return (
         parameter_names_emcee,
@@ -809,30 +1303,23 @@ def get_data(emcee_file, temp_status):
 
 def get_last_emcee_iteration(emcee_file, nwalkers):
 
-    f_read = h5py.File(emcee_file, "r")
-    chains = f_read["chains"][...]
-    nw_c, nr_c, _ = np.shape(chains)
-    done = True
+    with h5py.File(emcee_file, "r", swmr=True) as f_read:
+        chains = f_read["chains"][...]
+        nw_c, nr_c, _ = np.shape(chains)
+        done = True
 
-    try:
-        last_step = f_read["chains"].attrs["completed_steps"]
-        # print 'completed_steps'
-    except:
-        # print 'all steps'
-        last_step = nr_c
-    f_read.close()
-    # print '*****', last_step,'*****'
+        try:
+            last_step = f_read["chains"].attrs["completed_steps"]
+        except:
+            last_step = nr_c
+    # f_read.close()
 
     if nwalkers == nw_c:
-        # last_p0 = chains[:,last_step-1,:].copy()
         last_p0 = [chains[iw, last_step - 1, :].copy() for iw in range(0, nw_c)]
         done = True
     else:
         last_p0 = None
         done = False
-    # elif(nwalkers > nw_c):
-
-    # else:
 
     del chains
 
@@ -912,14 +1399,13 @@ def get_emcee_parameters(chains, temp_status, nburnin_in, completed_steps):
     # determine nwalkers, nruns, nburnin, and nfit parameters
     # nwalkers = chains.shape[0]
     # nruns = chains.shape[1]
-    nwalkers, nruns, nfit = np.shape(chains)
+    # nwalkers, nruns, nfit = np.shape(chains)
+    nruns, nwalkers, nfit = np.shape(chains)
     if temp_status:
         nruns = int(completed_steps)
-    # select posterior chains, without burn in steps
-    nburnin = 0
 
+    # select posterior chains, without burn in steps
     if nburnin_in < 0:
-        # print ' WARNING: nburnin <= 0. It will be set to: nburnin = nruns * 10% = %d * 10% = %d' %(nruns, nruns*0.1)
         nburnin = 0
     elif nburnin_in >= nruns or nburnin_in is None:
         nburnin = np.rint(0.5 * nruns).astype(int)
@@ -933,15 +1419,15 @@ def get_emcee_parameters(chains, temp_status, nburnin_in, completed_steps):
 # ==============================================================================
 
 
-def print_memory_usage(array_values):
+def print_memory_usage(array_values, output=None):
 
-    print(
-        " MEMORY USAGE: array_values = %d bytes = %.2d MBytes = %.4f GBytes"
-        % (
+    print_both(
+        " MEMORY USAGE: array_values = {:d} bytes = {:.2f} MBytes = {:.4f} GBytes".format(
             array_values.nbytes,
-            array_values.nbytes / (1024.0 ** 2),
-            array_values.nbytes / (1024.0 ** 3),
-        )
+            array_values.nbytes / (1024.0**2),
+            array_values.nbytes / (1024.0**3),
+        ),
+        output=output,
     )
 
     return
@@ -1016,8 +1502,6 @@ def prepare_plot_folder(full_path):
 def prepare_emcee_plot_folder(full_path):
 
     emcee_plots = os.path.join(full_path, "plots")
-    # if (not os.path.isdir(emcee_plots)):
-    #   if (not os.path.exists(emcee_plots)):
     os.makedirs(emcee_plots, exist_ok=True)
 
     return emcee_plots
@@ -1041,25 +1525,25 @@ def computation_time(elapsed):
 
 def get_pso_data(pso_file):
 
-    of_pso = h5py.File(pso_file, "r")
-    population = np.array(of_pso["population"], dtype=np.float64)
-    population_fitness = np.array(of_pso["population_fitness"], dtype=np.float64)
-    pso_parameters = np.array(of_pso["pso_parameters"], dtype=np.float64)
-    pso_fitness = np.array(of_pso["pso_fitness"], dtype=np.float64)
-    if "pso_best_evolution" in list(of_pso.keys()):
-        pso_best_evolution = np.array(of_pso["pso_best_evolution"], dtype=np.float64)
-    else:
-        pso_best_evolution = False
-    if "parameters_minmax" in list(of_pso.keys()):
-        parameters_minmax = np.array(of_pso["parameters_minmax"], dtype=np.float64)
-    else:
-        parameters_minmax = False
-    if "parameter_names" in list(of_pso.keys()):
-        temp_names = np.array(of_pso["parameter_names"], dtype="S10")
-        parameter_names = [pn.decode("utf-8") for pn in temp_names]
-    else:
-        parameter_names = False
-    of_pso.close()
+    with h5py.File(pso_file, "r", swmr=True) as of_pso:
+        population = np.array(of_pso["population"], dtype=np.float64)
+        population_fitness = np.array(of_pso["population_fitness"], dtype=np.float64)
+        pso_parameters = np.array(of_pso["pso_parameters"], dtype=np.float64)
+        pso_fitness = np.array(of_pso["pso_fitness"], dtype=np.float64)
+        if "pso_best_evolution" in list(of_pso.keys()):
+            pso_best_evolution = np.array(of_pso["pso_best_evolution"], dtype=np.float64)
+        else:
+            pso_best_evolution = False
+        if "parameters_minmax" in list(of_pso.keys()):
+            parameters_minmax = np.array(of_pso["parameters_minmax"], dtype=np.float64)
+        else:
+            parameters_minmax = False
+        if "parameter_names" in list(of_pso.keys()):
+            temp_names = np.array(of_pso["parameter_names"], dtype="S10")
+            parameter_names = [pn.decode("utf-8") for pn in temp_names]
+        else:
+            parameter_names = False
+    # of_pso.close()
     pop_shape = population.shape
 
     return (
@@ -1110,96 +1594,80 @@ def thin_the_chains(
     use_thin,
     nburnin,
     nruns,
-    nruns_sel,
-    autocor_time,
-    chains_T_full,
+    chains,
     lnprobability,
     burnin_done=False,
     full_chains_thinned=False,
 ):
 
-    _, _, nfit = np.shape(chains_T_full)
-    print(" nburnin = ", nburnin)
-    print(" nruns = ", nruns)
-    print(" nruns_sel = ", nruns_sel)
-    # print ' np.shape(lnprobability) = ',np.shape(lnprobability)
+    _, _, nfit = np.shape(chains)
+    print(" nburnin   = ", nburnin)
+    print(" nruns     = ", nruns)
+    print(" thin      = ", use_thin)
     nr, nc = np.shape(lnprobability)
 
     if not burnin_done:
-        chains_T_posterior = chains_T_full[nburnin:nruns, :, :].copy()
-        # lnprob_posterior = lnprobability[:, nburnin:nruns].copy()
-        if nr > nc:
-            lnprob_posterior = lnprobability[nburnin:nruns, :].copy()
-        else:
-            lnprob_posterior = lnprobability.T[nburnin:nruns, :].copy()
+        chains_posterior = chains[nburnin:nruns, :, :].copy()
+        lnprobability_posterior = lnprobability[nburnin:nruns, :].copy()
     else:
-        chains_T_posterior = chains_T_full[:, :nruns, :].copy()
-        # lnprob_posterior = lnprobability[:, :nruns].copy()
-        if nr > nc:
-            lnprob_posterior = lnprobability[:nruns, :].copy()
-        else:
-            lnprob_posterior = lnprobability.T[:nruns, :].copy()
+        chains_posterior = chains[:nruns, :, :].copy()
+        lnprobability_posterior = lnprobability[:nruns, :].copy()
 
-    # print ' np.shape(lnprob_posterior) = ',np.shape(lnprob_posterior)
+    nr_post, nw_post, _ = np.shape(chains_posterior)
 
-    if not use_thin or use_thin <= 0:  # use_thin is False or <= 0
+    if use_thin <= 1:  # use_thin <= 1
 
-        chains_T = chains_T_posterior
-        flatchain_posterior_0 = chains_T[:, :, :].copy().reshape((-1, nfit))
-        print(" posterior not thinned shape = ", np.shape(flatchain_posterior_0))
-        lnprob_burnin = lnprob_posterior[:, :].copy()
-        print(" lnprob_burnin not thinned shape = ", np.shape(lnprob_burnin))
+        fitting_posterior = (
+            chains_posterior[:, :, :].copy().reshape((nr_post * nw_post, nfit))
+        )
+        print(" fitting_posterior not thinned shape = ", np.shape(fitting_posterior))
+        lnprob_posterior = (
+            lnprobability_posterior[:, :].copy().reshape((nr_post * nw_post))
+        )
+        print(" lnprob_posterior not thinned shape  = ", np.shape(lnprob_posterior))
         thin_steps = 0
+        chains_full_thinned = chains[:nruns, :, :]
+        lnprobability_full_thinned = lnprobability[:nruns, :]
 
-    else:  # use_thin is True or > 0
-        if type(use_thin) is bool and use_thin:  # use_thin is True
-            try:
-                n_acor = autocor_time.shape[0]
-            except:
-                n_acor = len(autocor_time)
-            if n_acor == 0:
-                # autocor_time = compute_autocor_time(flatchain_posterior_0)
-                autocor_time = compute_autocor_time(chains_T_posterior)
-            thin_steps = np.rint(
-                np.mean(np.array(autocor_time, dtype=np.float64))
-            ).astype(int)
-            print(" computed thin_steps = ", thin_steps)
-            if thin_steps > 1000:
-                thin_steps = 1000
-                print(" set thin_steps = 1000")
+    else:  # use_thin > 0
+        thin_steps = use_thin
 
-        else:  # use_thin > 0
-            thin_steps = use_thin
-
-        sel_thin_steps = np.arange(0, nruns_sel + thin_steps, thin_steps).astype(int)
-        if sel_thin_steps[-1] >= nruns_sel:
-            sel_thin_steps[-1] = nruns_sel - 1
+        sel_thin_steps = np.arange(0, nr_post + thin_steps, thin_steps).astype(int)
+        if sel_thin_steps[-1] >= nr_post:
+            sel_thin_steps[-1] = nr_post - 1
         n_thin = np.shape(sel_thin_steps)[0]
 
         print(" n_thin = ", n_thin)
 
-        chains_T = chains_T_posterior[sel_thin_steps, :, :]
+        chains_posterior = chains_posterior[sel_thin_steps, :, :]
         # create a flat array of the posterior: from (nruns_sel, nwalkers, nfit) -> (n_thin * nwalkers, nfit)
-        flatchain_posterior_0 = chains_T[:, :, :].copy().reshape((-1, nfit))
-        print(" posterior thinned shape = ", np.shape(flatchain_posterior_0))
-        lnprob_burnin = lnprob_posterior[:, sel_thin_steps].copy()
-        print(" lnprob_burnin thinned shape = ", np.shape(lnprob_burnin))
+        nr_thin, nw_thin, _ = np.shape(chains_posterior)
+        fitting_posterior = (
+            chains_posterior[:, :, :].copy().reshape((nr_thin * nw_thin, nfit))
+        )
+        print(" fitting_posterior thinned shape = ", np.shape(fitting_posterior))
+        lnprobability_posterior = lnprobability_posterior[sel_thin_steps, :]
+        lnprob_posterior = lnprobability_posterior.copy().reshape((nr_thin, nw_thin))
+        print(" lnprob_posterior thinned shape  = ", np.shape(lnprob_posterior))
 
         if full_chains_thinned:
             tempsel = np.arange(0, nruns + thin_steps, thin_steps).astype(int)
             if tempsel[-1] >= nruns:
                 tempsel[-1] = nruns - 1
-            chains_T_full_thinned = chains_T_full[tempsel, :, :].copy()
+            chains_full_thinned = chains[tempsel, :, :]
+            lnprobability_full_thinned = lnprobability[tempsel, :]
+        else:
+            chains_full_thinned = chains[:nruns, :, :]
+            lnprobability_full_thinned = lnprobability[:nruns, :]
 
-            return (
-                chains_T,
-                flatchain_posterior_0,
-                lnprob_burnin,
-                thin_steps,
-                chains_T_full_thinned,
-            )
-
-    return chains_T, flatchain_posterior_0, lnprob_burnin, thin_steps
+    return (
+        chains_posterior,
+        fitting_posterior,
+        lnprobability_posterior,
+        lnprob_posterior,
+        chains_full_thinned,
+        lnprobability_full_thinned,
+    )
 
 
 # ==============================================================================
@@ -1212,14 +1680,14 @@ def get_sigmas(best_parameters, flatchain_posterior):
         np.abs(flatchain_posterior - best_parameters),
         68.27,
         axis=0,
-        interpolation="midpoint",
+        # ,
     )
     # retrieve confidence intervals of the residual distribution
     sigma_confint = np.percentile(
         flatchain_posterior - best_parameters,
         sigmas_percentiles,
         axis=0,
-        interpolation="midpoint",
+        # ,
     )
 
     return sigma_perc68, sigma_confint
@@ -1233,10 +1701,8 @@ def get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior):
     print(" -- shape(chains_T)      = ", np.shape(chains_T))
     print(" -- shape(lnprob_burnin) = ", np.shape(lnprob_burnin))
     maxlnprob_row, maxlnprob_col = get_max_indices(lnprob_burnin)
-    # print(' -- maxlnprob_row, maxlnprob_col = ',maxlnprob_row, maxlnprob_col)
     maxlnprob = lnprob_burnin[maxlnprob_row, maxlnprob_col]
     # retrieve best parameters <-> best lnprobability
-    # maxlnprob_parameters = chains_T[maxlnprob_col, maxlnprob_row, :]
     maxlnprob_parameters = chains_T[maxlnprob_row, maxlnprob_col, :]
     # retrieve 1sigma as 68.27th percentile of the absolute residual distribution
     # retrieve confidence intervals of the residual distribution
@@ -1253,7 +1719,7 @@ def get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior):
 def get_median_parameters(flatchain_posterior):
 
     median_parameters = np.percentile(
-        flatchain_posterior, 50.0, axis=0, interpolation="midpoint"
+        flatchain_posterior, 50.0, axis=0, methodo="midpoint"
     )
     median_perc68, median_confint = get_sigmas(median_parameters, flatchain_posterior)
 
@@ -1274,7 +1740,6 @@ def get_parameters_median_fitness(
     n_med = int(nwalkers * nruns_sel * 0.5)
     id_med = np.argsort(flat_fitness)[n_med]
     # retrieve median fitness
-    # median_fitness = np.percentile(flat_fitness, 50., interpolation='midpoint')
     median_fitness = flat_fitness[id_med]
     # retrieve parameters at id_med
     medfit_parameters = flatchain_posterior[id_med, :]
@@ -1282,14 +1747,6 @@ def get_parameters_median_fitness(
 
     return median_fitness, medfit_parameters, medfit_perc68, medfit_confint
 
-
-# ==============================================================================
-
-# def compute_max_mean(data_vec, k):
-# hist_counts, bin_edges = np.histogram(data_vec, bins=k)
-# max_bin = np.argmax(np.array(hist_counts))
-# max_mean = np.mean(data_vec[np.logical_and(data_vec>=bin_edges[max_bin], data_vec<=bin_edges[max_bin+1])])
-# return max_mean, max_bin
 
 # ==============================================================================
 
@@ -1316,10 +1773,6 @@ def compute_max_mean(data_vec, k):
         return np.nan, 0
         sys.stdout.flush()
     max_mean = np.mean(data_max)
-
-    # print 'MAX BIN: %d with %d counts' %(max_bin, np.max(hist_counts))
-    # print 'Selected values in between bins: %d , %d' %(max_bin-ext_bin, max_bin+ext_bin)
-    # print 'Corresponding bin_edges: %d , %d' %(bin_edges[max_bin-ext_bin], bin_edges[max_bin+ext_bin])
 
     return max_mean, max_bin
 
@@ -1359,7 +1812,7 @@ def get_mode_parameters(flatchain_posterior, k):
         data_vec = flatchain_posterior[:, i_fit]
         print("computing mode and bin ... ", end=" ")
         mode_parameters[i_fit], mode_bin[i_fit] = compute_max_mean(data_vec, k)
-        print("(%.5f , %d) done" % (mode_parameters[i_fit], mode_bin[i_fit]))
+        print("({:.5f} , {:d}) done".format(mode_parameters[i_fit], mode_bin[i_fit]))
         sys.stdout.flush()
 
     return mode_bin, mode_parameters
@@ -1439,21 +1892,13 @@ def pick_sample_parameters(
         npost, nfit = np.shape(posterior)
 
         if post_ci is None:
-            # post_ci = np.percentile(posterior, [15.865, 84.135], axis = 0, interpolation='midpoint')
-
-            # post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]], axis=0, interpolation='midpoint')
             post_ci = compute_hdi_full(posterior).T[0:2, :]
-
-            # post_ci = np.percentile(posterior, [percentile_val[4], percentile_val[5]], axis = 0, interpolation='midpoint')
-            # print np.shape(post_ci)
 
         sel_par = 0
         for ipar in range(0, nfit):
             if name_par.lower() == parameter_names[ipar].lower():
                 sel_par = ipar
                 break
-        # print name_par, ' -> ',sel_par,': ',parameter_names[ipar]
-
         # use median
         # get idx sorted of the selected parameter-posterior
         idx_posterior = np.argsort(posterior[:, sel_par])
@@ -1473,34 +1918,12 @@ def pick_sample_parameters(
         for itest in range(0, n_test):
             testing.append(itest + 1)
             testing.append(-(itest + 1))
-        # print n_test
-        # print testing
         n_testing = len(testing)
-        # print n_testing
         sel_idx = [int(0.5 * npost) + testing[ii] for ii in range(0, n_testing)]
-        # print sel_idx
-
-        ## use mode
-        # k = np.ceil(2. * posterior.shape[0]**(1./3.)).astype(int)
-        # if(k>50): k=50
-        # hist_counts, bin_edges = np.histogram(posterior[:,sel_par], bins=k)
-        # max_bin = np.argmax(np.array(hist_counts))
-        # if (max_bin == 0 or max_bin == k):
-        # ext_bin = 0
-        # elif (max_bin == 1 or max_bin == k-1):
-        # ext_bin = 1
-        # else:
-        # ext_bin = 2
-        # idx_posterior = np.arange(0,posterior.shape[0],1)
-        # sel_post = np.logical_and(posterior[:,sel_par]>=bin_edges[max_bin-ext_bin], posterior[:,sel_par]<=bin_edges[max_bin+ext_bin])
-        # sel_idx = idx_posterior[sel_post]
-        # n_testing = np.shape(sel_idx)[0]
 
         for ii in range(0, n_testing):
             # w/ median
             idx = idx_posterior[sel_idx[ii]]
-            ## w/ mode
-            # idx = sel_idx[ii]
 
             sample_parameters = posterior[idx, :]
             check_sample = True
@@ -1521,34 +1944,18 @@ def pick_sample_parameters(
 def select_within_all_ci(posterior, post_ci, lnprobability):
 
     npost, nfit = np.shape(posterior)
-    # nrow, ncol = np.shape(post_ci)
-
-    # if (nrow == 2 and ncol == nfit):  # check if post_ci is (nfit, 2) or (2, nfit)
-    # use_ci = post_ci.T
-    # else:
-    # use_ci = post_ci
     use_ci = post_ci
-
-    # that's old
-    #  0       1       2       3       4       5
-    # -3sigma -2sigma -1sigma +1sigma +2sigma +3sigma
-
-    # print np.shape(use_ci)
 
     # use_ci should have: nfit x nci,
     # where nci:
     # -1sigma(0) +1sigma(1) -2sigma(2) +2sigma(3) -3sigma(4) +3sigma(5)
     ok_sel = np.ones((npost)).astype(bool)
     for ifit in range(0, nfit):
-        # ok_temp = np.logical_and(posterior[:, ifit] >= use_ci[ifit, 2],
-        # posterior[:, ifit] <= use_ci[ifit, 3]
-        # )
         ok_temp = np.logical_and(
             posterior[:, ifit] >= use_ci[ifit, 0], posterior[:, ifit] <= use_ci[ifit, 1]
         )
         ok_sel = np.logical_and(ok_sel, ok_temp)
 
-    # print np.shape(posterior), np.sum(ok_sel.astype(int)), np.shape(lnprobability)
     post_sel = posterior[ok_sel, :]
     lnprob_sel = lnprobability[ok_sel]
 
@@ -1558,16 +1965,19 @@ def select_within_all_ci(posterior, post_ci, lnprobability):
 # ==============================================================================
 
 
-def select_maxlglhd_with_hdi(posterior, post_ci, lnprobability):
+def select_maxlglhd_with_hdi(posterior, post_ci, lnprobability, return_idmax=False):
 
     npost, _ = np.shape(posterior)
     post_sel, lnprob_sel = select_within_all_ci(
-        posterior, post_ci, lnprobability.reshape((npost))
+        posterior, post_ci, lnprobability  # .reshape((npost))
     )
     idmax = np.argmax(lnprob_sel)
 
     sample_par = post_sel[idmax, :]
     sample_lgllhd = lnprob_sel[idmax]
+
+    if return_idmax:
+        return sample_par, sample_lgllhd, idmax
 
     return sample_par, sample_lgllhd
 
@@ -1579,9 +1989,6 @@ def select_maxlglhd_with_hdi(posterior, post_ci, lnprobability):
 def get_sample_by_sorted_lgllhd(posterior, lnprobability, post_ci=None):
 
     if post_ci is None:
-        # post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]],
-        # axis=0, interpolation='midpoint'
-        # )
         post_ci = compute_hdi_full(posterior)
 
     npost, _ = np.shape(posterior)
@@ -1590,7 +1997,10 @@ def get_sample_by_sorted_lgllhd(posterior, lnprobability, post_ci=None):
 
     post_sel, lnprob_sel = select_within_all_ci(posterior, post_ci, use_lnprob)
 
-    lgllhd_med = np.percentile(use_lnprob, 50.0, interpolation="midpoint")
+    lgllhd_med = np.percentile(
+        use_lnprob,
+        50.0,
+    )
     abs_dlg = np.abs(lnprob_sel - lgllhd_med)
 
     idx_sample = np.argmin(abs_dlg)
@@ -1608,7 +2018,6 @@ def get_sample_by_par_and_lgllhd(
 ):
 
     if post_ci is None:
-        # post_ci = np.percentile(posterior, [percentile_val[2], percentile_val[3]], axis=0, interpolation='midpoint')
         post_ci = compute_hdi_full(posterior)
 
     npost, nfit = np.shape(posterior)
@@ -1625,14 +2034,23 @@ def get_sample_by_par_and_lgllhd(
 
     post_sel, lnprob_sel = select_within_all_ci(posterior, post_ci, use_lnprob)
 
-    lgllhd_med = np.percentile(use_lnprob, 50.0, interpolation="midpoint")
+    lgllhd_med = np.percentile(
+        use_lnprob,
+        50.0,
+    )
     abs_dlg = np.abs(lnprob_sel - lgllhd_med)
-    lgllhd_mad = np.percentile(abs_dlg, 50.0, interpolation="midpoint")
+    lgllhd_mad = np.percentile(
+        abs_dlg,
+        50.0,
+    )
     lgllhd_min = lgllhd_med - lgllhd_mad
     lgllhd_max = lgllhd_med + lgllhd_mad
 
     par_posterior = posterior[:, sel_par]
-    par_med = np.percentile(par_posterior, 50.0, interpolation="midpoint")
+    par_med = np.percentile(
+        par_posterior,
+        50.0,
+    )
 
     abs_dpar = np.abs(post_sel[:, sel_par] - par_med)
     ids_par = np.argsort(abs_dpar)
@@ -1640,13 +2058,6 @@ def get_sample_by_par_and_lgllhd(
     sample_parameters, sample_lgllhd = None, None
     for ii in range(0, np.shape(ids_par)[0]):
         idx = ids_par[ii]
-
-        # temp_parameters = post_sel[idx, :]
-        # temp_lgllhd = lnprob_sel[idx]
-
-        # if(abs_dlg[idx] <= lgllhd_mad):
-        # if(temp_lgllhd >= lgllhd_min):
-
         if lgllhd_check[idx]:
             sample_parameters = post_sel[idx, :]
             sample_lgllhd = lnprob_sel[idx]
@@ -1660,33 +2071,12 @@ def get_sample_by_par_and_lgllhd(
 
 def take_n_samples(posterior, lnprob=None, post_ci=None, n_samples=100):
 
-    # post_ci must have fitted parameters as cols and
-    # lower and upper ci as row, i.e.:
-    # post_ci(2, nfit)
-
     npost, nfit = np.shape(posterior)
 
     print("take_n_samples")
-    print(np.shape(post_ci))
-    # idx_post = np.arange(0, npost).astype(int)
-
-    # if(lnprob is not None and post_ci is None):
-    #   idx_lnp = np.argsort(lnprob)[::-1] # sort: descending
-    #   idx_sample = idx_lnp[:n_samples]
-
-    # elif(lnprob is None and post_ci is not None):
-    #   sel_within_ci = np.ones((npost)).astype(bool)
-    #   for ifit in range(0,nfit):
-    #     sel_par = np.logical_and(posterior[:,ifit] >= post_ci[0,ifit], posterior[:,ifit] <= post_ci[1,ifit])
-    #     sel_within_ci = np.logical_and(sel_within_ci, sel_par)
-
-    #   idx_within_ci = idx_post[sel_within_ci]
-    #   idx_sample = np.random.choice(idx_within_ci, n_samples, replace=False)
-
-    # else:
-    #   idx_sample = np.random.choice(idx_post, n_samples, replace=False)
-
-    # sample_parameters = posterior[idx_sample, :]
+    print("shape posterior ",np.shape(posterior))
+    print("shape lbprob    ",np.shape(lnprob))
+    print("shape post_ci   ",np.shape(post_ci))
 
     if lnprob is not None:
         idx_post = np.argsort(lnprob)[::-1]  # sort: descending
@@ -1697,9 +2087,10 @@ def take_n_samples(posterior, lnprob=None, post_ci=None, n_samples=100):
         idx_post, :
     ]  # sort properly so then selection matches indexes
 
+    sel_within_ci = np.ones((npost)).astype(bool)
     if post_ci is not None:
         # set selection withing hdi (ci) to True
-        sel_within_ci = np.ones((npost)).astype(bool)
+        # sel_within_ci = np.ones((npost)).astype(bool)
         # loop on parameters and check if within hdi (ci)
         for ifit in range(0, nfit):
             sel_par = np.logical_and(
@@ -1708,9 +2099,18 @@ def take_n_samples(posterior, lnprob=None, post_ci=None, n_samples=100):
             )
             sel_within_ci = np.logical_and(sel_within_ci, sel_par)
 
-        idx_sample = np.random.choice(idx_post[sel_within_ci], n_samples, replace=False)
+    #     idx_sample = np.random.choice(idx_post[sel_within_ci], n_samples, replace=False)
+    # else:
+    #     idx_sample = np.random.choice(idx_post, n_samples, replace=False)
+    nsel = np.sum(sel_within_ci)
+    if n_samples > nsel:
+        nmissing = n_samples - nsel
+        not_sel = sel_within_ci == False
+        not_sel_idx = np.random.choice(idx_post[not_sel], nmissing, replace=False)
+        sel_within_ci[not_sel_idx] = True
     else:
-        idx_sample = np.random.choice(idx_post, n_samples, replace=False)
+        sel = sel_within_ci
+    idx_sample = np.random.choice(idx_post[sel_within_ci], n_samples, replace=False)
 
     sample_parameters = posterior[idx_sample, :]
 
@@ -1726,7 +2126,6 @@ def print_parameters_nolog(parameter_names, parameters, perc68, confint, par_typ
     nsigmas = ["-1", "-2", "-3", "+1", "+2", "+3"]
 
     f_w = 23
-    # f_d = 16
 
     print()
     line_68 = "+/-1sigma(68.27|res|)".rjust(f_w)
@@ -1771,7 +2170,6 @@ def print_parameters_logtxt(
     nsigmas = ["-1", "-2", "-3", "+1", "+2", "+3"]
 
     f_w = 23
-    # f_d = 16
 
     print()
     of_run.write("\n")
@@ -1820,7 +2218,6 @@ def print_parameters_logger(
     nsigmas = ["-1", "-2", "-3", "+1", "+2", "+3"]
 
     f_w = 23
-    # f_d = 16
 
     logger.info("")
     line_68 = "+/-1sigma(68.27|res|)".rjust(f_w)
@@ -1856,133 +2253,6 @@ def print_parameters_logger(
 
 # =============================================================================
 
-# OLD
-def get_derived_posterior_parameters(parameter_names, chains_T, flatchain_posterior):
-
-    nfit = flatchain_posterior.shape[1]
-    derived_names = []
-    derived_chains = []
-    derived_posterior = []
-
-    for i_fit in range(0, nfit):
-        if "ecosw" in parameter_names[i_fit]:
-            body_id = parameter_names[i_fit].split("ecosw")[1]
-            derived_names.append("e%s" % (body_id))
-            derived_names.append("w%s" % (body_id))
-
-            temp_e, temp_w = 0.0, 0.0
-
-            temp_e = np.sqrt(
-                chains_T[:, :, i_fit] ** 2 + chains_T[:, :, i_fit + 1] ** 2
-            )
-            temp_w = (
-                np.arctan2(chains_T[:, :, i_fit + 1], chains_T[:, :, i_fit])
-                * 180.0
-                / np.pi
-            )
-            derived_chains.append(temp_e)
-            derived_chains.append(temp_w)
-
-            temp_e, temp_w = 0.0, 0.0
-
-            temp_e = np.sqrt(
-                flatchain_posterior[:, i_fit] ** 2
-                + flatchain_posterior[:, i_fit + 1] ** 2
-            )
-            temp_w = (
-                np.arctan2(
-                    flatchain_posterior[:, i_fit + 1], flatchain_posterior[:, i_fit]
-                )
-                * 180.0
-                / np.pi
-            )
-            derived_posterior.append(temp_e)
-            derived_posterior.append(temp_w)
-
-        if "icoslN" in parameter_names[i_fit]:
-            body_id = parameter_names[i_fit].split("icoslN")[1]
-            derived_names.append("i%s" % (body_id))
-            derived_names.append("lN%s" % (body_id))
-
-            temp_i, temp_lN = 0.0, 0.0
-
-            temp_i = np.sqrt(
-                chains_T[:, :, i_fit] ** 2 + chains_T[:, :, i_fit + 1] ** 2
-            )
-            temp_lN = (
-                np.arctan2(chains_T[:, :, i_fit + 1], chains_T[:, :, i_fit])
-                * 180.0
-                / np.pi
-            )
-            derived_chains.append(temp_i)
-            derived_chains.append(temp_lN)
-
-            temp_i, temp_lN = 0.0, 0.0
-
-            temp_i = np.sqrt(
-                flatchain_posterior[:, i_fit] ** 2
-                + flatchain_posterior[:, i_fit + 1] ** 2
-            )
-            temp_lN = (
-                np.arctan2(
-                    flatchain_posterior[:, i_fit + 1], flatchain_posterior[:, i_fit]
-                )
-                * 180.0
-                / np.pi
-            )
-            derived_posterior.append(temp_i)
-            derived_posterior.append(temp_lN)
-
-    nder = len(derived_names)
-    derived_chains_T = np.zeros((chains_T.shape[0], chains_T.shape[1], nder))
-    for i_der in range(0, nder):
-        derived_chains_T[:, :, i_der] = np.array(derived_chains[i_der])
-
-    return derived_names, derived_chains_T, np.array(derived_posterior).T
-
-
-# ==============================================================================
-
-# OLD
-def save_posterior_like(out_folder, boot_id, parameter_names, flatchain_posterior):
-
-    nfit = flatchain_posterior.shape[1]
-    nboot = flatchain_posterior.shape[0]
-    header_0000 = " iboot %s" % (" ".join(parameter_names))
-    fmt_dp = " ".join(["%s" % ("%23.16e") for ii in range(0, nfit)])
-    fmt_full = "%s %s" % ("%6d", fmt_dp)
-    iboot_fake = np.arange(1, nboot + 1, 1)
-    boot_fake = np.column_stack((iboot_fake, flatchain_posterior))
-    boot_file = os.path.join(out_folder, "%d_posterior_sim.dat" % (boot_id))
-    np.savetxt(boot_file, boot_fake, fmt=fmt_full, header=header_0000)
-
-    return boot_file
-
-
-# =============================================================================
-
-
-# def GelmanRubin(chains_T):
-
-#     n, M = np.shape(chains_T)
-#     theta_m = [np.mean(chains_T[:, i_m]) for i_m in range(0, M)]
-#     theta = np.mean(theta_m)
-
-#     d_theta2 = (theta_m - theta) ** 2
-#     B_n = np.sum(d_theta2) / (M - 1)
-
-#     arg_W = [
-#         np.sum((chains_T[:, i_m] - theta_m[i_m]) ** 2) / (n - 1) for i_m in range(0, M)
-#     ]
-#     W = np.mean(arg_W)
-
-#     n_frac = (n - 1) / n
-#     var_plus = n_frac * W + B_n
-#     Var = var_plus + (B_n / M)
-
-#     Rc = np.sqrt(Var / W)
-
-#     return Rc
 
 def GelmanRubin(chains_T):
 
@@ -2072,11 +2342,10 @@ def get_units(names, mass_unit):
         elif "lambda" in str(names[i]):
             units_par.append("(deg)")
 
+        elif "cosi" in names[i]:
+            units_par.append(" ")
         elif str(names[i])[0] == "i":
-            if "cos" in names[i] or "sin" in names[i]:
-                units_par.append(" ")
-            else:
-                units_par.append("(deg)")
+            units_par.append("(deg)")
 
         elif str(names[i])[0:2] == "lN":
             units_par.append("(deg)")
@@ -2092,17 +2361,15 @@ def get_units(names, mass_unit):
 # ==============================================================================
 
 
-def elements(fpath, idsim, lmf=0):
+def read_initial_elements(fpath, idsim, lmf=0):
 
-    # kel_file = os.path.join(fpath, str(idsim) + "_" + str(lmf) + "_initialElements.dat")
-    kel_file = os.path.join(fpath, "%d_%d_initialElements.dat" % (idsim, lmf))
+    kel_file = os.path.join(fpath, "{:d}_{:d}_initialElements.dat".format(idsim, lmf))
     try:
         kep_elem = np.genfromtxt(
             kel_file
         )  # (NB-1) x (M_Msun R_Rsun P_d a_AU ecc w_deg mA_deg inc_deg lN_deg)
     except:
-        print(" KEPLERIAN ELEMENTS FILE NOT FOUND %s" % (kel_file))
-        # sys.exit()
+        print(" KEPLERIAN ELEMENTS FILE NOT FOUND {:s}".format(kel_file))
         kel_file, kep_elem = None, None
 
     return kel_file, kep_elem
@@ -2121,13 +2388,11 @@ def get_case(id_body, fit_body):
         case = [0]
 
     else:  # (6 in id_fit) # fitting lambda
-        if all(
-            x in id_fit for x in [4, 5, 6, 7, 8]
-        ):  # fit ecosw, esinw, lambda, icoslN, isinlN
+        if all(x in id_fit for x in [4, 5, 6, 7, 8]):  # fit secosw, sesinw, lambda, lN
             case = [4]
-        elif all(x in id_fit for x in [4, 5, 6]):  # fit ecosw, esinw, lambda
+        elif all(x in id_fit for x in [4, 5, 6]):  # fit secosw, sesinw, lambda
             case = [2]
-        elif all(x in id_fit for x in [6, 7, 8]):  # fit lambda, icoslN, isinlN
+        elif all(x in id_fit for x in [6, 7, 8]):  # fit lambda, cicoslN, cisinlN
             case = [3]
         else:
             case = [1]  # fit lambda & w || lambda & lN || lamda & w & lN
@@ -2144,7 +2409,6 @@ def get_fitted(full_path):
     lines = of.readlines()
     of.close()
     NB = len(lines)
-    # n_pl = NB - 1
     bodies_file = []
     fit_string = ""
     fit_list = []
@@ -2181,7 +2445,6 @@ def get_fitted(full_path):
         nfit_list.append(nfit_j)
         cols_list.append([cc for cc in range(nfit_cnt, nfit_cnt + nfit_j)])
         nfit_cnt += nfit_j
-    # cols = [jj for jj in range(0, nfit)]
 
     return nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case
 
@@ -2195,23 +2458,20 @@ def compute_intervals(flatchain, parameters, percentiles):
         np.subtract(flatchain, parameters),
         percentiles,
         axis=0,
-        interpolation="midpoint",
+        # ,
     )  # (n_percentile x nfit)
     sigma_par[0] = np.percentile(
         np.abs(np.subtract(flatchain, parameters)),
         percentiles[0],
         axis=0,
-        interpolation="midpoint",
+        # ,
     )  # 68.27th
     sigma_par[1] = np.percentile(
         np.abs(np.subtract(flatchain, parameters)),
         percentiles[1],
         axis=0,
-        interpolation="midpoint",
+        # ,
     )  # MAD
-    # sigma_par = np.percentile(flatchain, parameters, percentiles, axis=0) # (n_percentile x nfit)
-    # sigma_par[0] = np.percentile(np.abs(flatchain, parameters), percentiles[0], axis=0) # 68.27th
-    # sigma_par[1] = np.percentile(np.abs(flatchain, parameters), percentiles[1], axis=0) # MAD
 
     return sigma_par
 
@@ -2245,6 +2505,39 @@ def compute_hdi_full(flatchains):
 
 
 # ==============================================================================
+def hdi_to_sigma(par, hdi):
+
+    # print("par shape = {}".format(np.shape(par)))
+    # print("hdi shape = {}".format(np.shape(hdi)))
+    # sigma = np.zeros_like(hdi)
+    # sigma[:, 0] = hdi[:, 0] - par
+    # sigma[:, 1] = hdi[:, 1] - par
+    sigma = hdi - par
+
+    return sigma
+
+
+def posterior_to_rms_mad(posterior, parameters):
+
+    npar = len(parameters)
+    ares = np.abs(posterior - parameters)
+    mad = np.percentile(
+        ares,
+        50.00,
+        # ,
+        axis=0,
+    ).reshape(npar, 1)
+    rms = np.percentile(
+        ares,
+        68.27,
+        # ,
+        axis=0,
+    ).reshape(npar, 1)
+
+    return mad, rms
+
+
+# ==============================================================================
 
 
 def compute_sigma_hdi(flatchains, parameters):
@@ -2252,14 +2545,6 @@ def compute_sigma_hdi(flatchains, parameters):
     # alpha=[0.3173, 0.0456, 0.0026]
 
     _, npar = np.shape(flatchains)
-    # print '\n^^^\nIN compute_sigma_hdi WITH (npost , npar) = (%d , %d)\n^^^\n' %(npost, npar)
-    # nbins = get_auto_bins(flatchains)
-
-    # hdi_full = [(calculate_hdi(flatchains[:,ipar],
-    #                           nbins, alpha,
-    #                           mode_output=False
-    #                           )
-    #                     ) for ipar in range(npar)]
     hdi_full = [calculate_hpd(flatchains[:, ipar]) for ipar in range(npar)]
 
     sigma_par = np.array(
@@ -2281,11 +2566,15 @@ def compute_sigma_hdi(flatchains, parameters):
     ).T
 
     sigma_r68p = np.percentile(
-        delta_flat_T, 68.27, axis=0, interpolation="midpoint"
+        delta_flat_T,
+        68.27,
+        axis=0,
     )  # 68.27th
 
     sigma_mad = np.percentile(
-        delta_flat_T, 50.0, axis=0, interpolation="midpoint"
+        delta_flat_T,
+        50.0,
+        axis=0,
     )  # MAD
 
     sigma_par = np.column_stack((sigma_r68p, sigma_mad, sigma_par))
@@ -2300,19 +2589,19 @@ def get_good_distribution(posterior_scale, posterior_mod):
 
     par_scale = np.median(posterior_scale)
     p68_scale = np.percentile(
-        np.abs(posterior_scale - par_scale), 68.27, interpolation="midpoint"
+        np.abs(posterior_scale - par_scale),
+        68.27,
     )
     std_scale = np.std(posterior_scale, ddof=1)
     s_scale = max(p68_scale, std_scale)
-    # s_scale = np.max(posterior_scale) - np.min(posterior_scale)
 
     par_mod = np.median(posterior_mod)
     p68_mod = np.percentile(
-        np.abs(posterior_mod - par_mod), 68.27, interpolation="midpoint"
+        np.abs(posterior_mod - par_mod),
+        68.27,
     )
     std_mod = np.std(posterior_mod, ddof=1)
     s_mod = max(p68_mod, std_mod)
-    # s_mod = np.max(posterior_mod) - np.min(posterior_mod)
 
     if s_scale < s_mod:
         par_out = par_scale
@@ -2361,420 +2650,436 @@ def fix_lambda(flatchain_post, names_par):
 
 # ==============================================================================
 # ==============================================================================
+# recenter single angle distribution    
+def recenter_angle_distribution(alpha_deg):
+
+    alpha_rad = alpha_deg * cst.deg2rad
+    cosa = np.cos(alpha_rad)
+    sina = np.sin(alpha_rad)
+    beta_deg = np.arctan2(sina, cosa)*cst.rad2deg
+
+    _, recentered = get_good_distribution(beta_deg, alpha_deg)
+
+    return recentered
+
+# ==============================================================================
+# ==============================================================================
 
 
-def get_trigonometric_posterior(
-    id_NB, id_l, col, idpar, posterior
-):  # ecosw,esinw -> (e,w) && icoslN,isinlN -> (i,lN) || No lambda
+# def get_trigonometric_posterior(id_NB, id_l, col, idpar, posterior):
+#     # ecosw,esinw // sqrt(e)cosw,sqrt(e)sinw -> (e,w) || No lambda
 
-    cosboot = posterior[:, col]
-    sinboot = posterior[:, col + 1]
-    sum_square = (cosboot * cosboot) + (sinboot * sinboot)
-    if (idpar[id_l][0:6] == "sqrtec") or (idpar[id_l][0:2] == "se"):
-        aboot = sum_square
-    else:
-        aboot = np.sqrt(sum_square)
-    # aboot = np.sqrt( (cosboot*cosboot) + (sinboot*sinboot) )
-    _, bboot = get_proper_posterior_correlated(posterior, col)
-    if "e" in idpar[id_l]:
-        sel_ezero = aboot <= eps64bit
-        bboot[sel_ezero] = 90.0
+#     cosboot = posterior[:, col]
+#     sinboot = posterior[:, col + 1]
 
-    if "ecosw" in idpar[id_l]:
-        id_aa = "e"
-        id_bb = "w"
-    else:
-        id_aa = "i"
-        id_bb = "lN"
+#     sum_square = (cosboot * cosboot) + (sinboot * sinboot)
 
-    id_a0 = "%s%s" % (id_aa, id_NB + 1)
-    id_b0 = "%s%s" % (id_bb, id_NB + 1)
+#     if (idpar[id_l][0:6] == "sqrtec") or (idpar[id_l][0:2] == "se"):
+#         # ecc = (sqrt(e)*cosw)^2 + (sqrt(e)*sinw)^2
+#         aboot = sum_square
+#     else:
+#         # ecc = sqrt(ecosw^2+esinw^2)
+#         aboot = np.sqrt(sum_square)
 
-    return id_a0, aboot, id_b0, bboot
+#     _, bboot = get_proper_posterior_correlated(posterior, col)
+
+#     if "e" in idpar[id_l]:
+#         sel_ezero = aboot <= eps64bit
+#         bboot[sel_ezero] = 90.0
+
+#     if "ecosw" in idpar[id_l]:
+#         id_aa = "e"
+#         id_bb = "w"
+#     # else:
+#     #     id_aa = "i"
+#     #     id_bb = "lN"
+
+#     id_a0 = "{:s}{}".format(id_aa, id_NB + 1)
+#     id_b0 = "{:s}{}".format(id_bb, id_NB + 1)
+
+#     return id_a0, aboot, id_b0, bboot
 
 
 # ==============================================================================
 
 
-def get_trigonometric_parameters(
-    id_NB, id_l, col, idpar, parameters
-):  # ecosw,esinw // sqrt(e)cosw,sqrt(e)sinw -> (e,w) && icoslN,isinlN -> (i,lN) || No lambda
+# def get_trigonometric_parameters(
+#     id_NB, id_l, col, idpar, parameters
+# ):  # ecosw,esinw // sqrt(e)cosw,sqrt(e)sinw -> (e,w) && icoslN,isinlN -> (i,lN) || No lambda
 
-    cosp = parameters[col]
-    sinp = parameters[col + 1]
-    sum_square = (cosp * cosp) + (sinp * sinp)
-    if (idpar[id_l][0:6] == "sqrtec") or (idpar[id_l][0:2] == "se"):
-        a_par = sum_square
-    else:
-        a_par = np.sqrt(sum_square)
-    # a_par = np.sqrt( (cosp*cosp) + (sinp*sinp) )
-    b_par = np.arctan2(sinp, cosp) * rad2deg
+#     cosp = parameters[col]
+#     sinp = parameters[col + 1]
+#     sum_square = (cosp * cosp) + (sinp * sinp)
 
-    if "e" in idpar[id_l]:
-        if a_par <= eps64bit:
-            b_par = 90.0
+#     if (idpar[id_l][0:6] == "sqrtec") or (idpar[id_l][0:2] == "se"):
+#         # ecc = (sqrt(e)*cosw)^2 + (sqrt(e)*sinw)^2
+#         a_par = sum_square
+#     elif ("cosi" in idpar[id_l]) or ("ci" in idpar[id_l]):
+#         # i = arccos(sqrt(cosicoslN^2+cosisinlN^2))
+#         a_par = np.arccos(np.sqrt(sum_square)) * cst.rad2deg
+#     else:
+#         # ecc = sqrt(ecosw^2+esinw^2) || inc = sqrt(icoslN^2+isinlN^2)
+#         a_par = np.sqrt(sum_square)
 
-    if "ecosw" in idpar[id_l]:
-        id_aa = "e"
-        id_bb = "w"
-    else:
-        id_aa = "i"
-        id_bb = "lN"
+#     b_par = np.arctan2(sinp, cosp) * rad2deg
 
-    id_a0 = "%s%s" % (id_aa, id_NB + 1)
-    id_b0 = "%s%s" % (id_bb, id_NB + 1)
+#     if "e" in idpar[id_l]:
+#         if a_par <= eps64bit:
+#             b_par = 90.0
 
-    return id_a0, a_par, id_b0, b_par
+#     if "ecosw" in idpar[id_l]:
+#         id_aa = "e"
+#         id_bb = "w"
+#     else:
+#         id_aa = "i"
+#         id_bb = "lN"
 
+#     id_a0 = "{:s}{}".format(id_aa, id_NB + 1)
+#     id_b0 = "{:s}{}".format(id_bb, id_NB + 1)
 
-# ==============================================================================
-
-
-def derived_posterior_case0(
-    idpar_NB, id_fit_NB, i_NB, cols, posterior
-):  # not fitting lambda
-
-    name_der = []
-    der_posterior = []
-
-    nlist = len(id_fit_NB)
-    for i_l in range(nlist):
-        if "ecosw" in idpar_NB[i_l] or "icoslN" in idpar_NB[i_l]:
-            id_a0, aboot, id_b0, bboot = get_trigonometric_posterior(
-                i_NB, i_l, cols[i_l], idpar_NB, posterior
-            )
-            name_der.append(id_a0)
-            name_der.append(id_b0)
-            der_posterior.append(aboot)
-            der_posterior.append(bboot)
-
-    return name_der, der_posterior
+#     return id_a0, a_par, id_b0, b_par
 
 
 # ==============================================================================
 
 
-def derived_parameters_case0(
-    idpar_NB, id_fit_NB, i_NB, cols, parameters
-):  # not fitting lambda
+# def derived_posterior_case0(
+#     idpar_NB, id_fit_NB, i_NB, cols, posterior
+# ):  # not fitting lambda
 
-    name_der = []
-    der_par = []
+#     name_der = []
+#     der_posterior = []
 
-    nlist = len(id_fit_NB)
-    for i_l in range(nlist):
-        if "ecosw" in idpar_NB[i_l] or "icoslN" in idpar_NB[i_l]:
-            id_a0, a_par, id_b0, b_par = get_trigonometric_parameters(
-                i_NB, i_l, cols[i_l], idpar_NB, parameters
-            )
-            name_der.append(id_a0)
-            name_der.append(id_b0)
-            der_par.append(a_par)
-            der_par.append(b_par)
+#     nlist = len(id_fit_NB)
+#     for i_l in range(nlist):
+#         # this condition work for sqrt(e)cos/sinw, ecos/sinw, cosicos/sinlN, icos/sinlN
+#         if "ecosw" in idpar_NB[i_l] or "icoslN" in idpar_NB[i_l]:
+#             id_a0, aboot, id_b0, bboot = get_trigonometric_posterior(
+#                 i_NB, i_l, cols[i_l], idpar_NB, posterior
+#             )
+#             name_der.append(id_a0)
+#             name_der.append(id_b0)
+#             der_posterior.append(aboot)
+#             der_posterior.append(bboot)
 
-    return name_der, der_par
-
-
-# ==============================================================================
-
-
-def derived_posterior_case1(
-    idpar_NB, id_fit_NB, i_NB, cols, kep_elem, posterior
-):  # fitting lambda || lambda & w || lambda & lN || lamda & w & lN
-
-    name_der = []
-    der_posterior = []
-
-    nlist = len(id_fit_NB)
-
-    for i_l in range(0, nlist):
-        if id_fit_NB[i_l] == 6:  # lambda
-            lambda_post = posterior[:, cols[i_l]]
-            if i_l > 0:
-
-                if i_l - 1 == 5:  # id 5 == argp
-                    argp = posterior[:, cols[i_l - 1]]  # argp as posterior
-                else:
-                    argp = kep_elem[5]  # argp is fixed
-
-                if (
-                    i_l < nlist - 1 and i_l + 1 == nlist - 1
-                ):  # id 6 is not the last --> 8 is the next (longn)
-                    longn = posterior[:, cols[i_l + 1]]  # long node as posterior
-                else:
-                    # if(i_l == nlist-1):
-                    longn = kep_elem[8]  # long of node is fixed
-
-            else:
-                argp = kep_elem[5]  # argp is fixed
-                longn = kep_elem[8]  # longn is fixed
-
-            aboot = (lambda_post - argp - longn) % 360.0
-            _, aboot = get_proper_posterior_correlated(aboot)
-            name_der.append("%s%s" % ("mA", i_NB + 1))
-            der_posterior.append(aboot)
-
-    return name_der, der_posterior
+#     return name_der, der_posterior
 
 
 # ==============================================================================
 
 
-def derived_parameters_case1(
-    idpar_NB, id_fit_NB, i_NB, cols, kep_elem, parameters
-):  # fitting lambda || lambda & w || lambda & lN || lamda & w & lN
-    name_der = []
-    der_par = []
+# def derived_parameters_case0(
+#     idpar_NB, id_fit_NB, i_NB, cols, parameters
+# ):  # not fitting lambda
 
-    nlist = len(id_fit_NB)
-    # for i_l in range(0,nlist):
+#     name_der = []
+#     der_par = []
 
-    # if(id_fit_NB[i_l] == 6):
-    # if(idpar_NB[i_l+2][0:2] != 'mA'):
+#     nlist = len(id_fit_NB)
+#     for i_l in range(nlist):
+#         # this condition work for sqrt(e)cos/sinw, ecos/sinw, cosicos/sinlN, icos/sinlN
+#         if "ecosw" in idpar_NB[i_l] or "icoslN" in idpar_NB[i_l]:
+#             id_a0, a_par, id_b0, b_par = get_trigonometric_parameters(
+#                 i_NB, i_l, cols[i_l], idpar_NB, parameters
+#             )
+#             name_der.append(id_a0)
+#             name_der.append(id_b0)
+#             der_par.append(a_par)
+#             der_par.append(b_par)
 
-    # a_par = (parameters[cols[i_l]] - kep_elem[5] - kep_elem[8])%360.
-    # name_der.append('%s%s' %('mA',i_NB+1))
-    # der_par.append(a_par)
-
-    for i_l in range(0, nlist):
-        if id_fit_NB[i_l] == 6:  # lambda
-            lambda_par = parameters[cols[i_l]]
-            if i_l > 0:
-
-                if i_l - 1 == 5:  # id 5 == argp
-                    argp = parameters[cols[i_l - 1]]  # argp as parameter
-                else:
-                    argp = kep_elem[5]  # argp is fixed
-
-                if (
-                    i_l < nlist - 1 and i_l + 1 == nlist - 1
-                ):  # id 6 is not the last --> 8 is the next (longn)
-                    longn = parameters[cols[i_l + 1]]  # long node as posterior
-                else:
-                    # if(i_l == nlist-1):
-                    longn = kep_elem[8]  # long of node is fixed
-
-            else:
-                argp = kep_elem[5]  # argp is fixed
-                longn = kep_elem[8]  # longn is fixed
-
-            a_par = (lambda_par - argp - longn) % 360.0
-            name_der.append("%s%s" % ("mA", i_NB + 1))
-            der_par.append(a_par)
-
-    return name_der, der_par
+#     return name_der, der_par
 
 
 # ==============================================================================
 
 
-def derived_posterior_case2(
-    idpar_NB, id_fit_NB, i_NB, cols, kep_elem, posterior
-):  # fit ecosw//sqrt(e)cosw, esinw//sqrt(e)sinw, lambda
+# def derived_posterior_case1(
+#     idpar_NB, id_fit_NB, i_NB, cols, kep_elem, posterior
+# ):  # fitting lambda || lambda & w || lambda & lN || lamda & w & lN
 
-    name_der = []
-    der_posterior = []
+#     name_der = []
+#     der_posterior = []
 
-    nlist = len(id_fit_NB)
-    for i_l in range(0, nlist):
+#     nlist = len(id_fit_NB)
 
-        if id_fit_NB[i_l] == 4:
-            id_e0, eboot, id_w0, wboot = get_trigonometric_posterior(
-                i_NB, i_l, cols[i_l], idpar_NB, posterior
-            )
-            name_der.append(id_e0)
-            name_der.append(id_w0)
-            der_posterior.append(eboot)
-            der_posterior.append(wboot)
+#     for i_l in range(0, nlist):
+#         if id_fit_NB[i_l] == 6:  # lambda
+#             lambda_post = posterior[:, cols[i_l]]
+#             if i_l > 0:
 
-            if idpar_NB[i_l + 2][0:2] != "mA":
-                mAboot = (
-                    posterior[:, cols[i_l + 2]] - wboot - kep_elem[8]
-                ) % 360.0  # mA = lambda - w - lN
-                _, mAboot = get_proper_posterior_correlated(mAboot)
-                name_der.append("%s%s" % ("mA", i_NB + 1))
-                der_posterior.append(mAboot)
+#                 if i_l - 1 == 5:  # id 5 == argp
+#                     argp = posterior[:, cols[i_l - 1]]  # argp as posterior
+#                 else:
+#                     argp = kep_elem[5]  # argp is fixed
 
-    return name_der, der_posterior
+#                 if (
+#                     i_l < nlist - 1 and i_l + 1 == nlist - 1
+#                 ):  # id 6 is not the last --> 8 is the next (longn)
+#                     longn = posterior[:, cols[i_l + 1]]  # long node as posterior
+#                 else:
+#                     # if(i_l == nlist-1):
+#                     longn = kep_elem[8]  # long of node is fixed
 
+#             else:
+#                 argp = kep_elem[5]  # argp is fixed
+#                 longn = kep_elem[8]  # longn is fixed
 
-# ==============================================================================
+#             aboot = (lambda_post - argp - longn) % 360.0
+#             _, aboot = get_proper_posterior_correlated(aboot)
+#             name_der.append("{:s}{}".format("mA", i_NB + 1))
+#             der_posterior.append(aboot)
 
-
-def derived_parameters_case2(
-    idpar_NB, id_fit_NB, i_NB, cols, kep_elem, parameters
-):  # fit ecosw//sqrt(e)cosw, esinw//sqrt(e)sinw, lambda
-
-    name_der = []
-    der_par = []
-
-    nlist = len(id_fit_NB)
-    for i_l in range(0, nlist):
-
-        if id_fit_NB[i_l] == 4:
-            id_e0, e_par, id_w0, w_par = get_trigonometric_parameters(
-                i_NB, i_l, cols[i_l], idpar_NB, parameters
-            )
-            name_der.append(id_e0)
-            name_der.append(id_w0)
-            der_par.append(e_par)
-            der_par.append(w_par)
-
-            if idpar_NB[i_l + 2][0:2] != "mA":
-                # print '*** lambda_par = ', parameters[cols[i_l + 2]]
-                mA_par = (
-                    parameters[cols[i_l + 2]] - w_par - kep_elem[8]
-                ) % 360.0  # mA = lambda - w - lN
-                name_der.append("%s%s" % ("mA", i_NB + 1))
-                der_par.append(mA_par)
-                # print '*** mA_par = ', mA_par
-    return name_der, der_par
+#     return name_der, der_posterior
 
 
 # ==============================================================================
 
 
-def derived_posterior_case3(
-    idpar_NB, id_fit_NB, i_NB, cols, kep_elem, posterior
-):  # fit lambda, icoslN, isinlN
+# def derived_parameters_case1(
+#     idpar_NB, id_fit_NB, i_NB, cols, kep_elem, parameters
+# ):  # fitting lambda || lambda & w || lambda & lN || lamda & w & lN
+#     name_der = []
+#     der_par = []
 
-    name_der = []
-    der_posterior = []
+#     nlist = len(id_fit_NB)
 
-    nlist = len(id_fit_NB)
-    for i_l in range(0, nlist):
+#     for i_l in range(0, nlist):
+#         if id_fit_NB[i_l] == 6:  # lambda
+#             lambda_par = parameters[cols[i_l]]
+#             if i_l > 0:
 
-        if id_fit_NB[i_l] == 7:
-            id_i0, iboot, id_lN0, lNboot = get_trigonometric_posterior(
-                i_NB, i_l, cols[i_l], idpar_NB, posterior
-            )
-            name_der.append(id_i0)
-            name_der.append(id_lN0)
-            der_posterior.append(iboot)
-            der_posterior.append(lNboot)
+#                 if i_l - 1 == 5:  # id 5 == argp
+#                     argp = parameters[cols[i_l - 1]]  # argp as parameter
+#                 else:
+#                     argp = kep_elem[5]  # argp is fixed
 
-            if idpar_NB[i_l + 2][0:2] != "mA":
-                mAboot = (
-                    posterior[:, cols[i_l - 1]] - kep_elem[5] - lNboot
-                ) % 360.0  # mA = lambda - w - lN
-                _, mAboot = get_proper_posterior_correlated(mAboot)
-                name_der.append("%s%s" % ("mA", i_NB + 1))
-                der_posterior.append(mAboot)
+#                 if (
+#                     i_l < nlist - 1 and i_l + 1 == nlist - 1
+#                 ):  # id 6 is not the last --> 8 is the next (longn)
+#                     longn = parameters[cols[i_l + 1]]  # long node as posterior
+#                 else:
+#                     # if(i_l == nlist-1):
+#                     longn = kep_elem[8]  # long of node is fixed
 
-    return name_der, der_posterior
+#             else:
+#                 argp = kep_elem[5]  # argp is fixed
+#                 longn = kep_elem[8]  # longn is fixed
 
+#             a_par = (lambda_par - argp - longn) % 360.0
+#             name_der.append("{:s}{}".format("mA", i_NB + 1))
+#             der_par.append(a_par)
 
-# ==============================================================================
-
-
-def derived_parameters_case3(
-    idpar_NB, id_fit_NB, i_NB, cols, kep_elem, parameters
-):  # fit lambda, icoslN, isinlN
-
-    name_der = []
-    der_par = []
-
-    nlist = len(id_fit_NB)
-    for i_l in range(0, nlist):
-
-        if id_fit_NB[i_l] == 7:
-            id_i0, i_par, id_lN0, lN_par = get_trigonometric_parameters(
-                i_NB, i_l, cols[i_l], idpar_NB, parameters
-            )
-            name_der.append(id_i0)
-            name_der.append(id_lN0)
-            der_par.append(i_par)
-            der_par.append(lN_par)
-
-            if idpar_NB[i_l + 2][0:2] != "mA":
-                mA_par = (
-                    parameters[cols[i_l - 1]] - kep_elem[5] - lN_par
-                ) % 360.0  # mA = lambda - w - lN
-                name_der.append("%s%s" % ("mA", i_NB + 1))
-                der_par.append(mA_par)
-
-    return name_der, der_par
+#     return name_der, der_par
 
 
 # ==============================================================================
 
 
-def derived_posterior_case4(
-    idpar_NB, id_fit_NB, i_NB, cols, kep_elem, posterior
-):  # fit ecosw//sqrt(e)cosw, esinw//sqrt(e)sinw, lambda, icoslN, isinlN
+# def derived_posterior_case2(
+#     idpar_NB, id_fit_NB, i_NB, cols, kep_elem, posterior
+# ):  # fit ecosw//sqrt(e)cosw, esinw//sqrt(e)sinw, lambda
 
-    name_der = []
-    der_posterior = []
+#     name_der = []
+#     der_posterior = []
 
-    nlist = len(id_fit_NB)
-    for i_l in range(0, nlist):
+#     nlist = len(id_fit_NB)
+#     for i_l in range(0, nlist):
 
-        if id_fit_NB[i_l] == 4:
-            id_e0, eboot, id_w0, wboot = get_trigonometric_posterior(
-                i_NB, i_l, cols[i_l], idpar_NB, posterior
-            )
-            name_der.append(id_e0)
-            name_der.append(id_w0)
-            der_posterior.append(eboot)
-            der_posterior.append(wboot)
+#         if id_fit_NB[i_l] == 4:
+#             id_e0, eboot, id_w0, wboot = get_trigonometric_posterior(
+#                 i_NB, i_l, cols[i_l], idpar_NB, posterior
+#             )
+#             name_der.append(id_e0)
+#             name_der.append(id_w0)
+#             der_posterior.append(eboot)
+#             der_posterior.append(wboot)
 
-            id_i0, iboot, id_lN0, lNboot = get_trigonometric_posterior(
-                i_NB, i_l + 3, cols[i_l + 3], idpar_NB, posterior
-            )
-            name_der.append(id_i0)
-            name_der.append(id_lN0)
-            der_posterior.append(iboot)
-            der_posterior.append(lNboot)
+#             if idpar_NB[i_l + 2][0:2] != "mA":
+#                 mAboot = (
+#                     posterior[:, cols[i_l + 2]] - wboot - kep_elem[8]
+#                 ) % 360.0  # mA = lambda - w - lN
+#                 _, mAboot = get_proper_posterior_correlated(mAboot)
+#                 name_der.append("{:s}{}".format("mA", i_NB + 1))
+#                 der_posterior.append(mAboot)
 
-            if idpar_NB[i_l + 2][0:2] != "mA":
-                mAboot = (
-                    posterior[:, cols[i_l + 2]] - wboot - lNboot
-                ) % 360.0  # mA = lambda - w - lN
-                _, mAboot = get_proper_posterior_correlated(mAboot)
-                name_der.append("%s%s" % ("mA", i_NB + 1))
-                der_posterior.append(mAboot)
-
-    return name_der, der_posterior
+#     return name_der, der_posterior
 
 
 # ==============================================================================
 
 
-def derived_parameters_case4(
-    idpar_NB, id_fit_NB, i_NB, cols, kep_elem, parameters
-):  # fit ecosw//sqrt(e)cosw, esinw//sqrt(e)sinw, lambda, icoslN, isinlN
+# def derived_parameters_case2(
+#     idpar_NB, id_fit_NB, i_NB, cols, kep_elem, parameters
+# ):  # fit ecosw//sqrt(e)cosw, esinw//sqrt(e)sinw, lambda
 
-    name_der = []
-    der_par = []
+#     name_der = []
+#     der_par = []
 
-    nlist = len(id_fit_NB)
-    for i_l in range(0, nlist):
+#     nlist = len(id_fit_NB)
+#     for i_l in range(0, nlist):
 
-        if id_fit_NB[i_l] == 4:
-            id_e0, e_par, id_w0, w_par = get_trigonometric_parameters(
-                i_NB, i_l, cols[i_l], idpar_NB, parameters
-            )
-            name_der.append(id_e0)
-            name_der.append(id_w0)
-            der_par.append(e_par)
-            der_par.append(w_par)
+#         if id_fit_NB[i_l] == 4:
+#             id_e0, e_par, id_w0, w_par = get_trigonometric_parameters(
+#                 i_NB, i_l, cols[i_l], idpar_NB, parameters
+#             )
+#             name_der.append(id_e0)
+#             name_der.append(id_w0)
+#             der_par.append(e_par)
+#             der_par.append(w_par)
 
-            id_i0, i_par, id_lN0, lN_par = get_trigonometric_parameters(
-                i_NB, i_l + 3, cols[i_l + 3], idpar_NB, parameters
-            )
-            name_der.append(id_i0)
-            name_der.append(id_lN0)
-            der_par.append(i_par)
-            der_par.append(lN_par)
+#             if idpar_NB[i_l + 2][0:2] != "mA":
+#                 mA_par = (
+#                     parameters[cols[i_l + 2]] - w_par - kep_elem[8]
+#                 ) % 360.0  # mA = lambda - w - lN
+#                 name_der.append("{:s}{}".format("mA", i_NB + 1))
+#                 der_par.append(mA_par)
+#     return name_der, der_par
 
-            if idpar_NB[i_l + 2][0:2] != "mA":
-                mA_par = (
-                    parameters[cols[i_l + 2]] - w_par - lN_par
-                ) % 360.0  # mA = lambda - w - lN
-                name_der.append("%s%s" % ("mA", i_NB + 1))
-                der_par.append(mA_par)
 
-    return name_der, der_par
+# ==============================================================================
+
+
+# def derived_posterior_case3(
+#     idpar_NB, id_fit_NB, i_NB, cols, kep_elem, posterior
+# ):  # fit lambda, icoslN, isinlN
+
+#     name_der = []
+#     der_posterior = []
+
+#     nlist = len(id_fit_NB)
+#     for i_l in range(0, nlist):
+
+#         if id_fit_NB[i_l] == 7:
+#             id_i0, iboot, id_lN0, lNboot = get_trigonometric_posterior(
+#                 i_NB, i_l, cols[i_l], idpar_NB, posterior
+#             )
+#             name_der.append(id_i0)
+#             name_der.append(id_lN0)
+#             der_posterior.append(iboot)
+#             der_posterior.append(lNboot)
+
+#             if idpar_NB[i_l + 2][0:2] != "mA":
+#                 mAboot = (
+#                     posterior[:, cols[i_l - 1]] - kep_elem[5] - lNboot
+#                 ) % 360.0  # mA = lambda - w - lN
+#                 _, mAboot = get_proper_posterior_correlated(mAboot)
+#                 name_der.append("{:s}{}".format("mA", i_NB + 1))
+#                 der_posterior.append(mAboot)
+
+#     return name_der, der_posterior
+
+
+# ==============================================================================
+
+
+# def derived_parameters_case3(
+#     idpar_NB, id_fit_NB, i_NB, cols, kep_elem, parameters
+# ):  # fit lambda, cosicoslN, cosisinlN
+
+#     name_der = []
+#     der_par = []
+
+#     nlist = len(id_fit_NB)
+#     for i_l in range(0, nlist):
+
+#         if id_fit_NB[i_l] == 7:
+#             id_i0, i_par, id_lN0, lN_par = get_trigonometric_parameters(
+#                 i_NB, i_l, cols[i_l], idpar_NB, parameters
+#             )
+#             name_der.append(id_i0)
+#             name_der.append(id_lN0)
+#             der_par.append(i_par)
+#             der_par.append(lN_par)
+
+#             if idpar_NB[i_l + 2][0:2] != "mA":
+#                 mA_par = (
+#                     parameters[cols[i_l - 1]] - kep_elem[5] - lN_par
+#                 ) % 360.0  # mA = lambda - w - lN
+#                 name_der.append("{:s}{}".format("mA", i_NB + 1))
+#                 der_par.append(mA_par)
+
+#     return name_der, der_par
+
+
+# ==============================================================================
+
+
+# def derived_posterior_case4(
+#     idpar_NB, id_fit_NB, i_NB, cols, kep_elem, posterior
+# ):  # fit ecosw//sqrt(e)cosw, esinw//sqrt(e)sinw, lambda, cosicoslN, cosisinlN
+
+#     name_der = []
+#     der_posterior = []
+
+#     nlist = len(id_fit_NB)
+#     for i_l in range(0, nlist):
+
+#         if id_fit_NB[i_l] == 4:
+#             id_e0, eboot, id_w0, wboot = get_trigonometric_posterior(
+#                 i_NB, i_l, cols[i_l], idpar_NB, posterior
+#             )
+#             name_der.append(id_e0)
+#             name_der.append(id_w0)
+#             der_posterior.append(eboot)
+#             der_posterior.append(wboot)
+
+#             id_i0, iboot, id_lN0, lNboot = get_trigonometric_posterior(
+#                 i_NB, i_l + 3, cols[i_l + 3], idpar_NB, posterior
+#             )
+#             name_der.append(id_i0)
+#             name_der.append(id_lN0)
+#             der_posterior.append(iboot)
+#             der_posterior.append(lNboot)
+
+#             if idpar_NB[i_l + 2][0:2] != "mA":
+#                 mAboot = (
+#                     posterior[:, cols[i_l + 2]] - wboot - lNboot
+#                 ) % 360.0  # mA = lambda - w - lN
+#                 _, mAboot = get_proper_posterior_correlated(mAboot)
+#                 name_der.append("{:s}{}".format("mA", i_NB + 1))
+#                 der_posterior.append(mAboot)
+
+#     return name_der, der_posterior
+
+
+# ==============================================================================
+
+
+# def derived_parameters_case4(
+#     idpar_NB, id_fit_NB, i_NB, cols, kep_elem, parameters
+# ):  # fit ecosw//sqrt(e)cosw, esinw//sqrt(e)sinw, lambda, cosicoslN, cosisinlN
+
+#     name_der = []
+#     der_par = []
+
+#     nlist = len(id_fit_NB)
+#     for i_l in range(0, nlist):
+
+#         if id_fit_NB[i_l] == 4:
+#             id_e0, e_par, id_w0, w_par = get_trigonometric_parameters(
+#                 i_NB, i_l, cols[i_l], idpar_NB, parameters
+#             )
+#             name_der.append(id_e0)
+#             name_der.append(id_w0)
+#             der_par.append(e_par)
+#             der_par.append(w_par)
+
+#             id_i0, i_par, id_lN0, lN_par = get_trigonometric_parameters(
+#                 i_NB, i_l + 3, cols[i_l + 3], idpar_NB, parameters
+#             )
+#             name_der.append(id_i0)
+#             name_der.append(id_lN0)
+#             der_par.append(i_par)
+#             der_par.append(lN_par)
+
+#             if idpar_NB[i_l + 2][0:2] != "mA":
+#                 mA_par = (
+#                     parameters[cols[i_l + 2]] - w_par - lN_par
+#                 ) % 360.0  # mA = lambda - w - lN
+#                 name_der.append("{:s}{}".format("mA", i_NB + 1))
+#                 der_par.append(mA_par)
+
+#     return name_der, der_par
 
 
 # ==============================================================================
@@ -2791,7 +3096,6 @@ def derived_posterior_check(derived_names_in, derived_posterior_in):
             or "mA" in derived_names[ider]
             or "lN" in derived_names[ider]
         ):
-            # print derived_names[ider]
             cosp = np.cos(derived_posterior_in[:, ider] * deg2rad)
             sinp = np.sin(derived_posterior_in[:, ider] * deg2rad)
             p_scale = np.arctan2(sinp, cosp) * rad2deg
@@ -2815,293 +3119,576 @@ def derived_parameters_check(derived_names, derived_parameters_in, derived_poste
             or "mA" in derived_names[ider]
             or "lN" in derived_names[ider]
         ):
-            # print '[0]', derived_parameters[ider]
             if np.min(derived_posterior[:, ider]) < 0.0:
-                # print np.min(derived_posterior[:,ider])
                 if np.max(derived_posterior[:, ider]) < 0.0:
-                    # print np.max(derived_posterior[:,ider])
                     derived_parameters[ider] = derived_parameters[ider] % -360.0
             else:
                 derived_parameters[ider] = derived_parameters[ider] % 360.0
-                # print '[1]', derived_parameters[ider]
 
     return derived_parameters
 
 
 # ==============================================================================
+# IT HAS TO BE MODIFIED!!!
 
 
-def compute_derived_posterior(
-    idpar, kep_elem_in, id_fit, case_list, cols_list, posterior, conv_factor=1.0
-):
-    NB = len(case_list)
-    # nfit = len(id_fit)
-    # print 'NB =', NB
-    # print 'np.shape(kep_elem_in) = ',np.shape(kep_elem_in)
+# def compute_derived_posterior(
+#     idpar, kep_elem_in, id_fit, case_list, cols_list, posterior, conv_factor=1.0
+# ):
+#     NB = len(case_list)
 
-    if NB == 2:
-        kep_elem = np.array(kep_elem_in).reshape((1, -1))
-    else:
-        kep_elem = kep_elem_in
+#     if NB == 2:
+#         kep_elem = np.array(kep_elem_in).reshape((1, -1))
+#     else:
+#         kep_elem = kep_elem_in
 
-    # print('np.shape(kep_elem) = ', np.shape(kep_elem))
-    # print(kep_elem)
+#     id_derived = []
+#     der_posterior = []
 
-    # posterior_out = posterior.copy()
+#     cc_fit = 0
 
-    id_derived = []
-    der_posterior = []
+#     for i_NB in range(0, NB):
+#         nfit_NB = len(id_fit[i_NB])
 
-    cc_fit = 0
+#         if nfit_NB > 0:
 
-    for i_NB in range(0, NB):
-        nfit_NB = len(id_fit[i_NB])
+#             idpar_NB = idpar[
+#                 cols_list[i_NB][0] : cols_list[i_NB][-1] + 1
+#             ]  # names of the parameter for the body i_NB
+#             id_fit_NB = id_fit[
+#                 i_NB
+#             ]  # integers that identify the proper type of the fitted parameters
 
-        if nfit_NB > 0:
+#             for i_fit in range(0, nfit_NB):
 
-            idpar_NB = idpar[
-                cols_list[i_NB][0] : cols_list[i_NB][-1] + 1
-            ]  # names of the parameter for the body i_NB
-            id_fit_NB = id_fit[
-                i_NB
-            ]  # integers that identify the proper type of the fitted parameters
+#                 if (
+#                     id_fit[i_NB][i_fit] == 1
+#                 ):  # convert Mp and Mp/Ms into mass unit specified by the user <-> mtype
 
-            for i_fit in range(0, nfit_NB):
+#                     if "Ms" in idpar[cc_fit]:
+#                         mboot = posterior[:, cc_fit] * conv_factor
+#                         xid = "m{:d}".format(i_NB + 1)
+#                         id_derived.append(xid)
+#                         der_posterior.append(mboot)
 
-                if (
-                    id_fit[i_NB][i_fit] == 1
-                ):  # convert Mp and Mp/Ms into mass unit specified by the user <-> mtype
+#                 cc_fit += 1
 
-                    if "Ms" in idpar[cc_fit]:
-                        mboot = posterior[:, cc_fit] * conv_factor
-                        xid = "m%d" % (i_NB + 1)
-                        id_derived.append(xid)
-                        der_posterior.append(mboot)
+#             id_temp, der_temp = [], []
 
-                cc_fit += 1
+#             if case_list[i_NB][0] == 0:
+#                 id_temp, der_temp = derived_posterior_case0(
+#                     idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], posterior
+#                 )
 
-            id_temp, der_temp = [], []
+#             elif case_list[i_NB][0] == 1:
+#                 id_temp, der_temp = derived_posterior_case1(
+#                     idpar_NB,
+#                     id_fit_NB,
+#                     i_NB,
+#                     cols_list[i_NB],
+#                     kep_elem[i_NB - 1, :],
+#                     posterior,
+#                 )
 
-            if case_list[i_NB][0] == 0:
-                id_temp, der_temp = derived_posterior_case0(
-                    idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], posterior
-                )
+#             elif case_list[i_NB][0] == 2:
+#                 id_temp, der_temp = derived_posterior_case2(
+#                     idpar_NB,
+#                     id_fit_NB,
+#                     i_NB,
+#                     cols_list[i_NB],
+#                     kep_elem[i_NB - 1, :],
+#                     posterior,
+#                 )
 
-            elif case_list[i_NB][0] == 1:
-                id_temp, der_temp = derived_posterior_case1(
-                    idpar_NB,
-                    id_fit_NB,
-                    i_NB,
-                    cols_list[i_NB],
-                    kep_elem[i_NB - 1, :],
-                    posterior,
-                )
+#             elif case_list[i_NB][0] == 3:
+#                 id_temp, der_temp = derived_posterior_case3(
+#                     idpar_NB,
+#                     id_fit_NB,
+#                     i_NB,
+#                     cols_list[i_NB],
+#                     kep_elem[i_NB - 1, :],
+#                     posterior,
+#                 )
 
-            elif case_list[i_NB][0] == 2:
-                id_temp, der_temp = derived_posterior_case2(
-                    idpar_NB,
-                    id_fit_NB,
-                    i_NB,
-                    cols_list[i_NB],
-                    kep_elem[i_NB - 1, :],
-                    posterior,
-                )
+#             elif case_list[i_NB][0] == 4:
+#                 id_temp, der_temp = derived_posterior_case4(
+#                     idpar_NB,
+#                     id_fit_NB,
+#                     i_NB,
+#                     cols_list[i_NB],
+#                     kep_elem[i_NB - 1, :],
+#                     posterior,
+#                 )
 
-            elif case_list[i_NB][0] == 3:
-                id_temp, der_temp = derived_posterior_case3(
-                    idpar_NB,
-                    id_fit_NB,
-                    i_NB,
-                    cols_list[i_NB],
-                    kep_elem[i_NB - 1, :],
-                    posterior,
-                )
+#             id_derived.append(id_temp)
+#             der_posterior.append(der_temp)
 
-            elif case_list[i_NB][0] == 4:
-                id_temp, der_temp = derived_posterior_case4(
-                    idpar_NB,
-                    id_fit_NB,
-                    i_NB,
-                    cols_list[i_NB],
-                    kep_elem[i_NB - 1, :],
-                    posterior,
-                )
+#     n_der = 0
+#     n_xder = len(der_posterior)
+#     if n_xder > 0:
+#         n_der_single = []
+#         derived_post = []
+#         names_derived = []
 
-            id_derived.append(id_temp)
-            der_posterior.append(der_temp)
+#         for ii in range(0, n_xder):
+#             temp_names = id_derived[ii]
+#             ntemp = np.size(temp_names)
+#             nls = len(np.shape(temp_names))
+#             n_der_single.append(ntemp)
+#             n_der += ntemp
+#             temp_der = der_posterior[ii]
 
-    n_der = 0
-    n_xder = len(der_posterior)
-    if n_xder > 0:
-        n_der_single = []
-        derived_post = []
-        names_derived = []
+#             if ntemp > 0:
 
-        for ii in range(0, n_xder):
-            # temp_names = np.array(id_derived[ii],dtype=str)
-            temp_names = id_derived[ii]
-            ntemp = np.size(temp_names)
-            nls = len(np.shape(temp_names))
-            n_der_single.append(ntemp)
-            n_der += ntemp
-            # temp_der = np.array(der_posterior[ii],dtype=np.float64)
-            temp_der = der_posterior[ii]
+#                 if ntemp == 1 and nls == 0:
+#                     derived_post.append(temp_der)
+#                     names_derived.append(temp_names)
+#                 else:
+#                     for jj in range(0, ntemp):
+#                         derived_post.append(temp_der[jj])
+#                         names_derived.append(temp_names[jj])
 
-            if ntemp > 0:
+#     # convert l2j_x to jitter_x
+#     for name_par in idpar:
+#         if "l2j_" in name_par:
+#             names_derived.append(name_par.replace("l2j_", "jitter_"))
+#             derived_post.append(2.0 ** posterior[:, idpar.index(name_par)])
 
-                if ntemp == 1 and nls == 0:
-                    derived_post.append(temp_der)
-                    names_derived.append(temp_names)
-                else:
-                    for jj in range(0, ntemp):
-                        derived_post.append(temp_der[jj])
-                        names_derived.append(temp_names[jj])
-
-    # convert l2j_x to jitter_x
-    for name_par in idpar:
-        if "l2j_" in name_par:
-            names_derived.append(name_par.replace("l2j_", "jitter_"))
-            derived_post.append(2.0 ** posterior[:, idpar.index(name_par)])
-
-    return (
-        np.array(names_derived, dtype=str),
-        np.array(derived_post, dtype=np.float64).T,
-    )
+#     return (
+#         np.array(names_derived, dtype=str),
+#         np.array(derived_post, dtype=np.float64).T,
+#     )
 
 
 # ==============================================================================
 
+# def compute_derived_parameters(
+#     idpar, kep_elem_in, id_fit, case_list, cols_list, parameters, conv_factor=1.0
+# ):
+#     NB = len(case_list)
 
-def compute_derived_parameters(
-    idpar, kep_elem_in, id_fit, case_list, cols_list, parameters, conv_factor=1.0
+#     if NB == 2:
+#         kep_elem = np.array(kep_elem_in).reshape((1, -1))
+#     else:
+#         kep_elem = kep_elem_in
+
+#     id_derived = []
+#     der_par = []
+
+#     cc_fit = 0
+
+#     for i_NB in range(0, NB):
+#         nfit_NB = len(id_fit[i_NB])
+
+#         if nfit_NB > 0:
+
+#             idpar_NB = idpar[
+#                 cols_list[i_NB][0] : cols_list[i_NB][-1] + 1
+#             ]  # names of the parameter for the body i_NB
+#             id_fit_NB = id_fit[
+#                 i_NB
+#             ]  # integers that identify the proper type of the fitted parameters
+
+#             for i_fit in range(0, nfit_NB):
+
+#                 if (
+#                     id_fit[i_NB][i_fit] == 1
+#                 ):  # convert Mp and Mp/Ms into mass unit specified by the user <-> mtype
+
+#                     if "Ms" in idpar[cc_fit]:
+#                         m_par = parameters[cc_fit] * conv_factor
+#                         xid = "m{:d}".format(i_NB + 1)
+#                         id_derived.append(xid)
+#                         der_par.append(m_par)
+
+#                 cc_fit += 1
+
+#             id_temp, der_temp = [], []
+
+#             if case_list[i_NB][0] == 0:
+#                 id_temp, der_temp = derived_parameters_case0(
+#                     idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], parameters
+#                 )
+
+#             elif case_list[i_NB][0] == 1:
+#                 id_temp, der_temp = derived_parameters_case1(
+#                     idpar_NB,
+#                     id_fit_NB,
+#                     i_NB,
+#                     cols_list[i_NB],
+#                     kep_elem[i_NB - 1, :],
+#                     parameters,
+#                 )
+
+#             elif case_list[i_NB][0] == 2:
+#                 id_temp, der_temp = derived_parameters_case2(
+#                     idpar_NB,
+#                     id_fit_NB,
+#                     i_NB,
+#                     cols_list[i_NB],
+#                     kep_elem[i_NB - 1, :],
+#                     parameters,
+#                 )
+
+#             elif case_list[i_NB][0] == 3:
+#                 id_temp, der_temp = derived_parameters_case3(
+#                     idpar_NB,
+#                     id_fit_NB,
+#                     i_NB,
+#                     cols_list[i_NB],
+#                     kep_elem[i_NB - 1, :],
+#                     parameters,
+#                 )
+
+#             elif case_list[i_NB][0] == 4:
+#                 id_temp, der_temp = derived_parameters_case4(
+#                     idpar_NB,
+#                     id_fit_NB,
+#                     i_NB,
+#                     cols_list[i_NB],
+#                     kep_elem[i_NB - 1, :],
+#                     parameters,
+#                 )
+
+#             id_derived.append(id_temp)
+#             der_par.append(der_temp)
+
+#     n_der = 0
+#     n_xder = len(der_par)
+#     if n_xder > 0:
+#         n_der_single = []
+#         derived_par = []
+#         names_derived = []
+
+#         for ii in range(0, n_xder):
+#             temp_names = id_derived[ii]
+#             ntemp = np.size(temp_names)
+#             nls = len(np.shape(temp_names))
+#             n_der_single.append(ntemp)
+#             n_der += ntemp
+#             temp_der = der_par[ii]
+
+#             if ntemp > 0:
+
+#                 if ntemp == 1 and nls == 0:
+#                     derived_par.append(temp_der)
+#                     names_derived.append(temp_names)
+#                 else:
+#                     for jj in range(0, ntemp):
+#                         derived_par.append(temp_der[jj])
+#                         names_derived.append(temp_names[jj])
+
+#     # convert l2j_x to jitter_x
+#     for name_par in idpar:
+#         if "l2j_" in name_par:
+#             names_derived.append(name_par.replace("l2j_", "jitter_"))
+#             derived_par.append(2.0 ** parameters[idpar.index(name_par)])
+
+#     return np.array(names_derived, dtype=str), np.array(derived_par, dtype=np.float64).T
+
+
+def update_parameterisation_parameters(fitting_names, fitting_parameters):
+
+    new_fitting_names = fitting_names.copy()
+    new_fitting_parameters = fitting_parameters.copy()
+
+    for i_p, name in enumerate(fitting_names):
+        if "icoslN" in name:
+            id_body = name.split("lN")[1]
+            new_fitting_names[i_p] = "i{}".format(id_body)
+            new_fitting_names[i_p + 1] = "lN{}".format(id_body)
+
+            # take current parameters and posterior
+            cosln = fitting_parameters[i_p]
+            sinln = fitting_parameters[i_p + 1]
+            lon = (np.arctan2(sinln, cosln) * cst.rad2deg) % 360.0
+
+            # if the parameter was icoslN, isinlN
+            inc = np.sqrt(cosln * cosln + sinln * sinln)
+
+            # or if it was cosicoslN, cosisinlN
+            if "cosi" == name[0:4]:
+                inc = np.arccos(inc) * cst.rad2deg
+
+            new_fitting_parameters[i_p] = inc
+            new_fitting_parameters[i_p + 1] = lon
+
+    return new_fitting_names, new_fitting_parameters
+
+
+def update_parameterisation_posterior(fitting_names, fitting_posterior):
+
+    new_fitting_names = fitting_names.copy()
+    new_fitting_posterior = fitting_posterior.copy()
+
+    for i_p, name in enumerate(fitting_names):
+        if "icoslN" in name:
+            id_body = name.split("lN")[1]
+            new_fitting_names[i_p] = "i{}".format(id_body)
+            new_fitting_names[i_p + 1] = "lN{}".format(id_body)
+
+            # take current parameters and posterior
+            cosln = fitting_posterior[:, i_p]
+            sinln = fitting_posterior[:, i_p + 1]
+            lon = (np.arctan2(sinln, cosln) * cst.rad2deg) % 360.0
+
+            # if the parameter was icoslN, isinlN
+            inc = np.sqrt(cosln * cosln + sinln * sinln)
+
+            # or if it was cosicoslN, cosisinlN
+            if "cosi" == name[0:4]:
+                inc = np.arccos(inc) * cst.rad2deg
+
+            new_fitting_posterior[:, i_p] = inc
+            new_fitting_posterior[:, i_p + 1] = lon
+
+    return new_fitting_names, new_fitting_posterior
+
+
+def update_parameterisation_chains(fitting_names, fitting_chains):
+
+    new_fitting_names = fitting_names.copy()
+    new_fitting_chains = fitting_chains.copy()
+
+    for i_p, name in enumerate(fitting_names):
+        if "icoslN" in name:
+            id_body = name.split("lN")[1]
+            new_fitting_names[i_p] = "i{}".format(id_body)
+            new_fitting_names[i_p + 1] = "lN{}".format(id_body)
+
+            # take current parameters and posterior
+            cosln = fitting_chains[:, :, i_p]
+            sinln = fitting_chains[:, :, i_p + 1]
+            lon = (np.arctan2(sinln, cosln) * cst.rad2deg) % 360.0
+
+            # if the parameter was icoslN, isinlN
+            inc = np.sqrt(cosln * cosln + sinln * sinln)
+
+            # or if it was cosicoslN, cosisinlN
+            if "cosi" == name[0:4]:
+                inc = np.arccos(inc) * cst.rad2deg
+
+            new_fitting_chains[:, :, i_p] = inc
+            new_fitting_chains[:, :, i_p + 1] = lon
+
+    return new_fitting_names, new_fitting_chains
+
+
+def compute_physical_parameters(
+    n_bodies,
+    par_fit,
+    names_fit,
+    all_system_parameters,
+    mass_conv_factor=1.0,
+    radius_conv_factor=1.0,
+    posterior_fit=None,
+    mass_post_conv_factor=1.0,
+    radius_post_conv_factor=1.0,
 ):
-    NB = len(case_list)
-    # nfit = len(id_fit)
-    # print 'NB =', NB
-    # print 'np.shape(kep_elem_in) = ',np.shape(kep_elem_in)
 
-    if NB == 2:
-        kep_elem = np.array(kep_elem_in).reshape((1, -1))
-    else:
-        kep_elem = kep_elem_in
+    names_phys = []
+    par_phys = []
+    posterior_phys = []
 
-    # print 'np.shape(kep_elem) = ',np.shape(kep_elem)
+    nfit = len(par_fit)
 
-    id_derived = []
-    der_par = []
+    for i_body in range(1, n_bodies):
 
-    cc_fit = 0
+        idx_body = i_body + 1
 
-    for i_NB in range(0, NB):
-        nfit_NB = len(id_fit[i_NB])
+        mass = None
+        radius = None
+        ecc = None
+        argp = None
+        meana = None
+        meanl = None
+        inc = None
+        longn = None
 
-        if nfit_NB > 0:
+        mass_post = None
+        radius_post = None
+        ecc_post = None
+        argp_post = None
+        meana_post = None
+        meanl_post = None
+        inc_post = None
+        longn_post = None
 
-            idpar_NB = idpar[
-                cols_list[i_NB][0] : cols_list[i_NB][-1] + 1
-            ]  # names of the parameter for the body i_NB
-            id_fit_NB = id_fit[
-                i_NB
-            ]  # integers that identify the proper type of the fitted parameters
+        idx_p = 0
+        # mass: mXMs to Mp
+        keyp = "m{:d}Ms".format(idx_body)
+        if keyp in names_fit:
+            idx_p = names_fit.index(keyp)
+            mass = par_fit[idx_p] * mass_conv_factor
+            names_phys.append("m{:d}".format(idx_body))
+            par_phys.append(mass)
+            if posterior_fit is not None:
+                mass_post = posterior_fit[:, idx_p] * mass_post_conv_factor
+                posterior_phys.append(mass_post)
 
-            for i_fit in range(0, nfit_NB):
+        idx_p = 0
+        # radius: rXRs to Rp (but you shouldn't fit Radius of planet)
+        keyp = "r{:d}Rs".format(idx_body)
+        if keyp in names_fit:
+            idx_p = names_fit.index(keyp)
+            radius = par_fit[idx_p] * radius_conv_factor
+            names_phys.append("r{:d}".format(idx_body))
+            par_phys.append(radius)
+            if posterior_fit is not None:
+                radius_post = posterior_fit[:, idx_p] * radius_post_conv_factor
+                posterior_phys.append(radius_post)
 
-                if (
-                    id_fit[i_NB][i_fit] == 1
-                ):  # convert Mp and Mp/Ms into mass unit specified by the user <-> mtype
+        idx_p, idx_q = 0, 0
+        # ecc, argp: secoswX, sesinwX (also check sqrte) to eX, wX
+        keyp = "secosw{:d}".format(idx_body)
+        if keyp in names_fit:
+            idx_p = names_fit.index(keyp)
+        elif keyp.replace("se", "sqrte") in names_fit:
+            idx_p = names_fit.index(keyp)
+        if idx_p > 0:
+            idx_q = idx_p + 1
+            ecc = par_fit[idx_p] * par_fit[idx_p] + par_fit[idx_q] * par_fit[idx_q]
+            if ecc <= 1.0e-9:
+                ecc = 0.0
+                argp = 90.0
+            else:
+                argp = (
+                    np.arctan2(par_fit[idx_q], par_fit[idx_p]) * cst.rad2deg
+                ) % 360.0
 
-                    if "Ms" in idpar[cc_fit]:
-                        m_par = parameters[cc_fit] * conv_factor
-                        xid = "m%d" % (i_NB + 1)
-                        id_derived.append(xid)
-                        der_par.append(m_par)
+            names_phys.append("e{:d}".format(idx_body))
+            par_phys.append(ecc)
+            names_phys.append("w{:d}".format(idx_body))
+            par_phys.append(argp)
+            if posterior_fit is not None:
+                secwpost = posterior_fit[:, idx_p]
+                seswpost = posterior_fit[:, idx_q]
+                ecc_post = secwpost * secwpost + seswpost * seswpost
+                argp_post = (np.arctan2(seswpost, secwpost) * cst.rad2deg) % 360.0
+                sel_ecc = ecc_post <= 1.0e-9
+                ecc_post[sel_ecc] = 0.0
+                argp_post[sel_ecc] = 90.0
+                posterior_phys.append(ecc_post)
+                posterior_phys.append(argp_post)
+        # ecosw/esinw for backward compatibility
+        idx_p, idx_q = 0, 0
+        keyp = "ecosw{:d}".format(idx_body)
+        if keyp in names_fit:
+            idx_p = names_fit.index(keyp)
+            idx_q = idx_p + 1
+            ecc = np.sqrt(
+                par_fit[idx_p] * par_fit[idx_p] + par_fit[idx_q] * par_fit[idx_q]
+            )
+            if ecc <= 1.0e9:
+                ecc = 0.0
+                argp = 90.0
+            else:
+                argp = (
+                    np.arctan2(par_fit[idx_q], par_fit[idx_p]) * cst.rad2deg
+                ) % 360.0
+            names_phys.append("e{:d}".format(idx_body))
+            par_phys.append(ecc)
+            names_phys.append("w{:d}".format(idx_body))
+            par_phys.append(argp)
+            if posterior_fit is not None:
+                ecwpost = posterior_fit[:, idx_p]
+                eswpost = posterior_fit[:, idx_q]
+                ecc_post = np.sqrt(ecwpost * ecwpost + eswpost * eswpost)
+                argp_post = (np.arctan2(seswpost, secwpost) * cst.rad2deg) % 360.0
+                sel_ecc = ecc_post <= 1.0e9
+                ecc_post[sel_ecc] = 0.0
+                argp_post[sel_ecc] = 90.0
+                posterior_phys.append(ecc_post)
+                posterior_phys.append(argp_post)
 
-                cc_fit += 1
+        # icoslN/isinlN for backward compatibility
+        idx_p, idx_q = 0, 0
+        keyp = "icoslN{:d}".format(idx_body)
+        if keyp in names_fit:
+            idx_p = names_fit.index(keyp)
+            idx_q = idx_p + 1
+            inc = np.sqrt(
+                par_fit[idx_p] * par_fit[idx_p] + par_fit[idx_q] * par_fit[idx_q]
+            )
+            longn = (np.arctan2(par_fit[idx_q], par_fit[idx_p]) * cst.rad2deg) % 360.0
+            names_phys.append("i{:d}".format(idx_body))
+            par_phys.append(inc)
+            names_phys.append("lN{:d}".format(idx_body))
+            par_phys.append(longn)
+            if posterior_fit is not None:
+                iclNpost = posterior_fit[:, idx_p]
+                islNpost = posterior_fit[:, idx_q]
+                inc_post = np.sqrt(iclNpost * iclNpost + islNpost * islNpost)
+                longn_post = (np.arctan2(islNpost, iclNpost) * cst.rad2deg) % 360.0
+                posterior_phys.append(inc_post)
+                posterior_phys.append(longn_post)
 
-            id_temp, der_temp = [], []
+        idx_p = 0
+        # meanA: lambdaX to mAX
+        keyp = "lambda{:d}".format(idx_body)
+        if keyp in names_fit:
+            idx_p = names_fit.index(keyp)
+            meanl = par_fit[idx_p]
+            if posterior_fit is not None:
+                meanl_post = posterior_fit[:, idx_p]
 
-            if case_list[i_NB][0] == 0:
-                id_temp, der_temp = derived_parameters_case0(
-                    idpar_NB, id_fit_NB, i_NB, cols_list[i_NB], parameters
-                )
-
-            elif case_list[i_NB][0] == 1:
-                id_temp, der_temp = derived_parameters_case1(
-                    idpar_NB,
-                    id_fit_NB,
-                    i_NB,
-                    cols_list[i_NB],
-                    kep_elem[i_NB - 1, :],
-                    parameters,
-                )
-
-            elif case_list[i_NB][0] == 2:
-                id_temp, der_temp = derived_parameters_case2(
-                    idpar_NB,
-                    id_fit_NB,
-                    i_NB,
-                    cols_list[i_NB],
-                    kep_elem[i_NB - 1, :],
-                    parameters,
-                )
-
-            elif case_list[i_NB][0] == 3:
-                id_temp, der_temp = derived_parameters_case3(
-                    idpar_NB,
-                    id_fit_NB,
-                    i_NB,
-                    cols_list[i_NB],
-                    kep_elem[i_NB - 1, :],
-                    parameters,
-                )
-
-            elif case_list[i_NB][0] == 4:
-                id_temp, der_temp = derived_parameters_case4(
-                    idpar_NB,
-                    id_fit_NB,
-                    i_NB,
-                    cols_list[i_NB],
-                    kep_elem[i_NB - 1, :],
-                    parameters,
-                )
-
-            id_derived.append(id_temp)
-            der_par.append(der_temp)
-
-    n_der = 0
-    n_xder = len(der_par)
-    if n_xder > 0:
-        n_der_single = []
-        derived_par = []
-        names_derived = []
-
-        for ii in range(0, n_xder):
-            # temp_names = np.array(id_derived[ii],dtype=str)
-            temp_names = id_derived[ii]
-            ntemp = np.size(temp_names)
-            nls = len(np.shape(temp_names))
-            n_der_single.append(ntemp)
-            n_der += ntemp
-            # temp_der = np.array(der_par[ii],dtype=np.float64)
-            temp_der = der_par[ii]
-
-            if ntemp > 0:
-
-                if ntemp == 1 and nls == 0:
-                    derived_par.append(temp_der)
-                    names_derived.append(temp_names)
+            idx_q = 0
+            # get to proper wX
+            if argp is None:
+                keyq = "w{:d}".format(idx_body)
+                if keyq in names_fit:
+                    idx_q = names_fit.index(keyq)
+                    argp = par_fit[idx_q]
+                    if posterior_fit is not None:
+                        argp_post = posterior_fit[:, idx_q]
                 else:
-                    for jj in range(0, ntemp):
-                        derived_par.append(temp_der[jj])
-                        names_derived.append(temp_names[jj])
+                    idx_q = (7 + (idx_body - 2) * 8) - 1  # fortran index to python: -1
+                    argp = all_system_parameters[idx_q]
+                    if posterior_fit is not None:
+                        argp_post = argp
 
+            idx_q = 0
+            # get proper lNX
+            if longn is None:
+                keyq = "lN{:d}".format(idx_body)
+                if keyq in names_fit:
+                    idx_q = names_fit.index(keyq)
+                    longn = par_fit[idx_q]
+                    if posterior_fit is not None:
+                        longn_post = posterior_fit[:, idx_q]
+                else:
+                    idx_q = (10 + (idx_body - 2) * 8) - 1  # fortran index to python: -1
+                    longn = all_system_parameters[idx_q]
+                    if posterior_fit is not None:
+                        longn_post = longn
+
+            meana = (meanl - longn - argp) % 360.0
+            names_phys.append("mA{:d}".format(idx_body))
+            par_phys.append(meana)
+            if posterior_fit is not None:
+                meana_post = (meanl_post - longn_post - argp_post) % 360.0
+                posterior_phys.append(meana_post)
+
+    # check jitter
     # convert l2j_x to jitter_x
-    for name_par in idpar:
-        if "l2j_" in name_par:
-            names_derived.append(name_par.replace("l2j_", "jitter_"))
-            derived_par.append(2.0 ** parameters[idpar.index(name_par)])
+    idx_p = 0
+    # l2j_sel = np.array(["l2j_" in n for n in names_fit])
+    for idx_p, n_fit in enumerate(names_fit):
+        if "l2j_" in n_fit:
+            # idx_p = names_fit.index(n_fit)
+            jitter = 2.0 ** par_fit[idx_p]
+            names_phys.append(n_fit.replace("l2j_", "jitter_"))
+            par_phys.append(jitter)
+            if posterior_fit is not None:
+                jitter_post = 2.0 ** posterior_fit[:, idx_p]
+                posterior_phys.append(jitter_post)
 
-    return np.array(names_derived, dtype=str), np.array(derived_par, dtype=np.float64).T
+    names_phys = np.array(names_phys)
+    par_phys = np.array(par_phys)
+    if posterior_fit is not None:
+        posterior_phys = np.column_stack(posterior_phys)
+
+    return names_phys, par_phys, posterior_phys
 
 
 # ==============================================================================
@@ -3171,11 +3758,14 @@ def get_header(perc_val):
         "-3sigma",
         "+3sigma",
     )
-    header = "# %15s %20s %23s" % ("name", "unit", "parameter")
+    header = "# {:15s} {:20s} {:23s}".format("name", "unit", "parameter")
     perc_str = " ".join(
-        ["%23s" % ("%4.2f-th" % (perc_val[i_p])) for i_p in range(len(perc_val))]
+        [
+            "{:23s}".format("{:4.2f}-th".format(perc_val[i_p]))
+            for i_p in range(len(perc_val))
+        ]
     )
-    header = "%s %s" % (header, perc_str)
+    header = "{:s} {:s}".format(header, perc_str)
 
     return top_header, header
 
@@ -3195,8 +3785,6 @@ def print_parameters(
 
     print_both(top_header, output)
     print_both(header, output)
-    # n_par = parameters.shape[0]
-    # n_par = len(name_parameters)
 
     if sigma_parameters is not None:
         n_sig, n_par = np.shape(sigma_parameters)
@@ -3205,9 +3793,9 @@ def print_parameters(
             if len(unit) == 0:
                 unit = "-"
             sigma_line = " ".join(
-                ["%23.16e" % (sigma_parameters[ii, i_p]) for ii in range(n_sig)]
+                ["{:23.16e}".format(sigma_parameters[ii, i_p]) for ii in range(n_sig)]
             )
-            line = " %15s %20s %23.16e %s" % (
+            line = " {:15s} {:20s} {:23.16e} {:s}".format(
                 name_parameters[i_p],
                 unit,
                 parameters[i_p],
@@ -3232,14 +3820,14 @@ def print_confidence_intervals(
 ):
 
     if conf_interv is not None:
-        header = "# %15s %20s" % ("name", "unit")
+        header = "# {:15s} {:20s}".format("name", "unit")
         perc_str = " ".join(
             [
-                "%23s" % ("%4.2f-th" % (percentiles[i_p]))
+                "{:23s}".format("{:4.2f}-th".format(percentiles[i_p]))
                 for i_p in range(len(percentiles))
             ]
         )
-        header = "%s %s" % (header, perc_str)
+        header = "{:s} {:s}".format(header, perc_str)
         print_both(header, output)
 
         n_par = len(name_parameters)
@@ -3249,11 +3837,11 @@ def print_confidence_intervals(
                 unit = "-"
             ci_line = " ".join(
                 [
-                    "%23.16e" % (conf_interv[ii, i_p])
+                    "{:23.16e}".format(conf_interv[ii, i_p])
                     for ii in range(0, len(percentiles))
                 ]
             )
-            line = "  %15s %23s %s" % (name_parameters[i_p], unit, ci_line)
+            line = " {:15s} {:23s} {:s}".format(name_parameters[i_p], unit, ci_line)
             print_both(line, output)
 
     else:
@@ -3270,7 +3858,7 @@ def print_hdi(
 ):
 
     if conf_interv is not None:
-        header = "# %15s %20s %23s %23s %23s %23s %23s %23s" % (
+        header = "# {:15s} {:20s} {:23s} {:23s} {:23s} {:23s} {:23s} {:23s}".format(
             "name",
             "unit",
             "HDI(68.27%)lower",
@@ -3289,9 +3877,9 @@ def print_hdi(
             if len(unit) == 0:
                 unit = "-"
             ci_line = " ".join(
-                ["%23.16e" % (conf_interv[ii, i_p]) for ii in range(n_hdi)]
+                ["{:23.16e}".format(conf_interv[ii, i_p]) for ii in range(n_hdi)]
             )
-            line = "  %15s %23s %s" % (name_parameters[i_p], unit, ci_line)
+            line = "  {:15s} {:23s} {:s}".format(name_parameters[i_p], unit, ci_line)
             print_both(line, output)
 
     else:
@@ -3345,8 +3933,16 @@ def freedman_diaconis_nbins(x):
     width = 2 * IRQ / n^1/3
     nbins = [ (max-min) / width ]
     """
-    q75 = np.percentile(x, 75.0, interpolation="midpoint")
-    q25 = np.percentile(x, 25.0, interpolation="midpoint")
+    q75 = np.percentile(
+        x,
+        75.0,
+        #
+    )
+    q25 = np.percentile(
+        x,
+        25.0,
+        #
+    )
     irq = np.abs(q75 - q25)
     nx = np.float64(np.shape(x)[0])
     width = 2.0 * irq / np.power(nx, 1.0 / 3.0)
@@ -3396,11 +3992,6 @@ def get_auto_bins(posterior):
     # and Sturges' rule
     nbins = int(np.mean([min(nbins_fd), min(nbins_doa), sturges_nbins(npost)]))
 
-    # print 'fd:',nbins_fd
-    # print 'do:',nbins_doa
-    # print 'st:',sturges_nbins(npost)
-    # print 'nb:',nbins
-
     return nbins
 
 
@@ -3414,26 +4005,16 @@ def get_old_bins(x, rule="sq"):
     nx = np.shape(x)[0]
     nxf = np.float64(nx)
 
-    # if (rule.lower() == 'sqrt'):
     if "sq" in rule.lower():
 
         nbins = int(np.sqrt(np.float64(nx)))
 
-    # elif (rule.lower() == 'sturges'):
     elif "stu" in rule.lower():
 
-        # nbins = int(1. + np.log2(np.float64(nx)))
         nbins = sturges_nbins(nxf)
 
-    # elif (rule.lower() == 'doane'):
     elif "doa" in rule.lower():
 
-        # mux = np.mean(x, axis=0)
-        # stdx = np.std(x, ddof=1, axis=0)
-        # g1 = np.max(np.mean(((x - mux) / stdx) ** 3, axis=0))  # skew
-        ## g1 = np.min(np.mean( ((x-mux)/stdx)**3 , axis=0)) # skew
-        # s_g1 = np.sqrt(6. * (nxf - 2) / ((nxf + 1.) * (nxf + 3.)))
-        # nbins = int(1. + np.log2(nxf) + np.log2(1. + np.abs(g1) / s_g1))
         nbins = doane_nbins(x)
 
     elif "fd" in rule.lower():
@@ -3443,8 +4024,6 @@ def get_old_bins(x, rule="sq"):
     else:  # rice
 
         nbins = int(np.ceil(2.0 * np.power(nxf, 1.0 / 3.0)))
-
-    # if(nbins > 20):  nbins = 20
 
     return nbins
 
@@ -3461,7 +4040,6 @@ def calculate_hdi(x, nbins, alpha=[0.05], mode_output=False):
     # 99.74% ( 0.13th-99.87th) ==> alpha = 1. - 0.9974 = 0.0026
 
     counts, bin_edges = np.histogram(x, bins=nbins)
-    # nbins = len(counts)
 
     bin_width = bin_edges[1] - bin_edges[0]
     hwidth = 0.5 * bin_width
@@ -3562,9 +4140,6 @@ def calculate_hpd(trace):
 
 def convert_fortran2python_strarray(array_str_in, nfit, str_len=10):
 
-    # not working in python3?
-    # temp = np.asarray(array_str_in, dtype=str).reshape((str_len, nfit), order='F').T
-    # tested with python3...it should work...
     temp = [
         array_str_in[r].decode("utf-8")[c] for r in range(nfit) for c in range(str_len)
     ]
@@ -3601,8 +4176,8 @@ def trades_names_to_emcee(trades_names):
     emcee_names = list(trades_names)
     for ifit in range(0, nfit):
         if trades_names[ifit][:2] == "ec":
-            emcee_names[ifit] = "sqrt%s" % (trades_names[ifit])
-            emcee_names[ifit + 1] = "sqrt%s" % (trades_names[ifit + 1])
+            emcee_names[ifit] = "sqrt{:s}".format(trades_names[ifit])
+            emcee_names[ifit + 1] = "sqrt{:s}".format(trades_names[ifit + 1])
 
     return emcee_names
 
@@ -3614,9 +4189,11 @@ def emcee_names_to_trades(emcee_names):
     nfit = np.shape(emcee_names)[0]
     trades_names = list(emcee_names)
     for ifit in range(0, nfit):
-        if (emcee_names[ifit][0:6] == "sqrtec"):
-            trades_names[ifit] = "%s" % (emcee_names[ifit].split("sqrt")[1])
-            trades_names[ifit + 1] = "%s" % (emcee_names[ifit + 1].split("sqrt")[1])
+        if emcee_names[ifit][0:6] == "sqrtec":
+            trades_names[ifit] = "{:s}".format(emcee_names[ifit].split("sqrt")[1])
+            trades_names[ifit + 1] = "{:s}".format(
+                emcee_names[ifit + 1].split("sqrt")[1]
+            )
 
     return trades_names
 
@@ -3648,7 +4225,6 @@ def e_to_sqrte_fitting(fitting_in, names_par):
             ec = fitting_in[ifit]
             es = fitting_in[ifit + 1]
             ss = ec * ec + es * es
-            # sqrte = np.sqrt(np.sqrt(ss))
             sqrte = np.power(ss, 0.25)
             ww_rad = np.arctan2(es, ec)
             fitting_out[ifit] = sqrte * np.cos(ww_rad)
@@ -3668,7 +4244,6 @@ def e_to_sqrte_flatchain(fitting_in, names_par):
             ec = fitting_in[:, ifit]
             es = fitting_in[:, ifit + 1]
             ss = ec * ec + es * es
-            # sqrte = np.sqrt(np.sqrt(ss))
             sqrte = np.power(ss, 0.25)
             ww_rad = np.arctan2(es, ec)
             fitting_out[:, ifit] = sqrte * np.cos(ww_rad)
@@ -3688,7 +4263,6 @@ def e_to_sqrte_chain(fitting_in, names_par):
             ec = fitting_in[:, :, ifit]
             es = fitting_in[:, :, ifit + 1]
             ss = ec * ec + es * es
-            # sqrte = np.sqrt(np.sqrt(ss))
             sqrte = np.power(ss, np.float64(0.25))
             ww_rad = np.arctan2(es, ec)
             fitting_out[:, :, ifit] = sqrte * np.cos(ww_rad)
@@ -3758,7 +4332,7 @@ def sqrte_to_e_chain(fitting_in, names_par):
     _, _, nfit = np.shape(fitting_in)
     fitting_out = np.array(fitting_in, dtype=np.float64).copy()
     for ifit in range(0, nfit):
-        if "sqrtec" in names_par[ifit]  or "se" in names_par[ifit]:
+        if "sqrtec" in names_par[ifit] or "se" in names_par[ifit]:
             sec = fitting_in[:, :, ifit]
             ses = fitting_in[:, :, ifit + 1]
             ee = sec * sec + ses * ses
@@ -3867,7 +4441,11 @@ def compute_lin_ephem_lstsq(T0, eT0):
     Tref0 = T0[nT0 // 2]
     # dT = [np.abs(T0[i + 1] - T0[i]) for i in range(nT0 - 1)]
     dT = np.diff(T0)
-    Pref0 = np.percentile(np.array(dT), 50.0, interpolation="midpoint")
+    Pref0 = np.percentile(
+        np.array(dT),
+        50.0,
+        #
+    )
 
     epo = calculate_epoch(T0, Tref0, Pref0)
     Tref, Pref, _ = lstsq_fit(epo, T0, eT0)
@@ -3937,12 +4515,9 @@ def compute_lin_ephem(T0, eT0=None, epoin=None, modefit="wls"):
         errTT = eT0
 
     if epoin is None:
-        # Tref0 = T0[0]
-        # Tref0 = np.percentile(T0, 50., interpolation='midpoint')
         Tref0 = T0[nT0 // 2]  # T0[int(0.5*nT0)]
         dT = np.diff(T0)  # [np.abs(T0[i+1]-T0[i]) for i in range(nT0-1)]
-        # Pref0 = np.percentile(np.array(dT), 50.0, interpolation='midpoint')
-        Pref0 = dT[(nT0 // 2) - 1]
+        Pref0 = np.min(np.abs(dT))
         epo = calculate_epoch(T0, Tref0, Pref0)
     else:
         epo = epoin
@@ -3975,7 +4550,7 @@ def compute_lin_ephem(T0, eT0=None, epoin=None, modefit="wls"):
         )
         epo = calculate_epoch(T0, Tref, Pref)
 
-    elif modefit == "od":
+    elif modefit == "odr":
         # SCIPY.ODR
         odr_lm = sodr.Model(linear_model)
         if eT0 is not None:
@@ -4042,36 +4617,6 @@ def set_gaussian_lnpar(par, pv):  # par = fitted, pv = prior value [value, nerr,
 # ==============================================================================
 
 
-def lnL_priors(p, priors, names_par, kep_elem, id_fit, case_list, cols_list, m_factor):
-
-    # compute_derived_parameters(idpar, kep_elem_in, id_fit, case_list, cols_list, parameters, conv_factor=1.0)
-    names_phy, p_phy = compute_derived_parameters(
-        names_par, kep_elem, id_fit, case_list, cols_list, p, conv_factor=m_factor
-    )
-    p_phy = np.array(p_phy)
-    ln_penalty = 0.0
-    if len(priors) > 0:
-        for k, v in priors.items():
-            # print(k, v)
-            if k in names_phy:
-                ln_penalty += set_gaussian_lnpar(
-                    [p_phy[i] for i, n in enumerate(names_phy) if n == k][0], v
-                )
-                # print("phy ln_penalty: ", ln_penalty)
-            elif k in names_par:
-                ln_penalty += set_gaussian_lnpar(
-                    [p[i] for i, n in enumerate(names_par) if n == k][0], v
-                )
-                # print("fit ln_penalty: ", ln_penalty)
-
-    # print("final ln_penalty: ", ln_penalty)
-
-    return ln_penalty
-
-
-# ==============================================================================
-
-
 def all_parameters_to_kep_elem(all_par, NB):
 
     # based on how I wrote with trades the XXX_initialElements.dat file
@@ -4103,6 +4648,7 @@ def all_parameters_to_kep_elem(all_par, NB):
 
 # ==============================================================================
 
+
 def compute_proper_sigma(nfit, delta_sigma, parameter_names):
 
     delta_sigma_out = np.ones((nfit)) * delta_sigma
@@ -4120,17 +4666,20 @@ def compute_proper_sigma(nfit, delta_sigma, parameter_names):
 
     return delta_sigma_out
 
+
 # ==============================================================================
 
+
 def compute_initial_walkers(
-    lnprob_sq,
+    lnprob,
     nfit,
     nwalkers,
     fitting_parameters,
     parameters_minmax,
-    parameter_names,
     delta_sigma,
-    of_run,
+    parameter_names,
+    args=(),
+    of_run=None,
 ):
     print_both(
         " Inititializing walkers with delta_sigma = %s" % (str(delta_sigma).strip()),
@@ -4164,7 +4713,7 @@ def compute_initial_walkers(
                 test_p0[parameter_names.index(p_n)] = np.abs(
                     test_p0[parameter_names.index(p_n)]
                 )
-        test_lg = lnprob_sq(test_p0, parameter_names)
+        test_lg = lnprob(test_p0, *args)
         if not np.isinf(test_lg):
             i_p0 += 1
             p0.append(test_p0)
@@ -4179,13 +4728,13 @@ def compute_initial_walkers(
         delta_parameters = np.abs(
             parameters_minmax[:, 1] - parameters_minmax[:, 0]
         )  # DELTA BETWEEN MAX AND MIN OF BOUNDARIES
-        # a new Gaussian starting point each nw_min walkers, 
+        # a new Gaussian starting point each nw_min walkers,
         # keeping at least nw_min walkers Gaussian to the original fitting parameters
         # nw_min = 30
         nw_min = nwalkers // 2
         # n_gpts = int(
         #     (nwalkers - nw_min) / nw_min
-        # ) 
+        # )
         n_gpts = nwalkers - nw_min
         print(" new gaussian starting points: ", n_gpts)
         if n_gpts > 0:
@@ -4211,7 +4760,7 @@ def compute_initial_walkers(
                         parameters_minmax[sel_fit, 0]
                         + delta_parameters[sel_fit] * np.random.random()
                     )
-                    test_lg = lnprob_sq(new_start, parameter_names)
+                    test_lg = lnprob(new_start, *args)
                     if not np.isinf(test_lg):
                         break
                 i_pos = nw_min * i_gpt
@@ -4225,7 +4774,7 @@ def compute_initial_walkers(
                         ],
                         dtype=np.float64,
                     )
-                    test_lg = lnprob_sq(test_p0, parameter_names)
+                    test_lg = lnprob(test_p0, *args)
                     if not np.isinf(test_lg):
                         p0[i_pos] = test_p0
                         print(i_pos, end=" ")
@@ -4239,3 +4788,131 @@ def compute_initial_walkers(
 
     return p0
 
+
+# =============================================================================
+def set_automatic_unit_time(val_d):
+
+    val_h = val_d * cst.day2hour
+    val_m = val_d * cst.day2min
+    val_s = val_d * cst.day2sec
+
+    if val_s < 60.0:
+        scale = [86400.0, "s"]
+    elif 1.0 <= val_m < 60.0:
+        scale = [1440.0, "min"]
+    elif 1.0 <= val_h < 24.0:
+        scale = [24.0, "hours"]
+    else:
+        scale = [1.0, "d"]
+
+    return scale
+
+
+# =============================================================================
+
+
+def de_hdf5_save_one_dataset(de_file, data_name, data, data_type, hdf5_mode="a"):
+
+    de_hdf5 = h5py.File(
+        de_file,
+        hdf5_mode,
+        # libver='latest'
+    )
+    # de_hdf5.swmr_mode = True # ERRORS WHEN ADDING/DELETING/UPDATING DATASETS AND ATTRS!!
+    if data_name in de_hdf5:
+        del de_hdf5[data_name]
+    de_hdf5.create_dataset(data_name, data=data, dtype=data_type, compression="gzip")
+    de_hdf5.close()
+
+    return
+
+
+def de_hdf5_update_attr(de_file, data_name, attrs_name, attrs_value):
+
+    de_hdf5 = h5py.File(
+        de_file,
+        "r+",
+        # libver='latest'
+    )
+    # de_hdf5.swmr_mode = True
+    de_hdf5[data_name].attrs[attrs_name] = attrs_value
+    de_hdf5.close()
+
+    return
+
+
+def de_save_evolution(
+    de_file,
+    npop_de,
+    ngen_de,
+    iter_de,
+    iter_global,
+    nfit,
+    ndata,
+    de_pop,
+    de_fit,
+    de_pop_best,
+    de_fit_best,
+    de_bounds,
+    parameter_names,
+    de_maximize=True,
+):
+
+    # de_file = os.path.join(de_path, 'de_run.hdf5')
+    de_hdf5_save_one_dataset(de_file, "population", de_pop, "f8")
+    de_hdf5_update_attr(de_file, "population", "npop", npop_de)
+    de_hdf5_update_attr(de_file, "population", "ngen", ngen_de)
+    de_hdf5_update_attr(de_file, "population", "iter_de", iter_de)
+    de_hdf5_update_attr(de_file, "population", "iter_global", iter_global + 1)
+    de_hdf5_update_attr(de_file, "population", "nfit", nfit)
+    de_hdf5_update_attr(de_file, "population", "ndata", ndata)
+
+    de_hdf5_save_one_dataset(de_file, "population_fitness", de_fit, "f8")
+
+    de_hdf5_save_one_dataset(de_file, "best_population", de_pop_best, "f8")
+
+    de_hdf5_save_one_dataset(de_file, "best_fitness", de_fit_best, "f8")
+
+    de_hdf5_save_one_dataset(de_file, "parameters_minmax", de_bounds, "f8")
+
+    # best_loc = np.argmax(de_fit_best[:iter_de])
+    # de_hdf5_save_one_dataset(de_file, 'de_parameters', de_pop_best[best_loc,:].copy(), 'f8')
+    de_parameters = de_get_best_parameters(
+        de_fit_best, de_pop_best, iter_de, de_maximize=de_maximize
+    )
+    de_hdf5_save_one_dataset(de_file, "de_parameters", de_parameters, "f8")
+
+    de_hdf5_save_one_dataset(de_file, "parameter_names", parameter_names, "S10")
+
+    return
+
+
+# =============================================================================
+
+
+def de_get_best_parameters(de_fit_best, de_pop_best, iter_de, de_maximize=True):
+
+    loc_best = (
+        np.argmax(de_fit_best[: iter_de + 1])
+        if de_maximize
+        else np.argmin(de_fit_best[: iter_de + 1])
+    )
+
+    de_parameters = de_pop_best[loc_best, :].copy()
+
+    return de_parameters
+
+
+# =============================================================================
+def de_load_parameters(de_file):
+
+    with h5py.File(
+        de_file,
+        mode = "r",
+        # libver='latest',
+        swmr=True
+    ) as de_hdf5:
+        de_parameters = de_hdf5["de_parameters"][...]
+    # de_hdf5.close()
+
+    return de_parameters

@@ -2,6 +2,7 @@ module utils
     use constants
     use parameters
     use custom_type
+    use sorting, only: indexx
 
 contains
 
@@ -35,7 +36,7 @@ contains
         else
             ln_eT0 = zero
         end if
-        ln_const = -(half*real(obsData%dof, dp)*log(dpi)) - (half*(ln_eRV + ln_eT0 + ln_edur))
+        ln_const = -(half*real(obsData%dof, dp)*log(dpi))-(half*(ln_eRV+ln_eT0+ln_edur))
 
     end function get_ln_err_const
 
@@ -62,13 +63,13 @@ contains
 
         if (obsData_in%nTTs .gt. 0) then
 
-            do ipl = 1, NB - 1
+            do ipl = 1, NB-1
                 if (obsData_in%obsT0(ipl)%nT0 .gt. 0) then
-                    ln_eT0 = ln_eT0 + sum(log(pack(&
+                    ln_eT0 = ln_eT0+sum(log(pack(&
                       &obsData_in%obsT0(ipl)%eT0, obsData_in%obsT0(ipl)%eT0 /= zero)*&
                       &pack(obsData_in%obsT0(ipl)%eT0, obsData_in%obsT0(ipl)%eT0 /= zero)&
                       &))
-                    if (durcheck .eq. 1) ln_edur = ln_edur + sum(log(&
+                    if (durcheck .eq. 1) ln_edur = ln_edur+sum(log(&
                       &pack(obsData_in%obsT0(ipl)%edur, obsData_in%obsT0(ipl)%edur /= zero)*&
                       &pack(obsData_in%obsT0(ipl)%edur, obsData_in%obsT0(ipl)%edur /= zero)&
                       &))
@@ -79,7 +80,7 @@ contains
         end if
 
         ln_const = -(half*real(obsData_in%ndata, dp)*log(dpi))&
-          &- (half*(ln_eRV + ln_eT0 + ln_edur))
+          &-(half*(ln_eRV+ln_eT0+ln_edur))
 
     end function get_lnec
 
@@ -103,22 +104,22 @@ contains
             aRV = 0
             bRV = 0
             do iset = 1, nset
-                aRV = bRV + 1
-                bRV = bRV + obsData_in%obsRV%nRVsingle(iset)
-                ln_eRV = ln_eRV + sum(log(obsData_in%obsRV%eRV(aRV:bRV)**2 + jitter(iset)**2))
+                aRV = bRV+1
+                bRV = bRV+obsData_in%obsRV%nRVsingle(iset)
+                ln_eRV = ln_eRV+sum(log(obsData_in%obsRV%eRV(aRV:bRV)**2+jitter(iset)**2))
             end do
 
         end if
 
         if (obsData_in%nTTs .gt. 0) then
 
-            do ipl = 1, NB - 1
+            do ipl = 1, NB-1
                 if (obsData_in%obsT0(ipl)%nT0 .gt. 0) then
-                    ln_eT0 = ln_eT0 + sum(log(pack(&
+                    ln_eT0 = ln_eT0+sum(log(pack(&
                       &obsData_in%obsT0(ipl)%eT0, obsData_in%obsT0(ipl)%eT0 /= zero)*&
                       &pack(obsData_in%obsT0(ipl)%eT0, obsData_in%obsT0(ipl)%eT0 /= zero)&
                       &))
-                    if (durcheck .eq. 1) ln_edur = ln_edur + sum(log(&
+                    if (durcheck .eq. 1) ln_edur = ln_edur+sum(log(&
                       &pack(obsData_in%obsT0(ipl)%edur, obsData_in%obsT0(ipl)%edur /= zero)*&
                       &pack(obsData_in%obsT0(ipl)%edur, obsData_in%obsT0(ipl)%edur /= zero)&
                       &))
@@ -129,7 +130,7 @@ contains
         end if
 
         ln_const = -(half*real(obsData_in%ndata, dp)*log(dpi))&
-          &- (half*(ln_eRV + ln_eT0 + ln_edur))
+          &-(half*(ln_eRV+ln_eT0+ln_edur))
 
     end function get_lnec_full
 
@@ -150,9 +151,9 @@ contains
         nRV = obsRV%nRV
         if (nRV .gt. 0) then
             do iRV = 1, nRV
-                xRV = obsRV%RV(iRV) - (simRV%RV(iRV) + simRV%gamma_rv(iRV) + simRV%trend(iRV))
+                xRV = obsRV%RV(iRV)-(simRV%RV(iRV)+simRV%gamma_rv(iRV)+simRV%trend(iRV))
                 RVset = simRV%RVsetID(iRV)
-                resw(iRV) = xRV/sqrt(obsRV%eRV(iRV)**2 + simRV%jitter(RVset)**2)
+                resw(iRV) = xRV/sqrt(obsRV%eRV(iRV)**2+simRV%jitter(RVset)**2)
                 ! write(*,*)iRV, RVset, obsRV%RV(iRV),&
                 !   &simRV%RV(iRV), simRV%gamma_rv(iRV), simRV%trend(iRV),&
                 !   &simRV%jitter(RVset),resw(iRV)
@@ -177,12 +178,12 @@ contains
         a = 0
         b = 0
         do j = 2, NB
-            j1 = j - 1
+            j1 = j-1
             nT0 = obsT0(j1)%nT0
             if (nT0 .gt. 0) then
-                a = a + 1
-                b = b + nT0
-                resw(a:b) = (obsT0(j1)%T0 - simT0(j1)%T0)/obsT0(j1)%eT0
+                a = a+1
+                b = b+nT0
+                resw(a:b) = (obsT0(j1)%T0-simT0(j1)%T0)/obsT0(j1)%eT0
                 a = b
             end if
         end do
@@ -205,12 +206,12 @@ contains
         a = 0
         b = 0
         do j = 2, NB
-            j1 = j - 1
+            j1 = j-1
             nd = obsT0(j1)%nDur
             if (nd .gt. 0) then
-                a = a + 1
-                b = b + nd
-                resw(a:b) = (obsT0(j1)%dur - simT0(j1)%dur)/obsT0(j1)%edur
+                a = a+1
+                b = b+nd
+                resw(a:b) = (obsT0(j1)%dur-simT0(j1)%dur)/obsT0(j1)%edur
                 a = b
             end if
         end do
@@ -235,16 +236,16 @@ contains
         a = 0
         b = 0
         do i_body = 2, NB
-            nTx = obsT0(i_body - 1)%nT0
+            nTx = obsT0(i_body-1)%nT0
 
             if (nTx .gt. 0) then
-                a = a + 1
-                b = b + nTx
+                a = a+1
+                b = b+nTx
                 ! it computes the linear ephemeris from simulated data
                 ! call set_ephem(simT0(i_body-1))
-                call set_ephem_simT0(simT0(i_body - 1))
-                call compute_oc_one_planet(simT0(i_body - 1))
-                resw(a:b) = (obsT0(i_body - 1)%oc - simT0(i_body - 1)%oc)/obsT0(i_body - 1)%eT0
+                call set_ephem_simT0(simT0(i_body-1))
+                call compute_oc_one_planet(simT0(i_body-1))
+                resw(a:b) = (obsT0(i_body-1)%oc-simT0(i_body-1)%oc)/obsT0(i_body-1)%eT0
                 a = b
             end if
         end do
@@ -253,7 +254,6 @@ contains
     end subroutine set_oc_resw
 
 ! ===============================================================================================
-
     subroutine set_fitness_values(fit_parameters, chi_square, &
       &reduced_chi_square, lnLikelihood, ln_const, bic)
         ! Input
@@ -276,8 +276,8 @@ contains
 
         ln_const = zero
         if (nRVset .gt. 0) then
-            ns = nkel + 1
-            ne = nkel + nRVset
+            ns = nkel+1
+            ne = nkel+nRVset
             allocate (jitter(nRVset))
             jitter = two**fit_parameters(ns:ne)
             ln_const = get_lnec_full(obsData, jitter)
@@ -286,10 +286,10 @@ contains
             ln_const = get_lnec(obsData)
         end if
 
-        lnLikelihood = -half*chi_square + ln_const
+        lnLikelihood = -half*chi_square+ln_const
 
         ! bic = -two*lnLikelihood + real(nfit,dp)*log(real(ndata,dp))
-        bic = -two*lnLikelihood + bic_const ! bic_const global variable
+        bic = -two*lnLikelihood+bic_const ! bic_const global variable
 
         return
     end subroutine set_fitness_values
@@ -329,14 +329,14 @@ contains
             allocate (val_oc(nTTs))
             val_oc = zero
             call set_oc_resw(oDataIn%obsT0, simT0, val_oc)
-            val(nRV + 1:nRV + nTTs) = val_oc
+            val(nRV+1:nRV+nTTs) = val_oc
             deallocate (val_oc)
 
             if (durcheck .eq. 1) then
                 allocate (val_dur(nDurs))
                 val_dur = zero
                 call set_dur_resw(oDataIn%obsT0, simT0, val_dur)
-                val(nRV + nTTs + 1:nRV + nTTs + nDurs) = val_dur
+                val(nRV+nTTs+1:nRV+nTTs+nDurs) = val_dur
                 deallocate (val_dur)
             end if
 
@@ -348,14 +348,14 @@ contains
             call set_T0_resw(oDataIn%obsT0, simT0, val_T0)
             val_oc = zero
             call set_oc_resw(oDataIn%obsT0, simT0, val_oc)
-            val(nRV + 1:nRV + nTTs) = sqrt_half*sqrt(val_T0*val_T0 + val_oc*val_oc)
+            val(nRV+1:nRV+nTTs) = sqrt_half*sqrt(val_T0*val_T0+val_oc*val_oc)
             deallocate (val_T0, val_oc)
 
             if (durcheck .eq. 1) then
                 allocate (val_dur(nDurs))
                 val_dur = zero
                 call set_dur_resw(oDataIn%obsT0, simT0, val_dur)
-                val(nRV + nTTs + 1:nRV + nTTs + nDurs) = val_dur
+                val(nRV+nTTs+1:nRV+nTTs+nDurs) = val_dur
                 deallocate (val_dur)
             end if
 
@@ -367,7 +367,7 @@ contains
             ! write(*,*)" DEBUG: || set_T0_resw"
             call set_T0_resw(oDataIn%obsT0, simT0, val_T0)
             ! write(*,*)" DEBUG: || sum(val_T0*val_T0) = ",sum(val_T0*val_T0)
-            val(nRV + 1:nRV + nTTs) = val_T0
+            val(nRV+1:nRV+nTTs) = val_T0
             ! write(*,*)" DEBUG: || sum(val*val) = ",sum(val*val)
             deallocate (val_T0)
 
@@ -375,7 +375,7 @@ contains
                 allocate (val_dur(nDurs))
                 val_dur = zero
                 call set_dur_resw(oDataIn%obsT0, simT0, val_dur)
-                val(nRV + nTTs + 1:nRV + nTTs + nDurs) = val_dur
+                val(nRV+nTTs+1:nRV+nTTs+nDurs) = val_dur
                 deallocate (val_dur)
             end if
 
@@ -411,5 +411,127 @@ contains
 
         return
     end subroutine check_max_residuals
+
+    subroutine linrange(start_val, end_val, step, vector, nvec)
+        ! **Input**
+        real(dp), intent(in)::start_val, end_val, step
+        ! **Output**
+        real(dp), dimension(:), allocatable, intent(out)::vector
+        integer, intent(out)::nvec
+        ! **local variables**
+        real(dp)::delta
+        integer::n0, n1, ivec
+
+        n0 = int((end_val-start_val)/step)+1
+        n1 = n0+1
+
+        delta = end_val-step*real(n0-1, dp)
+        if (abs(delta) .le. TOL_dp) then
+            nvec = n0
+        else
+            nvec = n1
+        end if
+        allocate (vector(nvec))
+        ! do ivec=1,nvec
+        !     vector(ivec) = start_val + step*ivec
+        !     if(ivec.eq.nvec)then
+        !         vector(ivec) = end_val
+        !     end if
+        ! end do
+        do ivec = 1, nvec-1
+            vector(ivec) = start_val+step*(ivec-1)
+        end do
+        vector(nvec) = end_val
+
+        return
+    end subroutine linrange
+
+        ! subroutine to prepare steps of the integration, for each of this step
+    ! a check of RV and T0 will be performed.
+    subroutine set_check_steps(t_epoch, time_to_int, step, observed_data, n_all, all_steps, all_idx)
+        ! **Input**
+        real(dp), intent(in)::t_epoch, time_to_int, step
+        type(dataObs), intent(in)::observed_data
+        ! **Output**
+        integer, intent(out)::n_all
+        real(dp), dimension(:), allocatable, intent(out)::all_steps
+        integer, dimension(:), allocatable, intent(out)::all_idx
+        ! **local variables**
+        integer::nRV
+        real(dp), dimension(:), allocatable::t_check_steps, t_rv, sel_t_rv
+        integer, dimension(:), allocatable::check_idx, rv_idx, sel_rv_idx, sort_idx
+        logical, dimension(:), allocatable::sel_rv
+        integer::i_rv, n_checks, i_all
+
+        nRV = observed_data%obsRV%nRV
+
+        ! prepare vector with steps to check, based only on time and step
+        call linrange(zero, time_to_int, step, t_check_steps, n_checks)
+        allocate (check_idx(n_checks))
+        check_idx = 0 ! all zero, not needed to check RV
+        if (nRV .gt. 0) then
+            ! prepare RV times and index, based on the sign of time
+            allocate (t_rv(nRV), rv_idx(nRV), sel_rv(nRV))
+            t_rv = obsData%obsRV%jd-t_epoch
+            rv_idx = (/(i_rv, i_rv=1, nRV)/)
+            if (time_to_int .lt. zero) then
+                sel_rv = t_rv .lt. zero
+            else
+                sel_rv = t_rv .ge. zero
+            end if
+            sel_t_rv = pack(t_rv, sel_rv)
+            sel_rv_idx = pack(rv_idx, sel_rv)
+            deallocate (t_rv, rv_idx, sel_rv)
+            ! concatenate check and rv steps
+            all_steps = [t_check_steps, sel_t_rv]
+            all_idx = [check_idx, sel_rv_idx]
+            n_all = size(all_idx)
+            deallocate (sel_rv_idx)
+        else
+            n_all = n_checks
+            allocate (all_steps(n_all))
+            all_steps = t_check_steps
+            all_idx = check_idx
+        end if
+
+        deallocate (t_check_steps, check_idx)
+        ! prepare sorting vector
+        allocate (sort_idx(n_all))
+        call indexx(all_steps, sort_idx) ! get the sort in ascending order!
+        ! needed to reverse the order if time_to_int < 0
+        if (time_to_int .lt. zero) then
+            sort_idx = sort_idx((/(i_all, i_all=n_all, 1, -1)/))
+        end if
+        ! sort the vectors with all the steps and idx
+        all_steps = all_steps(sort_idx)
+        all_idx = all_idx(sort_idx) ! 0 if no RV, > 1 if RV to check, idx of RV position in obsData%obsRV
+
+        return
+    end subroutine set_check_steps
+
+    subroutine set_transiting_bodies(transiting_body, do_transit_check, body_transiting_start, body_transiting_end)
+        !Input
+        integer,intent(in)::transiting_body
+        !Output
+        logical,intent(out)::do_transit_check
+        integer,intent(out)::body_transiting_start, body_transiting_end
+
+        ! == NEW ==
+        ! by default it will check the transit of all the planets (2->NB)
+        do_transit_check = .true.
+        body_transiting_start = 2
+        body_transiting_end = NB
+        if ((transiting_body .lt. 1) .or. (transiting_body .gt. NB)) then
+            do_transit_check = .false.
+        else
+            if (transiting_body .gt. 1) then
+                body_transiting_start = transiting_body
+                body_transiting_end = transiting_body
+            end if
+        end if
+        ! ========
+
+        return
+    end subroutine set_transiting_bodies
 
 end module utils

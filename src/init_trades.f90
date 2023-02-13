@@ -3,6 +3,7 @@
 module init_trades
     use constants
     use custom_type
+    use celestial_mechanics
     use parameters
     use parameters_conversion
     use convert_type, only: string
@@ -32,7 +33,7 @@ contains
                 newunit = unit2(set, cpu)
                 exit uloop
             end if
-            set = set + 1
+            set = set+1
         end do uloop
 
         return
@@ -52,7 +53,7 @@ contains
             read (unit, *, IOSTAT=stat) comment
             comment = trim(adjustl(comment))
             if (IS_IOSTAT_END(stat)) exit count
-            if (comment(1:1) .ne. "#" .and. len(trim(comment)) .gt. 0) nrows = nrows + 1
+            if (comment(1:1) .ne. "#" .and. len(trim(comment)) .gt. 0) nrows = nrows+1
         end do count
         rewind (unit)
 
@@ -70,9 +71,9 @@ contains
         allocate (unit2(nf, nc))
         unit2 = 0
         do kc = 1, nc
-            kc1 = nf*(kc - 1)
+            kc1 = nf*(kc-1)
             do kf = 1, nf
-                set = 10 + kf + kc1
+                set = 10+kf+kc1
                 unit2(kf, kc) = set
             end do
         end do
@@ -136,7 +137,7 @@ contains
     ! initialize the vector for the selection of the parameter to be fitted
     subroutine tofit_init()
 
-        npar = 2 + (NB - 1)*8
+        npar = 2+(NB-1)*8
         if (.not. allocated(tofit)) allocate (tofit(npar))
 
         return
@@ -145,7 +146,7 @@ contains
 
     ! ------------------------------------------------------------------ !
     subroutine set_cpus(ncpu_argin, ncpu_global)
-!$      use omp_lib
+        !$ use omp_lib
         integer, intent(inout)::ncpu_argin, ncpu_global
         integer::max_ncpu
 
@@ -153,7 +154,7 @@ contains
 
         !$omp parallel default(shared)
         !$omp master
-!$      max_ncpu = omp_get_num_threads()
+        !$ max_ncpu = omp_get_num_threads()
         !$omp end master
         !$omp end parallel
 
@@ -164,11 +165,6 @@ contains
             ncpu_global = 1
             ncpu_argin = 1
         end if
-
-!     write(*,*)' ******** 2) max_ncpu = ',max_ncpu
-!     write(*,*)' ******** 2)  ncpu_argin = ',ncpu_argin
-!     write(*,*)' ******** 2)     ncpu_global = ',ncpu_global
-!     stop
 
         return
     end subroutine set_cpus
@@ -196,62 +192,62 @@ contains
                 if (len(trim(line)) .ne. 0) then
                     if (line(1:1) .ne. "#") then
                         idh = index(line, "#")
-                        if (idh .eq. 0) idh = len(trim(line)) + 1
+                        if (idh .eq. 0) idh = len(trim(line))+1
                         idx = index(line, "=")
 
                         if (idx .ne. 0) then
-                            if (line(1:idx - 1) .eq. 'progtype') then
-                                read (line(idx + 1:idh), *) progtype
-                            else if (line(1:idx - 1) .eq. 'nboot') then
-                                read (line(idx + 1:idh), *) nboot
-                            else if (line(1:idx - 1) .eq. 'NB') then
-                                read (line(idx + 1:idh), *) NB
-                            else if (line(1:idx - 1) .eq. 'idtra') then
-                                read (line(idx + 1:idh), *) idtra
-                            else if (line(1:idx - 1) .eq. 'durcheck') then
-                                read (line(idx + 1:idh), *) durcheck
-                            else if (line(1:idx - 1) .eq. 'wrtorb') then
-                                read (line(idx + 1:idh), *) wrtorb
-                            else if (line(1:idx - 1) .eq. 'wrtconst') then
-                                read (line(idx + 1:idh), *) wrtconst
-                            else if (line(1:idx - 1) .eq. 'wrtel') then
-                                read (line(idx + 1:idh), *) wrtel
-                            else if (line(1:idx - 1) .eq. 'rvcheck') then
-                                read (line(idx + 1:idh), *) rvcheck
-                            else if (line(1:idx - 1) .eq. 'rv_trend_order') then
-                                read (line(idx + 1:idh), *) rv_trend_order
-                            else if (line(1:idx - 1) .eq. 'idpert') then
-                                read (line(idx + 1:idh), *) idpert
-                            else if (line(1:idx - 1) .eq. 'lmon') then
-                                read (line(idx + 1:idh), *) lmon
-                            else if (line(1:idx - 1) .eq. 'tepoch') then
-                                read (line(idx + 1:idh), *) tepoch
-                            else if (line(1:idx - 1) .eq. 'tstart') then
-                                read (line(idx + 1:idh), *) tstart
-                            else if (line(1:idx - 1) .eq. 'tint') then
-                                read (line(idx + 1:idh), *) tint
-                            else if (line(1:idx - 1) .eq. 'step') then
-                                read (line(idx + 1:idh), *) step_0
-                            else if (line(1:idx - 1) .eq. 'wrttime') then
-                                read (line(idx + 1:idh), *) wrttime
-                            else if (line(1:idx - 1) .eq. 'tol_int') then
-                                read (line(idx + 1:idh), *) tol_int
-                            else if (line(1:idx - 1) .eq. 'bootstrap_scaling') then
-                                read (line(idx + 1:idh), *) bootstrap_scaling
-                            else if (line(1:idx - 1) .eq. 'secondary_parameters') then
-                                read (line(idx + 1:idh), *) secondary_parameters
-                            else if (line(1:idx - 1) .eq. 'do_hill_check') then
-                                read (line(idx + 1:idh), *) hill_temp
+                            if (line(1:idx-1) .eq. 'progtype') then
+                                read (line(idx+1:idh), *) progtype
+                            else if (line(1:idx-1) .eq. 'nboot') then
+                                read (line(idx+1:idh), *) nboot
+                            else if (line(1:idx-1) .eq. 'NB') then
+                                read (line(idx+1:idh), *) NB
+                            else if (line(1:idx-1) .eq. 'idtra') then
+                                read (line(idx+1:idh), *) idtra
+                            else if (line(1:idx-1) .eq. 'durcheck') then
+                                read (line(idx+1:idh), *) durcheck
+                            else if (line(1:idx-1) .eq. 'wrtorb') then
+                                read (line(idx+1:idh), *) wrtorb
+                            else if (line(1:idx-1) .eq. 'wrtconst') then
+                                read (line(idx+1:idh), *) wrtconst
+                            else if (line(1:idx-1) .eq. 'wrtel') then
+                                read (line(idx+1:idh), *) wrtel
+                            else if (line(1:idx-1) .eq. 'rvcheck') then
+                                read (line(idx+1:idh), *) rvcheck
+                            else if (line(1:idx-1) .eq. 'rv_trend_order') then
+                                read (line(idx+1:idh), *) rv_trend_order
+                            else if (line(1:idx-1) .eq. 'idpert') then
+                                read (line(idx+1:idh), *) idpert
+                            else if (line(1:idx-1) .eq. 'lmon') then
+                                read (line(idx+1:idh), *) lmon
+                            else if (line(1:idx-1) .eq. 'tepoch') then
+                                read (line(idx+1:idh), *) tepoch
+                            else if (line(1:idx-1) .eq. 'tstart') then
+                                read (line(idx+1:idh), *) tstart
+                            else if (line(1:idx-1) .eq. 'tint') then
+                                read (line(idx+1:idh), *) tint
+                            else if (line(1:idx-1) .eq. 'step') then
+                                read (line(idx+1:idh), *) step_0
+                            else if (line(1:idx-1) .eq. 'wrttime') then
+                                read (line(idx+1:idh), *) wrttime
+                            else if (line(1:idx-1) .eq. 'tol_int') then
+                                read (line(idx+1:idh), *) tol_int
+                            else if (line(1:idx-1) .eq. 'bootstrap_scaling') then
+                                read (line(idx+1:idh), *) bootstrap_scaling
+                            else if (line(1:idx-1) .eq. 'secondary_parameters') then
+                                read (line(idx+1:idh), *) secondary_parameters
+                            else if (line(1:idx-1) .eq. 'do_hill_check') then
+                                read (line(idx+1:idh), *) hill_temp
                                 do it = 1, 4
                                     if (hill_temp .eq. list_true(it)) then
                                         do_hill_check = .true.
                                         exit
                                     end if
                                 end do
-                            else if (line(1:idx - 1) .eq. 'oc_fit') then
-                                read (line(idx + 1:idh), *) oc_fit
-                            else if (line(1:idx - 1) .eq. 'ncpu') then
-                                read (line(idx + 1:idh), *) ncpu_in
+                            else if (line(1:idx-1) .eq. 'oc_fit') then
+                                read (line(idx+1:idh), *) oc_fit
+                            else if (line(1:idx-1) .eq. 'ncpu') then
+                                read (line(idx+1:idh), *) ncpu_in
                             end if
                         end if
 
@@ -300,26 +296,26 @@ contains
                 if (IS_IOSTAT_END(stat)) exit readbody
 
                 if (temp(1:1) .ne. "#") then
-                    i = i + 1 ! row
-                    i1 = index(temp, ' ') - 1
-                    i2 = i1 + 2
+                    i = i+1 ! row
+                    i1 = index(temp, ' ')-1
+                    i2 = i1+2
                     bfiles(i) = trim(adjustl(temp(1:i1)))
-                    bnames(i) = trim(adjustl(temp(1:i1 - 4)))
+                    bnames(i) = trim(adjustl(temp(1:i1-4)))
 
                     if (i .eq. 1) then ! row 1 == star
 
                         do j = 1, 2
                             fitpar = temp(i2:i2)
                             read (fitpar, *) tofit(j)
-                            i2 = i2 + 2
+                            i2 = i2+2
                         end do
 
                     else ! row from 2 to NB == planets
                         do j = 1, 8 ! read fitting parameters: 1 fit, 0 no fit
-                            pos = i + j + (i - 2)*7
+                            pos = i+j+(i-2)*7
                             fitpar = temp(i2:i2)
                             read (fitpar, *) tofit(pos)
-                            i2 = i2 + 2
+                            i2 = i2+2
                         end do
 
                         ih = index(temp(1:len(trim(adjustl(temp)))), '#')
@@ -369,7 +365,7 @@ contains
             read (uread, *) epsfcn
             read (uread, *) nprint
             close (uread)
-            if (maxfev .le. 0) maxfev = 500*(nfit + 1)
+            if (maxfev .le. 0) maxfev = 500*(nfit+1)
             if (ftol .le. zero) ftol = TOLERANCE
             if (xtol .le. zero) xtol = TOLERANCE
             if (gtol .le. zero) gtol = TOLERANCE
@@ -378,7 +374,7 @@ contains
             ncpu = 1
             !$omp parallel NUM_THREADS(ncpu_in)
             !$omp master
-!$          ncpu = omp_get_num_threads()
+            !$ ncpu = omp_get_num_threads()
             if (.not. allocated(lmtols)) allocate (lmtols(ncpu, 4))
             lmtols(:, 1) = xtol
             lmtols(:, 2) = ftol
@@ -434,7 +430,7 @@ contains
     ! col 3 == maximum value of the orbital elements
     ! in case of grid the files will be re-read in a different way
     subroutine read_fullpar(cpuid, mass, radius, period, sma, ecc, argp, meana, inc, longn, all_parameters)
-        use celestial_mechanics, only: get_semax, get_period, tau2mA!,mA2tau
+        ! use celestial_mechanics, only: get_semax, get_period, tau2mA!,mA2tau
         integer, intent(in)::cpuid
         real(dp), dimension(:), allocatable, intent(out)::mass, radius, period, sma, ecc, argp, meana, inc, longn
         real(dp), dimension(:), allocatable, intent(out)::all_parameters
@@ -445,6 +441,7 @@ contains
         logical::fstat, bstat
         character(512)::temp_line
         real(dp)::temp1, temp2
+        real(dp)::sma1, sma2
 
         MR_star = zero ! init MR_star to zero value: in 'parameters' module
 
@@ -466,7 +463,7 @@ contains
 
             close (unit)
 
-            allocate (Pvec(NB - 1))
+            allocate (Pvec(NB-1))
             if (.not. allocated(all_parameters)) allocate (all_parameters(npar))
             if (.not. allocated(par_min)) allocate (par_min(npar), par_max(npar))
             all_parameters = zero
@@ -476,17 +473,17 @@ contains
             ! Mstar
             mass(1) = MR_star(1, 1)
             all_parameters(1) = MR_star(1, 1)
-            par_min(1) = max(MR_star(1, 1) - 20.0_dp*MR_star(1, 2), zero)
-            par_max(1) = MR_star(1, 1) + 20.0_dp*MR_star(1, 2)
+            par_min(1) = max(MR_star(1, 1)-20.0_dp*MR_star(1, 2), zero)
+            par_max(1) = MR_star(1, 1)+20.0_dp*MR_star(1, 2)
 
             ! Rstar
             radius(1) = MR_star(2, 1)
             all_parameters(2) = MR_star(2, 1)
-            par_min(2) = max(MR_star(2, 1) - 20.0_dp*MR_star(2, 2), zero)
-            par_max(2) = MR_star(2, 1) + 20.0_dp*MR_star(2, 2)
+            par_min(2) = max(MR_star(2, 1)-20.0_dp*MR_star(2, 2), zero)
+            par_max(2) = MR_star(2, 1)+20.0_dp*MR_star(2, 2)
 
             readpar: do j = 2, NB
-                j1 = (j - 2)*8
+                j1 = (j-2)*8
 
                 unit = get_unit(cpuid)
                 inquire (file=trim(path)//trim(bfiles(j)), exist=bstat)
@@ -497,60 +494,64 @@ contains
                     ! Mass
                     read (unit, *) mass(j), temp1, temp2
                     mass(j) = mass(j)*Mjups
-                    all_parameters(3 + j1) = mass(j) ! Mjup to Msun
-                    par_min(3 + j1) = max(min(temp1, temp2)*Mjups, TOL_dp) ! Mjup to Msun
-                    par_max(3 + j1) = min(max(temp1, temp2)*Mjups, one) ! Mjup to Msun
-                    if (par_max(3 + j1) .le. TOL_dp) par_max(3 + j1) = one ! 1 Msun
+                    all_parameters(3+j1) = mass(j) ! Mjup to Msun
+                    par_min(3+j1) = max(min(temp1, temp2)*Mjups, TOL_dp) ! Mjup to Msun
+                    par_max(3+j1) = min(max(temp1, temp2)*Mjups, one) ! Mjup to Msun
+                    if (par_max(3+j1) .le. TOL_dp) par_max(3+j1) = one ! 1 Msun
 
                     ! Radius
                     read (unit, *) radius(j), temp1, temp2
                     radius(j) = radius(j)*Rjups ! Rjup to Rsun
-                    all_parameters(4 + j1) = radius(j)
-                    par_min(4 + j1) = max(min(temp1, temp2)*Rjups, TOL_dp)
-                    par_max(4 + j1) = min(max(temp1, temp2), 10.0_dp)*Rjups
-                    if (par_max(4 + j1) .le. TOL_dp) par_max(4 + j1) = 5._dp*Rjups
+                    all_parameters(4+j1) = radius(j)
+                    par_min(4+j1) = max(min(temp1, temp2)*Rjups, TOL_dp)
+                    par_max(4+j1) = min(max(temp1, temp2), 10.0_dp)*Rjups
+                    if (par_max(4+j1) .le. TOL_dp) par_max(4+j1) = 5._dp*Rjups
 
                     ! Period & semi-major axis
                     read (unit, *) period(j), temp1, temp2
                     if (period(j) .ge. 9.e6_dp) then ! set high value for Period --> using semi-major axis
-                        read (unit, *) sma(j), temp1, temp2
-                        period(j) = get_period(mass(1), mass(j), sma(j))
-                        temp1 = get_period(mass(1), mass(j), temp1)
-                        temp2 = get_period(mass(1), mass(j), temp2)
+                        read (unit, *) sma(j), sma1, sma2
+                        ! period(j) = get_period(mass(1), mass(j), sma(j))
+                        call sma_to_period(mass(1), mass(j), sma(j), period(j))
+                        ! temp1 = get_period(mass(1), mass(j), temp1)
+                        call sma_to_period(mass(1), mass(j), sma1, temp1)
+                        ! temp2 = get_period(mass(1), mass(j), temp2)
+                        call sma_to_period(mass(1), mass(j), sma2, temp2)
                     else
                         read (unit, *) ! skip semi-major axis row
-                        sma(j) = get_semax(mass(1), mass(j), period(j))
+                        ! sma(j) = get_semax(mass(1), mass(j), period(j))
+                        call period_to_sma(mass(1), mass(j), period(j), sma(j))
                     end if
-                    all_parameters(5 + j1) = period(j)
-                    par_min(5 + j1) = max(min(temp1, temp2), TOL_dp)
-                    par_max(5 + j1) = min(max(temp1, temp2), 1000.0_dp*365.25_dp)
-                    if (par_max(5 + j1) .le. TOL_dp) then
-                        par_max(5 + j1) = 1000.0_dp*365.25_dp
+                    all_parameters(5+j1) = period(j)
+                    par_min(5+j1) = max(min(temp1, temp2), TOL_dp)
+                    par_max(5+j1) = min(max(temp1, temp2), 1000.0_dp*365.25_dp)
+                    if (par_max(5+j1) .le. TOL_dp) then
+                        par_max(5+j1) = 1000.0_dp*365.25_dp
                     else
-                        if (period(j) .ge. par_max(5 + j1)) par_max(5 + j1) = two*period(j)
+                        if (period(j) .ge. par_max(5+j1)) par_max(5+j1) = two*period(j)
                     end if
 
-                    Pvec(j - 1) = par_max(5 + j1)
+                    Pvec(j-1) = par_max(5+j1)
 
                     ! eccentricity
                     read (unit, *) ecc(j), temp1, temp2
-                    all_parameters(6 + j1) = ecc(j)
+                    all_parameters(6+j1) = ecc(j)
                     e_bounds(1, j) = max(min(temp1, temp2), zero)
-                    e_bounds(2, j) = min(max(temp1, temp2), one - TOL_dp)
-                    if (e_bounds(2, j) .le. TOL_dp) e_bounds(2, j) = one - TOL_dp
-                    par_min(6 + j1) = e_bounds(1, j)
-                    par_max(6 + j1) = e_bounds(2, j)
+                    e_bounds(2, j) = min(max(temp1, temp2), one-TOL_dp)
+                    if (e_bounds(2, j) .le. TOL_dp) e_bounds(2, j) = one-TOL_dp
+                    par_min(6+j1) = e_bounds(1, j)
+                    par_max(6+j1) = e_bounds(2, j)
 
                     ! argument of pericentre
                     read (unit, *) argp(j), temp1, temp2
-                    argp(j) = mod(argp(j) + circ, circ)
-                    all_parameters(7 + j1) = argp(j)
-                    if (abs(temp1 - temp2) .le. TOL_dp) then ! if min and max are equals, set to default range := [0,360] deg
-                        par_min(7 + j1) = zero
-                        par_max(7 + j1) = circ
+                    argp(j) = mod(argp(j)+circ, circ)
+                    all_parameters(7+j1) = argp(j)
+                    if (abs(temp1-temp2) .le. TOL_dp) then ! if min and max are equals, set to default range := [0,360] deg
+                        par_min(7+j1) = zero
+                        par_max(7+j1) = circ
                     else
-                        par_min(7 + j1) = min(temp1, temp2)
-                        par_max(7 + j1) = max(temp1, temp2)
+                        par_min(7+j1) = min(temp1, temp2)
+                        par_max(7+j1) = max(temp1, temp2)
                     end if
 
                     ! mean Anomaly & time of the passage at pericentre
@@ -566,7 +567,8 @@ contains
                             stop
                         end if
 
-                        meana(j) = tau2mA(tau(j), tepoch, period(j))
+                        ! meana(j) = tau2mA(tau(j), tepoch, period(j))
+                        call pericenter_time_to_mean_anomaly_deg(tau(j), tepoch, period(j), meana(j))
                         temp1 = zero
                         temp2 = circ
                         write (*, '(a)') ' WARNING: '
@@ -575,40 +577,40 @@ contains
 
                     else
                         read (unit, *) ! skip tau row
-                        !           tau(j)=mA2tau(mA(j),tepoch,P(j))
+                        ! call mean_anomaly_deg_to_pericenter_time(mA(j),tepoch,P(j),tau(j))
                     end if
-                    meana(j) = mod(meana(j) + circ, circ)
-                    all_parameters(8 + j1) = meana(j)
-                    if (abs(temp1 - temp2) .le. TOL_dp) then ! if min and max are equals, set to default range := [0,360] deg
-                        par_min(8 + j1) = -circ !zero
-                        par_max(8 + j1) = circ
+                    meana(j) = mod(meana(j)+circ, circ)
+                    all_parameters(8+j1) = meana(j)
+                    if (abs(temp1-temp2) .le. TOL_dp) then ! if min and max are equals, set to default range := [0,360] deg
+                        par_min(8+j1) = -circ !zero
+                        par_max(8+j1) = circ
                     else
-                        par_min(8 + j1) = min(temp1, temp2)
-                        par_max(8 + j1) = max(temp1, temp2)
+                        par_min(8+j1) = min(temp1, temp2)
+                        par_max(8+j1) = max(temp1, temp2)
                     end if
 
                     ! inclination
                     read (unit, *) inc(j), temp1, temp2
-                    all_parameters(9 + j1) = inc(j)
-                    if (abs(temp1 - temp2) .le. TOL_dp) then ! if min and max are equals, set to default range := [0,180] deg
-                        par_min(9 + j1) = zero
-                        par_max(9 + j1) = 180.0_dp
+                    all_parameters(9+j1) = inc(j)
+                    if (abs(temp1-temp2) .le. TOL_dp) then ! if min and max are equals, set to default range := [0,180] deg
+                        par_min(9+j1) = zero
+                        par_max(9+j1) = 180.0_dp
                     else
-                        par_min(9 + j1) = max(min(temp1, temp2), zero)
-                        par_max(9 + j1) = min(max(temp1, temp2), 180.0_dp)
-                        if (par_max(9 + j1) .le. TOL_dp) par_max(9 + j1) = 180.0_dp
+                        par_min(9+j1) = max(min(temp1, temp2), zero)
+                        par_max(9+j1) = min(max(temp1, temp2), 180.0_dp)
+                        ! if (par_max(9+j1) .le. TOL_dp) par_max(9+j1) = 180.0_dp
                     end if
 
                     ! longitude of ascending node
                     read (unit, *) longn(j), temp1, temp2
-                    longn(j) = mod(longn(j) + circ, circ)
-                    all_parameters(10 + j1) = longn(j)
-                    if (abs(temp1 - temp2) .le. TOL_dp) then ! if min and max are equals, set to default range := [0,360] deg
-                        par_min(10 + j1) = zero
-                        par_max(10 + j1) = circ
+                    longn(j) = mod(longn(j)+circ, circ)
+                    all_parameters(10+j1) = longn(j)
+                    if (abs(temp1-temp2) .le. TOL_dp) then ! if min and max are equals, set to default range := [0,360] deg
+                        par_min(10+j1) = zero
+                        par_max(10+j1) = circ
                     else
-                        par_min(10 + j1) = min(temp1, temp2)
-                        par_max(10 + j1) = max(temp1, temp2)
+                        par_min(10+j1) = min(temp1, temp2)
+                        par_max(10+j1) = max(temp1, temp2)
                     end if
 
                     close (unit)
@@ -635,7 +637,8 @@ contains
         deallocate (tau)
 
         amin = radius(1)*RsunAU
-        amax = 10.0_dp*get_semax(mass(1), zero, maxval(Pvec))
+        ! amax = 10.0_dp*get_semax(mass(1), zero, maxval(Pvec))
+        call period_to_sma(mass(1), zero, maxval(Pvec), amax)
         deallocate (Pvec)
 
         call set_minmax() ! it modifies minpar and maxpar
@@ -674,29 +677,28 @@ contains
                     if (IS_IOSTAT_END(stat)) exit RVdo
                     row = trim(adjustl(row))
                     if (row(1:1) .ne. "#") then
-                        j = j + 1
+                        j = j+1
                         read (row, *) obsData%obsRV%jd(j), obsData%obsRV%RV(j),&
                           &obsData%obsRV%eRV(j), obsData%obsRV%RVsetID(j)
                         if (j .gt. 1) then
-                            if (obsData%obsRV%RVsetID(j) .ne. obsData%obsRV%RVsetID(j - 1))&
-                              &nRVset = nRVset + 1
+                            if (obsData%obsRV%RVsetID(j) .ne. obsData%obsRV%RVsetID(j-1))&
+                              &nRVset = nRVset+1
                         end if
                     end if
                 end do RVdo
                 close (urv)
-                ! write(*,*)" DEBUG: init_trades nRVset = ",nRVset
                 allocate (obsData%obsRV%nRVsingle(nRVset))
                 obsData%obsRV%nRVset = nRVset
 
                 nTemp = 1
                 jSet = 1
                 do j = 2, nRV
-                    if (obsData%obsRV%RVsetID(j) .ne. obsData%obsRV%RVsetID(j - 1)) then
+                    if (obsData%obsRV%RVsetID(j) .ne. obsData%obsRV%RVsetID(j-1)) then
                         obsData%obsRV%nRVsingle(jSet) = nTemp
-                        jSet = jSet + 1
+                        jSet = jSet+1
                         nTemp = 0
                     end if
-                    nTemp = nTemp + 1
+                    nTemp = nTemp+1
                 end do
                 obsData%obsRV%nRVsingle(jSet) = nTemp
 
@@ -749,7 +751,7 @@ contains
         flt0 = ""
 
         ! allocate obs TT in derived data type if not already
-        if (.not. allocated(obsData%obsT0)) allocate (obsData%obsT0(NB - 1))
+        if (.not. allocated(obsData%obsT0)) allocate (obsData%obsT0(NB-1))
 
         if (idtra .ne. 0) then ! IDTRA != 0
 
@@ -764,7 +766,7 @@ contains
                     uread = get_unit(cpuid)
                     open (uread, file=trim(flt0), status='OLD')
                     nTx = get_rows(uread)
-                    call init_dataT0(nTx, obsData%obsT0(j - 1), durcheck)
+                    call init_dataT0(nTx, obsData%obsT0(j-1), durcheck)
                     close (uread)
 
                 else ! fstat1 == .false.
@@ -801,11 +803,11 @@ contains
                             if (IS_IOSTAT_END(stat)) exit T0only
                             row = trim(adjustl(row))
                             if (row(1:1) .ne. "#" .and. len(trim(row)) .gt. 0) then
-                                j1 = j1 + 1
+                                j1 = j1+1
 !                 read(row,*)epoT0obs(j1,j),T0obs(j1,j),eT0obs(j1,j)
-                                read (row, *) obsData%obsT0(j - 1)%epo(j1),&
-                                  &obsData%obsT0(j - 1)%T0(j1),&
-                                  &obsData%obsT0(j - 1)%eT0(j1)
+                                read (row, *) obsData%obsT0(j-1)%epo(j1),&
+                                  &obsData%obsT0(j-1)%T0(j1),&
+                                  &obsData%obsT0(j-1)%eT0(j1)
                             end if
 
                         end do T0only
@@ -840,12 +842,12 @@ contains
                             if (IS_IOSTAT_END(stat)) exit T0Dur
                             row = trim(adjustl(row))
                             if (row(1:1) .ne. "#" .and. len(trim(row)) .gt. 0) then
-                                j1 = j1 + 1
-                                read (row, *) obsData%obsT0(j - 1)%epo(j1),&
-                                  &obsData%obsT0(j - 1)%T0(j1),&
-                                  &obsData%obsT0(j - 1)%eT0(j1),&
-                                  &obsData%obsT0(j - 1)%dur(j1),&
-                                  &obsData%obsT0(j - 1)%edur(j1)
+                                j1 = j1+1
+                                read (row, *) obsData%obsT0(j-1)%epo(j1),&
+                                  &obsData%obsT0(j-1)%T0(j1),&
+                                  &obsData%obsT0(j-1)%eT0(j1),&
+                                  &obsData%obsT0(j-1)%dur(j1),&
+                                  &obsData%obsT0(j-1)%edur(j1)
                             end if
 
                         end do T0Dur
@@ -866,6 +868,53 @@ contains
 
         return
     end subroutine read_T0obs
+
+    subroutine read_priors(cpuid)
+        integer, intent(in)::cpuid
+
+        character(512)::prior_file, row
+        integer::uread, iread, stat
+        logical::fstat
+
+        prior_file = ""
+        prior_file = trim(path)//"priors.in"
+        prior_file = trim(adjustl(prior_file))
+        inquire (file=trim(prior_file), exist=fstat)
+
+        if (fstat) then
+            uread = get_unit(cpuid)
+            open (uread, file=trim(prior_file), status='OLD')
+
+            n_priors = get_rows(uread)
+            write (*, *) " Found priors file with n_priors = ", n_priors
+            allocate (priors_names(n_priors), priors_values(n_priors, 3))
+
+            if (n_priors .gt. 0) then
+                iread = 0
+                priors_loop: do
+                    read (uread, '(a512)', IOSTAT=stat) row
+                    if (IS_IOSTAT_END(stat)) exit priors_loop
+                    row = trim(adjustl(row))
+                    if (row(1:1) .ne. "#" .and. len(trim(row)) .gt. 0) then
+                        iread = iread+1
+                        read (row, *) priors_names(iread), priors_values(iread, 1),&
+                            &priors_values(iread, 2), priors_values(iread, 3)
+                    end if
+                end do priors_loop
+                write (*, "(a10,1x,a10,1x,a10,1x,a10)") "prior", "value", "-sigma", "+sigma"
+                do iread = 1, n_priors
+                    write (*, "(a10,1x,3(f10.5,1x))") priors_names(iread), priors_values(iread, :)
+                end do
+            end if
+
+            close (uread)
+
+        else
+            write (*, '(a)') " No priors.in file "
+        end if
+
+        return
+    end subroutine read_priors
 
     ! it reads the parameters for PIKAIA simulation
     subroutine read_pik_opt(cpuid)
@@ -971,10 +1020,10 @@ contains
         n_space = 0
         do i = 1, n_len
             if (line_temp(i:i) .eq. ' ') then
-                if (line_temp(i + 1:i + 1) .ne. ' ') n_space = n_space + 1
+                if (line_temp(i+1:i+1) .ne. ' ') n_space = n_space+1
             end if
         end do
-        n_elements = n_space + 1
+        n_elements = n_space+1
         allocate (variable(n_elements))
         read (line_temp, *) variable
 
@@ -986,7 +1035,7 @@ contains
 !$      use omp_lib
         integer, intent(in)::cpuid
         real(dp), dimension(:), allocatable, intent(out)::mass, radius, period, sma, ecc, argp, meana, inc, longn
-        
+
         real(dp), dimension(:), allocatable::fit_par
         integer::j
         character(80)::fmt
@@ -1011,7 +1060,7 @@ contains
         write (*, '(a,a,a)') " READ ", trim(path), "arg.in"
         allocate (e_bounds(2, NB))
         e_bounds(1, :) = zero
-        e_bounds(2, :) = one - TOL_dp
+        e_bounds(2, :) = one-TOL_dp
 
         ! IT READS THE FILES AND THE NAMES OF THE BODIES AND DETERMINES THE PARAMETERS TO BE FITTED
         call read_list(cpuid)
@@ -1031,7 +1080,7 @@ contains
           &" in ", nRVset, " set of RV: ", obsData%obsRV%nRVsingle
 
         ! allocate number of derived dataT0 for each body in the dataObs type
-        allocate (obsData%obsT0(NB - 1))
+        allocate (obsData%obsT0(NB-1))
 
         ! IT READS T0 DATA
         call read_T0obs(cpuid)
@@ -1052,13 +1101,13 @@ contains
         nDurs = obsData%nDurs
 
         ! IT DETERMINES THE NDATA
-        obsData%ndata = nRV + nTTs + nDurs
+        obsData%ndata = nRV+nTTs+nDurs
         ! obsData%nfree=nRVset ! number of gamma offset and jitters, one per each RV dataset
 !     dof=(ndata-nfit)
         obsData%nfree = 0 ! gamma now fitted
 
         write (*, '(a,a)') " NUMBER OF ORBITAL PARAMETERS TO FIT: nfit = ", trim(adjustl(string(nfit)))
-        nfit = nfit + rv_trend_order + nRVset + nRVset ! 2 x nRVset: gamma + jitter for each RV dataset
+        nfit = nfit+rv_trend_order+nRVset+nRVset ! 2 x nRVset: gamma + jitter for each RV dataset
         if (rv_trend_order .gt. 0) then
             write (*, '(a,i2)') " RV trend of order ", rv_trend_order
         end if
@@ -1067,7 +1116,7 @@ contains
         end if
         write (*, '(a,a)') " NUMBER OF PARAMETERS TO FIT: nfit = ", trim(adjustl(string(nfit)))
 
-        obsData%dof = (obsData%ndata - nfit - obsData%nfree) ! I have to take into account the number of RV offsets even if they are not fitted
+        obsData%dof = (obsData%ndata-nfit-obsData%nfree) ! I have to take into account the number of RV offsets even if they are not fitted
         if (obsData%dof .le. 0) then
             write (*, '(a)') ' FOUND dof <= 0 SO IT IS FORCED TO 1 IN CASE'&
                &' THE USER WANT TO SIMULATE/INTEGRATE AND NOT CHECK THE FIT.'
@@ -1080,7 +1129,7 @@ contains
         write (*, '(a,i5)')&
             &" NUMBER OF DEGREES OF FREEDOM : dof = ndata - nfit - nfree = ",&
             &obsData%dof
-        if(obsData%ndata .gt. 0)then
+        if (obsData%ndata .gt. 0) then
             bic_const = real(nfit, dp)*log(real(obsData%ndata, dp))
         else
             bic_const = zero
@@ -1101,12 +1150,12 @@ contains
             write (*, '(a, 1000(1x,es23.16))') "mass     [Msun] = ", mass
             write (*, '(a, 1000(1x,es23.16))') "radius   [Rsun] = ", radius
             write (*, '(a, 1000(1x,es23.16))') "period   [days] = ", period
-            write (*, '(a, 1000(1x,es23.16))') "sma      [au]   = ", sma   
-            write (*, '(a, 1000(1x,es23.16))') "ecc             = ", ecc   
-            write (*, '(a, 1000(1x,es23.16))') "argp     [deg]  = ", argp  
-            write (*, '(a, 1000(1x,es23.16))') "meana    [deg]  = ", meana 
-            write (*, '(a, 1000(1x,es23.16))') "inc      [deg]  = ", inc   
-            write (*, '(a, 1000(1x,es23.16))') "longn    [deg]  = ", longn 
+            write (*, '(a, 1000(1x,es23.16))') "sma      [au]   = ", sma
+            write (*, '(a, 1000(1x,es23.16))') "ecc             = ", ecc
+            write (*, '(a, 1000(1x,es23.16))') "argp     [deg]  = ", argp
+            write (*, '(a, 1000(1x,es23.16))') "meana    [deg]  = ", meana
+            write (*, '(a, 1000(1x,es23.16))') "inc      [deg]  = ", inc
+            write (*, '(a, 1000(1x,es23.16))') "longn    [deg]  = ", longn
             write (*, '(a)') ''
 
             write (*, '(a23,2(1x,a23))') 'Full System Parameters', '( par_min ,', 'par_max )'
@@ -1147,7 +1196,9 @@ contains
             end do
         end if
 
-        deallocate(fit_par)
+        deallocate (fit_par)
+
+        call read_priors(cpuid)
 
         return
     end subroutine read_first

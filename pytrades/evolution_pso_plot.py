@@ -437,9 +437,10 @@ def main():
 
     mass_star = 1.0
     m_factor = 1.0
-    m_factor, m_unit = anc.mass_type_factor(
-        Ms=mass_star, mtype=cli.m_type, mscale=False
-    )
+    # m_factor, m_unit = anc.mass_type_factor(
+    #     Ms=mass_star, mtype=cli.m_type, mscale=False
+    # )
+    m_factor, m_unit, r_factor, r_unit = anc.mass_radius_type_factor(mtype=cli.m_type)
 
     iteration = np.arange(0, niter) + 1
     if isinstance(parameters_minmax, type(population_fitness)):

@@ -91,7 +91,9 @@ pc2AU    = 206264.806
 RsunAU = (Rsun*1.e3)/AU #Sun radius in AU
 RjupAU = (Rjup*1.e3)/AU #Jupiter radius in AU
 
-MJD = 2400000.5 # MJD ref time to convert to JD
+MJD  = 2400000.5 # MJD ref time to convert to JD
+btjd = 2457000.0 # TESS BJD ref time
 
 # others
 onethird = 1.0/3.0
+huge = np.finfo(0.0).max

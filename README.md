@@ -1,6 +1,6 @@
 # TRADES
   
-**`TRADES` v2.18.0 by Luca Borsato - 2016-2022**  
+**`TRADES` v2.19.0 by Luca Borsato - 2016-2023**  
 
 Most of the information can be found in the papers:  
 
@@ -16,7 +16,21 @@ Comments are welcome!
 **only tested on a Unix/Linux machine (i.e., Centos Rocks 5.3, Ubuntu > 12.04 and derivatives)**  
 **Please use `gfortran` version greater than `4.8.1`. Previous versions could fail to compile.**  
 **`openMP` required to compile parallel versions of `TRADES`**  
-**Required `python` packages: `numpy`, `sys`, `argparse`, `os`, `scipy.stats`, `random`, `logging`, `warnings`, `glob`, `matplotlib`, `h5py`, [`emcee`][emcee], `subprocess`, `multiprocessing`, `time`, `shutil`**  
+**Required `python` packages:**  
+
+- `numpy` (`conda`),  
+- `matplotlib` (`conda`),  
+- `h5py` (`conda`),  
+- `yaml` (`conda`),  
+- `scipy` (`conda`),  
+- `pandas` (`conda`),  
+- `scikit-learn` (`conda-forge`),  
+- `statsmodels` (`conda-forge`),  
+- [`emcee`][emcee] (`conda-forge`) with `tqdm` (`conda-forge`),  
+- `pygtc` (`conda-forge`),  
+<!-- - `corner`,   -->
+- `PyDE` (it is preferred to install `pytransit` with `pip` or `github` that store an updated version of `PyDE`; be aware that `pytransit` needs `astropy` and `arviz` and sometimes you have to re-install the `semantic_version` package...),  
+- `ultranest` only for a testing script (currently not working).  
 
 ---
 
@@ -36,12 +50,12 @@ the possible physical and dynamical configurations of extra-solar planetary
 systems from observational data, known as `TRADES`, which stands for TRAnsits and
 Dynamics of Exoplanetary Systems.  
 The program `TRADES` models the dynamics of multiple planet systems and
-reproduces the observed transit times ($T_0$, or mid-transit times),
-full transit durations ($T_14$ or $T_41$),
+reproduces the observed transit times ($T_{0}$, or mid-transit times),
+full transit durations ($T_{14}$ or $T_{41}$),
  and radial velocities (RVs).
-These $T_0$s and RVs are computed during the integration of the planetary orbits.  
-Hereafter, I will use the reduced chi-squared ($\chi^{2}_\textrm{r} = \chi^{2}/\textrm{dof}$)
-as the fitness parameter.
+These $T_{0}\textrm{s}$ and RVs are computed during the integration of the planetary orbits.  
+<!-- Hereafter, I will use the reduced chi-squared ($\chi^{2}_\textrm{r} = \chi^{2}/\textrm{dof}$)
+as the fitness parameter. -->
 <!-- , but it would be also possible to use a $\chi^{2}_\textrm{w,dof}$ weighted/scaled -->
 <!-- by the number of each type of data set: transits and radial velocities.   -->
 We have developed `TRADES` from scratch because we want to avoid black-box programs,
@@ -89,8 +103,8 @@ To solve the inverse problem, `TRADES` can be run in different modes:
 - **genetic algorithm (`GA` or `PIK`, we used the implementation named [`PIKAIA`][PIKAIA],
   Charbonneau 1995):**
   the `GA` mode searches for the best orbit by performing a genetic optimization
-  (e.g. Holland 1975; Goldberg 1989), where the fitness parameter is set to
-  the inverse of the $\chi^2_\textrm{r}$.
+  (e.g. Holland 1975; Goldberg 1989), where the fitness parameter was
+  the inverse of the $\chi^2_\textrm{r}$, now it is set to the log-likelihood ($\log{\mathcal{L}}$).
   This algorithm is inspired by natural selection which is the biological process
   of evolution.
   Each generation is a new population of *offspring* orbital configurations,
@@ -100,10 +114,10 @@ To solve the inverse problem, `TRADES` can be run in different modes:
   optimizers.
   However, the `GA` should converge to a global solution (if it exists)
   after the appropriate number of iterations.  
-  At the moment if the `GA` after the predefine iteration has a fitness
+  <!-- At the moment if the `GA` after the predefine iteration has a fitness
   (or $\chi^2_\textrm{r}$) higher than 1000,
   it will continue (it stops if it reaches the iteration step with fitness lower than 1000 or
-   if it reaches fitness <= 1.).  
+   if it reaches fitness <= 1.).   -->
   
 - **particle swarm optimization ([`PSO`][PSO], Tada 2007):**  
   the `PSO` is another optimization algorithm that searches for the global solution
@@ -125,7 +139,7 @@ To solve the inverse problem, `TRADES` can be run in different modes:
   see [`PyDE`][PyDE] docs and papers.  
   
 In each mode, `TRADES` compares observed transit times ($T_{0,\textrm{obs}}$) and 
-radial velocities (RV$_\textrm{obs}$) with the simulated ones ($T_{0,\textrm{sim}}$ and RV$_\textrm{sim}$).
+radial velocities ($\textrm{RV}_{\textrm{obs}}$) with the simulated ones ($T_{0,\textrm{sim}}$ and $\textrm{RV}_\textrm{sim}$).
 From version 1.1.2 of `TRADES`, it is possible to use different set of RV, with
 different RV offset (the so-called _gamma_ point);
 `TRADES` will compute a $\gamma$ for each RV data set.  
@@ -186,11 +200,36 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
   **To compile in parallel mode the `openMP` libraries must be properly installed (as suggested by your Linux distribution).**  
   Please, change properly your `Fortran` compiler in the `Makefile`.  
   
+  **USUAL COMPILE**
+  ```bash
+  cd /path/to/trades/src
+  make cleanall
+  make full_parallel_release
+  ```
+  In `/path/to/trades/pytrades` there will be the `*.so` file to be loaded with python.  
+
 ---
 
 ### How to run TRADES {#run_trades}
 
-Different ways to launch TRADES:
+Main way to run `TRADES` with `python+PyDE+emcee`:  
+
+```bash
+  cd /path/to/exoplanet/system/path
+  python /path/to/trades/pytrades/trades_emcee.py --input configuration.yml
+```
+
+After it finished you can obtain the analysis and human-readable output with:  
+
+```bash
+  cd /path/to/exoplanet/system/path/
+  python /path/to/trades/pytrades/trades_emcee_analysis.py --input configuration.yml
+```
+
+An example of a `configuration.yml` file in [configuration.yml](trades_example/base_2p/configuration.yml).  
+The folder `/path/to/exoplanet/system/path/` must have the files described later in _Files needed by TRADES_  
+
+Other different ways to launch TRADES:
 
 - export the path of the executables in your `~/.bahsrc` or `~/.profile`:  
   > export PATH=$PATH:/path/to/trades/executables  
@@ -208,18 +247,24 @@ and type it in a terminal; in short way:
 If TRADES has been launched without any arguments, it will search for the needed files in the current folder:  
 e.g.:  
 
-> `cd /home/user/Simulation/`  
-> `trades_s_xxx`  
+```bash
+`cd /home/user/Simulation/`  
+`trades_s_xxx`  
+```
 
 it is equal to type:  
 
-> `cd /home/user/Simulation/`  
-> `trades_s_xxx .`  
+```bash
+`cd /home/user/Simulation/`  
+`trades_s_xxx .`  
+```
 
 or:  
 
-> `cd /home/user/`  
-> `trades_s_xxx /home/user/Simulation/`  
+```bash
+`cd /home/user/`  
+`trades_s_xxx /home/user/Simulation/`  
+```
 
 In any of these three cases, `TRADES` will write the output files in the folder `/home/user/Simulation/`  
   
@@ -335,7 +380,7 @@ List of the files with explanation:
 10. `priors.in`: place here priors for Bayesian analysis with `emcee`.  
   Follow the instructions in the file [`priors.in`](trades_example/base_2p/priors.in).  
 
-11. `de.yml`: file `yaml` used for `PyDE` configuration. See an example in the file [`de.yml`](trades_example/base_2p/de.yml).  
+<!-- 11. `de.yml`: file `yaml` used for `PyDE` configuration. See an example in the file [`de.yml`](trades_example/base_2p/de.yml).   -->
 
 ---
 
@@ -368,11 +413,13 @@ The script to run is `trades_pso2emcee.py`, that shows how to call the `pytrades
 Run as `python trades_pso2emcee.py -h` for instruction on the all the command line arguments to provide.  -->
 In folder `pytrades/` there are different scripts, look for the script to run beginning with `trades_`, that shows how to call the `pytrades_lib` and how to combine with `emcee`.  
 Run as `python trades_XXX.py -h` for instruction on the all the command line arguments to provide.  
-The `ancillary.py` file has different functions to write and read output files from `PSO` and `emcee` and other stuff helpful to manage the output of the simulations.  
+The `ancillary.py` file has different functions to write and read output files from `PSO/PyDE` and `emcee` and other stuff helpful to manage the output of the simulations.  
 The `full_emcee_analysis.py` script is able to create all the summary reports and
 images of a `TRADES+EMCEE` analysis; it works also on a running simulation.  
 Check also other files in the `pytrades` folder to understand how to use the python library.
-  
+
+I am working on some scripts and notebook to use some possibility of `TRADES`, such as an implementation that could be used within [`PyORBIT`][PyORBIT], see folder [python_examples](trades_example/python_examples)  
+
 **TO BE CONTINUED**  
 
 ---
@@ -380,6 +427,14 @@ Check also other files in the `pytrades` folder to understand how to use the pyt
 ### Changes/Log
 
 **sorry, I will not be able to report all the small changes...**  
+
+#### `TRADES 2.19.0`  
+
+Better management of ode subroutines and transit times detection and computation.  
+Main python script files:  
+`trades_emcee.py` that run [`PyDE`][PyDE] and [`emcee`][emcee]  
+`trades_emcee_analysis.py` to analyse the [`emcee`][emcee] output  
+Added the [](trades_example/python_examples/) folder with `jupyter notebook` to show some python ways to use `TRADES`.  
 
 #### `TRADES 2.18.0`  
 
@@ -566,3 +621,4 @@ In case of a positive signal, it means the period has been induced (bad `RV` fit
 [MERCURY]: http://www.arm.ac.uk/~jec/  
 [PyAstronomy]: https://www.hs.uni-hamburg.de/DE/Ins/Per/Czesla/PyA/PyA/index.html#  
 [PyDE]: https://github.com/hpparvi/PyDE  
+[PyORBIT]: https://github.com/LucaMalavolta/PyORBIT  

@@ -25,12 +25,12 @@ contains
     ! computes the RVs and the T0s, and writes everything to screen and into files
     ! in this subroutine there will be not sigma/errors on the parameters
     subroutine write_summary_nosigma(cpuid, sim_id, lm_flag, all_parameters, fit_parameters,&
-      &chi_square, reduced_chi_square, lnLikelihood, ln_const, bic)
+      &chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic)
         ! Input
         integer, intent(in)::cpuid, sim_id, lm_flag
         real(dp), dimension(:), intent(in)::all_parameters, fit_parameters
         ! Output
-        real(dp), intent(out)::chi_square, reduced_chi_square, lnLikelihood, ln_const, bic
+        real(dp), intent(out)::chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic
 
         ! Local variables
         real(dp), dimension(:), allocatable::resw
@@ -39,21 +39,23 @@ contains
         nobs = obsData%ndata
         allocate (resw(nobs))
         resw = zero
+        lnprior = zero
 
         ! integrates and write RVs and T0s
         call ode_output(cpuid, sim_id, lm_flag, all_parameters, fit_parameters, resw)
-        ! write(*,*)" DEBUG: finished ode_output"
         if (nobs .gt. 0) call write_parameters(cpuid, sim_id, lm_flag, fit_parameters, resw)
-        ! write(*,*)" DEBUG: finished write_parametes"
 
         if (nobs .gt. 0) then
             chi_square = sum(resw*resw)
-            ! write(*,*)" DEBUG: chi_square         = ",chi_square
             if (chi_square .ge. resmax) then
                 chi_square = resmax
             end if
             call set_fitness_values(fit_parameters, chi_square,&
               &reduced_chi_square, lnLikelihood, ln_const, bic)
+            if (n_priors .gt. 0) then
+                call ln_priors(all_parameters, fit_parameters,&
+                  &priors_names, priors_values, lnprior)
+            end if
         else
             chi_square = -one
             reduced_chi_square = -one
@@ -62,16 +64,14 @@ contains
         end if
         if (allocated(resw)) deallocate (resw)
 
-        ! write(*,*)"DEBUG: write_summary_nosigma"
-        ! write(*,*)"DEBUG: chi_square, reduced_chi_square, lnLikelihood, ln_const, bic"
-        ! write(*,*)chi_square, reduced_chi_square, lnLikelihood, ln_const, bic
         write (*, *) "FITNESS SUMMARY:"
         write (*, *) "chi_square         = ", chi_square
         write (*, *) "reduced_chi_square = ", reduced_chi_square
         write (*, *) "lnLikelihood       = ", lnLikelihood
+        write (*, *) "lnprior            = ", lnprior
         write (*, *) "ln_const           = ", ln_const
         write (*, *) "bic                = ", bic
-        write (*,*)
+        write (*, *)
 
         flush (6)
 
@@ -84,13 +84,13 @@ contains
     ! given the set of parameters to fit it integrates the orbits, computes the RVs and the T0s, and writes everything to screen and into files
     ! in this subroutine there will be sigma/errors on the parameters
     subroutine write_summary_sigma(cpuid, sim_id, lm_flag, all_parameters, fit_parameters, sigma_parameters,&
-      &chi_square, reduced_chi_square, lnLikelihood, ln_const, bic)
+      &chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic)
         ! Input
         integer, intent(in)::cpuid, sim_id, lm_flag
         real(dp), dimension(:), intent(in)::all_parameters
         real(dp), dimension(:), intent(in)::fit_parameters, sigma_parameters
         ! Output
-        real(dp), intent(out)::chi_square, reduced_chi_square, lnLikelihood, ln_const, bic
+        real(dp), intent(out)::chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic
 
         ! Local variables
         real(dp), dimension(:), allocatable::resw
@@ -100,6 +100,7 @@ contains
 
         allocate (resw(nobs))
         resw = zero
+        lnprior = zero
         ! integrates and write RVs and T0s
         call ode_output(cpuid, sim_id, lm_flag, all_parameters, fit_parameters, resw)
         if (nobs .gt. 0) call write_parameters(cpuid, sim_id, lm_flag, fit_parameters, resw)
@@ -111,6 +112,10 @@ contains
             end if
             call set_fitness_values(fit_parameters, chi_square,&
               &reduced_chi_square, lnLikelihood, ln_const, bic)
+            if (n_priors .gt. 0) then
+                call ln_priors(all_parameters, fit_parameters,&
+                  &priors_names, priors_values, lnprior)
+            end if
         else
             chi_square = one
             reduced_chi_square = one
@@ -123,6 +128,7 @@ contains
         write (*, *) "chi_square         = ", chi_square
         write (*, *) "reduced_chi_square = ", reduced_chi_square
         write (*, *) "lnLikelihood       = ", lnLikelihood
+        write (*, *) "lnprior            = ", lnprior
         write (*, *) "ln_const           = ", ln_const
         write (*, *) "bic                = ", bic
         write (*, *) ""
@@ -150,7 +156,7 @@ contains
         real(dp), dimension(:), allocatable::sigma_parameters
         integer::info
         integer, dimension(:), allocatable::iwa
-        real(dp)::chi_square, reduced_chi_square, lnLikelihood, ln_const, bic
+        real(dp)::chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic
 
         integer::j1
         ! logical::check_lm
@@ -182,7 +188,7 @@ contains
         flush (6)
 
         call write_summary_sigma(cpuid, sim_id, 1, all_parameters, fit_parameters, sigma_parameters,&
-            &chi_square, reduced_chi_square, lnLikelihood, ln_const, bic)
+            &chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic)
 
         deallocate (resw, iwa, covariance_parameters, sigma_parameters)
 
@@ -220,7 +226,7 @@ contains
 
         real(dp), dimension(:), allocatable::cpu_all_parameters
         real(dp), dimension(:), allocatable::cpu_fit_parameters
-        real(dp)::chi_square, reduced_chi_square, lnLikelihood, ln_const, bic
+        real(dp)::chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic
 
         real(dp), dimension(:, :), allocatable::original_grid_summary
         real(dp), dimension(:, :), allocatable::fitted_grid_summary ! used only if lmon==1
@@ -271,15 +277,15 @@ contains
         write (*, *)
         flush (6)
 
-        allocate (original_grid_summary(n_grid, npar + 2))
-        if (lmon .eq. 1) allocate (fitted_grid_summary(n_grid, npar + 2))
+        allocate (original_grid_summary(n_grid, npar+2))
+        if (lmon .eq. 1) allocate (fitted_grid_summary(n_grid, npar+2))
 
         ! first initialise the openMP stuff
 
         !$omp parallel NUM_THREADS(ncpu_in) default(shared) &
         !$omp private(cpuid,ncpu)
 
-!$      cpuid = omp_get_thread_num() + 1
+!$      cpuid = omp_get_thread_num()+1
 !$      ncpu = omp_get_num_threads()
         !$omp master
 !$      call initu(nfiles, ncpu)
@@ -304,7 +310,7 @@ contains
 
         ! openMP private variables
         !$omp do private(sim_id,cpu_all_parameters,cpu_fit_parameters,&
-        !$omp& chi_square, reduced_chi_square, lnLikelihood, ln_const, bic) &
+        !$omp& chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic) &
         !$omp& schedule(dynamic,1)
 
         ! start the loop on the simulation grid
@@ -325,7 +331,7 @@ contains
             ! fitness_grid(sim_id,1)=fitness_x_dof
             ! fitness_grid(sim_id,2)=fitness
             call base_fitness_function(cpu_all_parameters, cpu_fit_parameters,&
-              &chi_square, reduced_chi_square, lnLikelihood, ln_const, bic)
+              &chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic)
             fitness_grid(sim_id, 1) = chi_square
             fitness_grid(sim_id, 2) = reduced_chi_square
 
@@ -335,11 +341,11 @@ contains
 
             ! 4. save cpu_all_parameters and fitness to file, write summary
             call write_summary_nosigma(cpuid, sim_id, 0, cpu_all_parameters, cpu_fit_parameters,&
-              &chi_square, reduced_chi_square, lnLikelihood, ln_const, bic)
+              &chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic)
             flush (6)
 
             original_grid_summary(sim_id, 1:npar) = cpu_all_parameters
-            original_grid_summary(sim_id, npar + 1:npar + 2) = fitness_grid(sim_id, :)
+            original_grid_summary(sim_id, npar+1:npar+2) = fitness_grid(sim_id, :)
             write (*, *)
             write (*, '(a,i4)') ' FINISHED NOFIT SIM NUMBER ', sim_id
             write (*, *)
@@ -359,7 +365,7 @@ contains
                 ! fitness=base_fitness_function(cpu_all_parameters,cpu_fit_parameters)
                 ! fitness_x_dof=fitness*real(obsData%dof,dp)
                 call base_fitness_function(cpu_all_parameters, cpu_fit_parameters,&
-                  &chi_square, reduced_chi_square, lnLikelihood, ln_const, bic)
+                  &chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic)
                 fitted_grid_summary(sim_id, 1:npar) = cpu_all_parameters
                 fitness_grid(sim_id, 1) = chi_square
                 fitness_grid(sim_id, 2) = reduced_chi_square
@@ -439,7 +445,7 @@ contains
         real(dp), dimension(:)::fit_parameters ! inout, already allocated
 
         real(dp)::pso_fitness
-pso_fitness = one
+        pso_fitness = zero
         call pso_driver(sim_id, evaluate_pso, nfit, all_parameters,&
           &minpar, maxpar, fit_parameters, pso_fitness)
         ! minpar,maxpar in module 'parameters'

@@ -92,7 +92,7 @@ contains
         character(5)::nstr
 
         col = "(1x,"//trim(sprec)//")"
-        ncol = 2 + (NB*6) + 1
+        ncol = 2+(NB*6)+1
         nstr = trim(adjustl(string(ncol)))
         fmt = "("//trim(nstr)//trim(col)//")"
         fmt = trim(adjustl(fmt))
@@ -152,7 +152,7 @@ contains
           &trim(adjustl(string(wrtid)))//"_initialElements.dat"
         fwrt = trim(adjustl(fwrt))
         cpuid = 1
-!$      cpuid = omp_get_thread_num() + 1
+!$      cpuid = omp_get_thread_num()+1
         uwrt = get_unit(cpuid)
         open (uwrt, file=trim(fwrt))
         write (uwrt, '(a)') "# M_Msun R_Rsun P_d a_AU e w_deg mA_deg inc_deg lN_deg"
@@ -177,11 +177,11 @@ contains
         real(dp), dimension(:), allocatable::rbar
 
         allocate (rbar(NBDIM))
-        storeorb(1, pos) = tepoch + itime
+        storeorb(1, pos) = tepoch+itime
         call barycenter(mass, rw, bar, rbar)
         storeorb(2, pos) = -rbar(3)/speedaud
-        storeorb(3:NBDIM + 2, pos) = rw
-        storeorb(NBDIM + 3, pos) = (-rbar(6)*AU/s24h)
+        storeorb(3:NBDIM+2, pos) = rw
+        storeorb(NBDIM+3, pos) = (-rbar(6)*AU/s24h)
         deallocate (rbar)
 
         return
@@ -193,11 +193,11 @@ contains
         real(dp), intent(in)::itime, Etot, Eold, htot, hold
         real(dp), dimension(:, :), intent(inout)::storecon
 
-        storecon(1, pos) = tepoch + itime
+        storecon(1, pos) = tepoch+itime
         storecon(2, pos) = htot
-        storecon(3, pos) = htot - hold
+        storecon(3, pos) = htot-hold
         storecon(4, pos) = Etot
-        storecon(5, pos) = Etot - Eold
+        storecon(5, pos) = Etot-Eold
 
         return
     end subroutine store_con
@@ -245,7 +245,7 @@ contains
 
         allocate (period(NB), sma(NB), ecc(NB), inc(NB), meana(NB), argp(NB), truea(NB), longn(NB), dttau(NB))
         j1loop: do j1 = 1, pos
-            call elements(mass, storeorb(3:NBDIM + 2, j1), period, sma, ecc, inc, meana, argp, truea, longn, dttau)
+            call elements(mass, storeorb(3:NBDIM+2, j1), period, sma, ecc, inc, meana, argp, truea, longn, dttau)
             j2loop: do j2 = 2, NB
                 write (uele(j2), trim(adjustl(fmele))) storeorb(1, j1),&
                     &period(j2), sma(j2), ecc(j2), inc(j2), meana(j2), argp(j2), longn(j2),&
@@ -429,7 +429,7 @@ contains
         ! allocate(RV_simwrt(nRV),gamma_wrt(nRV,2))
         ! call setWriteRV(simRV,RV_simwrt,gamma_wrt)
         allocate (RV_simwrt(nRV))
-        RV_simwrt = simRV%RV + simRV%gamma_rv + simRV%trend
+        RV_simwrt = simRV%RV+simRV%gamma_rv+simRV%trend
         write (*, '(a)') "# JD RVobs eRVobs rv_sim RV_sim gamma_rv trend &
           &RVsetID RV_stat"
         fmt = adjustl("(7("//trim(sprec)//",1x),i3,1x,i3)")
@@ -463,7 +463,7 @@ contains
         ! allocate(RV_simwrt(nRV),gamma_wrt(nRV,2))
         ! call setWriteRV(simRV,RV_simwrt,gamma_wrt)
         allocate (RV_simwrt(nRV))
-        RV_simwrt = simRV%RV + simRV%gamma_rv + simRV%trend
+        RV_simwrt = simRV%RV+simRV%gamma_rv+simRV%trend
         uRV = get_unit(cpuid)
         flRV = ""
         flRV = trim(path)//trim(adjustl(string(isim)))//"_"//&
@@ -501,24 +501,27 @@ contains
         type(dataT0), dimension(:), intent(in)::simT0
 !     real(dp),dimension(:,:),intent(in)::T0_sim
 !     integer,dimension(:,:),intent(in)::T0_stat
-        integer::j, j1, nT0
+        integer::i_body, i_T0, nT0o, nT0s, nT0
         character(80)::fmt
 
         fmt = adjustl("(i6,2(4("//trim(sprec)//",1x),i3))")
-        do j = 1, NB - 1
-            nT0 = simT0(j)%nT0
+        do i_body = 1, NB-1
+            nT0s = simT0(i_body)%nT0
+            nT0o = obsData%obsT0(i_body)%nT0
+            nT0 = nT0o
+
             if (nT0 .gt. 0) then
 
                 if (durcheck .eq. 0) then ! do not check duration
                     write (*, '(a,1x,a,19x,a,18x,a,18x,a,5x,a)') &
                       "# epoT0obs ", " T0obs ", " eT0obs ", " T0_sim ",&
                       &" T0obs-T0_sim ", " T0_stat "
-                    do j1 = 1, nT0
-                        write (*, trim(fmt)) obsData%obsT0(j)%epo(j1),&
-                          &obsData%obsT0(j)%T0(j1), obsData%obsT0(j)%eT0(j1),&
-                          &simT0(j)%T0(j1),&
-                          &(obsData%obsT0(j)%T0(j1) - simT0(j)%T0(j1)),&
-                          &simT0(j)%T0_stat(j1)
+                    do i_T0 = 1, nT0
+                        write (*, trim(fmt)) obsData%obsT0(i_body)%epo(i_T0),&
+                          &obsData%obsT0(i_body)%T0(i_T0), obsData%obsT0(i_body)%eT0(i_T0),&
+                          &simT0(i_body)%T0(i_T0),&
+                          &(obsData%obsT0(i_body)%T0(i_T0)-simT0(i_body)%T0(i_T0)),&
+                          &simT0(i_body)%T0_stat(i_T0)
                     end do
 
                 else ! do check duration
@@ -528,15 +531,15 @@ contains
                       &" T0obs-T0_sim ", " T0_stat ",&
                       &" Dur_obs ", " eDur_obs ", " Dur_sim ", " Dur_obs-Dur_sim",&
                       &" Dur_stat "
-                    do j1 = 1, nT0
-                        write (*, trim(fmt)) obsData%obsT0(j)%epo(j1),&
-                          &obsData%obsT0(j)%T0(j1), obsData%obsT0(j)%eT0(j1),&
-                          &simT0(j)%T0(j1),&
-                          &(obsData%obsT0(j)%T0(j1) - simT0(j)%T0(j1)),&
-                          &simT0(j)%T0_stat(j1),&
-                          &obsData%obsT0(j)%dur(j1), obsData%obsT0(j)%edur(j1),&
-                          &simT0(j)%dur(j1), obsData%obsT0(j)%dur(j1) - simT0(j)%dur(j1),&
-                          &simT0(j)%dur_stat(j1)
+                    do i_T0 = 1, nT0
+                        write (*, trim(fmt)) obsData%obsT0(i_body)%epo(i_T0),&
+                          &obsData%obsT0(i_body)%T0(i_T0), obsData%obsT0(i_body)%eT0(i_T0),&
+                          &simT0(i_body)%T0(i_T0),&
+                          &(obsData%obsT0(i_body)%T0(i_T0)-simT0(i_body)%T0(i_T0)),&
+                          &simT0(i_body)%T0_stat(i_T0),&
+                          &obsData%obsT0(i_body)%dur(i_T0), obsData%obsT0(i_body)%edur(i_T0),&
+                          &simT0(i_body)%dur(i_T0), obsData%obsT0(i_body)%dur(i_T0)-simT0(i_body)%dur(i_T0),&
+                          &simT0(i_body)%dur_stat(i_T0)
                     end do
 
                 end if
@@ -555,53 +558,72 @@ contains
 !     real(dp),dimension(:,:),intent(in)::T0_sim
 !     integer,dimension(:,:),intent(in)::T0_stat
         character(512)::flT0
-        integer::uT0, j, j1, nT0
-        character(80)::fmt
+        integer::uT0, i_body, i_T0, nT0o, nT0s, nT0
+        character(128)::fmt, hea
 
-        fmt = adjustl("(i6,2(4("//trim(sprec)//",1x),i3))")
-        do j = 1, NB - 1
-            nT0 = simT0(j)%nT0
-            ! write(*,*)" DEBUG: ** body id = ",j+1
-            ! write(*,*)" DEBUG: ** sim nT0 = ",nT0
-            ! write(*,*)" DEBUG: ** obs nT0 = ",obsData%obsT0%nT0
+        ! fmt = adjustl("(i6,2(4("//trim(sprec)//",1x),i3))")
+        fmt = adjustl("i6,1x,4("//trim(sprec)//",1x),i3,1x,8("//trim(sprec)//",1x)")
+        hea = adjustl("a,5(1x,a),8(1x,a)")
+        do i_body = 1, NB-1
+            nT0s = simT0(i_body)%nT0
+            nT0o = obsData%obsT0(i_body)%nT0
+
+            ! write(*,*)" DEBUG: ** body id = ",i_body+1
+            ! write(*,*)" DEBUG: ** sim nT0 = ",nT0s
+            ! write(*,*)" DEBUG: ** obs nT0 = ",nT0o
+
+            nT0 = nT0o
+
             if (nT0 .gt. 0) then
 
                 uT0 = get_unit(cpuid)
                 flT0 = ""
                 flT0 = trim(path)//trim(adjustl(string(isim)))//"_"//&
                   &trim(adjustl(string(wrtid)))//"_NB"//&
-                  &trim(adjustl(string(j + 1)))//"_simT0.dat"
+                  &trim(adjustl(string(i_body+1)))//"_simT0.dat"
                 flT0 = trim(adjustl(flT0))
                 open (uT0, file=trim(flT0))
 
                 if (durcheck .eq. 0) then ! do not check duration
-                    write (uT0, '(a,1x,a,19x,a,18x,a,18x,a,5x,a)')&
-                        &"# epoT0obs ", " T0obs ", " eT0obs ", " T0_sim ",&
-                        &" T0obs-T0_sim ", " T0_stat "
-                    do j1 = 1, nT0
-                        write (uT0, trim(fmt)) obsData%obsT0(j)%epo(j1),&
-                          &obsData%obsT0(j)%T0(j1), obsData%obsT0(j)%eT0(j1),&
-                          &simT0(j)%T0(j1),&
-                          &(obsData%obsT0(j)%T0(j1) - simT0(j)%T0(j1)),&
-                          &simT0(j)%T0_stat(j1)
+                    write (uT0, "("//trim(hea)//")")&
+                        &"# epoT0obs", "T0obs", "eT0obs", "T0_sim",&
+                        &"T0obs-T0_sim", "T0_stat",&
+                        &"period_d", "sma_au", "ecc", "inc_deg",&
+                        &"meana_deg", "argp_deg", "truea_deg", "longn_deg"
+                    do i_T0 = 1, nT0
+                        write (uT0, "("//trim(fmt)//")")&
+                          &obsData%obsT0(i_body)%epo(i_T0),&
+                          &obsData%obsT0(i_body)%T0(i_T0), obsData%obsT0(i_body)%eT0(i_T0),&
+                          &simT0(i_body)%T0(i_T0),&
+                          &(obsData%obsT0(i_body)%T0(i_T0)-simT0(i_body)%T0(i_T0)),&
+                          &simT0(i_body)%T0_stat(i_T0),&
+                          &simT0(i_body)%period(i_T0), simT0(i_body)%sma(i_T0), simT0(i_body)%ecc(i_T0),&
+                          &simT0(i_body)%inc(i_T0), simT0(i_body)%meana(i_T0), simT0(i_body)%argp(i_T0),&
+                          &simT0(i_body)%truea(i_T0), simT0(i_body)%longn(i_T0)
                     end do
 
                 else ! do check duration
 
-                    write (uT0, '(a,2(1x,a,19x,a,18x,a,18x,a,5x,a))')&
-                       &"# epoT0obs ", " T0obs ", " eT0obs ", " T0_sim ",&
-                       &" T0obs-T0_sim ", " T0_stat ",&
-                       &" Dur_obs ", " eDur_obs ", " Dur_sim ", " Dur_obs-Dur_sim",&
-                       &" Dur_stat "
-                    do j1 = 1, nT0
-                        write (uT0, trim(fmt)) obsData%obsT0(j)%epo(j1),&
-                          &obsData%obsT0(j)%T0(j1), obsData%obsT0(j)%eT0(j1),&
-                          &simT0(j)%T0(j1),&
-                          &(obsData%obsT0(j)%T0(j1) - simT0(j)%T0(j1)),&
-                          &simT0(j)%T0_stat(j1),&
-                          &obsData%obsT0(j)%dur(j1), obsData%obsT0(j)%edur(j1),&
-                          &simT0(j)%dur(j1), obsData%obsT0(j)%dur(j1) - simT0(j)%dur(j1),&
-                          &simT0(j)%dur_stat(j1)
+                    write (uT0, "("//trim(hea)//",5(1x,a))")&
+                       &"# epoT0obs", "T0obs", "eT0obs", "T0_sim",&
+                       &" T0obs-T0_sim", "T0_stat",&
+                       &"period_d", "sma_au", "ecc", "inc_deg",&
+                       &"meana_deg", "argp_deg", "truea_deg", "longn_deg",&
+                       &"Dur_obs", "eDur_obs", "Dur_sim", "Dur_obs-Dur_sim",&
+                       &"Dur_stat "
+                    do i_T0 = 1, nT0
+                        write (uT0, "("//trim(fmt)//",4("//trim(sprec)//",1x),i3)")&
+                          &obsData%obsT0(i_body)%epo(i_T0),&
+                          &obsData%obsT0(i_body)%T0(i_T0), obsData%obsT0(i_body)%eT0(i_T0),&
+                          &simT0(i_body)%T0(i_T0),&
+                          &(obsData%obsT0(i_body)%T0(i_T0)-simT0(i_body)%T0(i_T0)),&
+                          &simT0(i_body)%T0_stat(i_T0),&
+                          &simT0(i_body)%period(i_T0), simT0(i_body)%sma(i_T0), simT0(i_body)%ecc(i_T0),&
+                          &simT0(i_body)%inc(i_T0), simT0(i_body)%meana(i_T0), simT0(i_body)%argp(i_T0),&
+                          &simT0(i_body)%truea(i_T0), simT0(i_body)%longn(i_T0),&
+                          &obsData%obsT0(i_body)%dur(i_T0), obsData%obsT0(i_body)%edur(i_T0),&
+                          &simT0(i_body)%dur(i_T0), obsData%obsT0(i_body)%dur(i_T0)-simT0(i_body)%dur(i_T0),&
+                          &simT0(i_body)%dur_stat(i_T0)
                     end do
 
                 end if

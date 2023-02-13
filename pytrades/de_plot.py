@@ -10,26 +10,27 @@ import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
 
-# matplotlib rc params
-plt.rcParams["text.usetex"] = False
-# plt.rcParams['font.family']       = 'sans-serif'
-plt.rcParams["font.family"] = "serif"
-plt.rcParams["font.serif"] = ["Computer Modern Roman", "Palatino", "DejaVu Serif"]
-plt.rcParams["mathtext.fontset"] = "cm"
-plt.rcParams["figure.figsize"] = [5, 5]
-plt.rcParams["figure.facecolor"] = "white"
-plt.rcParams["savefig.facecolor"] = "white"
-plt.rcParams["figure.dpi"] = 200
-plt.rcParams["savefig.dpi"] = 300
-plt.rcParams["font.size"] = 12
-plt.rcParams["xtick.labelsize"] = plt.rcParams["font.size"] - 2
-plt.rcParams["ytick.labelsize"] = plt.rcParams["xtick.labelsize"]
+# # matplotlib rc params
+# plt.rcParams["text.usetex"] = False
+# # plt.rcParams['font.family']       = 'sans-serif'
+# plt.rcParams["font.family"] = "serif"
+# plt.rcParams["font.serif"] = ["Computer Modern Roman", "Palatino", "DejaVu Serif"]
+# plt.rcParams["mathtext.fontset"] = "cm"
+# plt.rcParams["figure.figsize"] = [5, 5]
+# plt.rcParams["figure.facecolor"] = "white"
+# plt.rcParams["savefig.facecolor"] = "white"
+# plt.rcParams["figure.dpi"] = 200
+# plt.rcParams["savefig.dpi"] = 300
+# plt.rcParams["font.size"] = 12
+# plt.rcParams["xtick.labelsize"] = plt.rcParams["font.size"] - 2
+# plt.rcParams["ytick.labelsize"] = plt.rcParams["xtick.labelsize"]
 
 
 # local constants module
 import constants as cst
 import ancillary as anc
 
+anc.set_rcParams()
 
 # ======================================================================
 class DEEvolution:
@@ -71,7 +72,10 @@ class DEEvolution:
         self.de_fit_best = h5f["best_fitness"][: self.ngen_de]
 
         self.de_par = h5f["de_parameters"][...]
-        self.de_bounds = h5f["parameters_minmax"]
+        if np.all(self.de_par == 0.0):
+            loc_best = np.argmax(self.de_fit_best[: self.ngen_de])
+            self.de_par = self.de_pop_best[loc_best, :].copy()
+        self.de_bounds = h5f["parameters_minmax"][...]
         self.par_names = anc.decode_list(h5f["parameter_names"])
 
         h5f.close()
@@ -85,8 +89,8 @@ class DEEvolution:
         for i_p, p in enumerate(self.par_names):
             d[p] = de_pop_flat[:, i_p]
         d["de_fitness"] = self.de_fit.copy().reshape((self.ngen_de * self.npop_de))
-        for k, v in d.items():
-            print(k, len(v))
+        # for k, v in d.items():
+        #     print(k, len(v))
 
         self.de_pop_flat = pd.DataFrame(d)
 
@@ -95,9 +99,9 @@ class DEEvolution:
         for i_p, p in enumerate(self.par_names):
             d[p] = self.de_pop_best[:, i_p].copy()
         d["de_fitness"] = self.de_fit_best.copy()
-        print()
-        for k, v in d.items():
-            print(k, len(v))
+        # print()
+        # for k, v in d.items():
+        #     print(k, len(v))
         self.de_best_flat = pd.DataFrame(d)
 
     def convert_masses(self, Mstar=1.0, mass_unit="e"):
@@ -219,10 +223,11 @@ class DEEvolution:
         self,
         name1,
         name2,
-        scale_name="pso_fitness",
+        scale_name="de_fitness",
         colorbar=True,
         thin_iter=1,
         percentile_max=50,
+        show_plot=False,
     ):
 
         fig = plt.figure()
@@ -239,10 +244,11 @@ class DEEvolution:
             thin_iter=thin_iter,
             percentile_max=percentile_max,
         )
-        plt.show()
-        plt.close(fig)
+        if show_plot:
+            plt.show()
+        # plt.close(fig)
 
-        return
+        return fig
 
     def threepanel_scatter_plot(
         self,
@@ -250,6 +256,7 @@ class DEEvolution:
         scale_name="de_fitness",
         thin_iter=1,
         percentile_max=50,
+        show_plot=False,
     ):
 
         # c = self.all_pso[scale_name]
@@ -312,22 +319,26 @@ class DEEvolution:
         )
 
         # plt.tight_layout()
-        plt.show()
-        plt.close(fig)
+        if show_plot:
+            plt.show()
+        # plt.close(fig)
 
-        return
+        return fig
 
     def adhoc_scatter_plot(
-        self, scale_name="de_fitness", thin_iter=1, percentile_max=50
+        self, scale_name="de_fitness", thin_iter=1, percentile_max=50, show_plot=False
     ):
 
-        self.threepanel_scatter_plot(
-            scale_name=scale_name, thin_iter=thin_iter, percentile_max=percentile_max
+        fig = self.threepanel_scatter_plot(
+            scale_name=scale_name,
+            thin_iter=thin_iter,
+            percentile_max=percentile_max,
+            show_plot=show_plot,
         )
 
-        return
+        return fig
 
-    def histogram_plot(self, n_planets, label_type="mass"):
+    def histogram_plot(self, n_planets, label_type="mass", show_plot=False):
 
         fig = plt.figure()
 
@@ -364,13 +375,19 @@ class DEEvolution:
         plt.xlabel(label_type)
 
         plt.legend(loc="best", fontsize=8)
-        plt.show()
-        plt.close(fig)
+        if show_plot:
+            plt.show()
+        # plt.close(fig)
 
-        return
+        return fig
 
     def evolution_plot_one_par(
-        self, label, true_pars_dictionary={}, thin_iter=1, percentile_max=50
+        self,
+        label,
+        true_pars_dictionary={},
+        thin_iter=1,
+        percentile_max=50,
+        show_plot=False,
     ):
 
         k = label
@@ -397,9 +414,14 @@ class DEEvolution:
         c = scale_full[sel_iter]
 
         fig = plt.figure(figsize=(6, 4))
-
+        plt.title(
+            "DE best {} = {:.8f}".format(k, self.de_best_flat[k].iloc[-1]),
+            loc='center',
+            # fontdict={"fontsize": 12}
+        )
         sc = plt.scatter(x, y, c=c, s=2, alpha=0.2)
-        plt.colorbar(sc, label=kf)
+        cbar = plt.colorbar(sc, label=kf)
+        cbar.solids.set(alpha=1)
         plt.plot(
             self.de_best_flat["iter"],
             self.de_best_flat[k],
@@ -412,5 +434,7 @@ class DEEvolution:
             plt.axhline(true_pars_dictionary[k], color="C1", ls="--", lw=1.5)
         plt.xlabel("N iteration")
         plt.ylabel(k)
+        if show_plot:
+            plt.show()
 
         return fig

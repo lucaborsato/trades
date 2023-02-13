@@ -69,12 +69,12 @@ contains
         real(dp), dimension(:), intent(in)::allpar, par
         real(dp), intent(out)::pso_fitness
         ! real(dp)::fitness
-        real(dp)::chi_square, reduced_chi_square, lnLikelihood, ln_const, bic
+        real(dp)::chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic
 
         call base_fitness_function(allpar, par,&
-            &chi_square, reduced_chi_square, lnLikelihood, ln_const, bic)
+            &chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic)
         ! pso_fitness = one/reduced_chi_square
-        pso_fitness = lnLikelihood
+        pso_fitness = lnLikelihood+lnprior
         ir = 0
 
         return
@@ -125,7 +125,7 @@ contains
         integer::nstore, n_fitness
 
         n_fitness = 2
-        nstore = nfit + n_fitness
+        nstore = nfit+n_fitness
         if (.not. allocated(bestpso)) allocate (bestpso(nstore, nit), idbest(nit))
         bestpso = zero
 
@@ -199,11 +199,11 @@ contains
         !====== Setup control flags =======
         flag = 0           ! control flag
     !! flag = flag + f_quiet   ! restrain messages
-        flag = flag + f_initp   ! use initial parameters
-        flag = flag + f_lrand   ! local random search algorithm
-        flag = flag + f_vlimit  ! velocity limit algorithm
-        flag = flag + f_vrand   ! velocity perturbation algorithm
-        flag = flag + f_gcenter ! evaluate center of gravity
+        flag = flag+f_initp   ! use initial parameters
+        flag = flag+f_lrand   ! local random search algorithm
+        flag = flag+f_vlimit  ! velocity limit algorithm
+        flag = flag+f_vrand   ! velocity perturbation algorithm
+        flag = flag+f_gcenter ! evaluate center of gravity
     !! flag = flag + f_gjump   ! move to center of gravity
     !! flag = flag + f_qmcinit ! initialize by Quasi-Monte Carlo
 
@@ -250,18 +250,18 @@ contains
         close (1)
 
         flag = flag_quiet
-        flag = flag + flag_initp*2**1
-        flag = flag + flag_vlimit*2**2
-        flag = flag + flag_lrand*2**3
-        flag = flag + flag_vrand*2**4
-        flag = flag + flag_gcenter*2**5
-        flag = flag + flag_gjump*2**6
-        flag = flag + flag_qmcinit*2**7
+        flag = flag+flag_initp*2**1
+        flag = flag+flag_vlimit*2**2
+        flag = flag+flag_lrand*2**3
+        flag = flag+flag_vrand*2**4
+        flag = flag+flag_gcenter*2**5
+        flag = flag+flag_gjump*2**6
+        flag = flag+flag_qmcinit*2**7
 
         nn = 0
         do i = 1, n
             if (xmin(i) /= xmax(i)) then
-                nn = nn + 1
+                nn = nn+1
             end if
         end do
         c3 = c3*sqrt(real(nn, dp))
@@ -354,7 +354,7 @@ contains
 
     !!....!===== Initialize random number generator =====
 !     write(*,'(a)')" Initializing seeds in PSO"
-        call init_random_seed_input(np*n, seed_pso + iGlobal - 1)
+        call init_random_seed_input(np*n, seed_pso+iGlobal-1)
 !     write(*,*)
 
         !===== Initialize sign of evaluation =====
@@ -441,7 +441,7 @@ contains
             !===== Move worst particle to gravity center =====
             if (flag_on(flag, f_gjump)) then
                 worst = ip(np)
-                p(worst)%v(1:n) = g%x(1:n) - p(worst)%x(1:n)
+                p(worst)%v(1:n) = g%x(1:n)-p(worst)%x(1:n)
                 p(worst)%x(1:n) = g%x(1:n)
                 p(worst)%ev = g%ev
                 if (p(worst)%ev > p(worst)%evbest) then
@@ -451,7 +451,7 @@ contains
             end if
 
             ! added by Luca...the original is after exit_loop
-            i = i + 1
+            i = i+1
 
             !===== Check exit conditions =====
             if ((it > 0 .and. i >= it) .or. (ie > 0 .and. evcount >= ie)) then
@@ -475,7 +475,7 @@ contains
                   & infeasible(np, p), evcount
                 write (*, '(10(a,es23.16))')&
                   &" Best Swarm fitness = ", gebest
-                  write (*, '(a)') " With parameters: "
+                write (*, '(a)') " With parameters: "
                 write (*, '(10000(es23.16,1x))') unscaling(n, gxbest)
                 write (*, '(a)') " "
             end if
@@ -496,7 +496,7 @@ contains
                 write (*, '(a,es23.16)') '     fitness(best) = ', gebest
                 write (*, *)
 !           it_c=i
-                wrt_it = wrt_it + 10
+                wrt_it = wrt_it+10
             end if
 
             !===== Exit loop =====
@@ -563,7 +563,7 @@ contains
         !---- Velocity random expansion (optional) ----
         if (flag_on(flag, f_vrand)) then
       !!r3 = (one - vrand) + grand() * vrand
-            r3 = (one - vrand) + random_scalar()*vrand
+            r3 = (one-vrand)+random_scalar()*vrand
         end if
 
         !---- Local random search (optional) ----
@@ -575,9 +575,9 @@ contains
 
         !===== Calculate velocity vector =====
         v0(1:n) = w*p%v(1:n)
-        v1(1:n) = c1*r1*(p%xbest(1:n) - p%x(1:n))
-        v2(1:n) = c2*r2*(gxbest(1:n) - p%x(1:n))
-        v(1:n) = v0(1:n) + v1(1:n) + v2(1:n)
+        v1(1:n) = c1*r1*(p%xbest(1:n)-p%x(1:n))
+        v2(1:n) = c2*r2*(gxbest(1:n)-p%x(1:n))
+        v(1:n) = v0(1:n)+v1(1:n)+v2(1:n)
 
         !===== Limit velocity length (optional) =====
         if (flag_on(flag, f_vlimit)) then
@@ -588,7 +588,7 @@ contains
         end if
 
         !===== Update velocity vector =====
-        v(1:n) = r3*v(1:n) + v3(1:n)
+        v(1:n) = r3*v(1:n)+v3(1:n)
 
         !===== perturbation =====
         vv = vabs(n, v)
@@ -599,7 +599,7 @@ contains
         end if
 
         !===== Update position =====
-        x(1:n) = p%x(1:n) + v(1:n)
+        x(1:n) = p%x(1:n)+v(1:n)
 
         !===== Reflection =====
         call reflect(n, x, v)
@@ -628,7 +628,7 @@ contains
                     v(i) = -one*v(i)
                     retry = .true.
                 else if (x(i) > one) then
-                    x(i) = two - one*x(i)
+                    x(i) = two-one*x(i)
                     !x(i) = one
                     v(i) = -one*v(i)
                     retry = .true.
@@ -647,7 +647,7 @@ contains
         integer :: i
         r = zero
         do i = 1, n
-            r = r + v(i)**2
+            r = r+v(i)**2
         end do
         r = sqrt(r)
     end function vabs
@@ -665,50 +665,50 @@ contains
 
         if (n > max_nparam) then
             print *, 'pso: error: n > max_nparam', n
-            err = err + 1
+            err = err+1
         end if
         if (np < 1) then
             print *, 'pso: error: np < 1', np
-            err = err + 1
+            err = err+1
         end if
         if (w < zero) then
             print *, 'pso: error: w < 0', w
-            err = err + 1
+            err = err+1
         end if
         if (c1 < zero) then
             print *, 'pso: error: c1 < 0', c1
-            err = err + 1
+            err = err+1
         end if
         if (c2 < zero) then
             print *, 'pso: error: c2 < 0', c2
-            err = err + 1
+            err = err+1
         end if
         if (c3 < zero) then
             print *, 'pso: error: c3 < 0', c3
-            err = err + 1
+            err = err+1
         end if
         if (vmax <= zero) then
             print *, 'pso: error: Rmax <= 0', vmax
-            err = err + 1
+            err = err+1
         end if
         if (it < 0) then
             print *, 'pso: error: it < 0', it
-            err = err + 1
+            err = err+1
         end if
 
         do i = 1, n
             if (xmax(i) < xmin(i)) then
                 print *, 'pso: error: xmax < xmin', i
-                err = err + 1
+                err = err+1
             end if
             if (flag_on(flag, f_initp)) then
                 if (xinit(i) < xmin(i)) then
                     print *, 'pso: error: xinit < xmin', i, xinit(i), xmin(i)
-                    err = err + 1
+                    err = err+1
                 end if
                 if (xinit(i) > xmax(i)) then
                     print *, 'pso: error: xinit > xmax', i, xinit(i), xmax(i)
-                    err = err + 1
+                    err = err+1
                 end if
             end if
         end do
@@ -766,7 +766,7 @@ contains
             na = 0                           ! number of effective dimension
             do j = 1, n
                 if (scale_a(j) > zero) then      ! not fixed parameter
-                    na = na + 1
+                    na = na+1
                     ip(j) = na
                 end if
             end do
@@ -774,7 +774,7 @@ contains
             do i = 1, np
                 do j = 1, n
                     if (scale_a(j) > zero) then
-                        p(i)%x(j) = x((i - 1)*na + ip(j))
+                        p(i)%x(j) = x((i-1)*na+ip(j))
                     else
                         p(i)%x(j) = zero
                     end if
@@ -826,7 +826,7 @@ contains
             check = check_only_boundaries(all_parameters, ptemp)
             if (check) then
 !           write(*,*)' par (True) = ',unscaling(n_fit,xtemp)
-                iloop = iloop + 1
+                iloop = iloop+1
                 p(iloop)%x(1:n_fit) = xtemp(1:n_fit)
                 p(iloop)%v(1:n_fit) = zero
                 p(iloop)%evbest = void
@@ -882,7 +882,7 @@ contains
         else
             r = constrained
         end if
-        evcount = evcount + 1
+        evcount = evcount+1
     end function evaluate
 
     !----------------------------------------------------------------------
@@ -910,7 +910,7 @@ contains
         integer::i
         x(1:n) = zero
         do i = 1, np
-            x(1:n) = x(1:n) + p(ip(i))%x(1:n)
+            x(1:n) = x(1:n)+p(ip(i))%x(1:n)
         end do
         x(1:n) = x(1:n)/real(np, dp)
     end function gcenter
@@ -928,8 +928,8 @@ contains
         do i = 1, np
             x = p(i)%ev
             if (x > constrained) then
-                r = r + x
-                j = j + 1
+                r = r+x
+                j = j+1
             end if
         end do
         if (j > 0) then
@@ -950,7 +950,7 @@ contains
         j = 0
         do i = 1, np
             if (p(i)%ev <= constrained) then
-                j = j + 1
+                j = j+1
             end if
         end do
         r = int(real(j, dp)/real(np, dp)*100.0_dp)
@@ -963,7 +963,7 @@ contains
         integer, intent(in) :: n
         real(dp), intent(in) :: xmin(1:n), xmax(1:n)
 !     scale_a(1:n) = xmax(1:n) - xmin(1:n)
-        scale_a(1:n) = abs(xmax(1:n) - xmin(1:n))
+        scale_a(1:n) = abs(xmax(1:n)-xmin(1:n))
         scale_b(1:n) = xmin(1:n)
     end subroutine init_scaling
 
@@ -975,7 +975,7 @@ contains
         real(dp), intent(in) :: x(1:n)
         real(dp)                :: px(1:n)
         px(1:n) = zero
-        where (scale_a(1:n) /= zero) px(1:n) = (x(1:n) - scale_b(1:n))/scale_a(1:n)
+        where (scale_a(1:n) /= zero) px(1:n) = (x(1:n)-scale_b(1:n))/scale_a(1:n)
     end function scaling
 
     !----------------------------------------------------------------------
@@ -985,7 +985,7 @@ contains
         integer, intent(in) :: n
         real(dp), intent(in) :: px(1:n)
         real(dp)                :: x(1:n)
-        x(1:n) = px(1:n)*scale_a(1:n) + scale_b(1:n)
+        x(1:n) = px(1:n)*scale_a(1:n)+scale_b(1:n)
     end function unscaling
 
     !----------------------------------------------------------------------
@@ -1106,10 +1106,10 @@ contains
         bestpso(1:nfit, ipos) = x_unsc(1:nfit)
         deallocate (x_unsc)
 
-        bic = -two*pso_fitness + bic_const ! bic_const global variable
+        bic = -two*pso_fitness+bic_const ! bic_const global variable
 
-        bestpso(nfit + 1, ipos) = pso_fitness
-        bestpso(nfit + 2, ipos) = bic
+        bestpso(nfit+1, ipos) = pso_fitness
+        bestpso(nfit+2, ipos) = bic
         idbest(ipos) = ipx
         ! added 2014-07-14: write best each iteration
         fmtw = adjustl("(i6,1x,i6,1x,10000("//sprec//",1x))")
@@ -1129,7 +1129,7 @@ contains
         character(512)::flpso, fmtw
 
         cpuid = 1
-!$      cpuid = omp_get_thread_num() + 1
+!$      cpuid = omp_get_thread_num()+1
         flpso = trim(path)//"bestpso_"//trim(adjustl(string(nfit)))//"par.out"
         flpso = trim(adjustl(flpso))
         fmtw = adjustl("(i6,1x,i6,10000("//sprec//"))")
@@ -1162,7 +1162,7 @@ contains
             pso_fitness = pp(j)%ev
             ! fitness = one/pso_fitness
             ! fitness_x_dof = fitness*real(obsData%dof, dp)
-            bic = -two*pso_fitness + bic_const ! bic_const global variable
+            bic = -two*pso_fitness+bic_const ! bic_const global variable
             xpar = zero
             xpar = unscaling(nfit, pp(j)%x(:))
             write (uall, trim(wfmt)) it, ip(j), xpar, pso_fitness, bic

@@ -3,4 +3,4 @@ b.dat 1 0 1 1 1 1 0 0 T          #filename Mass Radius Period eccentricity Arg.o
 c.dat 1 0 1 1 1 1 0 1 T          #filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)
 d.dat 1 0 1 1 1 1 0 1 T          #filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)
 e.dat 1 0 1 1 1 1 0 1 T          #filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)
-g.dat 1 0 1 1 1 1 0 1 T          #filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)
+f.dat 1 0 1 1 1 1 0 1 T          #filename Mass Radius Period eccentricity Arg.ofPericenter MeanAnomaly inclination Long.ofNodes transit_flag(F or f if it should not transit)

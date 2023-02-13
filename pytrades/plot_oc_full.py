@@ -201,78 +201,81 @@ def main():
     cnt = 0
     for i_f, ff in enumerate(tra_file_list):
         print("READ FILE {}".format(ff))
-        oo = Transit(ff)
-        oo.compute_TTV_gls()
-        tra_obj.append(oo)
+        try:
+            oo = Transit(ff)
+            oo.compute_TTV_gls()
+            tra_obj.append(oo)
 
-        print("body n. {0:d}".format(oo.body_id))
-        # print 'ephem: %20.8f + N x %20.8f'.format(oo.Tref, oo.Pref)
+            print("body n. {0:d}".format(oo.body_id))
+            # print 'ephem: %20.8f + N x %20.8f'.format(oo.Tref, oo.Pref)
 
-        # single planet O-C
-        figx = plt.figure()
-        axx = plt.subplot2grid((1,1), (0,0), fig=figx)
-        axx.axhline(0.0, color="black", ls="-", lw=0.33, alpha=0.77)
-        
-        color = viridis(colors[i_f])
+            # single planet O-C
+            figx = plt.figure()
+            axx = plt.subplot2grid((1,1), (0,0), fig=figx)
+            axx.axhline(0.0, color="black", ls="-", lw=0.33, alpha=0.77)
+            
+            color = viridis(colors[i_f])
 
-        # for both plots
-        xscale = 0.0  # oo.TTs[0]
-        if cli.tscale is not None:
-            #xscale = oo.TTs - float(cli.tscale)
-            xscale = float(cli.tscale)
-            xlabel = "BJD - {0:.3f}".format(xscale)
-        else:
-            xlabel = "BJD"
-        ylabel = "O-C (min)"
-        axx.set_xlabel(xlabel)
-        if cnt == 0:
-            ax.set_xlabel(xlabel)
-            ax.set_ylabel(ylabel)
-        axx.set_ylabel(ylabel)
-        print("plotting O-C")
-        cnt += 1
-        labTeph = "TTlin $= {0:17.6f} + N \\times {1:13.6f}$".format(oo.Tref, oo.Pref)
-        print(labTeph)
-        labPTTV = "$P_\mathrm{{TTV}} = {0:13.6f}$ days".format(oo.p_ttv)
-        labATTV = "$A_\mathrm{{TTV}} = {0:10.3f}$ min".format(oo.amp_ttv * 1440.0)
-        print("{} , {}".format(labPTTV, labATTV))
-        ax.plot(
-            oo.TTs - xscale,
-            oo.ocd * 1440.0,
-            color=color,
-            marker="o",
-            ms=4,
-            mec="white",
-            mew=0.3,
-            ls="-",
-            lw=0.45,
-            alpha=0.77,
-            label="body #{}: {} ; {} , {}".format(
-                oo.body_id, labTeph, labPTTV, labATTV
-            ),
-        )
-        axx.plot(
-            oo.TTs - xscale,
-            oo.ocd * 1440.0,
-            color=color,
-            marker="o",
-            ms=4,
-            mec="white",
-            mew=0.3,
-            ls="-",
-            lw=0.45,
-            alpha=1.0,
-            label="body #{}: {} ; {} , {}".format(
-                oo.body_id, labTeph, labPTTV, labATTV
-            ),
-        )
-        axx.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), fontsize=6, ncol=1)
-        
-        plot_filex = plot_file.replace("full", "NB{}".format(oo.body_id))
-        plt.tight_layout()
-        print("Saving file: {}".format(plot_filex))
-        figx.savefig(plot_filex, bbox_inches='tight')
-        plt.close(figx)
+            # for both plots
+            xscale = 0.0  # oo.TTs[0]
+            if cli.tscale is not None:
+                #xscale = oo.TTs - float(cli.tscale)
+                xscale = float(cli.tscale)
+                xlabel = "BJD - {0:.3f}".format(xscale)
+            else:
+                xlabel = "BJD"
+            ylabel = "O-C (min)"
+            axx.set_xlabel(xlabel)
+            if cnt == 0:
+                ax.set_xlabel(xlabel)
+                ax.set_ylabel(ylabel)
+            axx.set_ylabel(ylabel)
+            print("plotting O-C")
+            cnt += 1
+            labTeph = "TTlin $= {0:17.6f} + N \\times {1:13.6f}$".format(oo.Tref, oo.Pref)
+            print(labTeph)
+            labPTTV = "$P_\mathrm{{TTV}} = {0:13.6f}$ days".format(oo.p_ttv)
+            labATTV = "$A_\mathrm{{TTV}} = {0:10.3f}$ min".format(oo.amp_ttv * 1440.0)
+            print("{} , {}".format(labPTTV, labATTV))
+            ax.plot(
+                oo.TTs - xscale,
+                oo.ocd * 1440.0,
+                color=color,
+                marker="o",
+                ms=4,
+                mec="white",
+                mew=0.3,
+                ls="-",
+                lw=0.45,
+                alpha=0.77,
+                label="body #{}: {} ; {} , {}".format(
+                    oo.body_id, labTeph, labPTTV, labATTV
+                ),
+            )
+            axx.plot(
+                oo.TTs - xscale,
+                oo.ocd * 1440.0,
+                color=color,
+                marker="o",
+                ms=4,
+                mec="white",
+                mew=0.3,
+                ls="-",
+                lw=0.45,
+                alpha=1.0,
+                label="body #{}: {} ; {} , {}".format(
+                    oo.body_id, labTeph, labPTTV, labATTV
+                ),
+            )
+            axx.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), fontsize=6, ncol=1)
+            
+            plot_filex = plot_file.replace("full", "NB{}".format(oo.body_id))
+            plt.tight_layout()
+            print("Saving file: {}".format(plot_filex))
+            figx.savefig(plot_filex, bbox_inches='tight')
+            plt.close(figx)
+        except:
+            print("{} empty, skipping.".format(ff))
 
     print("Saving file: {}".format(plot_file))
     ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), fontsize=6, ncol=1)
