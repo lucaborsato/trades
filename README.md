@@ -43,6 +43,8 @@ Comments are welcome!
 5. [Output files by TRADES](#out_files)  
 6. [Python Library](#pylib)  
 
+**For the impatient search for: COMMON WAY TO COMPILE**  
+
 ### Introduction {#intro}
 
 We have developed a computer program (in Fortran 90, openMP, and MPI) for determining 
@@ -200,13 +202,13 @@ For the mathematical and computational description see  [Borsato et al. (2014)][
   **To compile in parallel mode the `openMP` libraries must be properly installed (as suggested by your Linux distribution).**  
   Please, change properly your `Fortran` compiler in the `Makefile`.  
   
-  **USUAL COMPILE**
+  **COMMON WAY TO COMPILE**
   ```bash
   cd /path/to/trades/src
   make cleanall
   make full_parallel_release
   ```
-  In `/path/to/trades/pytrades` there will be the `*.so` file to be loaded with python.  
+  In `/path/to/trades/pytrades` there will be the `*.so`  and `pytrades.py` files to be loaded with python.  
 
 ---
 
