@@ -69,8 +69,7 @@ sys.path.append(module_path)
 
 import ancillary as anc
 import constants as cst
-from pytrades_lib import pytrades
-#import pytrades_lib.pytrades as pytrades
+from pytrades_lib import f90trades
 
 # import emcee.interruptible_pool as emcee_pool
 
@@ -568,9 +567,9 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, \
   dof = 1
 
   try:
-    #mass, radius, period, sma, ecc, argp, mean_an, inc, long_n, nt0_full, nrv_nmax = pytrades.wrapper_set_grid_orbelem(sim_num, perturber_id, perturber_grid, n_bodies)
+    #mass, radius, period, sma, ecc, argp, mean_an, inc, long_n, nt0_full, nrv_nmax = f90trades.wrapper_set_grid_orbelem(sim_num, perturber_id, perturber_grid, n_bodies)
     mass, radius, period, sma, ecc, argp, mean_an, inc, long_n, nt0_full, nrv_nmax = \
-      pytrades.wrapper_set_grid_orbelem(sim_num, perturber_id, perturber_par, n_bodies)
+      f90trades.wrapper_set_grid_orbelem(sim_num, perturber_id, perturber_par, n_bodies)
     #print ' | Set grid keplerian elements'
     kep_elem = np.column_stack((mass, radius, period, sma, ecc, argp, mean_an, inc, long_n))
   except:
@@ -591,7 +590,7 @@ def simulation_and_ttv_analysis(i_grid, transit_id, perturber_id, n_bodies, \
   try:
     #anc.print_both(' - Run integration ...', of_log)
     ttra_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = \
-      pytrades.wrapper_run_grid_combination(mass, radius, period, sma, ecc, argp, mean_an, inc, long_n,
+      f90trades.wrapper_run_grid_combination(mass, radius, period, sma, ecc, argp, mean_an, inc, long_n,
                                             nt0_full, nrv_nmax
                                             )
     #print ' | Completed orbit intergration'
@@ -1887,16 +1886,16 @@ def main():
   # init TRADES
   anc.print_both(' - INIT TRADES', of_log)
   
-  pytrades.initialize_trades(cli.full_path, cli.sub_folder, cli.nthreads)
-  n_bodies = pytrades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
+  f90trades.initialize_trades(cli.full_path, cli.sub_folder, cli.nthreads)
+  n_bodies = f90trades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
   # n_planets = n_bodies - 1 # NUMBER OF PLANETS IN THE SYSTEM
   
   # read grid parameters ==> output ngrid and ncol
-  ngrid, ncol = pytrades.wrapper_read_grid(1)
+  ngrid, ncol = f90trades.wrapper_read_grid(1)
   # create grid
-  perturber_grid = pytrades.wrapper_grid_init(1, ngrid, ncol)
+  perturber_grid = f90trades.wrapper_grid_init(1, ngrid, ncol)
   anc.print_both(' - SET PERTURBER GRID', of_log)
-  #perturber_grid = pytrades.wrapper_grid_init(1)
+  #perturber_grid = f90trades.wrapper_grid_init(1)
   anc.print_both(' | To run {:d} simulation/s.\n'.format(ngrid), of_log)
   
   #mr_convert, mr_unit = mass_factor(cli.mr_type)

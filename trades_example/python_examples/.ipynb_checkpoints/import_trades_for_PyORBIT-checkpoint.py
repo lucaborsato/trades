@@ -20,7 +20,7 @@ trades_path = os.path.abspath("/path/to/trades/")
 pytrades_path = os.path.join(trades_path, "pytrades")
 sys.path.append(pytrades_path)
 import constants as cst
-from pytrades_lib import pytrades as f90trades
+from pytrades_lib import f90trades as f90trades
 
 
 # ## integration parameters

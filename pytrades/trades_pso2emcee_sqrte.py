@@ -20,7 +20,7 @@ import emcee
 
 from constants import Msear
 import ancillary as anc
-from pytrades_lib import pytrades
+from pytrades_lib import f90trades
 
 # =============================================================================
 
@@ -239,22 +239,22 @@ nthreads = cli.nthreads
 np.random.seed(cli.seed)
 
 # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
-pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
+f90trades.initialize_trades(working_path, cli.sub_folder, nthreads)
 
 # RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
 
-n_bodies = pytrades.n_bodies  # NUMBER OF TOTAL BODIES OF THE SYSTEM
+n_bodies = f90trades.n_bodies  # NUMBER OF TOTAL BODIES OF THE SYSTEM
 n_planets = n_bodies - 1  # NUMBER OF PLANETS IN THE SYSTEM
-ndata = pytrades.ndata  # TOTAL NUMBER OF DATA AVAILABLE
-nfit = pytrades.nfit  # NUMBER OF PARAMETERS TO FIT
-nfree = pytrades.nfree  # NUMBER OF FREE PARAMETERS (ie nrvset)
-dof = pytrades.dof  # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
+ndata = f90trades.ndata  # TOTAL NUMBER OF DATA AVAILABLE
+nfit = f90trades.nfit  # NUMBER OF PARAMETERS TO FIT
+nfree = f90trades.nfree  # NUMBER OF FREE PARAMETERS (ie nrvset)
+dof = f90trades.dof  # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
 global inv_dof
-inv_dof = pytrades.inv_dof
+inv_dof = f90trades.inv_dof
 
 # READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
-str_len = pytrades.str_len
-temp_names = pytrades.get_parameter_names(nfit, str_len)
+str_len = f90trades.str_len
+temp_names = f90trades.get_parameter_names(nfit, str_len)
 trades_names = anc.convert_fortran_charray2python_strararray(temp_names)
 # OLD (UNTIL TRADES v2.17.1)
 # parameter_names = anc.trades_names_to_emcee(trades_names)
@@ -262,23 +262,23 @@ trades_names = anc.convert_fortran_charray2python_strararray(temp_names)
 parameter_names = trades_names
 
 # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
-trades_parameters = pytrades.fitting_parameters.copy()
+trades_parameters = f90trades.fitting_parameters.copy()
 # OLD v2.17.1
 # fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
-# trades_minmax = pytrades.parameters_minmax  # PARAMETER BOUNDARIES
+# trades_minmax = f90trades.parameters_minmax  # PARAMETER BOUNDARIES
 # parameters_minmax = anc.e_to_sqrte_boundaries(trades_minmax, trades_names)
 # NEW v2.18.0
 fitting_parameters = trades_parameters.copy()
-trades_minmax = pytrades.parameters_minmax.copy()
+trades_minmax = f90trades.parameters_minmax.copy()
 parameters_minmax = trades_minmax
 
 # RADIAL VELOCITIES SET
-n_rv = pytrades.nrv
-n_set_rv = pytrades.nrvset  # number of jitter parameters
+n_rv = f90trades.nrv
+n_set_rv = f90trades.nrvset  # number of jitter parameters
 
 # TRANSITS SET
-n_t0 = pytrades.nt0
-n_t0_sum = pytrades.ntts
+n_t0 = f90trades.nt0
+n_t0_sum = f90trades.ntts
 n_set_t0 = 0
 for i in range(0, n_bodies - 1):
     if n_t0[i] > 0:
@@ -293,7 +293,7 @@ nwalkers, nruns, nsave, _ = get_emcee_arguments(cli, nfit)
 # nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case =  anc.get_fitted(working_path)
 _, _, _, id_fit, _, _, cols_list, case = anc.get_fitted(working_path)
 # stellar mass in solar unit to earth, priors m in Earth masses
-m_factor = pytrades.mr_star[0, 0] * Msear
+m_factor = f90trades.mr_star[0, 0] * Msear
 
 # 2022-05-09 reads the priors from fortran and compute lnpriors in fortran
 
@@ -306,10 +306,10 @@ def lnprob(fitting_parameters):
 
     loglhd = 0.0
     check = 1
-    # loglhd, check = pytrades.fortran_loglikelihood(
+    # loglhd, check = f90trades.fortran_loglikelihood(
     #     np.asarray(fitting_parameters, dtype=np.float64)
     # )
-    loglhd, logprior, check = pytrades.fortran_logprob(
+    loglhd, logprior, check = f90trades.fortran_logprob(
         np.asarray(fitting_parameters, dtype=np.float64)
     )
     # not needed to add ln_err_const, because it is included in the loglhd now
@@ -346,11 +346,11 @@ anc.print_both(
 anc.print_both(" seed = {:s}".format(str(cli.seed)), of_run)
 
 # INITIALISE PSO ARGUMENTS FROM pso.opt FILE
-pytrades.init_pso(1, working_path)  # read PSO options
+f90trades.init_pso(1, working_path)  # read PSO options
 # PSO VARIABLES
-np_pso = pytrades.np_pso
-nit_pso = pytrades.nit_pso
-n_global = pytrades.n_global
+np_pso = f90trades.np_pso
+nit_pso = f90trades.nit_pso
+n_global = f90trades.n_global
 # n_global = 1
 anc.print_both(
     " PSO n_global = {} npop = {} ngen = {}".format(n_global, np_pso, nit_pso), of_run
@@ -368,7 +368,7 @@ for iter_global in range(0, n_global):
     pso_path = os.path.join(
         os.path.join(working_folder, "{0:04d}_pso2emcee".format(i_global)), ""
     )
-    pytrades.path_change(pso_path)
+    f90trades.path_change(pso_path)
 
     anc.print_both(
         "\n\n GLOBAL RUN {0:04d} INTO PATH: {1:s}\n".format(i_global, pso_path), of_run
@@ -387,11 +387,11 @@ for iter_global in range(0, n_global):
         # CALL RUN_PSO SUBROUTINE FROM TRADES_LIB: RUNS PSO AND COMPUTES THE BEST SOLUTION, SAVING ALL THE POPULATION EVOLUTION
         pso_parameters = trades_parameters.copy()
         pso_fitness = 0.0
-        pso_parameters, pso_fitness = pytrades.pyrun_pso(nfit, i_global)
+        pso_parameters, pso_fitness = f90trades.pyrun_pso(nfit, i_global)
         anc.print_both(" completed run_pso", of_run)
 
         pso_best_evolution = np.asarray(
-            pytrades.pso_best_evolution[...], dtype=np.float64
+            f90trades.pso_best_evolution[...], dtype=np.float64
         )
         anc.print_both(" pso_best_evolution retrieved", of_run)
 
@@ -405,10 +405,10 @@ for iter_global in range(0, n_global):
         )
         pso_hdf5 = h5py.File(os.path.join(pso_path, "pso_run.hdf5"), "w")
         pso_hdf5.create_dataset(
-            "population", data=pytrades.population, dtype=np.float64
+            "population", data=f90trades.population, dtype=np.float64
         )
         pso_hdf5.create_dataset(
-            "population_fitness", data=pytrades.population_fitness, dtype=np.float64
+            "population_fitness", data=f90trades.population_fitness, dtype=np.float64
         )
         pso_hdf5.create_dataset("pso_parameters", data=pso_parameters, dtype=np.float64)
         pso_hdf5.create_dataset(
@@ -430,7 +430,7 @@ for iter_global in range(0, n_global):
         pso_hdf5.close()
 
         anc.print_both(" ", of_run)
-        # fitness_iter, lgllhd_iter, check_iter = pytrades.write_summary_files(i_global, pso_parameters)
+        # fitness_iter, lgllhd_iter, check_iter = f90trades.write_summary_files(i_global, pso_parameters)
         elapsed = time.time() - pso_start
         elapsed_d, elapsed_h, elapsed_m, elapsed_s = anc.computation_time(elapsed)
         anc.print_both(" ", of_run)
@@ -448,7 +448,7 @@ for iter_global in range(0, n_global):
             p0 = pso_to_emcee(
                 nfit,
                 nwalkers,
-                pytrades.population,
+                f90trades.population,
                 parameter_names,
                 #   sqrt_par=True
                 sqrt_par=False,
@@ -486,8 +486,8 @@ for iter_global in range(0, n_global):
         ) = anc.get_pso_data(os.path.join(pso_path, "pso_run.hdf5"))
         # population, population_fitness, pso_parameters, pso_fitness, pso_best_evolution, parameters_minmax, parameter_names, pop_shape = get_pso_data(os.path.join(pso_path, 'pso_run.hdf5'))
 
-        # fitness_iter, lgllhd_iter, check_iter = pytrades.write_summary_files(i_global, pso_parameters)
-        _, _, _ = pytrades.write_summary_files(i_global, pso_parameters)
+        # fitness_iter, lgllhd_iter, check_iter = f90trades.write_summary_files(i_global, pso_parameters)
+        _, _, _ = f90trades.write_summary_files(i_global, pso_parameters)
 
         pso_fitness = float(pso_fitness)
         anc.print_both(
@@ -712,7 +712,7 @@ for iter_global in range(0, n_global):
     anc.print_both("", of_run)
 
 of_run.close()
-pytrades.deallocate_variables()
+f90trades.deallocate_variables()
 
 # return
 

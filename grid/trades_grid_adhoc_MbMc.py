@@ -38,7 +38,7 @@ sys.path.append(module_path)
 
 import ancillary as anc
 import constants as cst
-from pytrades_lib import pytrades
+from pytrades_lib import f90trades
 # ==============================================================================
 
 def set_analysis_folder_log(full_path, sub_folder):
@@ -139,7 +139,7 @@ def run_simulations(sim_args):
   print(' Process %d RUNNING sim %d ...' %(pid, sim_id))
   
   #ttra_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = fit_par_to_ttra_rv(fit_parameters)
-  ttra_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = pytrades.wrapper_run_grid_combination(mass, radius, period, sma, ecc, argp, meanA, inc, longN, nt0_full, nrv_nmax)
+  ttra_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = f90trades.wrapper_run_grid_combination(mass, radius, period, sma, ecc, argp, meanA, inc, longN, nt0_full, nrv_nmax)
   
   # check if transits of planet b exist
   T0b_all = np.sort(ttra_full[np.logical_and(id_ttra_full==2, stats_ttra)])
@@ -375,12 +375,12 @@ def main():
   
   ncpu = int(cli.nthreads)
   # init TRADES
-  pytrades.initialize_trades(cli.full_path, cli.sub_folder, ncpu)
-  all_par_0 = pytrades.system_parameters
-  fit_par_0 = pytrades.fitting_parameters
-  n_bodies = pytrades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
+  f90trades.initialize_trades(cli.full_path, cli.sub_folder, ncpu)
+  all_par_0 = f90trades.system_parameters
+  fit_par_0 = f90trades.fitting_parameters
+  n_bodies = f90trades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
   n_planets = n_bodies - 1 # NUMBER OF PLANETS IN THE SYSTEM
-  MRs = pytrades.mr_star
+  MRs = f90trades.mr_star
   
   # hip41378
   #Mb_e = np.linspace(0.1, 21.4, num=100, endpoint=True) # Mearth
@@ -403,8 +403,8 @@ def main():
   #McMs = Mc_efull * cst.Mears / MRs[0,0]
   #fit_par_grid = [[MbMs[isim], McMs[isim]] for isim in range(nsims)]
   
-  mass, radius, period, sma, ecc, argp, meanA, inc, longN = pytrades.convert_trades_par_to_kepelem(all_par_0, fit_par_0, n_bodies)
-  nt0_full, nrv_nmax = pytrades.get_max_nt0_nrv(period)
+  mass, radius, period, sma, ecc, argp, meanA, inc, longN = f90trades.convert_trades_par_to_kepelem(all_par_0, fit_par_0, n_bodies)
+  nt0_full, nrv_nmax = f90trades.get_max_nt0_nrv(period)
   kep_elem_0 = [mass, radius, period, sma, ecc, argp, meanA, inc, longN]
   
   #t_launch = atime.Time('2018-06-30T06:00:00.0', format='isot', scale='tdb')
@@ -487,7 +487,7 @@ def main():
   
   plot_meshgrid(Mb_mesh, Mc_mesh, amp_b, amp_c, PTTV_b, PTTV_c, out_folder)
   
-  pytrades.deallocate_variables()
+  f90trades.deallocate_variables()
   
   return
 # ==============================================================================

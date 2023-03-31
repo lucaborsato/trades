@@ -1,6 +1,6 @@
 ! TRADES fortran module to be called fron python
 
-module pytrades
+module f90trades
 !$  use omp_lib
     use constants
     use parameters
@@ -45,7 +45,7 @@ module pytrades
     integer::ndata, nfree, dof
     integer::nRV !,nRVset it is global now
     integer, dimension(:), allocatable::nT0
-    real(dp), dimension(:), allocatable::Pephem
+    real(dp), dimension(:), allocatable::Pephem,Tephem
     integer::nTTs, nDurs
 
 !   real(dp)::ln_err_const,inv_dof
@@ -183,12 +183,14 @@ contains
         if (obsData%nTTs .gt. 0) then
             call set_ephem()
             call compute_oc(obsData%obsT0)
-            if (allocated(Pephem)) deallocate (Pephem)
-            allocate (Pephem(NB))
+            if (allocated(Pephem)) deallocate (Pephem, Tephem)
+            allocate (Pephem(NB),Tephem(NB))
             Pephem = zero
+            Tephem = zero
             do inb = 2, NB
                 if (obsData%obsT0(inb-1)%nT0 .gt. 0) then
                     Pephem(inb) = obsData%obsT0(inb-1)%Pephem
+                    Tephem(inb) = obsData%obsT0(inb-1)%Tephem
                 end if
             end do
         end if
@@ -1322,4 +1324,4 @@ contains
 
     ! ============================================================================
 
-end module pytrades
+end module f90trades

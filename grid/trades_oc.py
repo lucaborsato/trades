@@ -39,7 +39,7 @@ sys.path.append(module_path)
 import ancillary as anc
 import constants as cst
 import gls
-from pytrades_lib import pytrades
+from pytrades_lib import f90trades
 
 from custom_grid_values import *
 
@@ -126,10 +126,10 @@ class exoSystem:
         # system.meanA[2:] = np.random.random(size = n_planets-1)*360.
 
         n_bodies = self.n_bodies
-        nTT_max, nRV_max = pytrades.get_max_nt0_nrv(self.period, n_bodies)
+        nTT_max, nRV_max = f90trades.get_max_nt0_nrv(self.period, n_bodies)
 
-        # TTs_full, id_TT_full, stats_TTs, time_rv_nmax, rv_nmax, stats_rv = pytrades.wrapper_run_grid_combination(system.mass,
-        TTs_full, id_TT_full, stats_TTs, _, _, _ = pytrades.wrapper_run_grid_combination(
+        # TTs_full, id_TT_full, stats_TTs, time_rv_nmax, rv_nmax, stats_rv = f90trades.wrapper_run_grid_combination(system.mass,
+        TTs_full, id_TT_full, stats_TTs, _, _, _ = f90trades.wrapper_run_grid_combination(
             self.mass,
             self.radius,
             self.period,
@@ -448,13 +448,13 @@ def run_multiple_sims(conf):
 
     # init trades with proper base folder
     print('SET TRADES')
-    pytrades.initialize_trades(sim_folder, '', n_cpu)
+    f90trades.initialize_trades(sim_folder, '', n_cpu)
 
-    n_bodies = pytrades.n_bodies
-    # int_time = pytrades.tint
+    n_bodies = f90trades.n_bodies
+    # int_time = f90trades.tint
 
-    pytrades.tint = int_time
-    n_bodies = pytrades.n_bodies
+    f90trades.tint = int_time
+    n_bodies = f90trades.n_bodies
 
     # save simulation info into file:
     summary_file = os.path.join(

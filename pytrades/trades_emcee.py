@@ -27,7 +27,7 @@ except:
         print("PyDE not installed, errors could occur.")
 
 from constants import Mjups, Msear
-# from pytrades_lib import pytrades
+# from pytrades_lib import f90trades
 import pytrades
 import ancillary as anc
 import de_plot as dep
@@ -224,10 +224,10 @@ if de_run or de_resume or de_to_emcee:
                     de_fit[iter_de, :] = fit_type * de_evol._fitness.copy()
                     de_pop_best[iter_de, :] = de_evol.minimum_location.copy()
                     de_fit_best[iter_de] = fit_type * de_evol.minimum_value
-
                     if iter_de > 0:
                         if ((iter_de + 1) % de_save == 0) or (iter_de + 1 >= ngen_de):
-                            anc.print_both(" pyDE - iter = {} ==> saving".format(iter_de), output=of_run)
+                            anc.print_both(" ============= ", output=of_run)
+                            anc.print_both(" pyDE - iter = {} / {} ==> saving".format(iter_de+ 1, ngen_de), output=of_run)
                             anc.print_both(
                                 " last best fitness = {}".format(de_fit_best[iter_de]), output=of_run
                             )
@@ -366,7 +366,8 @@ if cli.nruns > 0:
 
     anc.print_both("Initial size of backend: {}".format(completed_steps), output=of_run)
     if  completed_steps > 0:
-        p0 = None
+        # p0 = None
+        p0 = backend.get_last_sample()
         anc.print_both("continue emcee analysis ...", output=of_run)
     else:
         anc.print_both("new run of emcee analysis ...", output=of_run)

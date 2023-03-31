@@ -90,9 +90,9 @@ def plot_triangle(cli, log_folder, plot_folder, fitting_posterior, fitting_names
 
     nfit = len(fitting_names)
 
-    label_size=14
+    label_size=12
     ticklabel_size=6
-    label_separation=0
+    label_separation=-0.5
     label_pad=12
     label_separation -= (0.1 * (nfit - 2))
     minl, maxl, dl = 2, label_size, 0.6

@@ -52,7 +52,7 @@ sys.path.append(module_path)
 
 import ancillary as anc
 import constants as cst
-from pytrades_lib import pytrades
+from pytrades_lib import f90trades
 
 import multiprocessing as mpro
 
@@ -251,13 +251,13 @@ def simulation_and_ttv_analysis(i_grid, n_bodies, perturber_par, t_start, t_end,
   kel_header = 'Mass_Msun Radius_Rsun Period_d sma_au ecc argp_deg meanA_deg inc_deg longN_deg'.split()
   #anc.print_both('\n - sim %06d: START\n' %(sim_num), of_log)
 
-  perturber_id = pytrades.idpert
+  perturber_id = f90trades.idpert
   dof = 1
 
   try:
-    #mass, radius, period, sma, ecc, argp, mean_an, inc, long_n, nt0_full, nrv_nmax = pytrades.wrapper_set_grid_orbelem(sim_num, perturber_id, perturber_grid, n_bodies)
+    #mass, radius, period, sma, ecc, argp, mean_an, inc, long_n, nt0_full, nrv_nmax = f90trades.wrapper_set_grid_orbelem(sim_num, perturber_id, perturber_grid, n_bodies)
     mass, radius, period, sma, ecc, argp, mean_an, inc, long_n, nt0_full, nrv_nmax = \
-      pytrades.wrapper_set_grid_orbelem(sim_num, perturber_id, perturber_par, n_bodies)
+      f90trades.wrapper_set_grid_orbelem(sim_num, perturber_id, perturber_par, n_bodies)
     #print ' | Set grid keplerian elements'
     kep_elem = np.column_stack((mass, radius, period, sma, ecc, argp, mean_an, inc, long_n))
     print(' | PID {0:d} || TID {1:d} sim {2:d}: set grid par'
@@ -286,7 +286,7 @@ def simulation_and_ttv_analysis(i_grid, n_bodies, perturber_par, t_start, t_end,
   # run trades simulations
   try:
     ttra_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv = \
-      pytrades.wrapper_run_grid_combination(mass, radius, period, sma, ecc, argp, mean_an, inc, long_n,
+      f90trades.wrapper_run_grid_combination(mass, radius, period, sma, ecc, argp, mean_an, inc, long_n,
                                             nt0_full, nrv_nmax
                                             )
     print(' | PID {0:d} || TID {1:d} sim {2:d}: completed integration'
@@ -709,19 +709,19 @@ def main():
   # init TRADES
   anc.print_both(' - INIT TRADES', of_log)
   
-  pytrades.initialize_trades(cli.full_path, cli.sub_folder, cli.nthreads)
+  f90trades.initialize_trades(cli.full_path, cli.sub_folder, cli.nthreads)
   plot_folder = os.path.join(out_folder, "plots")
   if(not os.path.isdir(plot_folder)):
     os.makedirs(plot_folder)
 
-  n_bodies = pytrades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
+  n_bodies = f90trades.n_bodies # NUMBER OF TOTAL BODIES OF THE SYSTEM
   
   # read grid parameters ==> output ngrid and ncol
-  ngrid, ncol = pytrades.wrapper_read_grid(1)
+  ngrid, ncol = f90trades.wrapper_read_grid(1)
   # create grid
-  perturber_grid = pytrades.wrapper_grid_init(1, ngrid, ncol)
+  perturber_grid = f90trades.wrapper_grid_init(1, ngrid, ncol)
   anc.print_both(' - SET PERTURBER GRID', of_log)
-  #perturber_grid = pytrades.wrapper_grid_init(1)
+  #perturber_grid = f90trades.wrapper_grid_init(1)
   anc.print_both(' | To run {:d} simulation/s.\n'.format(ngrid), of_log)
   
   # hdf5_name, f_h5, _, _, names_lst, _, units = create_hdf5_file(out_folder, cli.seed, cli.perturber_id, perturber_grid, cli.mr_type, cli.t_start, cli.t_end, err_T0, of_log)
@@ -812,7 +812,7 @@ def main():
       summary_grid[i-1, i_grid, 12]  = r["A_TTV_MC"][i_body] # A_TTV_MC days
       summary_grid[i-1, i_grid, 13]  = r["P_TTV_MC"][i_body] # P_TTV_MC days
       
-      if(i_body == pytrades.idpert):
+      if(i_body == f90trades.idpert):
         rv_perturber_grid[i_grid, 0] = r['sim_num']
         rv_perturber_grid[i_grid, 1] = r["perturber_par"][0]*mr_convert[0] # mass
         rv_perturber_grid[i_grid, 2] = r["perturber_par"][2] # period

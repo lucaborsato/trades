@@ -4,7 +4,8 @@ import os
 import h5py
 import sys
 
-from pytrades_lib import pytrades as f90trades
+# from pytrades_lib import f90trades as f90trades
+from pytrades_lib import f90trades
 import ancillary as anc
 
 # ============================
@@ -166,7 +167,8 @@ class TRADES:
             if self.n_t0[i] > 0:
                 self.n_set_t0 += 1
 
-        self.ephem = f90trades.pephem
+        self.pephem = f90trades.pephem
+        self.tephem = f90trades.tephem
         self.wrttime = f90trades.wrttime
 
         return

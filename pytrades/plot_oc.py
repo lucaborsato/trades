@@ -218,6 +218,13 @@ class oc_sample:
         self.TTlin = Teph + self.epo * Peph
         self.oc = self.TTs - self.TTlin
 
+    def select_sub_sample(self, sel):
+        self.TTs = self.TTs[sel]
+        self.epo = self.epo[sel]
+        self.TTlin = self.TTlin[sel]
+        self.oc = self.oc[sel]
+        self.T41s = self.T41s[sel]
+        self.nTTs = len(self.TTs)
 
 # ==============================================================================
 
@@ -381,6 +388,8 @@ def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), sav
 
     print("Planet {}".format(sim.planet))
     print("Observed  A_TTV = (MAX OC - MIN OC)/2 = {} {}".format(Aoc_d*ocu[0], ocu[1]))
+    print("Tref = {} +/- {}".format(sim.Teph, sim.eTPeph[0]))
+    print("Pref = {} +/- {}".format(sim.Peph, sim.eTPeph[1]))
 
     model_file = os.path.join(
         cli.full_path,

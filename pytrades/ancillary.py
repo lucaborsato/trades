@@ -75,6 +75,7 @@ def set_rcParams():
     plt.rcParams["xtick.labelsize"] = 9
     plt.rcParams["ytick.labelsize"] = 9
     plt.rcParams["animation.html"] = "jshtml"
+    
 
     return
 
@@ -764,6 +765,8 @@ class ConfigurationAnalysis:
             "limits": "obs",
             "kep_ele": False,
         }
+        # print("conf_oc[sim_name]    = {}".format(conf_oc["sim_name"]))
+
         conf_keys = conf_oc.keys()
         if "OC" in conf_all.keys():
             conf_input = conf_all["OC"]
@@ -771,26 +774,31 @@ class ConfigurationAnalysis:
                 if k in conf_keys:
                     conf_oc[k] = v
 
+        # print("conf_input[sim_name] = {}".format(conf_input["sim_name"]))
+        # print("conf_oc[sim_name]    = {}".format(conf_oc["sim_name"]))
+
         self.plot_oc = conf_oc["plot_oc"]
         self.idplanet_name = conf_oc["idplanet_name"]
         fpath = os.path.abspath(conf_oc["full_path"])
         self.ocs = []
         for sname in conf_oc["sim_name"]:
+            xname = "sim_{}".format(sname)
             for pfolder in parameters_folders:
-                if sname in pfolder:
+                if xname in pfolder:
                     fsim = pfolder
                     isim = int(pfolder.split("_sim")[0])
-            self.ocs.append(
-                CLI_OC(
-                    full_path=os.path.join(fpath, fsim),
-                    idsim=isim,
-                    lmflag=conf_oc["lmflag"],
-                    tscale=conf_oc["tscale"],
-                    ocunit=conf_oc["unit"],
-                    samples_file=os.path.join(fpath, conf_oc["samples_file"]),
-                    limits=conf_oc["limits"],
-                    kep_ele=conf_oc["kep_ele"],
-                )
+
+                    self.ocs.append(
+                        CLI_OC(
+                            full_path=os.path.join(fpath, fsim),
+                            idsim=isim,
+                            lmflag=conf_oc["lmflag"],
+                            tscale=conf_oc["tscale"],
+                            ocunit=conf_oc["unit"],
+                            samples_file=os.path.join(fpath, conf_oc["samples_file"]),
+                            limits=conf_oc["limits"],
+                            kep_ele=conf_oc["kep_ele"],
+                        )
             )
 
         # === RV === #
@@ -816,8 +824,9 @@ class ConfigurationAnalysis:
             fpath = os.path.abspath(conf_oc["full_path"])
             self.rvs = []
             for sname in conf_rv["sim_name"]:
+                xname = "sim_{}".format(sname)
                 for pfolder in parameters_folders:
-                    if sname in pfolder:
+                    if xname in pfolder:
                         fsim = pfolder
                         isim = int(pfolder.split("_sim")[0])
                 self.rvs.append(
@@ -2108,8 +2117,8 @@ def take_n_samples(posterior, lnprob=None, post_ci=None, n_samples=100):
         not_sel = sel_within_ci == False
         not_sel_idx = np.random.choice(idx_post[not_sel], nmissing, replace=False)
         sel_within_ci[not_sel_idx] = True
-    else:
-        sel = sel_within_ci
+    # else:
+    #     sel = sel_within_ci
     idx_sample = np.random.choice(idx_post[sel_within_ci], n_samples, replace=False)
 
     sample_parameters = posterior[idx_sample, :]
@@ -2585,7 +2594,7 @@ def compute_sigma_hdi(flatchains, parameters):
 # ==============================================================================
 
 
-def get_good_distribution(posterior_scale, posterior_mod):
+def get_good_distribution(posterior_scale, posterior_mod, debug=False):
 
     par_scale = np.median(posterior_scale)
     p68_scale = np.percentile(
@@ -2602,11 +2611,19 @@ def get_good_distribution(posterior_scale, posterior_mod):
     )
     std_mod = np.std(posterior_mod, ddof=1)
     s_mod = max(p68_mod, std_mod)
+    
+    if debug:
+        print("scaled [{:7.2f}, {:7.2f}] std: {} ==> {}".format(
+            np.min(posterior_scale), np.max(posterior_scale), (p68_scale, std_scale), s_scale))
+        print("mod    [{:7.2f}, {:7.2f}] std: {} ==> {}".format(
+            np.min(posterior_mod), np.max(posterior_mod), (p68_mod, std_mod), s_mod))
 
     if s_scale < s_mod:
+        if debug: print("Recenter as SCALE")
         par_out = par_scale
         posterior_out = posterior_scale
     else:
+        if debug: print("Recenter as MOD")
         par_out = par_mod
         posterior_out = posterior_mod
 
@@ -2651,14 +2668,14 @@ def fix_lambda(flatchain_post, names_par):
 # ==============================================================================
 # ==============================================================================
 # recenter single angle distribution    
-def recenter_angle_distribution(alpha_deg):
+def recenter_angle_distribution(alpha_deg, debug=False):
 
     alpha_rad = alpha_deg * cst.deg2rad
     cosa = np.cos(alpha_rad)
     sina = np.sin(alpha_rad)
     beta_deg = np.arctan2(sina, cosa)*cst.rad2deg
 
-    _, recentered = get_good_distribution(beta_deg, alpha_deg)
+    _, recentered = get_good_distribution(beta_deg, alpha_deg, debug=debug)
 
     return recentered
 
@@ -3687,6 +3704,12 @@ def compute_physical_parameters(
     par_phys = np.array(par_phys)
     if posterior_fit is not None:
         posterior_phys = np.column_stack(posterior_phys)
+        # recenter the angles?
+        for i_phy, name_phy in enumerate(names_phys):
+            if name_phy[0] == "w" or name_phy[0:2] == "mA" or name_phy[0:2] == "lN" or "lambda" in name_phy:
+                print("{:20s} -> idx = {:2d}".format(name_phy, i_phy))
+                recenter_phy = recenter_angle_distribution(posterior_phys[:, i_phy]%360.0, debug=True)
+                posterior_phys[:, i_phy] = recenter_phy
 
     return names_phys, par_phys, posterior_phys
 
@@ -3745,10 +3768,10 @@ def adjust_derived_parameters(derived_names, derived_par, derived_post):
 
 def get_header(perc_val):
 
-    top_header = "# %15s %20s %23s %23s %23s %23s %23s %23s %23s %23s %23s" % (
-        " ",
-        " ",
-        " ",
+    top_header = "# {:15s} {:20s} {:<23s} {:<23s} {:<23s} {:<23s} {:<23s} {:<23s} {:<23s} {:<23s} {:<23s}".format(
+        "-",
+        "-",
+        "-",
         "+/-1sigma",
         "MAD",
         "-1sigma",
@@ -3793,9 +3816,9 @@ def print_parameters(
             if len(unit) == 0:
                 unit = "-"
             sigma_line = " ".join(
-                ["{:23.16e}".format(sigma_parameters[ii, i_p]) for ii in range(n_sig)]
+                ["{:+23.15e}".format(sigma_parameters[ii, i_p]) for ii in range(n_sig)]
             )
-            line = " {:15s} {:20s} {:23.16e} {:s}".format(
+            line = "  {:15s} {:20s} {:+23.15e} {:s}".format(
                 name_parameters[i_p],
                 unit,
                 parameters[i_p],
@@ -4863,7 +4886,7 @@ def de_save_evolution(
     de_hdf5_update_attr(de_file, "population", "npop", npop_de)
     de_hdf5_update_attr(de_file, "population", "ngen", ngen_de)
     de_hdf5_update_attr(de_file, "population", "iter_de", iter_de)
-    de_hdf5_update_attr(de_file, "population", "iter_global", iter_global + 1)
+    de_hdf5_update_attr(de_file, "population", "iter_global", iter_global)
     de_hdf5_update_attr(de_file, "population", "nfit", nfit)
     de_hdf5_update_attr(de_file, "population", "ndata", ndata)
 

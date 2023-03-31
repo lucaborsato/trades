@@ -197,15 +197,13 @@ class AnalysisTRADES:
             )
 
         sys.stdout.flush()
-        # fix lambda posterior
+        # # fix angles posterior
         for ifit, fitn in enumerate(self.fitting_names):
-            if "lambda" in fitn:
-                # self.chains_posterior[:, :, ifit] %= 360.0
-                # self.fitting_posterior[:, ifit] %= 360.0
-                print("Fixing parameter {} with idx {}".format(fitn, ifit))
-                print("shape of chains_posterior = {}".format(np.shape(self.chains_posterior)))
-                self.chains_posterior[:, :, ifit] = anc.recenter_angle_distribution(self.chains_posterior[:,:,ifit])
-                self.fitting_posterior[:, ifit]   = anc.recenter_angle_distribution(self.fitting_posterior[:, ifit])
+            if fitn[0] == "w" or fitn[0:2] == "mA" or fitn[0:2] == "lN" or "lambda" in fitn:
+                # print("Fixing parameter {} with idx {}".format(fitn, ifit))
+                # print("shape of chains_posterior = {}".format(np.shape(self.chains_posterior)))
+                self.chains_posterior[:, :, ifit] = anc.recenter_angle_distribution(self.chains_posterior[:,:,ifit]%360.0, debug=True)
+                self.fitting_posterior[:, ifit]   = anc.recenter_angle_distribution(self.fitting_posterior[:, ifit]%360.0, debug=True)
 
         sys.stdout.flush()
         anc.print_both("Determine conversion factors ...")
@@ -936,6 +934,7 @@ def run_analysis(cli):
                     coc.tscale = analysis.sim.tepoch
                 if samples_oc is None:
                     samples_oc = poc.read_samples(samples_file=coc.samples_file)
+                anc.print_both("\n ================ ")    
                 anc.print_both("OC of {}".format(os.path.basename(coc.full_path)))
                 file_list = poc.get_simT0_file_list(coc)
                 # sims = []
@@ -959,6 +958,7 @@ def run_analysis(cli):
                     crv.tscale = analysis.sim.tepoch
                 if samples_rv is None:
                     samples_rv = prv.read_samples(crv, samples_file=crv.samples_file)
+                anc.print_both("\n ================ ")    
                 anc.print_both("RV of {}".format(os.path.basename(crv.full_path)))
                 try:
                     fig = prv.plot_rv(crv, samples=samples_rv, save_plot=True, show_plot=False)

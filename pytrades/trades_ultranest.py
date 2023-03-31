@@ -22,7 +22,7 @@ from ultranest import stepsampler
 
 from constants import Mjups, Msear
 import ancillary as anc
-from pytrades_lib import pytrades
+from pytrades_lib import f90trades
 
 # =============================================================================
 
@@ -144,44 +144,44 @@ nthreads = cli.nthreads
 np.random.seed(cli.seed)
 
 # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
-pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
+f90trades.initialize_trades(working_path, cli.sub_folder, nthreads)
 
 # RETRIEVE DATA AND VARIABLES FROM TRADES_LIB MODULE
-n_bodies = pytrades.n_bodies  # NUMBER OF TOTAL BODIES OF THE SYSTEM
+n_bodies = f90trades.n_bodies  # NUMBER OF TOTAL BODIES OF THE SYSTEM
 n_planets = n_bodies - 1  # NUMBER OF PLANETS IN THE SYSTEM
-ndata = pytrades.ndata  # TOTAL NUMBER OF DATA AVAILABLE
-nfit = pytrades.nfit  # NUMBER OF PARAMETERS TO FIT
-nfree = pytrades.nfree  # NUMBER OF FREE PARAMETERS (ie nrvset)
-dof = pytrades.dof  # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
+ndata = f90trades.ndata  # TOTAL NUMBER OF DATA AVAILABLE
+nfit = f90trades.nfit  # NUMBER OF PARAMETERS TO FIT
+nfree = f90trades.nfree  # NUMBER OF FREE PARAMETERS (ie nrvset)
+dof = f90trades.dof  # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
 global inv_dof
-inv_dof = pytrades.inv_dof
+inv_dof = f90trades.inv_dof
 
 # READ THE NAMES OF THE PARAMETERS FROM THE TRADES_LIB AND CONVERT IT TO PYTHON STRINGS
-str_len = pytrades.str_len
-temp_names = pytrades.get_parameter_names(nfit, str_len)
+str_len = f90trades.str_len
+temp_names = f90trades.get_parameter_names(nfit, str_len)
 trades_names = anc.convert_fortran_charray2python_strararray(temp_names)
 # parameter_names = anc.trades_names_to_emcee(trades_names)
 parameter_names = trades_names.copy()
 
 # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
-trades_parameters = pytrades.fitting_parameters
+trades_parameters = f90trades.fitting_parameters
 
 # save initial_fitting parameters into array
 original_fit_parameters = trades_parameters.copy()
 # fitting_parameters = anc.e_to_sqrte_fitting(trades_parameters, trades_names)
 fitting_parameters = trades_parameters.copy()
 
-trades_minmax = pytrades.parameters_minmax  # PARAMETER BOUNDARIES
+trades_minmax = f90trades.parameters_minmax  # PARAMETER BOUNDARIES
 # parameters_minmax = anc.e_to_sqrte_boundaries(trades_minmax, trades_names)
 parameters_minmax = trades_minmax.copy()
 
 # RADIAL VELOCITIES SET
-n_rv = pytrades.nrv
-n_set_rv = pytrades.nrvset  # number of jitter parameters
+n_rv = f90trades.nrv
+n_set_rv = f90trades.nrvset  # number of jitter parameters
 
 # TRANSITS SET
-n_t0 = pytrades.nt0
-n_t0_sum = pytrades.ntts
+n_t0 = f90trades.nt0
+n_t0_sum = f90trades.ntts
 n_set_t0 = 0
 for i in range(0, n_bodies - 1):
     if n_t0[i] > 0:
@@ -192,7 +192,7 @@ for i in range(0, n_bodies - 1):
 # nfit, NB, bodies_file, id_fit, id_all, nfit_list, cols_list, case =  anc.get_fitted(working_path)
 _, _, _, id_fit, _, _, cols_list, case = anc.get_fitted(working_path)
 # stellar mass in solar unit to earth, priors m in Earth masses
-m_factor = pytrades.mr_star[0, 0] * Msear
+m_factor = f90trades.mr_star[0, 0] * Msear
 
 # 2022-05-09 reads the priors from fortran and compute lnpriors in fortran
 
@@ -211,7 +211,7 @@ def my_prior_transform(cube):
 
 def lnL_ultranest(fitting_parameters):
     lnL, lnp, check = 0.0, 0.0, 1
-    lnL, lnp, check = pytrades.fortran_logprob(fitting_parameters)
+    lnL, lnp, check = f90trades.fortran_logprob(fitting_parameters)
 
     return lnL + lnp
 
@@ -251,7 +251,7 @@ anc.print_both(" ORIGINAL PARAMETER VALUES -> 0000", of_run)
     lnc_0000,
     bic_000,
     check_0000,
-) = pytrades.write_summary_files(0, original_fit_parameters)
+) = f90trades.write_summary_files(0, original_fit_parameters)
 
 anc.print_both(" ", of_run)
 
@@ -346,7 +346,7 @@ anc.print_both(
 
 anc.print_both("", of_run)
 of_run.close()
-pytrades.deallocate_variables()
+f90trades.deallocate_variables()
 
 # return
 

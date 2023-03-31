@@ -82,9 +82,9 @@ def plot_triangle(cli, log_folder, plot_folder, physical_posterior, physical_nam
 
     nphy = len(physical_names)
 
-    label_size=14
+    label_size=12
     ticklabel_size=6
-    label_separation=0
+    label_separation=-0.5
     label_pad=12
     label_separation -= (0.1 * (nphy - 2))
     minl, maxl, dl = 2, label_size, 0.6
@@ -115,13 +115,12 @@ def plot_triangle(cli, log_folder, plot_folder, physical_posterior, physical_nam
             overplot = None
 
     plot_posterior = physical_posterior.copy()
-    # plot_minmax    = physical_minmax.copy()
-    for iphy, name in enumerate(physical_names):
-        if (name[0] in ["w"]) or (name[0:2] == "mA" or ("lambda" in name)):
-            plot_posterior[:,iphy] %= 360.0
-            # plot_minmax[iphy, :] %= 360.0
-            if overp_phy is not None:
-                overp_phy[iphy] %= 360.0
+
+    # for iphy, name in enumerate(physical_names):
+    #     if (name[0] in ["w"]) or (name[0:2] == "mA" or ("lambda" in name)):
+    #         plot_posterior[:,iphy] %= 360.0
+    #         if overp_phy is not None:
+    #             overp_phy[iphy] %= 360.0
 
     if cli.corner_type.lower() in ["custom", "both"]:
 
