@@ -120,8 +120,7 @@ contains
         type(dataT0), intent(inout)::T0
         integer, intent(in)::dur_check
 
-
-        if (allocated(T0%T0))then
+        if (allocated(T0%T0)) then
             call deallocate_dataT0(T0)
         end if
         T0%nT0 = nT0

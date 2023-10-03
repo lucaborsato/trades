@@ -33,6 +33,7 @@ plt.rcParams["xtick.labelsize"]   = plt.rcParams["font.size"] - 2
 plt.rcParams["ytick.labelsize"]   = plt.rcParams["xtick.labelsize"]
 # custom modules
 import ancillary as anc
+import pytrades
 import gls
 
 # ==============================================================================
@@ -66,7 +67,17 @@ class Transit:
         # self.epo = np.arange(0,self.nTTs)
         # self.Tref = self.TTs[0]
         # self.Pref = self.TTs[1]-self.TTs[0]
-        self.epo, self.Tref, self.Pref, self.TPerr = anc.compute_lin_ephem(self.TTs)
+
+        # self.epo, self.Tref, self.Pref, self.TPerr = anc.compute_lin_ephem(self.TTs)
+        Tin = self.TTs[self.nTTs//2]
+        Pin = np.median(np.diff(self.TTs))
+        epo = np.rint( (self.TTs - Tin) / Pin)
+        Tref, Pref, chi2 = pytrades.linear_fit(epo, self.TTs)
+        self.epo = np.rint( (self.TTs - Tref[0]) / Pref[0])
+        self.Tref = Tref[0]
+        self.Pref = Pref[0]
+        self.chi2 = chi2
+
         self.linTTs = self.Tref + self.epo * self.Pref
         self.ocd = self.TTs - self.linTTs
         self.amp_ttv = 0.0

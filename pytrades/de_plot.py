@@ -7,7 +7,7 @@ import h5py
 
 import matplotlib as mpl
 
-mpl.use("Agg")
+# mpl.use("Agg")
 import matplotlib.pyplot as plt
 
 # # matplotlib rc params
@@ -122,14 +122,59 @@ class DEEvolution:
 
         return
 
+    def convert_jitter(self):
+
+        for i_name, name in enumerate(self.par_names):
+
+            if "l2j" in name:
+                new_name = name.replace("l2j", "jitter")
+                self.de_pop_flat[new_name] = np.power(2, self.de_pop_flat[name])
+                self.de_best_flat[new_name] = np.power(2, self.de_best_flat[name])
+
+        return
+
+    def recenter_angles(self):
+
+        for i_name, name in enumerate(self.par_names):
+
+            if (
+                name[0] == "w"
+                or name[0:2] == "mA"
+                or name[0:2] == "lN"
+                or "lambda" in name
+            ):
+                new_name = "rec_{}".format(name)
+                self.de_pop_flat[new_name] = anc.recenter_angle_distribution(
+                    self.de_pop_flat[name] % 360.0
+                )
+                self.de_best_flat[new_name] = anc.recenter_angle_distribution(
+                    self.de_best_flat[name] % 360.0
+                )
+
+        return
+
     def get_eccentricity(self):
 
         for i_name, name in enumerate(self.par_names):
             if "ecosw" in name:
                 name2 = self.par_names[i_name + 1]
                 square_all = self.de_pop_flat[name] ** 2 + self.de_pop_flat[name2] ** 2
+                angle_all = anc.recenter_angle_distribution(
+                    (
+                        np.arctan2(self.de_pop_flat[name2], self.de_pop_flat[name])
+                        * cst.rad2deg
+                    )
+                    % 360,
+                )
                 square_best = (
                     self.de_best_flat[name] ** 2 + self.de_best_flat[name2] ** 2
+                )
+                angle_best = anc.recenter_angle_distribution(
+                    (
+                        np.arctan2(self.de_best_flat[name2], self.de_best_flat[name])
+                        * cst.rad2deg
+                    )
+                    % 360,
                 )
                 if name[0:2] == "ec":
                     new_name = name.replace("ecosw", "ecc")
@@ -139,6 +184,9 @@ class DEEvolution:
                     new_name = name.replace("secosw", "ecc")
                     self.de_pop_flat[new_name] = square_all
                     self.de_best_flat[new_name] = square_best
+                new_name = "w{}".format(name.split("w")[1])
+                self.de_pop_flat[new_name] = angle_all
+                self.de_best_flat[new_name] = angle_best
 
         return
 
@@ -416,7 +464,7 @@ class DEEvolution:
         fig = plt.figure(figsize=(6, 4))
         plt.title(
             "DE best {} = {:.8f}".format(k, self.de_best_flat[k].iloc[-1]),
-            loc='center',
+            loc="center",
             # fontdict={"fontsize": 12}
         )
         sc = plt.scatter(x, y, c=c, s=2, alpha=0.2)

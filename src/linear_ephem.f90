@@ -59,14 +59,16 @@ contains
     subroutine set_ephem_simT0(oT0)
         type(dataT0), intent(inout)::oT0
 
-        real(dp)::Teph, Peph
+        real(dp)::Teph, eTeph, Peph, ePeph
 
         if (oT0%nT0 .gt. 0) then
             Peph = zero
             Teph = zero
-            call linfit(oT0%epo, oT0%T0, Peph, Teph)
+            call linfit(oT0%epo, oT0%T0, Peph, ePeph, Teph, eTeph)
             oT0%Tephem = Teph
+            oT0%eTephem = eTeph
             oT0%Pephem = Peph
+            oT0%ePephem = ePeph
         end if
 
         return

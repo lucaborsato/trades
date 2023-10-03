@@ -117,17 +117,17 @@ contains
         real(dp), dimension(:), allocatable::drw
 
         dt = zero
-        
-        ix  = 1+(itra-1)*6
-        iy  = 2+(itra-1)*6
+
+        ix = 1+(itra-1)*6
+        iy = 2+(itra-1)*6
         ivx = 4+(itra-1)*6
         ivy = 5+(itra-1)*6
-        
-        x  = rw(ix)
-        y  = rw(iy)
+
+        x = rw(ix)
+        y = rw(iy)
         vx = rw(ivx)
         vy = rw(ivy)
-        
+
         ! Newton-Raphson
         ! f(k) = x*vx + y*vy
         fk = x*vx+y*vy
@@ -233,7 +233,7 @@ contains
     ! subroutine find_transit(itra, mass, radius, r1, r2, time_r1, int_step, tmidtra, lte, ro, status)
     subroutine find_transit(t_epoch, itra, mass, r1, r2, time_r1, int_step, tmidtra, lte, ro, status)
         ! Input
-        real(dp),intent(in)::t_epoch
+        real(dp), intent(in)::t_epoch
         integer, intent(in)::itra
         real(dp), dimension(:), intent(in)::mass
         ! real(dp), dimension(:), intent(in)::radius
@@ -255,8 +255,8 @@ contains
 
         status = .true.
 
-        ix  = 1+(itra-1)*6
-        iy  = 2+(itra-1)*6
+        ix = 1+(itra-1)*6
+        iy = 2+(itra-1)*6
         ivx = 4+(itra-1)*6
         ivy = 5+(itra-1)*6
         ! A
@@ -268,9 +268,8 @@ contains
         dt1 = int_step
         dt2 = zero
 
-        
         tmidtra = dt1
-        
+
         n_body = size(mass)
         nb_dim = n_body*6
         allocate (rw(nb_dim))
@@ -295,7 +294,7 @@ contains
                     dt1 = dt2
                 else
                     ! -- BISECTION
-                    if (A*B .lt. zero)then
+                    if (A*B .lt. zero) then
                         dt1 = -dt1*half
                     else
                         dt1 = dt1*half
@@ -310,9 +309,9 @@ contains
             end do traloop
 
         end if
-        flush(6)
+        flush (6)
 
-        allocate(rwbar(nb_dim))
+        allocate (rwbar(nb_dim))
         call barycenter(mass, rw, bar, rwbar)
         lte = -rwbar(3)/speedaud
         ro = rw
@@ -520,7 +519,7 @@ contains
     ! Computes duration of the transit (does not assign it now) as T4 - T1
     subroutine check_T0_1(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, simT0, Hc)
         ! Input
-        real(dp),intent(in)::t_epoch
+        real(dp), intent(in)::t_epoch
         integer, intent(in)::id_body
         real(dp), dimension(:), intent(in)::mass, radii, r1, r2
         real(dp), intent(in)::time_r1, integration_step
@@ -536,9 +535,9 @@ contains
     ! same as check_T0_1, but the epochs of the transit have to be provided
     ! as the array T0_num
 !   subroutine check_T0_2(id_body,mass,radii,r1,r2,time_r1,integration_step,transit_flag,dur_check,n_T0,T0_num,T0_stat,T0_sim,Hc)
-    subroutine check_T0_2(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, transit_flag, dur_check, oDataIn, simT0, Hc)
+subroutine check_T0_2(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, transit_flag, dur_check, oDataIn, simT0, Hc)
         ! Input
-        real(dp),intent(in)::t_epoch
+        real(dp), intent(in)::t_epoch
         integer, intent(in)::id_body
         real(dp), dimension(:), intent(in)::mass, radii, r1, r2
         real(dp), intent(in)::time_r1, integration_step
@@ -559,7 +558,6 @@ contains
         tcont = zero
         allocate (rtra(NBDIM))
         rtra = r1
-
 
         call find_transit(t_epoch, id_body, mass, r1, r2, time_r1, integration_step, ttra_temp, lte, rtra, Hc)
 
@@ -628,7 +626,7 @@ contains
                 simT0(ibd)%T0(i_n) = tmidtra
                 simT0(ibd)%T0_stat(i_n) = 1
                 simT0(ibd)%nT0 = simT0(ibd)%nT0+1
-                
+
                 simT0(ibd)%dur(i_n) = duration
                 simT0(ibd)%dur_stat(i_n) = 1
                 simT0(ibd)%nDur = simT0(ibd)%nDur+1
@@ -668,7 +666,7 @@ contains
         status = .true.
         allocate (rtra(NBDIM))
         rtra = r1
-        
+
         call find_transit(t_epoch, id_body, mass, r1, r2, time_r1, integration_step, ttra, lte, rtra, status)
 
         if (status) then
@@ -683,10 +681,10 @@ contains
 
                     call find_contacts(id_body, mass, radii, rtra, ttra, tcont)
                     stat_tra(id_body, pos) = 1
-                    storetra(1, pos)       = ttra
-                    storetra(2, pos)       = lte
-                    storetra(3:6, pos)     = tcont
-                    storetra(7:, pos)      = rtra
+                    storetra(1, pos) = ttra
+                    storetra(2, pos) = lte
+                    storetra(3:6, pos) = tcont
+                    storetra(7:, pos) = rtra
 
                 else
 
@@ -706,28 +704,29 @@ contains
 
 ! ==============================================================================
 ! compute the transit time and proper duration from K10 eq. 15
-    subroutine transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, ttra, dur_tra, check_ttra)
+    subroutine compute_transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit_flag, ttra, dur_tra, rtra, check_ttra)
         ! Input
         real(dp), intent(in)::t_epoch
         integer, intent(in)::id_body ! value: 2 to NB
         real(dp), dimension(:), intent(in)::mass, radii, r1, r2
         real(dp), intent(in)::time_r1, integration_step
+        logical, dimension(:), intent(in)::do_transit_flag
+        ! Output
         real(dp), intent(out)::ttra, dur_tra
+        real(dp), dimension(:), allocatable, intent(out)::rtra
         logical, intent(out)::check_ttra
-
+        ! Local
         real(dp)::ttra_temp, lte
         real(dp), dimension(4)::tcont
-        real(dp), dimension(:), allocatable::rtra
+        ! real(dp), dimension(:), allocatable::rtra
 
         real(dp)::Rs, Rp, Rmin, Rmax, r_sky
         integer::sel_r
 
         check_ttra = .true.
-        ttra = -9.e10_dp
-        dur_tra = -9.e10_dp
 
-        allocate (rtra(NBDIM))
-        rtra = one
+        if (.not. allocated(rtra)) allocate (rtra(NBDIM))
+        ! rtra = one
 
         call find_transit(t_epoch, id_body, mass, r1, r2, time_r1, integration_step, ttra_temp, lte, rtra, check_ttra)
 
@@ -739,7 +738,7 @@ contains
 
             if (r_sky .le. Rmax) then ! planet transits the star (b <= 1)
 
-                if (do_transit(id_body)) then ! planet has to transit!
+                if (do_transit_flag(id_body)) then ! planet has to transit!
 
                     ttra = ttra_temp !+ lte
                     call find_contacts(id_body, mass, radii, rtra, ttra_temp, tcont) !tcont take into account LTE
@@ -749,7 +748,7 @@ contains
 
                     check_ttra = .false.
 
-                end if ! do_transit
+                end if ! do_transit_flag
             else
                 ! does not transit: Rsky > Rs+Rp ==> b > 1
                 check_ttra = .false.
@@ -758,11 +757,40 @@ contains
 
         end if ! check_ttra
 
+        ! deallocate (rtra)
+
+        return
+    end subroutine compute_transit_time
+
+! ==============================================================================
+    subroutine transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, ttra, dur_tra, check_ttra)
+        ! Input
+        real(dp), intent(in)::t_epoch
+        integer, intent(in)::id_body ! value: 2 to NB
+        real(dp), dimension(:), intent(in)::mass, radii, r1, r2
+        real(dp), intent(in)::time_r1, integration_step
+        ! Output
+        real(dp), intent(out)::ttra, dur_tra
+        logical, intent(out)::check_ttra
+        ! Local
+        real(dp)::ttra_temp, lte
+        real(dp), dimension(4)::tcont
+        real(dp), dimension(:), allocatable::rtra
+
+        real(dp)::Rs, Rp, Rmin, Rmax, r_sky
+        integer::sel_r
+
+        ! check_ttra = .true.
+        ! ttra = -9.e10_dp
+        ! dur_tra = -9.e10_dp
+
+        allocate (rtra(NBDIM))
+
+        call compute_transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit, ttra, dur_tra, rtra, check_ttra)
+
         deallocate (rtra)
 
         return
     end subroutine transit_time
-
-! ==============================================================================
 
 end module transits

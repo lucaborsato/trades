@@ -146,7 +146,7 @@ contains
 
     ! ------------------------------------------------------------------ !
     subroutine set_cpus(ncpu_argin, ncpu_global)
-        !$ use omp_lib
+!$      use omp_lib
         integer, intent(inout)::ncpu_argin, ncpu_global
         integer::max_ncpu
 
@@ -154,7 +154,7 @@ contains
 
         !$omp parallel default(shared)
         !$omp master
-        !$ max_ncpu = omp_get_num_threads()
+!$      max_ncpu = omp_get_num_threads()
         !$omp end master
         !$omp end parallel
 
@@ -374,7 +374,7 @@ contains
             ncpu = 1
             !$omp parallel NUM_THREADS(ncpu_in)
             !$omp master
-            !$ ncpu = omp_get_num_threads()
+!$          ncpu = omp_get_num_threads()
             if (.not. allocated(lmtols)) allocate (lmtols(ncpu, 4))
             lmtols(:, 1) = xtol
             lmtols(:, 2) = ftol
@@ -442,6 +442,7 @@ contains
         character(512)::temp_line
         real(dp)::temp1, temp2
         real(dp)::sma1, sma2
+        real(dp), parameter::s_sigma=30.0_dp
 
         MR_star = zero ! init MR_star to zero value: in 'parameters' module
 
@@ -473,14 +474,15 @@ contains
             ! Mstar
             mass(1) = MR_star(1, 1)
             all_parameters(1) = MR_star(1, 1)
-            par_min(1) = max(MR_star(1, 1)-20.0_dp*MR_star(1, 2), zero)
-            par_max(1) = MR_star(1, 1)+20.0_dp*MR_star(1, 2)
+
+            par_min(1) = max(MR_star(1, 1)-s_sigma*MR_star(1, 2), TOLERANCE)
+            par_max(1) = MR_star(1, 1)    +s_sigma*MR_star(1, 2)
 
             ! Rstar
             radius(1) = MR_star(2, 1)
             all_parameters(2) = MR_star(2, 1)
-            par_min(2) = max(MR_star(2, 1)-20.0_dp*MR_star(2, 2), zero)
-            par_max(2) = MR_star(2, 1)+20.0_dp*MR_star(2, 2)
+            par_min(2) = max(MR_star(2, 1)-s_sigma*MR_star(2, 2), zero)
+            par_max(2) = MR_star(2, 1)+s_sigma*MR_star(2, 2)
 
             readpar: do j = 2, NB
                 j1 = (j-2)*8

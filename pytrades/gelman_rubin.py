@@ -42,9 +42,11 @@ def compute_gr(cli, log_folder, plot_folder, chains, fitting_names):
     if gr_steps == 0:
         gr_steps = 10
 
-    steps = np.linspace(start=0, stop=n_steps, num=gr_steps, endpoint=True, dtype=int)
-    steps[0] = 10
-    gr_steps = len(steps)
+    # steps = np.linspace(start=0, stop=n_steps, num=gr_steps, endpoint=True, dtype=int)
+    # steps[0] = 10
+    # gr_steps = len(steps)
+    step = int(n_steps/gr_steps)
+    steps = np.arange(step, n_steps+step, step)
     anc.print_both('number of GR steps: {}'.format(gr_steps), output=olog)
 
     gr_Rc_2 = np.ones((gr_steps, nfit)) + 99.0
@@ -60,17 +62,7 @@ def compute_gr(cli, log_folder, plot_folder, chains, fitting_names):
         ax = plt.subplot2grid((1, 1), (0, 0))
 
         for istep in range(0, gr_steps):
-
-            time0 = time.time()
             gr_Rc_2[istep, ifit] = anc.GelmanRubin(chains[: steps[istep], :, ifit])
-            if istep == gr_steps - 1:
-                # LBo_d, LBo_h, LBo_m, LBo_s = anc.computation_time(time.time()-time0)
-                _, _, LBo_m, LBo_s = anc.computation_time(time.time() - time0)
-                anc.print_both(
-                    "steps = {:6d} for {:13s} ==> Gelman-Rubin test:  LBo time = {:2d} m {:6.3f} s".format(
-                        steps[istep], pnames, LBo_m, LBo_s
-                    ), output=olog
-                )
 
         ax.axhline(1.01, color="gray")
         ax.plot(steps, gr_Rc_2[:, ifit], "-", color="k", lw=1.3, label="LBo 2")

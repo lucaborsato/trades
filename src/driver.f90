@@ -67,9 +67,9 @@ contains
         write (*, *) "FITNESS SUMMARY:"
         write (*, *) "chi_square         = ", chi_square
         write (*, *) "reduced_chi_square = ", reduced_chi_square
+        write (*, *) "ln_const           = ", ln_const
         write (*, *) "lnLikelihood       = ", lnLikelihood
         write (*, *) "lnprior            = ", lnprior
-        write (*, *) "ln_const           = ", ln_const
         write (*, *) "bic                = ", bic
         write (*, *)
 
@@ -127,9 +127,9 @@ contains
         write (*, *) "FITNESS SUMMARY:"
         write (*, *) "chi_square         = ", chi_square
         write (*, *) "reduced_chi_square = ", reduced_chi_square
+        write (*, *) "ln_const           = ", ln_const
         write (*, *) "lnLikelihood       = ", lnLikelihood
         write (*, *) "lnprior            = ", lnprior
-        write (*, *) "ln_const           = ", ln_const
         write (*, *) "bic                = ", bic
         write (*, *) ""
 

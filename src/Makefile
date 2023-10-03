@@ -12,7 +12,10 @@ F77 = gfortran
 
 # f2py
 # F2PYCC = f2py --f90exec=$(CC) --f77exec=$(F77)
-F2PYCC = f2py --fcompiler=$(CC)
+# F2PYCC = f2py --fcompiler=$(CC)
+# FVENDOR=g95
+FVENDOR=$(CC)
+F2PYCC = f2py --fcompiler=$(FVENDOR) --f90exec=$(CC) --f77exec=$(F77)
 # F2PYCC = f2py --quiet --f90exec=$(CC)
 # WARNING: file .f2py_f2cmap must be present (it is within the src/ folder)
 
@@ -163,7 +166,7 @@ pytrades_serial_release: obj_serial_release pylib_serial_release
 pylib_parallel_debug:
 	$(F2PYCC) --verbose --f90flags='$(F2PYCF) $(CFLAGS) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
 
-pytrades_parallel_debug: obj_parallel_debug pylib_parallel_debug
+pytrades_parallel_debug: obj_parallel_debug pylib_parallel_debug copy_pytrades
 
 pylib_parallel_release:
 	$(F2PYCC) --quiet --f90flags='$(F2PYCF) $(COPT) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)

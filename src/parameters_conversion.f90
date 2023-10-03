@@ -35,11 +35,44 @@ contains
         integer::nkep
         integer::order, iset
 
+        ! write(*,*)"DEBUG: idpar()"
+        ! write(*,*)
+
         if (.not. allocated(id)) allocate (id(nfit), idall(nfit), parid(nfit))
+    
         pos = 0
+        ! if Mstar to fit:
+        j = 1
+        if (tofit(j) .eq. 1)then
+            pos = pos+1
+            cntid = 3
+            ! write(*,*)
+            ! write(*,*)"DEBUG: start  j = ",j,"    pos = ",pos," cntid = ",cntid, " tofit(j)   = ",tofit(j)
+            id(pos) = cntid
+            idall(pos) = j
+            parid(pos) = trim(adjustl(elid(cntid)))//trim(adjustl(string(1)))
+            ! write(*,*)"DEBUG: update j = ",j,"    pos = ",pos,    " cntid = ",cntid, " tofit(j)   = ",tofit(j)
+            ! write(*,*)"DEBUG: update j = ",j,"id(pos) = ",id(pos)," body  = ",1,  " parid(pos) = ",trim(parid(pos))
+        end if
+        ! if Rstar to fit:
+        j = 2
+        if (tofit(j) .eq. 1)then
+            pos = pos+1
+            cntid = 4
+            ! write(*,*)
+            ! write(*,*)"DEBUG: start  j = ",j,"    pos = ",pos," cntid = ",cntid, " tofit(j)   = ",tofit(j)
+            id(pos) = cntid
+            idall(pos) = j
+            parid(pos) = trim(adjustl(elid(cntid)))//trim(adjustl(string(1)))
+            ! write(*,*)"DEBUG: update j = ",j,"    pos = ",pos,    " cntid = ",cntid, " tofit(j)   = ",tofit(j)
+            ! write(*,*)"DEBUG: update j = ",j,"id(pos) = ",id(pos)," body  = ",body,  " parid(pos) = ",trim(parid(pos))
+        end if
+
         cntid = 2
-        do j = 1, npar
-            if (j .gt. 2) cntid = cntid+1
+        do j = 3, npar
+            ! write(*,*)
+            ! write(*,*)"DEBUG: start  j = ",j,"    pos = ",pos," cntid = ",cntid, " tofit(j)   = ",tofit(j)
+            cntid = cntid+1
 
             if (tofit(j) .eq. 1) then
                 pos = pos+1
@@ -48,11 +81,17 @@ contains
                 body = int(int(j-3)/8)+2
                 parid(pos) = trim(adjustl(elid(cntid)))//trim(adjustl(string(body)))
                 parid(pos) = trim(adjustl(parid(pos)))
+                ! write(*,*)"DEBUG: update j = ",j,"    pos = ",pos,    " cntid = ",cntid, " tofit(j)   = ",tofit(j)
+                ! write(*,*)"DEBUG: update j = ",j,"id(pos) = ",id(pos)," body  = ",body,  " parid(pos) = ",trim(parid(pos))
             end if
             if (cntid .eq. 10) cntid = 2
         end do
 
         call set_all_parameter_names(elid)
+
+        ! write(*,*)"DEBUG: idpar()"
+        ! write(*,*)
+        ! write(*,*)"DEBUG: all_names_list ",all_names_list
 
         ! nRVset = obsData%obsRV%nRVset ! global in parameters.f90
         nkep = nfit-rv_trend_order-2*nRVset
@@ -61,9 +100,24 @@ contains
         do j = 1, nkep
 
             body = int(int(idall(j)-3)/8)+2
+            ! write(*,*)
+            ! write(*,*)"DEBUG: 0) j = ",j," parid(j) = ",parid(j)
+
 
             if (id(j) .eq. 3) then ! Mp
-                parid(j) = "m"//trim(adjustl(string(body)))//"Ms"
+                if (trim(parid(j)) .eq. "m1")then
+                    parid(j) = "m1"
+                else
+                    parid(j) = "m"//trim(adjustl(string(body)))//"Ms"
+                end if
+
+            else if (id(j) .eq. 4) then ! Rp
+
+                if (trim(parid(j)) .eq. "R1")then
+                    parid(j) = "R1"
+                else
+                    parid(j) = "R"//trim(adjustl(string(body)))//"Rs"
+                end if
 
             else if (id(j) .eq. 6) then
                 if (j .lt. nkep) then
@@ -76,18 +130,8 @@ contains
             else if (id(j) .eq. 8) then ! mA
                 parid(j) = "lambda"//trim(adjustl(string(body)))
 
-            ! 2022-07-29 fit inc and longN as they are!
-            ! else if (id(j) .eq. 9) then
-            !     if (j .lt. nkep) then
-            !         if (id(j+1) .eq. 10) then !i,lN
-            !             ! parid(j) = "icoslN"//trim(adjustl(string(body)))
-            !             ! parid(j+1) = "isinlN"//trim(adjustl(string(body)))
-            !             parid(j) = "cicoslN"//trim(adjustl(string(body)))
-            !             parid(j+1) = "sisinlN"//trim(adjustl(string(body)))
-            !         end if
-            !     end if
-
             end if
+            ! write(*,*)"DEBUG: 1) j = ",j," parid(j) = ",parid(j)
 
         end do ! end do j=1,nkep
 
@@ -155,7 +199,6 @@ contains
         real(dp)::vmin, vmax !, dRV
         ! real(dp)::cimin, cimax
 
-
         allocate (done(nfit))
         done = .false.
         if (.not. allocated(minpar)) allocate (minpar(nfit), maxpar(nfit))
@@ -167,11 +210,17 @@ contains
                 if (.not. done(ifit)) then
                     ! fit m(3)==> mp/Ms
                     if (id(ifit) .eq. 3) then
-                        minpar(ifit) = par_min(ipar)/MR_star(1, 1)
-                        maxpar(ifit) = par_max(ipar)/MR_star(1, 1)
+                        minpar(ifit) = par_min(ipar)/(MR_star(1, 1)+MR_star(1,2))
+                        maxpar(ifit) = par_max(ipar)/(MR_star(1, 1)-MR_star(1,2))
+                        done(ifit) = .true.
+                    
+                    ! fit r(4)==> Rp/Rs
+                    else if(id(ifit) .eq. 4) then
+                        minpar(ifit) = par_min(ipar)/(MR_star(2, 1)+MR_star(2,2))
+                        maxpar(ifit) = par_max(ipar)/(MR_star(2, 1)-MR_star(2,2))
                         done(ifit) = .true.
 
-                    ! fit e(6) & w(7)==>(sqrt(e)cosw,sqrt(e)sinw) [-sqrt(e),+sqrt(e)],[-sqrt(e),+sqrt(e)]
+                        ! fit e(6) & w(7)==>(sqrt(e)cosw,sqrt(e)sinw) [-sqrt(e),+sqrt(e)],[-sqrt(e),+sqrt(e)]
                     else if (id(ifit) .eq. 6) then
                         if (ifit .lt. nfit) then
                             if (id(ifit+1) .eq. 7) then
@@ -185,16 +234,15 @@ contains
                             end if
                         end if
 
-                    ! fit mA(8) ==> lambda[0,360]
+                        ! fit mA(8) ==> lambda[0,360]
                     else if (id(ifit) .eq. 8) then
                         minpar(ifit) = zero !-circ
                         maxpar(ifit) = circ !720.0_dp
                         done(ifit) = .true.
 
-
-                    ! 2022-07-29 fit inc and longN as they are (in physical unit)
-                    ! fit i(9) & lN(10)==>(cosicoslN,cosisinlN) [min(cosi(),max(cosi)],[min(cosi(),max(cosi)]
-                    ! else if (id(ifit) .eq. 9) then
+                        ! 2022-07-29 fit inc and longN as they are (in physical unit)
+                        ! fit i(9) & lN(10)==>(cosicoslN,cosisinlN) [min(cosi(),max(cosi)],[min(cosi(),max(cosi)]
+                        ! else if (id(ifit) .eq. 9) then
 
                         ! if (ifit .lt. nfit) then
                         !     if (id(ifit+1) .eq. 10) then
@@ -206,7 +254,7 @@ contains
                         !         minpar(ifit+1) = cimin  ! cosisinlN min
                         !         maxpar(ifit)   = cimax  ! cosicoslN max
                         !         maxpar(ifit+1) = cimax  ! cosisinlN max
-                                
+
                         !         done(ifit) = .true.
                         !         done(ifit+1) = .true.
                         !     else
@@ -326,10 +374,17 @@ contains
 
                     ! m(3) ==> mp/Ms
                     if (id(ifit) .eq. 3) then
-                        par(ifit) = allpar(j)/MR_star(1, 1)
+                        ! par(ifit) = allpar(j)/MR_star(1, 1)
+                        par(ifit) = allpar(j)/allpar(1)
                         done(ifit) = .true.
+                    
+                    ! R(4) ==> Rp/Ms
+                    else if (id(ifit) .eq. 4) then
+                            ! par(ifit) = allpar(j)/MR_star(2, 2)
+                            par(ifit) = allpar(j)/allpar(2)
+                            done(ifit) = .true.
 
-                        ! e(6),w(7)==>(sqrt(e)cosw,sqrt(e)sinw)
+                    ! e(6),w(7)==>(sqrt(e)cosw,sqrt(e)sinw)
                     else if (id(ifit) .eq. 6) then
                         par(ifit) = allpar(j)
                         done(ifit) = .true.
@@ -342,34 +397,23 @@ contains
                             end if
                         end if
 
-                        ! mA(8) ==> lambda=mA(j)+w(j-1)+lN(j+2)
+                    ! mA(8) ==> lambda=mA(j)+w(j-1)+lN(j+2)
                     else if (id(ifit) .eq. 8) then
                         par(ifit) = mod(mod(allpar(j)+allpar(j-1)+allpar(j+2), circ)+circ, circ)
                         done(ifit) = .true.
 
-
-                    ! 2022-07-29 fit inc and longN as they are (in physical unit)
-                    ! i(9),lN(10)==>(cosicoslN,cosisinlN)
-                    ! else if (id(ifit) .eq. 9) then
-                    !     par(ifit) = allpar(j)
-                    !     done(ifit) = .true.
-                    !     if (ifit .lt. nfit) then
-                    !         if (id(ifit+1) .eq. 10) then
-                    !             par(ifit) = cos(allpar(j)*deg2rad)*cos(allpar(j+1)*deg2rad)
-                    !             par(ifit+1) = cos(allpar(j)*deg2rad)*sin(allpar(j+1)*deg2rad)
-                    !             done(ifit) = .true.
-                    !             done(ifit+1) = .true.
-                    !         end if
-                    !     end if
-
+                    else
+                        par(ifit) = allpar(j)
+                        done(ifit) = .true.
                     end if
 
                 end if
 
-                if (.not. done(ifit)) then
-                    par(ifit) = allpar(j)
-                    done(ifit) = .true.
-                end if
+                ! if (.not. done(ifit)) then
+                !     par(ifit) = allpar(j)
+                !     done(ifit) = .true.
+                ! end if
+
             end if ! tofit(j)
         end do ! j
 
@@ -483,19 +527,26 @@ contains
 
         mass(1) = atemp(1)
         radius(1) = atemp(2)
+
         ! i_body = 2
         do i_body = 2, NB
             i_par = 3+((i_body-2)*8) ! first parameter id == 3 <-> Mass body 2, ..., 10 <-> lN body 2, 11 <-> Mass body 3, ...
 
             temp_kel = atemp(i_par:i_par+7)
 
-             ! mp/Ms to mp
+            ! mp/Ms to mp
             if (tofit(i_par) .eq. 1) then
-                temp_kel(1) = atemp(i_par)*MR_star(1, 1)
+                ! temp_kel(1) = atemp(i_par)*MR_star(1, 1)
+                temp_kel(1) = atemp(i_par)*mass(1)
+            end if
+
+            ! Rp/Ms to Rp
+            if (tofit(i_par+1) .eq. 1) then
+                temp_kel(2) = atemp(i_par+1)*radius(1)
             end if
 
             ! sqrt(e)cosw,sqrt(e)sinw to e,w
-            if (tofit(i_par+3) .eq. 1 .and. tofit(i_par+4) .eq. 1) then 
+            if (tofit(i_par+3) .eq. 1 .and. tofit(i_par+4) .eq. 1) then
                 temp2 = (atemp(i_par+3)*atemp(i_par+3))+(atemp(i_par+4)*atemp(i_par+4)) ! NEW: sqrt(e)cosw,sqrt(e)sinw ==> e,w
                 if (temp2 .lt. e_bounds(1, i_body) .or. temp2 .gt. e_bounds(2, i_body)) then
                     ! write(*,*)"---- par2kel_fit body ", i_body, ": e_bounds ", e_bounds(:,i_body), " temp2 = ",temp2, " BAD"
@@ -516,7 +567,7 @@ contains
                     temp_kel(4) = temp2
                     temp_kel(5) = mod(rad2deg*atan2(atemp(i_par+4), atemp(i_par+3))+circ, circ)
                 end if
-                
+
                 ! comment this check for testing
                 ! if (abs(temp_kel(4)-atemp(i_par+3)) .le. TOL_dp) then
                 !     if (abs(atemp(i_par+4)) .gt. TOL_dp) then
@@ -546,9 +597,9 @@ contains
                     ! write(*,*)"---- par2kel_fit body ", i_body, ": inc out of [0, 180] not allowed: ", temp_kel(7)
                     checkpar = .false.
                 end if
-                            
+
             end if
-            
+
             ! longN fit
             if (tofit(i_par+7) .eq. 1) then
                 temp_kel(8) = atemp(i_par+7)
@@ -642,7 +693,8 @@ contains
                         p2 = parid(ifit) (1:2)
                         if ((p1 .eq. 'w') .or.&
                             &(p2 .eq. 'mA') .or.&
-                            &(p2 .eq. 'la')) then
+                            &(p2 .eq. 'la'))&
+                            &then
                             temp = mod(mod(fit_parameters(ifit), circ)+circ, circ)
                             ! write(*,*)parid(ifit), temp, minpar(ifit), maxpar(ifit)
                             if ((temp .ge. minpar(ifit)) .and.&

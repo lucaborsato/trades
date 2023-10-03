@@ -21,14 +21,20 @@ import emcee
 # import acor
 import matplotlib.pyplot as plt
 
-import scipy.optimize as sciopt
-import scipy.odr as sodr
-import sklearn.linear_model as sklm
-
-# import scipy.stats as scits
 import glob
 import shutil
-import statsmodels.api as sm
+
+# import scipy.optimize as sciopt
+# import scipy.odr as sodr
+# try:
+#     import sklearn.linear_model as sklm
+# except:
+#     print("sklearn not installed ... ")
+# # import scipy.stats as scits
+# try:
+#     import statsmodels.api as sm
+# except:
+#     print("statsmodels not installed ...")
 
 # common variables needed to create labels and parameter names
 kel_fmt = ["%.3f", "%.4f", "%.3f", "%.1f", "%.1f", "%.1f", "%.3f", "%.3f"]
@@ -53,9 +59,12 @@ parameters_folders = [
     "0006_sim_de",
     "0777_sim_from_file",
     "1050_sim_median",
+    "1051_sim_median_to_physical",
     "2050_sim_map",
+    "2051_sim_map_to_physical",
     "3050_sim_mode",
-    "0668_sim_mle",
+    "0668_sim_map_hdi",
+    "0669_sim_map_hdi_to_physical",
 ]
 
 # ==============================================================================
@@ -75,7 +84,7 @@ def set_rcParams():
     plt.rcParams["xtick.labelsize"] = 9
     plt.rcParams["ytick.labelsize"] = 9
     plt.rcParams["animation.html"] = "jshtml"
-    
+    plt.rcParams["axes.formatter.useoffset"] = False
 
     return
 
@@ -210,7 +219,8 @@ def set_overplot(arg_in):
     arg_out = None
     if arg_str != "none":
         for p_folder in parameters_folders:
-            if arg_str in p_folder:
+            q_folder = p_folder.split("sim_")[1]
+            if arg_str == q_folder:
                 arg_out = p_folder
 
     return arg_out
@@ -349,7 +359,7 @@ def get_args():
             median,\n
             map,\n
             mode,\n
-            mle.
+            map_hdi.
             """,
     )
 
@@ -620,6 +630,7 @@ class ConfigurationRun:
             "thin_by": 1,
             "emcee_restart": False,
             "emcee_progress": True,
+            "move": {"type": ["ai"], "fraction": [1.0]}
         }
         emcee_keys = cemcee.keys()
 
@@ -634,6 +645,23 @@ class ConfigurationRun:
         }
         pyde_keys = cpyde.keys()
 
+        cultranest = {
+            "ultranest_live_points": 400,
+            "ultranest_resume_flag": "resume",  # 'resume', 'resume-similar', 'overwrite' or 'subfolder'
+            "ultranest_dlogz": 0.5,  # desired accuracy on logz
+        }
+
+        cdyne = {
+            "dynesty_live_points": 500,
+            "dynesty_bound": "multi",
+            "dynesty_sample": "auto",
+            "dynesty_restore": False,
+            "dynesty_dlogz": 0.01,  # desired accuracy on logz
+            "dynesty_pfrac": 0.8,
+            "dynesty_just_plots": False,
+        }
+        dyne_keys = cdyne.keys()
+
         if "run" in conf_all:
             conf_input = conf_all["run"]
             for k, v in conf_input.items():
@@ -645,6 +673,12 @@ class ConfigurationRun:
                 elif k == "emcee":
                     for ke, ve in conf_input["emcee"].items():
                         cemcee[ke] = ve
+                elif k == "ultranest":
+                    for ku, vu in conf_input["ultranest"].items():
+                        cultranest["ultranest_{}".format(ku)] = vu
+                elif k == "dynesty":
+                    for kd, vd in conf_input["dynesty"].items():
+                        cdyne["dynesty_{}".format(kd)] = vd
 
         self.full_path = os.path.join(os.path.abspath(conf["full_path"]), "")
         self.sub_folder = os.path.join(self.full_path, conf["sub_folder"], "")
@@ -670,6 +704,52 @@ class ConfigurationRun:
         self.emcee_restart = set_bool_argument(cemcee["emcee_restart"])
         self.emcee_progress = set_bool_argument(cemcee["emcee_progress"])
 
+        # print()
+        # print("====================")
+        # print("cemcee['move']", cemcee["move"])
+        if cemcee["move"] is None:
+            self.emcee_move = [(emcee.moves.StretchMove(), 1.0)]
+        else:
+            emoves = []
+            nmove = len(cemcee["move"]["type"])
+            for i_em in range(nmove):
+                em = cemcee["move"]["type"][i_em]
+                # print("em = ", em)
+                if em.lower() == "de":
+                    m = emcee.moves.DEMove()
+                elif em.lower() == "desnooker":
+                    m = emcee.moves.DESnookerMove()
+                else:
+                    m = emcee.moves.StretchMove()
+                fm = cemcee["move"]["fraction"][i_em]
+                # print("==> ", (m, fm))
+                emoves.append((m, fm))
+            self.emcee_move = emoves
+        # print("====================")
+        # print()
+
+
+        # ultranest
+        self.ultranest_live_points = set_int_argument(
+            cultranest["ultranest_live_points"], default=500
+        )
+        self.resume_flag = cultranest["ultranest_resume_flag"]
+        self.dlogz = cultranest["ultranest_dlogz"]
+
+        # dynesty
+        self.dynesty_live_points = set_int_argument(
+            cdyne["dynesty_live_points"], default=500
+        )
+        self.dynesty_bound = cdyne["dynesty_bound"]
+        self.dynesty_sample = cdyne["dynesty_sample"]
+        self.dynesty_restore = cdyne["dynesty_restore"]
+        if str(cdyne["dynesty_dlogz"]).lower() == "none":
+            self.dynesty_dlogz = 0.01
+        else:
+            self.dynesty_dlogz = float(cdyne["dynesty_dlogz"])
+        self.dynesty_pfrac = float(cdyne["dynesty_pfrac"])
+        self.dynesty_just_plots = set_bool_argument(cdyne["dynesty_just_plots"])
+
         return
 
 
@@ -692,7 +772,7 @@ class ConfigurationAnalysis:
             "from_file": None,
             "n_samples": 0,
             "corner_type": "pygtc",
-            "overplot": "mle",
+            "overplot": "map_hdi",
             "all_analysis": False,
             "save_posterior": False,
             "save_parameters": False,
@@ -726,6 +806,8 @@ class ConfigurationAnalysis:
         self.corner_type = str(conf_analysis["corner_type"]).lower().strip()
 
         self.overplot = str(conf_analysis["overplot"]).lower().strip()
+        if self.overplot == "mle":
+            self.overplot = "map_hdi"
 
         self.gr_steps = set_int_argument(conf_analysis["gr_steps"], default=10)
         self.gk_steps = set_int_argument(conf_analysis["gk_steps"], default=10)
@@ -756,7 +838,7 @@ class ConfigurationAnalysis:
         conf_oc = {
             "plot_oc": False,
             "full_path": os.path.abspath("."),
-            "sim_name": ["mle", "median", "initial"],
+            "sim_name": ["map_hdi", "map", "median", "initial"],
             "idplanet_name": None,
             "lmflag": 0,
             "tscale": None,
@@ -781,13 +863,21 @@ class ConfigurationAnalysis:
         self.idplanet_name = conf_oc["idplanet_name"]
         fpath = os.path.abspath(conf_oc["full_path"])
         self.ocs = []
+        # check if mle and change it to map_hdi
+        for i_name, sname in enumerate(conf_oc["sim_name"]):
+            if sname == "mle":
+                conf_oc["sim_name"][i_name] = "map_hdi"
+        for keyn in ["map", "map_hdi", "median"]:
+            keyp = "{}_to_physical".format(keyn)
+            if (keyn in conf_oc["sim_name"]) and not (keyp in conf_oc["sim_name"]):
+                conf_oc["sim_name"].append(keyp)
+
         for sname in conf_oc["sim_name"]:
             xname = "sim_{}".format(sname)
             for pfolder in parameters_folders:
-                if xname in pfolder:
+                if xname.split("sim_")[1] == pfolder.split("sim_")[1]:
                     fsim = pfolder
                     isim = int(pfolder.split("_sim")[0])
-
                     self.ocs.append(
                         CLI_OC(
                             full_path=os.path.join(fpath, fsim),
@@ -799,19 +889,22 @@ class ConfigurationAnalysis:
                             limits=conf_oc["limits"],
                             kep_ele=conf_oc["kep_ele"],
                         )
-            )
+                    )
+        # print("OC OBJ")
+        # for oco in self.ocs:
+        #     print(oco.idsim, oco.full_path)
 
         # === RV === #
         conf_rv = {
             "plot_rv": False,
             "full_path": os.path.abspath("."),
-            "sim_name": ["mle", "median", "initial"],
+            "sim_name": ["map_hdi", "map", "median", "initial"],
             "lmflag": 0,
             "tscale": None,
             "samples_file": None,
             "limits": "obs",
             "labels": None,
-            "color_map": "viridis",
+            "color_map": "nipy_spectral",
         }
         conf_keys = conf_rv.keys()
         if "RV" in conf_all.keys():
@@ -819,29 +912,44 @@ class ConfigurationAnalysis:
             for k, v in conf_input.items():
                 if k in conf_keys:
                     conf_rv[k] = v
+
         self.plot_rv = conf_rv["plot_rv"]
         if self.plot_rv:
-            fpath = os.path.abspath(conf_oc["full_path"])
+            fpath = os.path.abspath(conf_rv["full_path"])
             self.rvs = []
+            # check if mle and change it to map_hdi
+            for i_name, sname in enumerate(conf_rv["sim_name"]):
+                if sname == "mle":
+                    conf_rv["sim_name"][i_name] = "map_hdi"
+            for keyn in ["map", "map_hdi", "median"]:
+                keyp = "{}_to_physical".format(keyn)
+                if (keyn in conf_rv["sim_name"]) and not (keyp in conf_rv["sim_name"]):
+                    conf_rv["sim_name"].append(keyp)
+
             for sname in conf_rv["sim_name"]:
                 xname = "sim_{}".format(sname)
                 for pfolder in parameters_folders:
-                    if xname in pfolder:
+                    if xname.split("sim_")[1] == pfolder.split("sim_")[1]:
                         fsim = pfolder
                         isim = int(pfolder.split("_sim")[0])
-                self.rvs.append(
-                    CLI_RV(
-                        full_path=os.path.join(fpath, fsim),
-                        idsim=isim,
-                        lmflag=conf_rv["lmflag"],
-                        tscale=conf_rv["tscale"],
-                        samples_file=os.path.join(fpath, conf_rv["samples_file"]),
-                        limits=conf_rv["limits"],
-                        labels=conf_rv["labels"],
-                        color_map=conf_rv["color_map"],
-                    )
-                )
-                
+
+                        self.rvs.append(
+                            CLI_RV(
+                                full_path=os.path.join(fpath, fsim),
+                                idsim=isim,
+                                lmflag=conf_rv["lmflag"],
+                                tscale=conf_rv["tscale"],
+                                samples_file=os.path.join(fpath, conf_rv["samples_file"]),
+                                limits=conf_rv["limits"],
+                                labels=conf_rv["labels"],
+                                color_map=conf_rv["color_map"],
+                            )
+                        )
+            
+            # print("RV OBJ")
+            # for rvo in self.rvs:
+            #     print(rvo.idsim, rvo.full_path)
+
         return
 
 
@@ -1275,7 +1383,9 @@ def get_data(emcee_file, temp_status):
             )  # shape (nwalkers, nruns, nfit)
             chains = np.swapaxes(chains, 1, 0)  # nruns x nwalkers x nfit
         if "acceptance_fraction" in data_names:
-            acceptance_fraction = np.array(f_read["acceptance_fraction"], dtype=np.float64)
+            acceptance_fraction = np.array(
+                f_read["acceptance_fraction"], dtype=np.float64
+            )
         if "autocor_time" in data_names:
             autocor_time = np.array(f_read["autocor_time"], dtype=np.float64)
         if "lnprobability" in data_names:
@@ -1540,7 +1650,9 @@ def get_pso_data(pso_file):
         pso_parameters = np.array(of_pso["pso_parameters"], dtype=np.float64)
         pso_fitness = np.array(of_pso["pso_fitness"], dtype=np.float64)
         if "pso_best_evolution" in list(of_pso.keys()):
-            pso_best_evolution = np.array(of_pso["pso_best_evolution"], dtype=np.float64)
+            pso_best_evolution = np.array(
+                of_pso["pso_best_evolution"], dtype=np.float64
+            )
         else:
             pso_best_evolution = False
         if "parameters_minmax" in list(of_pso.keys()):
@@ -2083,9 +2195,9 @@ def take_n_samples(posterior, lnprob=None, post_ci=None, n_samples=100):
     npost, nfit = np.shape(posterior)
 
     print("take_n_samples")
-    print("shape posterior ",np.shape(posterior))
-    print("shape lbprob    ",np.shape(lnprob))
-    print("shape post_ci   ",np.shape(post_ci))
+    print("shape posterior ", np.shape(posterior))
+    print("shape lbprob    ", np.shape(lnprob))
+    print("shape post_ci   ", np.shape(post_ci))
 
     if lnprob is not None:
         idx_post = np.argsort(lnprob)[::-1]  # sort: descending
@@ -2266,10 +2378,8 @@ def print_parameters_logger(
 def GelmanRubin(chains_T):
 
     n, M = np.shape(chains_T)
-    # print("n = {} M = {}".format(n, M))
 
     theta_m = np.mean(chains_T, axis=0)
-    # theta = np.mean(theta_m)
 
     B_n = np.var(theta_m, ddof=1)
 
@@ -2330,6 +2440,8 @@ def get_units(names, mass_unit):
                 units_par.append("(M_sun/M_star)")
             elif "mA" in names[i]:
                 units_par.append("(deg)")
+            elif "m1" == names[i]:
+                units_par.append("(M_sun)")
             else:
                 units_par.append("(%s)" % (mass_unit))
 
@@ -2594,7 +2706,7 @@ def compute_sigma_hdi(flatchains, parameters):
 # ==============================================================================
 
 
-def get_good_distribution(posterior_scale, posterior_mod, debug=False):
+def get_good_distribution(posterior_scale, posterior_mod, type_out=False, debug=False):
 
     par_scale = np.median(posterior_scale)
     p68_scale = np.percentile(
@@ -2611,29 +2723,45 @@ def get_good_distribution(posterior_scale, posterior_mod, debug=False):
     )
     std_mod = np.std(posterior_mod, ddof=1)
     s_mod = max(p68_mod, std_mod)
-    
+
     if debug:
-        print("scaled [{:7.2f}, {:7.2f}] std: {} ==> {}".format(
-            np.min(posterior_scale), np.max(posterior_scale), (p68_scale, std_scale), s_scale))
-        print("mod    [{:7.2f}, {:7.2f}] std: {} ==> {}".format(
-            np.min(posterior_mod), np.max(posterior_mod), (p68_mod, std_mod), s_mod))
+        print(
+            "scaled [{:7.2f}, {:7.2f}] std: {} ==> {}".format(
+                np.min(posterior_scale),
+                np.max(posterior_scale),
+                (p68_scale, std_scale),
+                s_scale,
+            )
+        )
+        print(
+            "mod    [{:7.2f}, {:7.2f}] std: {} ==> {}".format(
+                np.min(posterior_mod), np.max(posterior_mod), (p68_mod, std_mod), s_mod
+            )
+        )
 
     if s_scale < s_mod:
-        if debug: print("Recenter as SCALE")
+        if debug:
+            print("Recenter as SCALE")
         par_out = par_scale
         posterior_out = posterior_scale
+        par_type = "scale"
     else:
-        if debug: print("Recenter as MOD")
+        if debug:
+            print("Recenter as MOD")
         par_out = par_mod
         posterior_out = posterior_mod
+        par_type = "mod"
 
-    return par_out, posterior_out
+    if type_out:
+        return par_out, posterior_out, par_type
+    else:
+        return par_out, posterior_out
 
 
 # ==============================================================================
 
 
-def get_proper_posterior_correlated(posterior, col=None):
+def get_proper_posterior_correlated(posterior, col=None, type_out=False, debug=False):
 
     if col is not None:
         posterior_scale = np.arctan2(posterior[:, col + 1], posterior[:, col]) * rad2deg
@@ -2645,10 +2773,26 @@ def get_proper_posterior_correlated(posterior, col=None):
         )
         posterior_mod = posterior_scale % 360.0
 
-    par_out, post_out = get_good_distribution(posterior_scale, posterior_mod)
+    # pass type_out=True, but return only if requested
+    par_out, post_out, par_type = get_good_distribution(
+        posterior_scale, posterior_mod, type_out=True, debug=debug
+    )
+    if type_out:
+        return par_out, post_out, par_type
+    else:
+        return par_out, post_out
 
-    return par_out, post_out
 
+# ==============================================================================
+# ==============================================================================
+def get_arctan_angle(alpha_deg):
+
+    alpha_rad = alpha_deg * cst.deg2rad
+    cosa = np.cos(alpha_rad)
+    sina = np.sin(alpha_rad)
+    beta_deg = np.arctan2(sina, cosa) * cst.rad2deg
+
+    return beta_deg
 
 # ==============================================================================
 # ==============================================================================
@@ -2667,17 +2811,17 @@ def fix_lambda(flatchain_post, names_par):
 
 # ==============================================================================
 # ==============================================================================
-# recenter single angle distribution    
-def recenter_angle_distribution(alpha_deg, debug=False):
+# recenter single angle distribution
+def recenter_angle_distribution(alpha_deg, debug=False, type_out=False):
 
-    alpha_rad = alpha_deg * cst.deg2rad
-    cosa = np.cos(alpha_rad)
-    sina = np.sin(alpha_rad)
-    beta_deg = np.arctan2(sina, cosa)*cst.rad2deg
+    beta_deg = get_arctan_angle(alpha_deg)
 
-    _, recentered = get_good_distribution(beta_deg, alpha_deg, debug=debug)
+    _, recentered, rec_type = get_good_distribution(beta_deg, alpha_deg, type_out=True, debug=debug)
+    if type_out:
+        return recentered, rec_type
+    else:
+        return recentered
 
-    return recentered
 
 # ==============================================================================
 # ==============================================================================
@@ -3490,6 +3634,26 @@ def update_parameterisation_chains(fitting_names, fitting_chains):
 
     return new_fitting_names, new_fitting_chains
 
+def scale_angle(val_deg):
+
+    val_rad = val_deg * cst.deg2rad
+    cv = np.cos(val_rad)
+    sv = np.sin(val_rad)
+    scale_rad = np.arctan2(sv, cv)
+    scale_deg = scale_rad * cst.rad2deg
+
+    return scale_deg
+
+def search_scale_parameter(par, par_type):
+
+    scale_par = par.copy()
+    for i_p, p in enumerate(par):
+        if "mod" in par_type[i_p]:
+            scale_par[i_p] = p%360.0
+        elif "scale" in par_type[i_p]:
+            scale_par[i_p] = scale_angle(p)
+
+    return scale_par
 
 def compute_physical_parameters(
     n_bodies,
@@ -3498,14 +3662,19 @@ def compute_physical_parameters(
     all_system_parameters,
     mass_conv_factor=1.0,
     radius_conv_factor=1.0,
+    chains_full_fit=None,
+    chains_posterior_fit=None,
     posterior_fit=None,
-    mass_post_conv_factor=1.0,
-    radius_post_conv_factor=1.0,
+    mass_post_conv_factor=[1.0, 1.0, 1.0],
+    radius_post_conv_factor=[1.0, 1.0, 1.0],
 ):
 
     names_phys = []
     par_phys = []
+    chains_full_phys = []
+    chains_posterior_phys = []
     posterior_phys = []
+    phys_type = []
 
     nfit = len(par_fit)
 
@@ -3539,9 +3708,16 @@ def compute_physical_parameters(
             mass = par_fit[idx_p] * mass_conv_factor
             names_phys.append("m{:d}".format(idx_body))
             par_phys.append(mass)
+            phys_type.append("-")
             if posterior_fit is not None:
-                mass_post = posterior_fit[:, idx_p] * mass_post_conv_factor
+                mass_post = posterior_fit[:, idx_p] * mass_post_conv_factor[2]
                 posterior_phys.append(mass_post)
+            if chains_full_fit is not None:
+                mass_f_post = chains_full_fit[:,:, idx_p] * mass_post_conv_factor[0]
+                chains_full_phys.append(mass_f_post)
+            if chains_posterior_fit is not None:
+                mass_p_post = chains_posterior_fit[:,:, idx_p] * mass_post_conv_factor[1]
+                chains_posterior_phys.append(mass_p_post)
 
         idx_p = 0
         # radius: rXRs to Rp (but you shouldn't fit Radius of planet)
@@ -3551,9 +3727,16 @@ def compute_physical_parameters(
             radius = par_fit[idx_p] * radius_conv_factor
             names_phys.append("r{:d}".format(idx_body))
             par_phys.append(radius)
+            phys_type.append("-")
             if posterior_fit is not None:
-                radius_post = posterior_fit[:, idx_p] * radius_post_conv_factor
+                radius_post = posterior_fit[:, idx_p] * radius_post_conv_factor[2]
                 posterior_phys.append(radius_post)
+            if chains_full_fit is not None:
+                radius_f_post = chains_full_fit[:,:, idx_p] * radius_post_conv_factor[0]
+                chains_full_phys.append(radius_f_post)
+            if chains_posterior_fit is not None:
+                radius_p_post = chains_posterior_fit[:,:, idx_p] * radius_post_conv_factor[1]
+                chains_posterior_phys.append(radius_p_post)
 
         idx_p, idx_q = 0, 0
         # ecc, argp: secoswX, sesinwX (also check sqrte) to eX, wX
@@ -3567,26 +3750,68 @@ def compute_physical_parameters(
             ecc = par_fit[idx_p] * par_fit[idx_p] + par_fit[idx_q] * par_fit[idx_q]
             if ecc <= 1.0e-9:
                 ecc = 0.0
-                argp = 90.0
+                argp_scale = 90.0
+                argp = argp_scale
             else:
-                argp = (
-                    np.arctan2(par_fit[idx_q], par_fit[idx_p]) * cst.rad2deg
-                ) % 360.0
+                argp_scale = np.arctan2(par_fit[idx_q], par_fit[idx_p]) * cst.rad2deg
+                argp = argp_scale % 360.0
 
             names_phys.append("e{:d}".format(idx_body))
             par_phys.append(ecc)
+            phys_type.append("-")
             names_phys.append("w{:d}".format(idx_body))
             par_phys.append(argp)
+            phys_type.append("mod")
+
             if posterior_fit is not None:
                 secwpost = posterior_fit[:, idx_p]
                 seswpost = posterior_fit[:, idx_q]
                 ecc_post = secwpost * secwpost + seswpost * seswpost
                 argp_post = (np.arctan2(seswpost, secwpost) * cst.rad2deg) % 360.0
+                _, argp_post, argp_type = get_proper_posterior_correlated(
+                    argp_post, type_out=True
+                )
                 sel_ecc = ecc_post <= 1.0e-9
                 ecc_post[sel_ecc] = 0.0
-                argp_post[sel_ecc] = 90.0
                 posterior_phys.append(ecc_post)
+                argp_post[sel_ecc] = 90.0
                 posterior_phys.append(argp_post)
+                # substitute proper value
+                if "mod" in argp_type:
+                    argp %= 360.0
+                else:
+                    argp = argp_scale
+                par_phys[-1] = argp
+                phys_type[-1] = argp_type
+                
+            if chains_full_fit is not None:
+                cc = chains_full_fit[:,:, idx_p]
+                ss = chains_full_fit[:,:, idx_q]
+                f_post = cc*cc + ss*ss
+                sel_ecc = f_post <= 1.0e-9
+                f_post[sel_ecc] = 0.0
+                chains_full_phys.append(f_post)
+                f_post = np.arctan2(ss, cc) * cst.rad2deg
+                if "mod" in phys_type[-1]:
+                    f_post %= 360.0
+                f_post[sel_ecc] = 90.0
+                chains_full_phys.append(f_post)
+                argp_f_post = f_post
+
+            if chains_posterior_fit is not None:
+                cc = chains_posterior_fit[:,:, idx_p]
+                ss = chains_posterior_fit[:,:, idx_q]
+                p_post = cc*cc + ss*ss
+                sel_ecc = p_post <= 1.0e-9
+                p_post[sel_ecc] = 0.0
+                chains_posterior_phys.append(p_post)
+                p_post = np.arctan2(ss, cc) * cst.rad2deg
+                if "mod" in phys_type[-1]:
+                    p_post %= 360.0
+                p_post[sel_ecc] = 90.0
+                chains_posterior_phys.append(p_post)
+                argp_p_post = p_post
+
         # ecosw/esinw for backward compatibility
         idx_p, idx_q = 0, 0
         keyp = "ecosw{:d}".format(idx_body)
@@ -3598,25 +3823,67 @@ def compute_physical_parameters(
             )
             if ecc <= 1.0e9:
                 ecc = 0.0
-                argp = 90.0
+                argp_scale = 90.0
+                argp = argp_scale
             else:
-                argp = (
-                    np.arctan2(par_fit[idx_q], par_fit[idx_p]) * cst.rad2deg
-                ) % 360.0
+                argp_scale = np.arctan2(par_fit[idx_q], par_fit[idx_p]) * cst.rad2deg
+                argp = argp_scale % 360.0
+
             names_phys.append("e{:d}".format(idx_body))
             par_phys.append(ecc)
+            phys_type.append("-")
             names_phys.append("w{:d}".format(idx_body))
             par_phys.append(argp)
+            phys_type.append("mod")
+
             if posterior_fit is not None:
-                ecwpost = posterior_fit[:, idx_p]
-                eswpost = posterior_fit[:, idx_q]
-                ecc_post = np.sqrt(ecwpost * ecwpost + eswpost * eswpost)
-                argp_post = (np.arctan2(seswpost, secwpost) * cst.rad2deg) % 360.0
+                cc = posterior_fit[:, idx_p]
+                ss = posterior_fit[:, idx_q]
+                ecc_post = np.sqrt(cc * cc + ss * ss)
+                argp_post = (np.arctan2(ss, cc) * cst.rad2deg) % 360.0
+                _, argp_post, argp_type = get_proper_posterior_correlated(
+                    argp_post, type_out=True
+                )
                 sel_ecc = ecc_post <= 1.0e9
                 ecc_post[sel_ecc] = 0.0
                 argp_post[sel_ecc] = 90.0
                 posterior_phys.append(ecc_post)
                 posterior_phys.append(argp_post)
+                # substitute proper value
+                if "mod" in argp_type:
+                    argp %= 360.0
+                else:
+                    argp = argp_scale
+                par_phys[-1] = argp
+                phys_type[-1] = argp_type
+
+            if chains_full_fit is not None:
+                cc = chains_full_fit[:,:, idx_p]
+                ss = chains_full_fit[:,:, idx_q]
+                f_post = np.sqrt(cc*cc + ss*ss)
+                sel_ecc = f_post <= 1.0e-9
+                f_post[sel_ecc] = 0.0
+                chains_full_phys.append(f_post)
+                f_post = np.arctan2(ss, cc) * cst.rad2deg
+                if "mod" in phys_type[-1]:
+                    f_post %= 360.0
+                f_post[sel_ecc] = 90.0
+                chains_full_phys.append(f_post)
+                argp_f_post = f_post
+
+            if chains_posterior_fit is not None:
+                cc = chains_posterior_fit[:,:, idx_p]
+                cc = chains_posterior_fit[:,:, idx_q]
+                p_post = np.sqrt(cc*cc + ss*ss)
+                sel_ecc = p_post <= 1.0e-9
+                p_post[sel_ecc] = 0.0
+                chains_posterior_phys.append(p_post)
+                p_post = np.arctan2(ss, cc) * cst.rad2deg
+                if "mod" in phys_type[-1]:
+                    p_post %= 360.0
+                p_post[sel_ecc] = 90.0
+                chains_posterior_phys.append(p_post)
+                argp_p_post = p_post
 
         # icoslN/isinlN for backward compatibility
         idx_p, idx_q = 0, 0
@@ -3627,18 +3894,59 @@ def compute_physical_parameters(
             inc = np.sqrt(
                 par_fit[idx_p] * par_fit[idx_p] + par_fit[idx_q] * par_fit[idx_q]
             )
-            longn = (np.arctan2(par_fit[idx_q], par_fit[idx_p]) * cst.rad2deg) % 360.0
+            longn_scale = np.arctan2(par_fit[idx_q], par_fit[idx_p]) * cst.rad2deg
+            longn = longn_scale % 360.0
+
             names_phys.append("i{:d}".format(idx_body))
             par_phys.append(inc)
+            phys_type.append("-")
             names_phys.append("lN{:d}".format(idx_body))
             par_phys.append(longn)
+            phys_type.append("mod")
+
             if posterior_fit is not None:
                 iclNpost = posterior_fit[:, idx_p]
                 islNpost = posterior_fit[:, idx_q]
                 inc_post = np.sqrt(iclNpost * iclNpost + islNpost * islNpost)
                 longn_post = (np.arctan2(islNpost, iclNpost) * cst.rad2deg) % 360.0
+                _, longn_post, longn_type = get_proper_posterior_correlated(
+                    longn_post, type_out=True
+                )
                 posterior_phys.append(inc_post)
                 posterior_phys.append(longn_post)
+                # substitute proper value
+                if "mod" in argp_type:
+                    longn %= 360.0
+                else:
+                    longn =longn_scale
+                par_phys[-1] = longn
+                phys_type[-1] = longn_type
+            
+            if chains_full_fit is not None:
+                cc = chains_full_fit[:,:, idx_p]
+                ss = chains_full_fit[:,:, idx_q]
+                f_post = np.sqrt(cc*cc + ss*ss)
+                chains_full_phys.append(f_post)
+                f_post = np.arctan2(ss, cc) * cst.rad2deg
+                if "mod" in phys_type[-1]:
+                    f_post %= 360.0
+                chains_full_phys.append(f_post)
+                longn_f_post = f_post
+
+            if chains_posterior_fit is not None:
+                cc = chains_posterior_fit[:,:, idx_p]
+                ss = chains_posterior_fit[:,:, idx_q]
+                p_post = np.sqrt(cc*cc + ss*ss)
+                chains_posterior_phys.append(p_post)
+                sel_ecc = p_post <= 1.0e-9
+                p_post[sel_ecc] = 0.0
+                chains_posterior_phys.append(p_post)
+                p_post = np.arctan2(ss, cc) * cst.rad2deg
+                if "mod" in phys_type[-1]:
+                    p_post %= 360.0
+                p_post[sel_ecc] = 90.0
+                chains_posterior_phys.append(p_post)
+                longn_p_post = p_post
 
         idx_p = 0
         # meanA: lambdaX to mAX
@@ -3646,8 +3954,13 @@ def compute_physical_parameters(
         if keyp in names_fit:
             idx_p = names_fit.index(keyp)
             meanl = par_fit[idx_p]
+            # print("DEBUG: body {} meanl = {}".format(idx_body, meanl))
             if posterior_fit is not None:
                 meanl_post = posterior_fit[:, idx_p]
+            if chains_full_fit is not None:
+                meanl_f_post = chains_full_fit[:, :, idx_p]
+            if chains_posterior_fit is not None:
+                meanl_p_post = chains_posterior_fit[:, :, idx_p]
 
             idx_q = 0
             # get to proper wX
@@ -3658,11 +3971,28 @@ def compute_physical_parameters(
                     argp = par_fit[idx_q]
                     if posterior_fit is not None:
                         argp_post = posterior_fit[:, idx_q]
+                    if chains_full_fit is not None:
+                        argp_f_post = chains_full_fit[:, :, idx_q]
+                    if chains_posterior_fit is not None:
+                        argp_p_post = chains_posterior_fit[:, :, idx_q]
                 else:
                     idx_q = (7 + (idx_body - 2) * 8) - 1  # fortran index to python: -1
                     argp = all_system_parameters[idx_q]
                     if posterior_fit is not None:
                         argp_post = argp
+                    if chains_full_fit is not None:
+                        argp_f_post = argp
+                    if chains_posterior_fit is not None:
+                        argp_p_post = argp
+            # else:
+            #     if posterior_fit is not None:
+            #         argp_post = posterior_fit[:, idx_q]
+            #     if chains_full_fit is not None:
+            #         argp_f_post = chains_full_fit[:, :, idx_q]
+            #     if chains_posterior_fit is not None:
+            #         argp_p_post = chains_posterior_fit[:, :, idx_q]
+
+            # print("DEBUG: body {} argp = {}".format(idx_body, argp))
 
             idx_q = 0
             # get proper lNX
@@ -3673,18 +4003,67 @@ def compute_physical_parameters(
                     longn = par_fit[idx_q]
                     if posterior_fit is not None:
                         longn_post = posterior_fit[:, idx_q]
+                    if chains_full_fit is not None:
+                        lf_post = chains_full_fit[:, :, idx_q]
+                    if chains_posterior_fit is not None:
+                        lp_post = chains_posterior_fit[:, :, idx_q]
                 else:
                     idx_q = (10 + (idx_body - 2) * 8) - 1  # fortran index to python: -1
                     longn = all_system_parameters[idx_q]
                     if posterior_fit is not None:
                         longn_post = longn
+                    if chains_full_fit is not None:
+                        longn_f_post = longn
+                    if chains_posterior_fit is not None:
+                        longn_p_post = longn
+            # else:
+            #     if posterior_fit is not None:
+            #         longn_post = posterior_fit[:, idx_q]
+            #     if chains_full_fit is not None:
+            #         lf_post = chains_full_fit[:, :, idx_q]
+            #     if chains_posterior_fit is not None:
+            #         lp_post = chains_posterior_fit[:, :, idx_q]
+
+            # print("DEBUG: body {} longn = {}".format(idx_body, longn))
 
             meana = (meanl - longn - argp) % 360.0
+            # meana_scale = np.arctan2(np.sin(meana*cst.deg2rad), np.cos(meana*cst.deg2rad)) * cst.rad2deg
+            meana_scale = get_arctan_angle(meana)
             names_phys.append("mA{:d}".format(idx_body))
             par_phys.append(meana)
+            phys_type.append("mod")
+
+            # print("DEBUG: body {} meana = {}".format(idx_body, meana))
+
             if posterior_fit is not None:
                 meana_post = (meanl_post - longn_post - argp_post) % 360.0
+                _, meana_post, meana_type = get_proper_posterior_correlated(
+                    meana_post, type_out=True
+                )
                 posterior_phys.append(meana_post)
+                # substitute proper value
+                if "mod" in meana_type:
+                    meana %= 360.0
+                else:
+                    meana = meana_scale
+                par_phys[-1] = meana
+                phys_type[-1] = meana_type
+            if chains_full_fit is not None:
+                meana_f_post = (meanl_f_post - longn_f_post - argp_f_post) % 360.0
+                # _, meana_post, _ = get_proper_posterior_correlated(
+                #     meana_post, type_out=True
+                # )
+                if "scale" in meana_type:
+                    meana_f_post = get_arctan_angle(meana_f_post)
+                chains_full_phys.append(meana_f_post)
+            if chains_posterior_fit is not None:
+                meana_p_post = (meanl_p_post - longn_p_post - argp_p_post) % 360.0
+                # _, meana_post, _ = get_proper_posterior_correlated(
+                #     meana_post, type_out=True
+                # )
+                if "scale" in meana_type:
+                    meana_p_post = get_arctan_angle(meana_p_post)
+                chains_posterior_phys.append(meana_p_post)
 
     # check jitter
     # convert l2j_x to jitter_x
@@ -3696,22 +4075,32 @@ def compute_physical_parameters(
             jitter = 2.0 ** par_fit[idx_p]
             names_phys.append(n_fit.replace("l2j_", "jitter_"))
             par_phys.append(jitter)
+            phys_type.append("-")
             if posterior_fit is not None:
                 jitter_post = 2.0 ** posterior_fit[:, idx_p]
                 posterior_phys.append(jitter_post)
+            if chains_full_fit is not None:
+                f_post = 2.0 ** chains_full_fit[:, :, idx_p]
+                chains_full_phys.append(f_post)
+            if chains_posterior_fit is not None:
+                p_post = 2.0 ** chains_posterior_fit[:, :, idx_p]
+                chains_posterior_phys.append(p_post)
 
     names_phys = np.array(names_phys)
     par_phys = np.array(par_phys)
+    phys_type = np.array(phys_type)
+
+
     if posterior_fit is not None:
         posterior_phys = np.column_stack(posterior_phys)
-        # recenter the angles?
-        for i_phy, name_phy in enumerate(names_phys):
-            if name_phy[0] == "w" or name_phy[0:2] == "mA" or name_phy[0:2] == "lN" or "lambda" in name_phy:
-                print("{:20s} -> idx = {:2d}".format(name_phy, i_phy))
-                recenter_phy = recenter_angle_distribution(posterior_phys[:, i_phy]%360.0, debug=True)
-                posterior_phys[:, i_phy] = recenter_phy
+    
+    if chains_full_fit is not None:
+        chains_full_phys = np.array(chains_full_phys).swapaxes(0,1).swapaxes(1,2)
 
-    return names_phys, par_phys, posterior_phys
+    if chains_posterior_fit is not None:
+        chains_posterior_phys = np.array(chains_posterior_phys).swapaxes(0,1).swapaxes(1,2)
+
+    return names_phys, par_phys, posterior_phys, phys_type, chains_full_phys, chains_posterior_phys
 
 
 # ==============================================================================
@@ -4392,9 +4781,10 @@ def check_wrapped_parameters(names_par):
 
     for ifit, name in enumerate(names_par):
         if (
-            ("cos" in name)
-            or ("sin" in name)
-            or ("lambda" in name)
+            # ("cos" in name)
+            # or ("sin" in name)
+            # or
+            ("lambda" in name)
             or (name[0] == "w")
             or ("mA" in name)
         ):
@@ -4528,75 +4918,75 @@ def chi2r_linear_model(par, x, y, ey=None):
 # ==============================================================================
 
 
-def compute_lin_ephem(T0, eT0=None, epoin=None, modefit="wls"):
+# def compute_lin_ephem(T0, eT0=None, epoin=None, modefit="wls"):
 
-    nT0 = np.shape(T0)[0]
+#     nT0 = np.shape(T0)[0]
 
-    if eT0 is None:
-        errTT = np.ones((nT0)) / 86400.0
-    else:
-        errTT = eT0
+#     if eT0 is None:
+#         errTT = np.ones((nT0)) / 86400.0
+#     else:
+#         errTT = eT0
 
-    if epoin is None:
-        Tref0 = T0[nT0 // 2]  # T0[int(0.5*nT0)]
-        dT = np.diff(T0)  # [np.abs(T0[i+1]-T0[i]) for i in range(nT0-1)]
-        Pref0 = np.min(np.abs(dT))
-        epo = calculate_epoch(T0, Tref0, Pref0)
-    else:
-        epo = epoin
-        Tref0, Pref0, _ = lstsq_fit(epo, T0, errTT)
+#     if epoin is None:
+#         Tref0 = T0[nT0 // 2]  # T0[int(0.5*nT0)]
+#         dT = np.diff(T0)  # [np.abs(T0[i+1]-T0[i]) for i in range(nT0-1)]
+#         Pref0 = np.min(np.abs(dT))
+#         epo = calculate_epoch(T0, Tref0, Pref0)
+#     else:
+#         epo = epoin
+#         Tref0, Pref0, _ = lstsq_fit(epo, T0, errTT)
 
-    if modefit in ["optimize", "minimize"]:
-        # SCIPY.OPTIMIZE.MINIMIZE
-        optres = sciopt.minimize(
-            chi2r_linear_model,
-            [Tref0, Pref0],
-            method="nelder-mead",
-            args=(epo, T0, errTT),
-        )
-        Tref, Pref = optres.x[0], optres.x[1]
-        TP_err = [0.0, 0.0]
-        epo = calculate_epoch(T0, Tref, Pref)
+#     if modefit in ["optimize", "minimize"]:
+#         # SCIPY.OPTIMIZE.MINIMIZE
+#         optres = sciopt.minimize(
+#             chi2r_linear_model,
+#             [Tref0, Pref0],
+#             method="nelder-mead",
+#             args=(epo, T0, errTT),
+#         )
+#         Tref, Pref = optres.x[0], optres.x[1]
+#         TP_err = [0.0, 0.0]
+#         epo = calculate_epoch(T0, Tref, Pref)
 
-    elif modefit == "curve_fit":
-        optres = sciopt.curve_fit(linear_model_curve_fit, xdata=epo, ydata=T0)[0]
-        Tref, Pref = optres[0], optres[1]
-        TP_err = [0.0, 0.0]
-        epo = calculate_epoch(T0, Tref, Pref)
+#     elif modefit == "curve_fit":
+#         optres = sciopt.curve_fit(linear_model_curve_fit, xdata=epo, ydata=T0)[0]
+#         Tref, Pref = optres[0], optres[1]
+#         TP_err = [0.0, 0.0]
+#         epo = calculate_epoch(T0, Tref, Pref)
 
-    elif modefit in ["sklearn", "linear_model"]:
-        # SKLEARN.LINEAR_MODEL
-        sk_mod = sklm.LinearRegression()
-        sk_mod.fit(epo.reshape((-1, 1)), T0)
-        Tref, Pref = np.asscalar(np.array(sk_mod.intercept_)), np.asscalar(
-            np.array(sk_mod.coef_)
-        )
-        epo = calculate_epoch(T0, Tref, Pref)
+#     elif modefit in ["sklearn", "linear_model"]:
+#         # SKLEARN.LINEAR_MODEL
+#         sk_mod = sklm.LinearRegression()
+#         sk_mod.fit(epo.reshape((-1, 1)), T0)
+#         Tref, Pref = np.asscalar(np.array(sk_mod.intercept_)), np.asscalar(
+#             np.array(sk_mod.coef_)
+#         )
+#         epo = calculate_epoch(T0, Tref, Pref)
 
-    elif modefit == "odr":
-        # SCIPY.ODR
-        odr_lm = sodr.Model(linear_model)
-        if eT0 is not None:
-            odr_data = sodr.RealData(epo, T0, sy=eT0)
-        else:
-            odr_data = sodr.RealData(epo, T0)
-        init_coeff = [Tref0, Pref0]
-        odr_mod = sodr.ODR(odr_data, odr_lm, beta0=init_coeff)
-        odr_out = odr_mod.run()
-        Tref, Pref = odr_out.beta[0], odr_out.beta[1]
-        TP_err = odr_out.sd_beta
+#     elif modefit == "odr":
+#         # SCIPY.ODR
+#         odr_lm = sodr.Model(linear_model)
+#         if eT0 is not None:
+#             odr_data = sodr.RealData(epo, T0, sy=eT0)
+#         else:
+#             odr_data = sodr.RealData(epo, T0)
+#         init_coeff = [Tref0, Pref0]
+#         odr_mod = sodr.ODR(odr_data, odr_lm, beta0=init_coeff)
+#         odr_out = odr_mod.run()
+#         Tref, Pref = odr_out.beta[0], odr_out.beta[1]
+#         TP_err = odr_out.sd_beta
 
-    else:  # wls
-        X = sm.add_constant(epo)
-        if eT0 is not None:
-            wls = sm.WLS(T0, X, weights=1.0 / (eT0 * eT0)).fit()
-        else:
-            wls = sm.WLS(T0, X).fit()
-        Tref, Pref = wls.params[0], wls.params[1]
-        epo = calculate_epoch(T0, Tref, Pref)
-        TP_err = wls.bse
+#     else:  # wls
+#         X = sm.add_constant(epo)
+#         if eT0 is not None:
+#             wls = sm.WLS(T0, X, weights=1.0 / (eT0 * eT0)).fit()
+#         else:
+#             wls = sm.WLS(T0, X).fit()
+#         Tref, Pref = wls.params[0], wls.params[1]
+#         epo = calculate_epoch(T0, Tref, Pref)
+#         TP_err = wls.bse
 
-    return epo, Tref, Pref, TP_err
+#     return epo, Tref, Pref, TP_err
 
 
 # ==============================================================================
@@ -4931,11 +5321,73 @@ def de_load_parameters(de_file):
 
     with h5py.File(
         de_file,
-        mode = "r",
+        mode="r",
         # libver='latest',
-        swmr=True
+        swmr=True,
     ) as de_hdf5:
         de_parameters = de_hdf5["de_parameters"][...]
     # de_hdf5.close()
 
     return de_parameters
+
+
+# =============================================================================
+def compute_epoch(Tref, Pref, TTs):
+
+    epo = np.rint((TTs - Tref) / Pref)
+
+    return epo
+
+# =============================================================================
+def u1u2_to_q1q2(u1, u2):
+
+    u1u2 = u1+u2
+    q1 = u1u2*u1u2
+    q2 = u1/(2.0*u1u2)
+
+    return q1, q2
+
+def q1q2_to_u1u2(q1, q2):
+
+    sq1 = np.sqrt(q1)
+    u1 = 2.0*sq1*q2
+    u2 = sq1*(1.0-(2.0*q2))
+
+    return u1, u2
+
+# =============================================================================
+def normalization_standard(x):
+
+    xs = (x - np.mean(x))/np.std(x, ddof=1)
+
+    return xs
+
+def normalization_range(x):
+
+    xs = (2.0*x - (np.amin(x)+np.amax(x))) / np.ptp(x)
+
+    return xs
+
+def normalization_max(x):
+
+    xs = (x - np.amin(x))/np.ptp(x)
+
+    return xs
+
+def normalization_constant(x, xc=1.0):
+
+    xs = x / xc
+
+    return xs
+
+# =============================================================================
+def angle_to_harmonics(phi, n_harmonics=3):
+
+    phir = phi*cst.deg2rad
+
+    harmonics = {}
+    for nh in range(1,n_harmonics+1):
+        harmonics["cos{:02d}phi".format(nh)] = np.cos(nh*phir)
+        harmonics["sin{:02d}phi".format(nh)] = np.sin(nh*phir)
+
+    return harmonics

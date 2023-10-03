@@ -28,6 +28,21 @@ run:
         thin_by: 100 # !! the true nruns will be nruns x thin_by, this is also the keyword used by emcee and it will keep only thin_by steps
         emcee_restart: False
         emcee_progress: True
+        move:
+            type: ["ai"]
+            fraction: [1.0]
+        #where ai == affine invariant, de == differential evolution, desnooker==de with different implementation
+    ultranest:
+        live_points: 400
+        resume_flag: "resume"
+        dlogz: 0.5
+    dynesty:
+        live_points: 500
+        bound: "multi" # none, single, balls, cubes
+        sample: "auto"
+        restore: False
+        dlogz: None
+        pfrac: 0.8
 # ANALYSIS SECTION, TO RUN AFTER EMCEE SAVED AT LEAST ONE SAVE POINT, YOU CAN RUN IT ALSO FOR DE/PSO OUTPUT
 analysis:
     full_path: /full/path/to/run/trades
@@ -39,7 +54,7 @@ analysis:
     seed: 42
     from_file: None # trades file of a simulation output to simulate and plot. Default = None.
     n_samples: 42 # set to 0 if you don't want to simulate and save samples
-    overplot: mle # initial, pso, de, median, mle, map, mode, adhoc
+    overplot: map_hdi # initial, pso, de, median, map_hdi, map, mode, adhoc
     corner_type: pygtc # pygtc, custom, both
     all_analysis: False # if set to False you should set by hand the following arguments, otherwise it run all of them
     save_posterior: True
@@ -55,8 +70,8 @@ analysis:
 OC:
     plot_oc: True
     full_path: /full/path/trades/run
-    sim_name: ["mle", "median"] # list of [initial, pso, de, median, mle, map, mode, from_file]
-    # full_sim_path: "./0668_sim_mle" # one of the folder created by analysis/save_parameters in the form XXXX_sim_TYPE
+    sim_name: ["map_hdi", "median"] # list of [initial, pso, de, median, map_hdi, map, mode, from_file]
+    # full_sim_path: "./0668_sim_map_hdi" # one of the folder created by analysis/save_parameters in the form XXXX_sim_TYPE
     # sim_id: 668 # the first number of the above parameter name
     idplanet_name: {}
     lmflag: 0 # if LM has been run (1) or not (0). Default 0.0
@@ -68,7 +83,7 @@ OC:
 RV:
     plot_rv: True
     full_path: /full/path/trades/run
-    sim_name: ["mle", "median"] # list of [initial, pso, de, median, mle, map, mode, from_file]
+    sim_name: ["map_hdi", "median"] # list of [initial, pso, de, median, map_hdi, map, mode, from_file]
     lmflag: 0 # if LM has been run (1) or not (0). Default 0.0
     tscale: None # time scale to remove from x-axis plot, Default None means removing tepoch of the simulation.
     samples_file: None # hdf5 file name with samples created by analysis/n_samples > 0

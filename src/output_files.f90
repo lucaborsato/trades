@@ -6,7 +6,7 @@ module output_files
     use init_trades, only: get_unit, state2string, get_lnec_full, get_lnec
     use convert_type, only: string
     use celestial_mechanics, only: barycenter
-    use utils, only: set_fitness_values
+    use utils, only: set_fitness_values, ln_priors
     implicit none
 
     interface write_RV
@@ -649,7 +649,7 @@ contains
         real(dp), dimension(:), intent(in)::resw
         logical, optional, intent(in)::to_screen
         ! Local parameters
-        real(dp)::chi_square, reduced_chi_square, lnLikelihood, ln_const, bic
+        real(dp)::chi_square, reduced_chi_square, lnLikelihood, ln_const, lnprior, lnprob, bic
         integer::upar, j
         character(512)::flpar
         character(80)::fmt
@@ -658,6 +658,13 @@ contains
 
         chi_square = sum(resw*resw)
         call set_fitness_values(par, chi_square, reduced_chi_square, lnLikelihood, ln_const, bic)
+        lnprior = zero
+        if (n_priors .gt. 0) then
+            call ln_priors(system_parameters, par,&
+                &priors_names, priors_values, lnprior)
+        end if
+        lnprob = lnLikelihood+lnprior
+        bic = bic-two*lnprior
 
         upar = get_unit(cpuid)
         flpar = ""
@@ -686,9 +693,11 @@ contains
             &" dof = ", obsData%dof
 
             fmt = adjustl("(a,"//trim(sprec)//",a)")
-            write (*, trim(fmt)) "# lnLikelihood = ", lnLikelihood
             write (*, trim(fmt)) "# ln_const(err, jitter) = ", ln_const, " ( = -ndata/2 *ln(2pi) - sum( ln(err^2 + jitter^2)) )"
-            write (*, trim(fmt)) "# BIC = -2xlnLikelihood + nfit x ln(ndata) = ", bic
+            write (*, trim(fmt)) "# lnLikelihood = ", lnLikelihood
+            write (*, trim(fmt)) "# lnPrior      = ", lnprior
+            write (*, trim(fmt)) "# lnProb = lnLikelihood + lnPrior = ", lnprob
+            write (*, trim(fmt)) "# BIC = -2xlnProb + nfit x ln(ndata) = ", bic
             write (*, '(a,5x,a)') "# parameter ", " value "
         end if
 
@@ -707,9 +716,11 @@ contains
         &" dof = ", obsData%dof
 
         fmt = adjustl("(a,"//trim(sprec)//",a)")
-        write (upar, trim(fmt)) "# lnLikelihood = ", lnLikelihood
         write (upar, trim(fmt)) "# ln_const(err, jitter) = ", ln_const, " ( = -ndata/2 *ln(2pi) - sum( ln(err^2 + jitter^2)) )"
-        write (upar, trim(fmt)) "# BIC = -2xlnLikelihood + nfit x ln(ndata) = ", bic
+        write (upar, trim(fmt)) "# lnLikelihood = ", lnLikelihood
+        write (upar, trim(fmt)) "# lnPrior      = ", lnprior
+        write (upar, trim(fmt)) "# lnProb = lnLikelihood + lnPrior = ", lnprob
+        write (upar, trim(fmt)) "# BIC = -2xlnProb + nfit x ln(ndata) = ", bic
         write (upar, '(a,5x,a)') "# parameter ", " value "
 
         fmt = adjustl("(a10,4x,"//trim(sprec)//")")

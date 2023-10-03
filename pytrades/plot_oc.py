@@ -36,6 +36,7 @@ plt.rcParams["ytick.labelsize"] = plt.rcParams["xtick.labelsize"]
 # custom modules
 import constants as cst
 import ancillary as anc
+import pytrades
 
 CLI_OC = anc.CLI_OC
 
@@ -84,13 +85,12 @@ class sim_data:
         self.dTTos = sim_in[:, 4]
         self.TTstat = sim_in[:, 5]
 
-        self.epo, self.Teph, self.Peph, self.eTPeph = anc.compute_lin_ephem(
-            self.TTo,
-            eT0=self.eTTo,
-            epoin=self.epo,
-            # modefit='odr'
-            modefit="wls",
-        )
+        Tref, Pref, chi2 = pytrades.linear_fit(self.epo, self.TTo, ey=self.eTTo)
+        self.Teph = Tref[0]
+        self.Peph = Pref[0]
+        self.eTPeph = [Tref[1], Pref[1]]
+        self.chi2 = chi2
+
         self.TTlin = self.Teph + self.epo * self.Peph
         self.oc_o = self.TTo - self.TTlin
         self.oc_s = self.TTs - self.TTlin
@@ -300,10 +300,7 @@ def read_samples(samples_file=None):
 
 # ==============================================================================
 
-
-def set_unit(cli, Aoc_d):
-
-    u_in = cli.ocunit
+def set_unit_base(u_in, Aoc_d):
 
     try:
         if u_in.lower() in "s sec second seconds".split():
@@ -318,6 +315,15 @@ def set_unit(cli, Aoc_d):
             ocu = [1.0, "d"]
     except:
         ocu = [1.0, "days"]
+
+    return ocu
+
+
+def set_unit(cli, Aoc_d):
+
+    u_in = cli.ocunit
+
+    ocu = set_unit_base(u_in, Aoc_d)
 
     return ocu
 

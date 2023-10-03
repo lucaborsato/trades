@@ -8,9 +8,9 @@ module rotations
 
 contains
 
-    subroutine set_cossin(cosa,sina, tol)
-        real(dp),intent(inout)::cosa,sina
-        real(dp),intent(in)::tol
+    subroutine set_cossin(cosa, sina, tol)
+        real(dp), intent(inout)::cosa, sina
+        real(dp), intent(in)::tol
 
         if (abs(cosa) .le. tol) then
             cosa = zero
@@ -39,7 +39,7 @@ contains
         !     sina = zero
         !     cosa = sign(one, cosa)
         ! end if
-        call set_cossin(cosa,sina,TOLERANCE)
+        call set_cossin(cosa, sina, TOLERANCE)
 
         !        (0 0     1   ) ?? (1 0 0)
         !mat(3x)=(0 cosa -sina)
@@ -62,12 +62,12 @@ contains
 
     subroutine rotation_axis1(xyz_in, alpha_rad, xyz_out)
         ! Input
-        real(dp),dimension(:),intent(in)::xyz_in
-        real(dp),intent(in)::alpha_rad
+        real(dp), dimension(:), intent(in)::xyz_in
+        real(dp), intent(in)::alpha_rad
         ! Output
-        real(dp),dimension(:),intent(out)::xyz_out
+        real(dp), dimension(:), intent(out)::xyz_out
         ! Local
-        real(dp)::cosa,sina
+        real(dp)::cosa, sina
 
         cosa = cos(alpha_rad)
         sina = sin(alpha_rad)
@@ -78,11 +78,11 @@ contains
         !     sina = zero
         !     cosa = sign(one, cosa)
         ! end if
-        call set_cossin(cosa,sina,TOLERANCE)
+        call set_cossin(cosa, sina, TOLERANCE)
 
         xyz_out(1) = xyz_in(1)
-        xyz_out(2) = xyz_in(2)*cosa - xyz_in(3)*sina
-        xyz_out(3) = xyz_in(2)*sina + xyz_in(3)*cosa
+        xyz_out(2) = xyz_in(2)*cosa-xyz_in(3)*sina
+        xyz_out(3) = xyz_in(2)*sina+xyz_in(3)*cosa
 
         return
     end subroutine rotation_axis1
@@ -132,7 +132,7 @@ contains
         !     sina = zero
         !     cosa = sign(one, cosa)
         ! end if
-        call set_cossin(cosa,sina,TOLERANCE)
+        call set_cossin(cosa, sina, TOLERANCE)
 
         !        (cosa -sina 0)
         !mat(3x)=(sina  cosa 0)
@@ -155,12 +155,12 @@ contains
 
     subroutine rotation_axis3(xyz_in, alpha_rad, xyz_out)
         ! Input
-        real(dp),dimension(:),intent(in)::xyz_in
-        real(dp),intent(in)::alpha_rad
+        real(dp), dimension(:), intent(in)::xyz_in
+        real(dp), intent(in)::alpha_rad
         ! Output
-        real(dp),dimension(:),intent(out)::xyz_out
+        real(dp), dimension(:), intent(out)::xyz_out
         ! Local
-        real(dp)::cosa,sina
+        real(dp)::cosa, sina
 
         cosa = cos(alpha_rad)
         sina = sin(alpha_rad)
@@ -171,10 +171,10 @@ contains
         !     sina = zero
         !     cosa = sign(one, cosa)
         ! end if
-        call set_cossin(cosa,sina,TOLERANCE)
+        call set_cossin(cosa, sina, TOLERANCE)
 
-        xyz_out(1) = xyz_in(1)*cosa - xyz_in(2)*sina
-        xyz_out(2) = xyz_in(1)*sina + xyz_in(2)*cosa
+        xyz_out(1) = xyz_in(1)*cosa-xyz_in(2)*sina
+        xyz_out(2) = xyz_in(1)*sina+xyz_in(2)*cosa
         xyz_out(3) = xyz_in(3)
 
         return
@@ -218,13 +218,13 @@ contains
 
     subroutine rotate_vector(xyz_in, argp, inc, longn, xyz_out)
         ! Input
-        real(dp),dimension(:),intent(in)::xyz_in
-        real(dp),intent(in)::argp,inc,longn
+        real(dp), dimension(:), intent(in)::xyz_in
+        real(dp), intent(in)::argp, inc, longn
         ! Output
-        real(dp),dimension(:),intent(out)::xyz_out
+        real(dp), dimension(:), intent(out)::xyz_out
         ! Local
         real(dp)::argp_rad, inc_rad, longn_rad
-        real(dp),dimension(3)::xyz_a1, xyz_a2
+        real(dp), dimension(3)::xyz_a1, xyz_a2
 
         argp_rad = argp*deg2rad
         inc_rad = inc*deg2rad

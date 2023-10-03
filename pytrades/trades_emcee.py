@@ -69,7 +69,7 @@ np.random.seed(cli.seed)
 # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
 # pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
 anc.print_both("Init trades ... ")
-sim = pytrades.TRADES(
+sim = pytrades.TRADESfolder(
     working_path,
     sub_folder=cli.sub_folder, 
     nthreads=cli.nthreads,
@@ -78,6 +78,7 @@ sim = pytrades.TRADES(
 )
 sim.init_trades()
 sys.stdout.flush()
+
 
 def lnprob(fitting_parameters):
 
@@ -100,6 +101,7 @@ def lnprob(fitting_parameters):
 
     if check == 0:
         return -np.inf
+        # return -2.0e30
 
     return lgllhd+lnprior
 
@@ -123,6 +125,10 @@ def residuals_func(fitting_parameters):
 working_folder, _, of_run = init_folder(working_path, cli.sub_folder)
 sys.stdout.flush()
 
+anc.print_both("")
+anc.print_both("fitting parameters:")
+anc.print_both(" ".join([n for n in sim.fitting_names]))
+anc.print_both("")
 
 # check pyde args
 anc.print_both("\n Check pyDE configuration ... ", output=of_run)
@@ -162,14 +168,14 @@ if de_run or de_resume or de_to_emcee:
         fitting_parameters = anc.de_load_parameters(de_file)
 
     else:
-        anc.print_both(" pyDE npop = {} ngen = {}".format(npop_de, ngen_de), output=of_run)
+        anc.print_both(" pyDE npop = {} ngen = {} nsave = {}".format(npop_de, ngen_de, de_save), output=of_run)
 
         # prepare arrays to store pyDE evolution
         de_pop, de_fit = (
             np.zeros((ngen_de, npop_de, nfit)),
-            np.zeros((ngen_de, npop_de)),
+            np.zeros((ngen_de, npop_de))-1.0e-30, # set to very small non-zero values
         )
-        de_pop_best, de_fit_best = np.zeros((ngen_de, nfit)), np.zeros((ngen_de))
+        de_pop_best, de_fit_best = np.zeros((ngen_de, nfit)), np.zeros((ngen_de))-1.0e-30
 
         with Pool(cli.nthreads) as threads_pool:
             # create pyDE object
@@ -215,22 +221,39 @@ if de_run or de_resume or de_to_emcee:
             anc.print_both(" DE - START ", output=of_run)
             sys.stdout.flush()
             if last_iter_de + 1 < ngen_de:
+                anc.print_both(" last_iter_de + 1 = {} < ngen_de = {}".format(last_iter_de+1, ngen_de), output=of_run)
+                
+                # print("iter_de mod_save  check_save check_iter best_fitness")
+                
+                sys.stdout.flush()
+                
                 for iter_de_temp, res_de in enumerate(de_evol(ngen_de-last_iter_de)):
                     # current iter_de_temp starts from 0 and ends to ngen_de-last_iter_de
                     iter_de = last_iter_de + iter_de_temp
                     # iter_de goes from last_iter_de to ngen_de
+                    mod_save = (iter_de + 1) % de_save
+                    check_save = mod_save == 0
+                    check_iter = iter_de + 1 >= ngen_de
+                    # anc.print_both("iter_de = {}".format(iter_de), output=of_run)
+                    # sys.stdout.flush()
 
-                    de_pop[iter_de, :, :] = de_evol.population.copy()
-                    de_fit[iter_de, :] = fit_type * de_evol._fitness.copy()
+                    de_pop[iter_de, :, :]   = de_evol.population.copy()
+                    de_fit[iter_de, :]      = fit_type * de_evol._fitness.copy()
                     de_pop_best[iter_de, :] = de_evol.minimum_location.copy()
-                    de_fit_best[iter_de] = fit_type * de_evol.minimum_value
+                    de_fit_best[iter_de]    = fit_type * de_evol.minimum_value
+
+                    # print(iter_de, mod_save, check_save, check_iter, fit_type * de_evol.minimum_value)
+                    
                     if iter_de > 0:
-                        if ((iter_de + 1) % de_save == 0) or (iter_de + 1 >= ngen_de):
+                        if (check_save or check_iter):
                             anc.print_both(" ============= ", output=of_run)
                             anc.print_both(" pyDE - iter = {} / {} ==> saving".format(iter_de+ 1, ngen_de), output=of_run)
                             anc.print_both(
                                 " last best fitness = {}".format(de_fit_best[iter_de]), output=of_run
                             )
+                            sys.stdout.flush()
+
+                            # sys.exit()
 
                             # SAVE DE SIMULATION IN de_run.hdf5 FILE
                             anc.de_save_evolution(
@@ -269,7 +292,29 @@ if de_run or de_resume or de_to_emcee:
                             )
                             sys.stdout.flush()
                             start_iter_de = time.time()
+                # end for iter_de_temp, res_de
 
+                # FORCE
+                # SAVE DE SIMULATION IN de_run.hdf5 FILE
+                anc.de_save_evolution(
+                    de_file,
+                    npop_de,
+                    ngen_de,
+                    iter_de,
+                    1,
+                    nfit,
+                    ndata,
+                    de_pop,
+                    de_fit,
+                    de_pop_best,
+                    de_fit_best,
+                    de_bounds,
+                    sim.fitting_names,
+                    de_maximize=de_maximize,
+                )
+                anc.print_both(" Updated DE hdf5 file: {}".format(de_file), output=of_run)
+            else:
+                iter_de = ngen -1
         anc.print_both("", output=of_run)
         anc.print_both(" completed DE", output=of_run)
         anc.print_both("", output=of_run)
@@ -284,7 +329,7 @@ if de_run or de_resume or de_to_emcee:
         )
         sys.stdout.flush()
         fitting_parameters = anc.de_get_best_parameters(
-            de_fit_best, de_pop_best, ngen_de-1, de_maximize=de_maximize
+            de_fit_best, de_pop_best, iter_de, de_maximize=de_maximize
         )
         # END DE
 
@@ -416,6 +461,7 @@ if cli.nruns > 0:
 
     # # sys.exit()
     # p0 = last_iteration
+    anc.print_both("emcee moves: {}".format(cli.emcee_move), output=of_run)
 
     with Pool(nthreads) as threads_pool:
         sampler = emcee.EnsembleSampler(
@@ -423,10 +469,11 @@ if cli.nruns > 0:
             sim.nfit,
             lnprob,
             pool=threads_pool,
-            moves=[
-                (emcee.moves.DEMove(), 0.8),
-                (emcee.moves.DESnookerMove(), 0.2),
-            ],
+            # moves=[
+            #     (emcee.moves.DEMove(), 0.8),
+            #     (emcee.moves.DESnookerMove(), 0.2),
+            # ],
+            moves=cli.emcee_move,
             backend=backend,
         )
 

@@ -301,7 +301,13 @@ def main():
         full_file, cli.sim_id, cli.body_id, cli.tref, cli.pref, t_launch, t_end
     )
 
-    epo_sel, transits.tref, transits.pref, _ = anc.compute_lin_ephem(transits.ttra_sel)
+    Tin = transits.ttra_sel[transits.nttra_sel // 2]
+    Pin = np.median(np.diff(transits.ttra_sel))
+    epo_sel = np.rint( (transits.ttra_sel - Tin) / Pin)
+    Tref, Pref, _ = pytrades.linear_fit(epo_sel, transits.ttra_sel)
+    transits.tref = Tref[0]
+    transits.pref = Pref[0]
+
     printlog("LINEAR EPHEMERIS: %.6f + N x %.6f" % (transits.tref, transits.pref), olog)
     printlog(
         "FOUND %d TRANSIT DURING CHEOPS ON A TOTAL OF %d"

@@ -27,12 +27,12 @@ contains
         return
     end subroutine get_RV
 
-    subroutine get_and_set_RV_data(mass, rin, idx, obsDataIn,simRV)
+    subroutine get_and_set_RV_data(mass, rin, idx, obsDataIn, simRV)
         ! **Input**
         real(dp), dimension(:), intent(in)::mass
         real(dp), dimension(:), intent(in)::rin
         integer, intent(in)::idx
-        type(dataObs),intent(in)::obsDataIn
+        type(dataObs), intent(in)::obsDataIn
         ! **Input/Output**
         type(dataRV), intent(inout)::simRV
         ! **local variables**

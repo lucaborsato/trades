@@ -26,7 +26,7 @@ contains
         integer, dimension(:), allocatable, intent(out)::idxX, idxY, idxZ
         integer, dimension(:), allocatable, intent(out)::idxVX, idxVY, idxVZ
         ! Local
-        real(dp),parameter::Rfactor=one
+        real(dp), parameter::Rfactor = one
         integer::i_body
 
         allocate (idxX(n_body), idxY(n_body), idxZ(n_body))
@@ -38,9 +38,9 @@ contains
         idxVX = 0
         idxVY = 0
         do i_body = 2, n_body
-            idxX(i_body)  = 1+(i_body-1)*6
-            idxY(i_body)  = 2+(i_body-1)*6
-            idxZ(i_body)  = 3+(i_body-1)*6
+            idxX(i_body) = 1+(i_body-1)*6
+            idxY(i_body) = 2+(i_body-1)*6
+            idxZ(i_body) = 3+(i_body-1)*6
             idxVX(i_body) = 4+(i_body-1)*6
             idxVY(i_body) = 5+(i_body-1)*6
             idxVZ(i_body) = 6+(i_body-1)*6
@@ -51,21 +51,20 @@ contains
 
     subroutine transit_conditions(rv1, rv2, A, B, AB, ABflag, Zflag)
         ! Input
-        real(dp),dimension(6),intent(in)::rv1, rv2
+        real(dp), dimension(6), intent(in)::rv1, rv2
         ! Output
-        real(dp),intent(out)::A,B,AB
-        logical,intent(out)::ABflag, Zflag
+        real(dp), intent(out)::A, B, AB
+        logical, intent(out)::ABflag, Zflag
 
         ! C = X*VX + Y*VY
-        A = rv1(1)*rv1(4) + rv1(2)*rv1(5)
-        B = rv2(1)*rv2(4) + rv2(2)*rv2(5)
+        A = rv1(1)*rv1(4)+rv1(2)*rv1(5)
+        B = rv2(1)*rv2(4)+rv2(2)*rv2(5)
         AB = A*B
         ABflag = AB .le. zero
         Zflag = (rv1(3) .gt. zero) .or. (rv2(3) .gt. zero)
 
         return
     end subroutine transit_conditions
-    
 
     ! ================================================================================
     ! performs the forward integration in one direction with explicit flags and args.
@@ -93,122 +92,121 @@ contains
     ! Hc     == Hill chek, .true. if stable, .false. if unstable for Hill's condition
     subroutine ode_full_args(mass, radius, rin, t_epoch, time_to_int, step_in, obsDataIn, simRV,&
         &id_transit_body, transit_flag, dur_check, simT0, Hc)
-          ! Input
-          real(dp), dimension(:), intent(in)::mass, radius, rin
-          real(dp), intent(in)::t_epoch, time_to_int, step_in
-          type(dataObs), intent(in)::obsDataIn
-          ! Input/Output
-          type(dataRV), intent(inout)::simRV
-          ! Input
-          integer, intent(in)::id_transit_body
-          logical, dimension(:), intent(in)::transit_flag
-          integer, intent(in)::dur_check
-          ! Input/Output
-          type(dataT0), dimension(:), intent(inout)::simT0
-          logical, intent(inout)::Hc
-          ! Locals
-          integer::n_body, nb_dim
-          real(dp), dimension(:), allocatable::r1, r2
-          integer, dimension(:), allocatable::X, Y, Z
-          integer, dimension(:), allocatable::VX, VY, VZ
-  
-          real(dp)::A,B,AB
-          logical::ABflag,Zflag
-  
-          real(dp)::integration_step, working_step
-  
-          real(dp), dimension(:), allocatable::t_all_steps
-          integer, dimension(:), allocatable::all_idx
-          integer::n_all
-          real(dp)::trun1, trun2
-  
-          real(dp)::Tr, Pr, Tx
-          integer::epox
-  
-          integer::i_body, iteration, body_transiting_start, body_transiting_end
-          logical::do_transit_check
-  
-          integer::nRV, nTTs
-  
-          nRV = obsDataIn%obsRV%nRV
-          nTTs = obsDataIn%nTTs
-  
-          Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
-          if (.not. Hc) then
-              return
-          end if
-  
-  
-          n_body = size(mass)
-          call set_checking_coordinates(NB, X, Y, Z, VX, VY, VZ)
-  
-          integration_step = sign(step_in, time_to_int)
-          call set_check_steps(t_epoch, time_to_int, integration_step, obsDataIn, n_all, t_all_steps, all_idx)
-  
-          nb_dim = 6*n_body
-          allocate (r1(nb_dim), r2(nb_dim))
-          r1 = rin
-          working_step = step_0
-  
-          call set_transiting_bodies(id_transit_body, do_transit_check, body_transiting_start, body_transiting_end)
-  
-          trun1 = t_all_steps(1)
-          integration: do iteration = 1, n_all
-  
-              trun2 = t_all_steps(iteration)
-              integration_step = trun2-trun1
-              call one_forward_step(mass, radius, r1, integration_step, working_step, Hc, r2)
-              if (.not. Hc) then
-                  exit integration
-              end if
-  
-              ! ! ===============================
-              ! RV computation
-              if ((nRV.gt.0) .and. (all_idx(iteration) .gt. 0)) then
-                  call get_and_set_RV_data(mass, r2, all_idx(iteration), obsDataIn, simRV)
-              end if
-  
-              if (do_transit_check) then
-                  Tx = t_epoch+trun1+half*integration_step
-  
-                    do i_body = body_transiting_start, body_transiting_end
-                        call transit_conditions(r1(X(i_body):VZ(i_body)), r2(X(i_body):VZ(i_body)),&
-                            &A, B, AB, ABflag, Zflag)
+        ! Input
+        real(dp), dimension(:), intent(in)::mass, radius, rin
+        real(dp), intent(in)::t_epoch, time_to_int, step_in
+        type(dataObs), intent(in)::obsDataIn
+        ! Input/Output
+        type(dataRV), intent(inout)::simRV
+        ! Input
+        integer, intent(in)::id_transit_body
+        logical, dimension(:), intent(in)::transit_flag
+        integer, intent(in)::dur_check
+        ! Input/Output
+        type(dataT0), dimension(:), intent(inout)::simT0
+        logical, intent(inout)::Hc
+        ! Locals
+        integer::n_body, nb_dim
+        real(dp), dimension(:), allocatable::r1, r2
+        integer, dimension(:), allocatable::X, Y, Z
+        integer, dimension(:), allocatable::VX, VY, VZ
 
-                        if (ABflag .and. Zflag) then
-                            if ((nTTs .gt. 0) .and. allocated(obsDataIn%obsT0)) then
-                                Tr = obsDataIn%obsT0(i_body-1)%Tephem
-                                Pr = obsDataIn%obsT0(i_body-1)%Pephem
-                                if (Pr .gt. zero) then ! only if we have Pephem > 0
-                                    epox = nint(((Tx-Tr)/Pr))
-                                    if (any(epox .eq. obsDataIn%obsT0(i_body-1)%epo)) then ! check if the epoch of the mean time of two consecutive steps is within the observed epochs
-                                        call check_T0(t_epoch, i_body, mass, radius, r1, r2,&
-                                            &trun1, integration_step,&
-                                            &transit_flag, dur_check, obsDataIn, simT0, Hc)
-                                    end if
-                                end if ! Pr
-                            end if !  allocated(obsDataIn%obsT0)
-                        end if ! ABflag, Zflag
-                  end do ! i_body
-              end if ! do_transit_check
-              ! ========
-  
-              r1 = r2
-              trun1 = trun2
-  
-              if (.not. Hc) then
-                  exit integration
-              end if
-          end do integration
-  
-          deallocate (r1, r2)
-          deallocate (X, Y, Z)
-          deallocate (VX, VY, VZ)
-          deallocate (t_all_steps)
-          deallocate (all_idx)
-  
-          return
-      end subroutine ode_full_args
+        real(dp)::A, B, AB
+        logical::ABflag, Zflag
+
+        real(dp)::integration_step, working_step
+
+        real(dp), dimension(:), allocatable::t_all_steps
+        integer, dimension(:), allocatable::all_idx
+        integer::n_all
+        real(dp)::trun1, trun2
+
+        real(dp)::Tr, Pr, Tx
+        integer::epox
+
+        integer::i_body, iteration, body_transiting_start, body_transiting_end
+        logical::do_transit_check
+
+        integer::nRV, nTTs
+
+        nRV = obsDataIn%obsRV%nRV
+        nTTs = obsDataIn%nTTs
+
+        Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
+        if (.not. Hc) then
+            return
+        end if
+
+        n_body = size(mass)
+        call set_checking_coordinates(NB, X, Y, Z, VX, VY, VZ)
+
+        integration_step = sign(step_in, time_to_int)
+        call set_check_steps(t_epoch, time_to_int, integration_step, obsDataIn, n_all, t_all_steps, all_idx)
+
+        nb_dim = 6*n_body
+        allocate (r1(nb_dim), r2(nb_dim))
+        r1 = rin
+        working_step = step_0
+
+        call set_transiting_bodies(id_transit_body, do_transit_check, body_transiting_start, body_transiting_end)
+
+        trun1 = t_all_steps(1)
+        integration: do iteration = 1, n_all
+
+            trun2 = t_all_steps(iteration)
+            integration_step = trun2-trun1
+            call one_forward_step(mass, radius, r1, integration_step, working_step, Hc, r2)
+            if (.not. Hc) then
+                exit integration
+            end if
+
+            ! ! ===============================
+            ! RV computation
+            if ((nRV .gt. 0) .and. (all_idx(iteration) .gt. 0)) then
+                call get_and_set_RV_data(mass, r2, all_idx(iteration), obsDataIn, simRV)
+            end if
+
+            if (do_transit_check) then
+                Tx = t_epoch+trun1+half*integration_step
+
+                do i_body = body_transiting_start, body_transiting_end
+                    call transit_conditions(r1(X(i_body):VZ(i_body)), r2(X(i_body):VZ(i_body)),&
+                        &A, B, AB, ABflag, Zflag)
+
+                    if (ABflag .and. Zflag) then
+                        if ((nTTs .gt. 0) .and. allocated(obsDataIn%obsT0)) then
+                            Tr = obsDataIn%obsT0(i_body-1)%Tephem
+                            Pr = obsDataIn%obsT0(i_body-1)%Pephem
+                            if (Pr .gt. zero) then ! only if we have Pephem > 0
+                                epox = nint(((Tx-Tr)/Pr))
+                                if (any(epox .eq. obsDataIn%obsT0(i_body-1)%epo)) then ! check if the epoch of the mean time of two consecutive steps is within the observed epochs
+                                    call check_T0(t_epoch, i_body, mass, radius, r1, r2,&
+                                        &trun1, integration_step,&
+                                        &transit_flag, dur_check, obsDataIn, simT0, Hc)
+                                end if
+                            end if ! Pr
+                        end if !  allocated(obsDataIn%obsT0)
+                    end if ! ABflag, Zflag
+                end do ! i_body
+            end if ! do_transit_check
+            ! ========
+
+            r1 = r2
+            trun1 = trun2
+
+            if (.not. Hc) then
+                exit integration
+            end if
+        end do integration
+
+        deallocate (r1, r2)
+        deallocate (X, Y, Z)
+        deallocate (VX, VY, VZ)
+        deallocate (t_all_steps)
+        deallocate (all_idx)
+
+        return
+    end subroutine ode_full_args
 
 ! ================================================================================
     ! performs the forward integration in one direction.
@@ -238,7 +236,7 @@ contains
         type(dataT0), dimension(:), intent(inout)::simT0
         ! Output
         logical, intent(out)::Hc
-        ! 
+        !
 
         call ode_full_args(mass, radius, rin, tepoch, time_to_int, step, obsDataIn, simRV,&
         &idtra, do_transit, durcheck, simT0, Hc)
@@ -276,7 +274,7 @@ contains
         character(*), intent(in)::fmorb, fmcon, fmele
         real(dp), dimension(:), intent(in)::mass, radius, rin
         real(dp), intent(in)::time_to_int
-        type(dataObs),intent(in)::obsDataIn
+        type(dataObs), intent(in)::obsDataIn
         ! **Input/Output**
         type(dataRV), intent(inout)::simRV
         type(dataT0), dimension(:), intent(inout)::simT0
@@ -287,8 +285,8 @@ contains
         integer, dimension(:), allocatable::X, Y, Z
         integer, dimension(:), allocatable::VX, VY, VZ
 
-        real(dp)::A,B,AB
-        logical::ABflag,Zflag
+        real(dp)::A, B, AB
+        logical::ABflag, Zflag
 
         integer::i_body, body_transiting_start, body_transiting_end
         integer::nRV, nTTs, nDurs
@@ -315,7 +313,7 @@ contains
         ! if you see a variable non listed here, probably it is a global variable
         ! defined in constants.f90 or parameters.f90
 
-        flush(6)
+        flush (6)
 
         nRV = obsDataIn%obsRV%nRV
         nTTs = obsDataIn%nTTs
@@ -336,7 +334,7 @@ contains
         allocate (r1(NBDIM), r2(NBDIM))
         r1 = rin
         working_step = step_0
-        
+
         ! ==================
         ! PREPARE VARIABLE TO STORE ORBIT/ENERGY/MOMENTUM/TRANSITS TO WRITE
         iteration = 0
@@ -382,7 +380,7 @@ contains
 
             ! ! ===============================
             ! RV computation
-            if ((nRV.gt.0) .and. (all_idx(iteration) .gt. 0)) then
+            if ((nRV .gt. 0) .and. (all_idx(iteration) .gt. 0)) then
                 call get_and_set_RV_data(mass, r2, all_idx(iteration), obsDataIn, simRV)
             end if
 
@@ -396,12 +394,12 @@ contains
                     call transit_conditions(r1(X(i_body):VZ(i_body)), r2(X(i_body):VZ(i_body)),&
                         &A, B, AB, ABflag, Zflag)
 
-                    if (ABflag .and. Zflag)then
+                    if (ABflag .and. Zflag) then
 
                         jtra = jtra+1
                         call all_transits(tepoch, jtra, i_body, mass, radius, r1, r2,&
                             &trun1, integration_step, stat_tra, storetra)
-    
+
                         if (jtra .eq. DIMMAX) then
                             call write_tra(jtra, utra, stat_tra, storetra)
                             jtra = 0
@@ -414,11 +412,10 @@ contains
                             Pr = obsDataIn%obsT0(i_body-1)%Pephem
                             if (Pr .gt. zero) then ! only if we have Pephem > 0
 
-                                
                                 epox = nint(((Tx-Tr)/Pr))
-                                
+
                                 if (obsDataIn%nTTs .gt. 0) then
-                                ! check if the epoch of the mean time of two consecutive steps is within the observed epochs
+                                    ! check if the epoch of the mean time of two consecutive steps is within the observed epochs
                                     if (any(epox .eq. obsDataIn%obsT0(i_body-1)%epo)) then
                                         call check_T0(tepoch, i_body, mass, radius, r1, r2,&
                                             &trun1, integration_step, simT0, Hc)
@@ -435,8 +432,8 @@ contains
             ! check if it has to compute or not 'something' like orbits/constants
             if ((wrtorb .eq. 1) .or. (wrtel .eq. 1) .or. (wrtconst .eq. 1)) then
 
-                if (all_idx(iteration) .eq. 0)then
-                    save_iteration = save_iteration + 1
+                if (all_idx(iteration) .eq. 0) then
+                    save_iteration = save_iteration+1
                     if ((wrtorb .eq. 1) .or. (wrtel .eq. 1)) then
                         call store_orb(save_iteration, trun2, mass, r2, storeorb) ! save r_save!!
                         if (save_iteration .eq. DIMMAX) then ! write into file if reach max dimension
@@ -457,7 +454,7 @@ contains
                     end if
 
                     if (save_iteration .eq. DIMMAX) save_iteration = 0
-                    
+
                 end if
 
             end if
@@ -492,7 +489,7 @@ contains
         deallocate (VX, VY, VZ)
         deallocate (t_all_steps)
         deallocate (all_idx)
-        flush(6)
+        flush (6)
 
         return
     end subroutine ode_forward_output_data
@@ -532,7 +529,6 @@ contains
         type(dataObs)::empty_data
         type(dataRV)::empty_simrv
         type(dataT0), dimension(:), allocatable::empty_simt0
-        
 
         ! nRV, nTTs, and nDurs already set to 0 by default in empty data and sim
 
@@ -620,7 +616,7 @@ contains
         sma = zero
         ! call get_semax_vec(mass(1), mass(2:NB), period(2:NB), sma(2:NB))
         call period_to_sma(mass(1), mass(2:NB), period(2:NB), sma(2:NB))
-        
+
         call kepelements2statevector(mass, sma, ecc, meanA, argp, inc, longN, ra0)
         ra1 = ra0
         deallocate (sma)
@@ -685,8 +681,8 @@ contains
         integer::ns, ne
 
         ndata = obsData%ndata
-        nRV   = obsData%obsRV%nRV
-        nTTs  = obsData%nTTs
+        nRV = obsData%obsRV%nRV
+        nTTs = obsData%nTTs
         nDurs = obsData%nDurs
 
         Hc = .true.
@@ -936,7 +932,7 @@ contains
         allocate (argp(NB), meanA(NB), inc(NB), longN(NB))
 
         call convert_parameters(allpar, par, mass, radius, period, sma, ecc, argp, meanA, inc, longN, checkpar)
-       
+
         if (.not. checkpar) then
             resw = set_max_residuals(ndata)
             return
@@ -984,8 +980,6 @@ contains
         return
     end subroutine ode_boot
     ! ================================================================================
-
-    
 
 ! =============================================================================
 ! =============================================================================
@@ -1193,13 +1187,13 @@ contains
         nstart = 1
         nend = 0
         if (nTTs .gt. 0) then
-            allocate(body_T0_sim(nTTs), epo_sim(nTTs))
-            allocate(T0_sim(nTTs), T14_sim(nTTs))
-            allocate(kep_elem_sim(nTTs, n_kepelem))
+            allocate (body_T0_sim(nTTs), epo_sim(nTTs))
+            allocate (T0_sim(nTTs), T14_sim(nTTs))
+            allocate (kep_elem_sim(nTTs, n_kepelem))
             do ibd = 1, n_body-1
                 nT0 = obsData%obsT0(ibd)%nT0
                 if (nT0 .gt. 0) then
-                    nend = nend + nT0
+                    nend = nend+nT0
                     epo_sim(nstart:nend) = obsData%obsT0(ibd)%epo
                     T0_sim(nstart:nend) = simT0(ibd)%T0
                     T14_sim(nstart:nend) = simT0(ibd)%dur
@@ -1212,7 +1206,7 @@ contains
                     kep_elem_sim(nstart:nend, 6) = simT0(ibd)%argp
                     kep_elem_sim(nstart:nend, 7) = simT0(ibd)%truea
                     kep_elem_sim(nstart:nend, 8) = simT0(ibd)%longn
-                    nstart = nstart + nT0
+                    nstart = nstart+nT0
                 end if
             end do
         end if
@@ -1431,9 +1425,9 @@ contains
                 write (*, '(a,i5)') " T0 SIM found ", sum(simT0(:)%nT0)
                 write (*, *)
                 call write_T0(cpuid, isim, wrtid, simT0)
-                flush(6)
+                flush (6)
                 call write_T0(simT0)
-                flush(6)
+                flush (6)
 
             else
                 write (*, *)
@@ -1589,8 +1583,8 @@ contains
         integer, dimension(:), allocatable::X, Y, Z
         integer, dimension(:), allocatable::VX, VY, VZ
 
-        real(dp)::A,B,AB
-        logical::ABflag,Zflag
+        real(dp)::A, B, AB
+        logical::ABflag, Zflag
 
         integer::i_body, body_transiting_start, body_transiting_end
         logical::dummy_transit
@@ -1617,7 +1611,6 @@ contains
 
         integration_step = sign(wrt_time, time_to_int)
         call set_check_steps(tepoch, time_to_int, integration_step, empty_data, n_all, t_all_steps, all_idx)
-
 
         allocate (r1(NBDIM), r2(NBDIM))
         r1 = rin
@@ -1656,8 +1649,8 @@ contains
                 call transit_conditions(r1(X(i_body):VZ(i_body)), r2(X(i_body):VZ(i_body)),&
                 &A, B, AB, ABflag, Zflag)
 
-                if (ABflag .and. Zflag)then
-                    call transit_time(tepoch, i_body, mass, radius, r1, r2, trun1, integration_step, ttra_temp, dur_tra_temp, check_ttra)
+                if (ABflag .and. Zflag) then
+               call transit_time(tepoch, i_body, mass, radius, r1, r2, trun1, integration_step, ttra_temp, dur_tra_temp, check_ttra)
                     if (check_ttra) then
                         last_tra = last_tra+1
                         if (last_tra .gt. ntra_full) then
@@ -1771,6 +1764,67 @@ contains
 
         return
     end subroutine ode_all_ttra_rv
+    ! ================================================================================
+
+    ! ================================================================================
+    subroutine ode_keplerian_elements_to_orbits(time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits)
+        ! Input
+        real(dp), dimension(:), intent(in)::time_steps
+        real(dp), dimension(:), intent(in)::mass, radius, period, ecc, argp, meanA, inc, longN
+        ! Output
+        ! real(dp), dimension(:, :), intent(out), allocatable::orbits
+        real(dp), dimension(:, :), intent(out)::orbits
+        ! Local
+        integer::n_steps, iteration
+        integer::n_body, nb_dim
+        real(dp), dimension(:), allocatable::sma
+        real(dp), dimension(:), allocatable::sv1, sv2
+        real(dp)::trun1, trun2, integration_step
+        real(dp)::working_step
+        logical::check
+
+        n_steps = size(time_steps)
+        n_body = size(mass)
+        nb_dim = n_body*6
+
+        if (.not. allocated(sma)) allocate (sma(n_body))
+        sma = zero
+        call period_to_sma(mass(1), mass(2:n_body), period(2:n_body), sma(2:n_body))
+
+        if (.not. allocated(sv1)) allocate (sv1(nb_dim), sv2(nb_dim))
+        call kepelements2statevector(mass, sma, ecc, meanA, argp, inc, longN, sv1)
+
+        ! if (.not. allocated(orbits)) allocate (orbits(n_steps, nb_dim))
+        orbits(1, :) = sv1
+
+        check = .true.
+        working_step = step_0 ! default value of the stepsize
+        trun1 = time_steps(1)
+        integration: do iteration = 2, n_steps
+
+            ! update integration step
+            trun2 = time_steps(iteration)
+            integration_step = trun2-trun1
+
+            ! compute the orbit at from trun1 to trun2
+            call one_forward_step(mass, radius, sv1, integration_step, working_step, check, sv2)
+            ! save statevector
+            orbits(iteration, :) = sv2
+            ! update statevecto and time for the next iteration
+            sv1 = sv2
+            trun1 = trun2
+            ! check if stable otherwise exit
+            if (.not. check) then
+                exit integration
+            end if
+        end do integration
+
+        deallocate (sv1, sv2)
+        deallocate (sma)
+
+        return
+    end subroutine ode_keplerian_elements_to_orbits
+
     ! ================================================================================
 
 end module ode_run

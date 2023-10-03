@@ -18,7 +18,7 @@ contains
         ! Output
         real(dp), intent(out)::sma
 
-        real(dp),parameter::twopi_square=dpi*dpi
+        real(dp), parameter::twopi_square = dpi*dpi
         real(dp)::mu, P2
 
         mu = Giau*(mass_star+mass_planet)
@@ -31,7 +31,7 @@ contains
 
 ! ------------------------------------------------------------------------------
 !   function to compute the period given the semi-major axis
-    elemental subroutine  sma_to_period(mass_star, mass_planet, sma, period)
+    elemental subroutine sma_to_period(mass_star, mass_planet, sma, period)
         ! Input
         real(dp), intent(in)::mass_star, mass_planet, sma
         ! Output
@@ -69,7 +69,7 @@ contains
         real(dp)::meana_rad
 
         call pericenter_time_to_mean_anomaly_rad(tau, t_ref, period, meana_rad)
-        mean_anomaly = meana_rad * rad2deg
+        mean_anomaly = meana_rad*rad2deg
 
         return
     end subroutine pericenter_time_to_mean_anomaly_deg
@@ -105,7 +105,6 @@ contains
     end subroutine mean_anomaly_deg_to_pericenter_time
 ! ------------------------------------------------------------------------------
 
-
 ! ------------------------------------------------------------------------------
 !   calculates Eccentric anomaly from meanAnomaly [deg] and eccentricity
     function EAnom(mA, ecc) result(EA)
@@ -113,11 +112,11 @@ contains
         real(dp), intent(IN)::mA, ecc
         real(dp)::mArad, E, fE, dfE
 
-        integer, parameter::maxcount=500
+        integer, parameter::maxcount = 500
         integer::icount
 
         EA = zero
-        mArad = mod(mA*deg2rad + dpi, dpi)
+        mArad = mod(mA*deg2rad+dpi, dpi)
         ! if (mArad .lt. zero) mArad = mArad+dpi
         icount = 0
         E = mArad
@@ -128,7 +127,7 @@ contains
                 fE = E-ecc*sin(E)-mArad
                 dfE = one-ecc*cos(E)
                 EA = E-(fE/dfE)
-                if ((abs(E-EA) .le. TOLERANCE) .or.(icount .gt. maxcount))then
+                if ((abs(E-EA) .le. TOLERANCE) .or. (icount .gt. maxcount)) then
                     exit loopo
                 end if
                 E = EA
@@ -896,7 +895,7 @@ contains
             ecc = sqrt(ecc)
             sma = s/(one-(ecc*ecc))
         end if
-        
+
         ! if(sma .le. zero)then
 
         !     write(*,*)" == statevector_to_sma_ecc =="

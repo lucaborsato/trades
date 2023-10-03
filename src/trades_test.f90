@@ -14,7 +14,7 @@ program main_test
     use parameters
     use init_trades
     ! use ode_run, only: ode_integrates
-    use pytrades
+    use f90trades
     integer::cpuid
     real(dp), dimension(:), allocatable::mass, radius
     real(dp), dimension(:), allocatable::period, sma, ecc, argp, meanA, inc, longN ! Keplerian orbital elements

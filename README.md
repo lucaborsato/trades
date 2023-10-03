@@ -20,12 +20,16 @@ make cleanall
 make full_parallel_release
 ```
 
+I suggest to create an `anaconda environment`, install all the dependencies and then do `make full_parallel_release`.
+There is not a full list of all dependencies, many of them are due to all the python packages. I.e., `PyDE` is within `Pytransit`, that needs many dependencies not listed here. Sorry.  
 To use with `python` as it would be in [PyORBIT](https://github.com/LucaMalavolta/PyORBIT) 
 see notebook [import_trades_for_PyORBIT](trades_example/python_examples/import_trades_for_PyORBIT.ipynb) 
 in [trades_example/python_examples/](trades_example/python_examples/).  
 In this way you will integrates the orbits of the planets and it will return the Radial Velocities (RVs) if present, and the Transit Times (T0s), if present, with the Transit Durations (T14s) and the orbital elements at each T0s.  
+Currently, `TRADES` is ready to be used as a photo-dynamical (`photoTRADES`) code,
+the example, as python notebook, is still in development.  
 
-To use as it is you can:  
+To use as it was initially intended you can:  
 
 1. copy a folder in [trades_example](trades_example) based on the number of planets (i.e. 2p for 2, 3 for 3p, and so on)  
 2. copy in it the [configuration.yml](trades_example/configuration.yml) and adapt the `run` section, change `PyDE` and `emcee` sections etc  
@@ -37,6 +41,8 @@ To use as it is you can:
 You can look at the `trades_emcee_analysis.py` to learn how to use the different part of `pytrades` and there are a few other notebooks to plot `PyDE` run, `emcee` chains, RV and OCs.  
 
 ---
-**`TRADES` v2.19.0 by Luca Borsato - 2016-2023**  
+**`TRADES` v2.20.0 by Luca Borsato - 2016-2023**  
+
+`TRADES` v2.19.0 by Luca Borsato - 2016-2023  
 
 Long README and description in [README_long](README_long.md).

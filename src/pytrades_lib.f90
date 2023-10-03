@@ -10,10 +10,14 @@ module f90trades
     use celestial_mechanics
     use init_trades
     use derived_parameters_mod
-    use radial_velocities, only: addRVtrend, set_gamma_rv
+    use radial_velocities, only: addRVtrend, set_gamma_rv, get_RV
+    use lin_fit, only: linfit
     use linear_ephem
     use fitness_module
-    use ode_run, only: integration_info_to_data, ode_all_ttra_rv
+    use utils
+    use ode_run, only: integration_info_to_data, ode_all_ttra_rv,&
+        &ode_keplerian_elements_to_orbits, set_checking_coordinates, transit_conditions
+    use transits, only: compute_transit_time
     use grid_search
 
     implicit none
@@ -45,7 +49,7 @@ module f90trades
     integer::ndata, nfree, dof
     integer::nRV !,nRVset it is global now
     integer, dimension(:), allocatable::nT0
-    real(dp), dimension(:), allocatable::Pephem,Tephem
+    real(dp), dimension(:), allocatable::Pephem, Tephem
     integer::nTTs, nDurs
 
 !   real(dp)::ln_err_const,inv_dof
@@ -62,7 +66,7 @@ module f90trades
 contains
 
     ! ============================================================================
-    
+
     ! SET ARGS AND PARAMETERS WITH SINGLE SUBROUTINES TO BE CALLED BY PYTHON IF NEEDED
 
     ! --- subroutine useful to modify the working path fo TRADES from python
@@ -81,11 +85,11 @@ contains
 
         return
     end subroutine get_path
-    ! --- 
+    ! ---
 
     ! --- set number of bodies
     subroutine set_n_bodies(n_body)
-        integer,intent(in)::n_body
+        integer, intent(in)::n_body
 
         NB = n_body
         NBDIM = NB*6
@@ -94,18 +98,18 @@ contains
     end subroutine set_n_bodies
 
     subroutine get_n_bodies(n_body)
-        integer,intent(out)::n_body
+        integer, intent(out)::n_body
 
         n_body = NB
 
         return
     end subroutine get_n_bodies
-    ! --- 
+    ! ---
 
     ! --- set epcoh/reference time
     subroutine set_epoch_time(t_epoch)
-        real(dp),intent(in)::t_epoch
-        
+        real(dp), intent(in)::t_epoch
+
         tepoch = t_epoch
 
         return
@@ -113,8 +117,8 @@ contains
 
     ! --- set starting time
     subroutine set_starting_time(t_starting)
-        real(dp),intent(in)::t_starting
-        
+        real(dp), intent(in)::t_starting
+
         tstart = t_starting
 
         return
@@ -122,8 +126,8 @@ contains
 
     ! --- set integration time
     subroutine set_integration_time(t_integration)
-        real(dp),intent(in)::t_integration
-        
+        real(dp), intent(in)::t_integration
+
         tint = t_integration
 
         return
@@ -140,7 +144,7 @@ contains
         real(dp), dimension(:), allocatable::mass, radius, period, sma, ecc, argp, meanA, inc, longN
         integer, dimension(:), allocatable::nset
 
-        integer::inb,ipar
+        integer::inb, ipar
 
         write (*, *) "INITIALISING TRADES ..."
 
@@ -184,7 +188,7 @@ contains
             call set_ephem()
             call compute_oc(obsData%obsT0)
             if (allocated(Pephem)) deallocate (Pephem, Tephem)
-            allocate (Pephem(NB),Tephem(NB))
+            allocate (Pephem(NB), Tephem(NB))
             Pephem = zero
             Tephem = zero
             do inb = 2, NB
@@ -391,7 +395,8 @@ contains
 
     ! ============================================================================
 
-   subroutine fortran_fitness_function(fit_parameters, chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic, check, n_fit)
+    subroutine fortran_fitness_function(fit_parameters, chi_square,&
+         &reduced_chi_square, lgllhd, lnprior, ln_const, bic, check, n_fit)
         ! Input
         integer, intent(in)::n_fit
         real(dp), dimension(n_fit), intent(in)::fit_parameters
@@ -490,7 +495,7 @@ contains
         check_status = .true.
 
         check = check_only_boundaries(system_parameters, parameters_values)
-        write(*,*)"DEBUG check_only_boundaries : ",check
+        write (*, *) "DEBUG check_only_boundaries : ", check
         lnprior = zero
 
         allocate (run_all_par(npar))
@@ -500,9 +505,9 @@ contains
         call write_summary_nosigma(1, write_number, 0, run_all_par, parameters_values,&
             &chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic) ! add .true. at the end for full debug
         deallocate (run_all_par)
-        write(*,*)"DEBUG check = ",check," check_status = ",check_status
-        write(*,*)"DEBUG after write_summary_nosigma: reduced_chi_square = ",reduced_chi_square
-        flush(6)
+        write (*, *) "DEBUG check = ", check, " check_status = ", check_status
+        write (*, *) "DEBUG after write_summary_nosigma: reduced_chi_square = ", reduced_chi_square
+        flush (6)
         if (.not. check .or. .not. check_status) chi_square = resmax
         call set_fitness_values(parameters_values,&
             &chi_square, reduced_chi_square, lgllhd, ln_const, bic)
@@ -607,7 +612,6 @@ contains
 
     ! ============================================================================
 
-
     ! init both cases for derived parameters
     ! 1)
     ! check if there are derived parameters to compute and to check
@@ -648,19 +652,44 @@ contains
     ! CHECKS THE NEXT!
     ! +++***+++
 
-    ! SUBROUTINE TO INITIALISE TRADES WITHOUT READING FILES
-    ! subroutine args_init(t_start, t_epoch, t_int, n_body,&
-    !     &ime_rv,&
-    !     &n_t0, t0_num, t0_obs, et0_obs,&
-    !     &duration_check,&
-    !     &n_rv, n_max_t0, n_col)
+    subroutine set_time_epoch(t_epoch)
+        ! Input
+        ! t_epoch        == reference time epoch
+        real(dp), intent(in)::t_epoch
+        ! Output
+        ! NONE
+        tepoch = t_epoch
 
-    subroutine args_init(n_body, duration_check, t_start, t_epoch, t_int)
+        return
+    end subroutine set_time_epoch
+
+    subroutine set_time_start(t_start)
+        ! Input
+        ! t_start        == start of the integration
+        real(dp), intent(in)::t_start
+        ! Output
+        ! NONE
+        tstart = t_start
+
+        return
+    end subroutine set_time_start
+
+    subroutine set_time_int(t_int)
+        ! Input
+        ! t_int          == total integration time in days
+        real(dp), intent(in)::t_int
+        ! Output
+        ! NONE
+        tint = t_int
+
+        return
+    end subroutine set_time_int
+
+    ! SUBROUTINE TO INITIALISE TRADES WITHOUT READING FILES
+    subroutine args_init(n_body, duration_check)
         ! INPUT
         ! n_body         == number of bodies (take into account the star)
         ! duration_check == check or not the duration, 0 not check, 1 to check
-        ! t_start        == start of the integration
-        ! t_epoch        == reference time epoch
         ! t_int          == total integration time in days
         ! OUTPUT
         ! None ==> some variables set globally
@@ -668,12 +697,11 @@ contains
         ! Input
         integer, intent(in)::n_body
         integer, intent(in)::duration_check
-        real(dp), intent(in), optional::t_start, t_epoch, t_int
 
         NB = n_body
         NBDIM = n_body*6
-        
-        if (allocated(e_bounds)) deallocate(e_bounds)
+
+        if (allocated(e_bounds)) deallocate (e_bounds)
         allocate (e_bounds(2, n_body))
         e_bounds(1, :) = zero
         e_bounds(2, :) = one-TOL_dp
@@ -682,22 +710,20 @@ contains
         allocate (obsData%obsT0(n_body-1))
 
         durcheck = duration_check
-        
+
         amin = TOL_dp
         amax = 1.0e4_dp
-        
-        if (present(t_start)) tstart = t_start
-        if (present(t_epoch)) tepoch = t_epoch
-        if (present(t_int)) tint = t_int
 
         return
     end subroutine args_init
 
     ! ============================================================================
-    subroutine set_rv_dataset(time_rv, obs_rv, obs_erv, n_rv)
+    subroutine set_rv_dataset(time_rv, obs_rv, obs_erv, rv_setid, n_rvset, n_rv)
         ! Input
         integer, intent(in)::n_rv
         real(dp), dimension(n_rv), intent(in)::time_rv, obs_rv, obs_erv
+        integer, dimension(n_rv), intent(in):: rv_setid
+        integer, intent(in)::n_rvset
         ! Local
         integer::n
 
@@ -710,6 +736,8 @@ contains
             obsData%obsRV%jd = time_rv
             obsData%obsRV%RV = obs_rv
             obsData%obsRV%eRV = obs_erv
+            obsData%obsRV%RVsetID = rv_setid
+            obsData%obsRV%nRVset = n_rvset
         else
             rvcheck = 0
         end if
@@ -724,7 +752,6 @@ contains
         return
     end subroutine deallocate_rv_dataset
 
-
     subroutine set_t0_dataset(body_id, epo, obs_t0, obs_et0, n_t0)
         ! Input
         integer, intent(in)::body_id
@@ -735,14 +762,14 @@ contains
         integer::n, i_body
 
         n = size(epo)
-        i_body = body_id - 1
+        i_body = body_id-1
         if (n .gt. 0) then
             call init_dataT0(n, obsData%obsT0(i_body), durcheck)
             obsData%obsT0(i_body)%epo = epo
-            obsData%obsT0(i_body)%T0  = obs_t0
+            obsData%obsT0(i_body)%T0 = obs_t0
             obsData%obsT0(i_body)%eT0 = obs_et0
             obsData%nTTs = sum(obsData%obsT0(:)%nT0)
-            if (durcheck .eq. 1)then
+            if (durcheck .eq. 1) then
                 obsData%nDurs = obsData%nTTs
             end if
             call set_ephem()
@@ -754,11 +781,11 @@ contains
 
     subroutine deallocate_t0_dataset(body_id)
         !Input
-        integer,intent(in)::body_id
+        integer, intent(in)::body_id
 
         call deallocate_dataT0(obsData%obsT0(body_id-1))
         obsData%nTTs = sum(obsData%obsT0(:)%nT0)
-        if (durcheck .eq. 1)then
+        if (durcheck .eq. 1) then
             obsData%nDurs = obsData%nTTs
         end if
 
@@ -811,7 +838,7 @@ contains
         ! n_rv, n_tt, n_kep == number of RVs and all T0s
 
         ! Input
-        integer,intent(in)::n_body, n_rv, n_tt, n_kep
+        integer, intent(in)::n_body, n_rv, n_tt, n_kep
         real(dp), intent(in)::t_start, t_epoch, t_int
         real(dp), dimension(n_body), intent(in)::m_msun, R_rsun, P_day
         real(dp), dimension(n_body), intent(in)::ecc, argp_deg, mA_deg, inc_deg, lN_deg
@@ -838,13 +865,13 @@ contains
             &body_t0_temp, epo_temp,&
             &t0_temp, t14_temp, kel_temp)
 
-        rv_sim      = rv_temp
+        rv_sim = rv_temp
 
         body_t0_sim = body_t0_temp
-        epo_sim     = epo_temp
-        t0_sim      = t0_temp
-        t14_sim     = t14_temp
-        kel_sim     = kel_temp
+        epo_sim = epo_temp
+        t0_sim = t0_temp
+        t14_sim = t14_temp
+        kel_sim = kel_temp
 
         if (allocated(rv_temp)) deallocate (rv_temp)
         if (allocated(body_T0_temp)) deallocate (body_T0_temp, epo_temp)
@@ -852,7 +879,6 @@ contains
 
         return
     end subroutine kelements_to_rv_and_t0s
-
 
     subroutine kelements_to_rv(t_start, t_epoch, t_int,&
         &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
@@ -881,7 +907,7 @@ contains
         ! n_rv         == number of RVs
 
         ! Input
-        integer,intent(in)::n_body, n_rv
+        integer, intent(in)::n_body, n_rv
         real(dp), intent(in)::t_start, t_epoch, t_int
         real(dp), dimension(n_body), intent(in)::m_msun, R_rsun, P_day
         real(dp), dimension(n_body), intent(in)::ecc, argp_deg, mA_deg, inc_deg, lN_deg
@@ -908,7 +934,7 @@ contains
             &body_t0_temp, epo_temp,&
             &t0_temp, t14_temp, kel_temp)
 
-        rv_sim      = rv_temp
+        rv_sim = rv_temp
 
         if (allocated(rv_temp)) deallocate (rv_temp)
         if (allocated(body_T0_temp)) deallocate (body_T0_temp, epo_temp)
@@ -951,7 +977,7 @@ contains
         ! n_tt, n_kep  == number of all T0s
 
         ! Input
-        integer,intent(in)::n_body, n_tt, n_kep
+        integer, intent(in)::n_body, n_tt, n_kep
         real(dp), intent(in)::t_start, t_epoch, t_int
         real(dp), dimension(n_body), intent(in)::m_msun, R_rsun, P_day
         real(dp), dimension(n_body), intent(in)::ecc, argp_deg, mA_deg, inc_deg, lN_deg
@@ -980,10 +1006,10 @@ contains
         ! rv_sim      = rv_temp
 
         body_t0_sim = body_t0_temp
-        epo_sim     = epo_temp
-        t0_sim      = t0_temp
-        t14_sim     = t14_temp
-        kel_sim     = kel_temp
+        epo_sim = epo_temp
+        t0_sim = t0_temp
+        t14_sim = t14_temp
+        kel_sim = kel_temp
 
         if (allocated(rv_temp)) deallocate (rv_temp)
         if (allocated(body_T0_temp)) deallocate (body_T0_temp, epo_temp)
@@ -991,6 +1017,119 @@ contains
 
         return
     end subroutine kelements_to_t0s
+    ! ============================================================================
+
+    subroutine kelements_to_orbits(n_steps, n_body, nb_dim, time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits)
+        ! Input
+        integer, intent(in)::n_steps, n_body, nb_dim
+        real(dp), dimension(n_steps), intent(in)::time_steps
+        real(dp), dimension(n_body), intent(in)::mass, radius, period, ecc, argp, meanA, inc, longN
+        ! Output
+        real(dp), dimension(n_steps, nb_dim), intent(out)::orbits
+
+        call args_init(n_body, 1)
+        call ode_keplerian_elements_to_orbits(time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits)
+
+        return
+    end subroutine kelements_to_orbits
+
+    subroutine orbits_to_rvs(n_steps, n_body, nb_dim, mass, orbits, rvs)
+        ! Input
+        integer, intent(in)::n_body, n_steps, nb_dim
+        real(dp), dimension(n_body), intent(in)::mass
+        real(dp), dimension(n_steps, nb_dim), intent(in):: orbits
+        ! Output
+        real(dp), dimension(n_steps), intent(out):: rvs
+        ! Locals
+        integer::i_steps
+
+        do i_steps = 1, n_steps
+            call get_RV(mass, orbits(i_steps, :), rvs(i_steps))
+        end do
+
+        return
+    end subroutine orbits_to_rvs
+
+    subroutine orbits_to_transits(n_steps, n_body, nb_dim, n_all_transits,&
+        &time_steps, mass, radius, orbits,&
+        &transiting_body, transits, durations, kep_elem, body_flag)
+        ! Input
+        integer, intent(in)::n_steps, n_body, nb_dim, n_all_transits
+        real(dp), dimension(n_steps), intent(in)::time_steps
+        real(dp), dimension(n_body), intent(in)::mass, radius
+        real(dp), dimension(n_steps, nb_dim), intent(in)::orbits
+        integer, intent(in)::transiting_body
+        ! Output
+        real(dp), dimension(n_all_transits), intent(out)::transits, durations
+        real(dp), dimension(n_all_transits, 8), intent(out)::kep_elem
+        integer, dimension(n_all_transits), intent(out)::body_flag
+        ! Local
+        integer, dimension(:), allocatable::X, Y, Z
+        integer, dimension(:), allocatable::VX, VY, VZ
+        real(dp)::A, B, AB
+        logical::ABflag, Zflag
+        logical::do_transit_check
+        integer::body_transiting_start, body_transiting_end
+        integer::i_steps, i_body, i_tra
+        real(dp)::trun1, trun2, integration_step
+        real(dp), dimension(:), allocatable::r1, r2, rtra
+        logical, dimension(:), allocatable::do_transit_flag
+        logical::check_tra
+        real(dp)::tra, dur, dummy
+
+        call set_checking_coordinates(n_body, X, Y, Z, VX, VY, VZ)
+        call set_transiting_bodies(transiting_body, do_transit_check, body_transiting_start, body_transiting_end)
+        allocate (do_transit_flag(n_body))
+        do_transit_flag = .false.
+        check_tra = .true.
+
+        body_flag = 0 ! set all flags to 0
+
+        allocate (r1(nb_dim), r2(nb_dim), rtra(nb_dim))
+        trun1 = time_steps(1)
+        r1 = orbits(1, :)
+        i_tra = 0
+        steps: do i_steps = 2, n_steps
+            trun2 = time_steps(i_steps)
+            integration_step = trun2-trun1
+            r2 = orbits(i_steps, :)
+
+            if (do_transit_check) then
+                body: do i_body = body_transiting_start, body_transiting_end
+
+                    call transit_conditions(r1(X(i_body):VZ(i_body)), r2(X(i_body):VZ(i_body)),&
+                        &A, B, AB, ABflag, Zflag)
+
+                    do_transit_flag(i_body) = .true.
+                    if (ABflag .and. Zflag) then
+                        call compute_transit_time(zero, i_body, mass, radius, r1, r2, trun1, integration_step, do_transit_flag,&
+                        &tra, dur, rtra, check_tra)
+                        if (check_tra) then
+                            i_tra = i_tra+1
+                            transits(i_tra) = tra
+                            durations(i_tra) = dur
+                            body_flag(i_tra) = i_body
+                            call elements_one_body(i_body, mass, rtra,&
+                                &kep_elem(i_tra, 1), kep_elem(i_tra, 2), kep_elem(i_tra, 3),& ! period, sma, ecc,
+                                &kep_elem(i_tra, 4), kep_elem(i_tra, 5), kep_elem(i_tra, 6),& ! inc, meanA, argp,
+                                &kep_elem(i_tra, 7), kep_elem(i_tra, 8),& ! longN, trueA
+                                &dummy) ! dttau not used
+                        end if
+                    end if
+
+                end do body
+            end if
+            r1 = r2
+            trun1 = trun2
+
+        end do steps
+
+        deallocate (X, Y, Z)
+        deallocate (VX, VY, VZ)
+        deallocate (r1, r2, rtra)
+
+        return
+    end subroutine orbits_to_transits
     ! ============================================================================
 
     ! create wrappers to init the grid of a perturber body (a)
@@ -1081,7 +1220,7 @@ contains
 
         ! ntt = sum(int(tint/period(2:NB)))+(NB-1)
         ! ntt = sum(int(tint/period(2:NB)))+((NB-1)*safe_counter)
-          ntt = int(sum(int(tint/period(2:NB)))*1.25_dp)
+        ntt = int(sum(int(tint/period(2:NB)))*1.25_dp)
 
         ! nrv_max = int(tint/wrttime)+2
         nrv_max = int(1.25_dp*tint/wrttime)
@@ -1321,6 +1460,34 @@ contains
 
         return
     end subroutine update_parameters_from_keplerian
+
+    ! ============================================================================
+
+    subroutine linear_fit_no_errors(nx, x, y, m, err_m, q, err_q)
+        ! Input
+        integer, intent(in) :: nx
+        real(dp), dimension(nx), intent(in)::x, y
+        ! Output
+        real(dp), intent(out):: m, err_m, q, err_q
+        ! Locals
+
+        call linfit(x, y, m, err_m, q, err_q)
+
+        return
+    end subroutine linear_fit_no_errors
+
+    subroutine linear_fit_errors(nx, x, y, ey, m, err_m, q, err_q)
+        ! Input
+        integer, intent(in) :: nx
+        real(dp), dimension(nx), intent(in)::x, y, ey
+        ! Output
+        real(dp), intent(out):: m, err_m, q, err_q
+        ! Locals
+
+        call linfit(x, y, ey, m, err_m, q, err_q)
+
+        return
+    end subroutine linear_fit_errors
 
     ! ============================================================================
 

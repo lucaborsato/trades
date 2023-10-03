@@ -20,7 +20,6 @@ import sys
 import os
 import numpy as np  # array
 import h5py
-import emcee
 
 import matplotlib.pyplot as plt
 
@@ -35,102 +34,16 @@ anc.set_rcParams()
 # ==============================================================================
 
 
-def get_emcee_run(cli):
+def get_dynesty_run(cli):
 
-    # read emcee data
-    emcee_file, _, _ = anc.get_emcee_file_and_best(cli.full_path, cli.temp_status)
-
-    if cli.emcee_old_save:
-        (
-            fitting_names_original,
-            _,
-            chains,
-            _,
-            autocor_time,
-            lnprobability,
-            _,
-            completed_steps,
-        ) = anc.get_data(emcee_file, cli.temp_status)
-
-        anc.print_both("temp_status     = {}".format(cli.temp_status))
-        _, _, nruns, nburnin, nruns_sel = anc.get_emcee_parameters(
-            chains, cli.temp_status, cli.nburnin, completed_steps
-        )
-        anc.print_both("completed_steps = {}".format(completed_steps))
-        anc.print_both("nruns           = {}".format(nruns))
-        anc.print_both("nburnin         = {}".format(nburnin))
-
-        (
-            chains_posterior,
-            fitting_posterior,
-            lnprobability_posterior,
-            lnprob_posterior,
-            chains_full_thinned,
-            lnprobability_full_thinned,
-        ) = anc.thin_the_chains(
-            cli.use_thin,
-            nburnin,
-            nruns,
-            chains,
-            lnprobability,
-            burnin_done=False,
-            full_chains_thinned=True,
-        )
-
-    else:
-        fitting_names_original = None
-        backend = emcee.backends.HDFBackend(emcee_file)
-        completed_steps = backend.iteration  # --> nruns
-        nruns = completed_steps
-        anc.print_both("... loading chains ...")
-        sys.stdout.flush()
-        chains = backend.get_chain()  # nruns x nwalkers x nfit
-        anc.print_both("... loading posterior chains ...")
-        sys.stdout.flush()
-        chains_posterior = backend.get_chain(
-            discard=cli.nburnin, flat=False, thin=cli.use_thin
-        )
-        anc.print_both("... loading thinned chains ...")
-        sys.stdout.flush()
-        chains_full_thinned = backend.get_chain(thin=cli.use_thin)
-        anc.print_both("... loading thinned flat posteriors ...")
-        sys.stdout.flush()
-        fitting_posterior = backend.get_chain(
-            discard=cli.nburnin, flat=True, thin=cli.use_thin
-        )
-        anc.print_both("... loading log_prob ...")
-        sys.stdout.flush()
-        lnprobability = backend.get_log_prob()  # nruns x nwalkers
-        anc.print_both("... loading thinned log_prob ...")
-        sys.stdout.flush()
-        lnprobability_full_thinned = backend.get_log_prob(thin=cli.use_thin)
-        anc.print_both("... loading thinned posterior log_prob ...")
-        sys.stdout.flush()
-        lnprobability_posterior = backend.get_log_prob(
-            discard=cli.nburnin, flat=False, thin=cli.use_thin
-        )
-        anc.print_both("... loading thinned flat posterior log_prob ...")
-        sys.stdout.flush()
-        lnprob_posterior = backend.get_log_prob(
-            discard=cli.nburnin, flat=True, thin=cli.use_thin
-        )
-        sys.stdout.flush()
-
-    anc.print_both("... done")
-    sys.stdout.flush()
-
-    return (
-        chains,
-        chains_full_thinned,
-        chains_posterior,
-        fitting_posterior,
-        lnprobability,
-        lnprobability_full_thinned,
-        lnprobability_posterior,
-        lnprob_posterior,
-        emcee_file,
-        fitting_names_original,
+    dynesty_output_file = os.path.join(
+        cli.full_path,
+        "dynesty_results.pickle"
     )
+    with open(dynesty_output_file, "rb") as handle:
+        results = pickle.load(handle)
+
+    return results
 
 
 # ================================================================================================
@@ -161,23 +74,12 @@ class AnalysisTRADES:
         self.sim = sim
         self.star = sim.MR_star
         self.fitting_names = sim.fitting_names
-        anc.print_both("Fitting parameters: {}".format(sim.fitting_names))
 
-        self.thin_steps = cli.use_thin
-        # get data from the hdf5 file
-        anc.print_both("\nGet data from hdf5 file ...")
-        (
-            self.chains,
-            self.chains_full_thinned,
-            self.chains_posterior,
-            self.fitting_posterior,
-            self.lnprobability,
-            self.lnprobability_full_thinned,
-            self.lnprobability_posterior,
-            self.lnprob_posterior,
-            self.emcee_file,
-            self.fitting_names_original,
-        ) = get_emcee_run(cli)
+        
+        # get data from dynesty file
+        anc.print_both("\nGet data from dynesty file ...")
+        self.resutsl = get_dynesty_run(cli)
+
         self.npost, _ = np.shape(self.fitting_posterior)
 
         sys.stdout.flush()
@@ -212,22 +114,14 @@ class AnalysisTRADES:
                 or fitn[0:2] == "lN"
                 or "lambda" in fitn
             ):
-                anc.print_both("Fixing parameter {} with idx {}".format(fitn, ifit))
+                # print("Fixing parameter {} with idx {}".format(fitn, ifit))
                 # print("shape of chains_posterior = {}".format(np.shape(self.chains_posterior)))
-                self.fitting_posterior[:, ifit], i_type = anc.recenter_angle_distribution(
-                    self.fitting_posterior[:, ifit] % 360.0, debug=True, type_out=True
+                self.chains_posterior[:, :, ifit] = anc.recenter_angle_distribution(
+                    self.chains_posterior[:, :, ifit] % 360.0, debug=True
                 )
-                # self.chains_posterior[:, :, ifit] = anc.recenter_angle_distribution(
-                #     self.chains_posterior[:, :, ifit] % 360.0, debug=True, type_out=False
-                # )
-                if "mod" in i_type:
-                    self.chains[:, :, ifit] %= 360.0
-                    self.chains_full_thinned[:, :, ifit] %= 360.0
-                    self.chains_posterior[:, :, ifit] %= 360.0
-                else:
-                    self.chains[:, :, ifit] = anc.get_arctan_angle(self.chains[:, :, ifit])
-                    self.chains_full_thinned[:, :, ifit] = anc.get_arctan_angle(self.chains_full_thinned[:, :, ifit])
-                    self.chains_posterior[:, :, ifit] = anc.get_arctan_angle(self.chains_posterior[:, :, ifit])
+                self.fitting_posterior[:, ifit] = anc.recenter_angle_distribution(
+                    self.fitting_posterior[:, ifit] % 360.0, debug=True
+                )
 
         sys.stdout.flush()
         anc.print_both("Determine conversion factors ...")
@@ -246,63 +140,20 @@ class AnalysisTRADES:
             )
         )
 
-        # full chains
-        nrt, nw, _ = np.shape(self.chains_full_thinned)
         sys.stdout.flush()
-        # STELLAR MASS
-        self.mass_conv_factor_post = [1.0]*3
-        if "m1" in sim.fitting_names:
-            idx_m1 = list(sim.fitting_names).index("m1")
-            # full chains
-            self.stellar_mass_normal_chains = self.chains_full_thinned[:,:,idx_m1]
-            
-        else:
-            # full chains
-            self.stellar_mass_normal_chains = np.random.normal(
-                loc=self.star[0, 0], scale=self.star[0, 1], size=(nrt, nw)
-            )
-        
-        # posterior chains
-        self.stellar_mass_normal_post_chains = self.stellar_mass_normal_chains[cli.nburnin:, :]
-        # posterior flat
-        self.stellar_mass_posterior = self.stellar_mass_normal_post_chains.reshape(self.npost)
-        
-        self.mass_conv_factor_post[0] = (
+        stellar_mass_normal = np.random.normal(
+            loc=self.star[0, 0], scale=self.star[0, 1], size=self.npost
+        )
+        self.mass_conv_factor_post = (
             self.mass_conv_factor / self.star[0, 0]
-            ) * self.stellar_mass_normal_chains
-        self.mass_conv_factor_post[1] = (
-            self.mass_conv_factor / self.star[0, 0]
-            ) * self.stellar_mass_normal_post_chains
-        self.mass_conv_factor_post[2] = (
-            self.mass_conv_factor / self.star[0, 0]
-            ) * self.stellar_mass_posterior
+        ) * stellar_mass_normal
 
-        # STELLAR RADIUS
-        self.radius_conv_factor_post = [1.0]*3
-        if "R1" in sim.fitting_names:
-            idx_R1 = list(sim.fitting_names).index("R1")
-            # full chains
-            self.stellar_radius_normal_chains = self.chains_full_thinned[:,:,idx_R1]
-        else:
-            # full chains
-            self.stellar_radius_normal_chains = np.random.normal(
-                loc=self.star[1, 0], scale=self.star[1, 1], size=(nrt, nw)
-            )
-
-        # posterior chains
-        self.stellar_radius_normal_post_chains = self.stellar_radius_normal_chains[cli.nburnin:, :]
-        # posterior 
-        self.stellar_radius_posterior = self.stellar_radius_normal_post_chains.reshape(self.npost)
-
-        self.radius_conv_factor_post[0] = (
+        stellar_radius_normal = np.random.normal(
+            loc=self.star[1, 0], scale=self.star[1, 1], size=self.npost
+        )
+        self.radius_conv_factor_post = (
             self.radius_conv_factor / self.star[1, 0]
-        ) * self.stellar_radius_normal_chains
-        self.radius_conv_factor_post[1] = (
-            self.radius_conv_factor / self.star[1, 0]
-        ) * self.stellar_radius_normal_post_chains
-        self.radius_conv_factor_post[2] = (
-            self.radius_conv_factor / self.star[1, 0]
-        ) * self.stellar_radius_posterior
+        ) * stellar_radius_normal
 
         sys.stdout.flush()
         anc.print_both("Get physical parameters/posterior ... ")
@@ -310,9 +161,7 @@ class AnalysisTRADES:
             self.physical_names,
             self.physical_parameters,
             self.physical_posterior,
-            self.phys_type,
-            self.physical_chains,
-            self.physical_chains_posterior,
+            self.phys_type
         ) = anc.compute_physical_parameters(
             sim.n_bodies,
             sim.fitting_parameters,
@@ -321,8 +170,6 @@ class AnalysisTRADES:
             mass_conv_factor=self.mass_conv_factor,
             radius_conv_factor=self.radius_conv_factor,
             posterior_fit=self.fitting_posterior,
-            chains_full_fit=self.chains_full_thinned,
-            chains_posterior_fit=self.chains_posterior,
             mass_post_conv_factor=self.mass_conv_factor_post,
             radius_post_conv_factor=self.radius_conv_factor_post,
         )
@@ -357,13 +204,6 @@ class AnalysisTRADES:
             )
             p_h5f.create_dataset(
                 "physical_names", data=anc.encode_list(self.physical_names), dtype="S15"
-            )
-
-            p_h5f.create_dataset(
-                "stellar_mass", data=self.stellar_mass_posterior, dtype=np.float64
-            )
-            p_h5f.create_dataset(
-                "stellar_radius", data=self.stellar_radius_posterior, dtype=np.float64
             )
 
         anc.print_both(" Saved posterior file: {}".format(self.posterior_file))
@@ -580,7 +420,6 @@ class AnalysisTRADES:
                 mass_conv_factor=self.mass_conv_factor,
                 radius_conv_factor=self.radius_conv_factor,
             )
-            pso_phy = anc.search_scale_parameter(pso_phy, self.phys_type)
             self.run_and_save_from_parameters(
                 pso_fit,
                 pso_phy,
@@ -606,7 +445,7 @@ class AnalysisTRADES:
             sys.stdout.flush()
             with h5py.File(de_file, "r") as fde:
                 de_fit = fde["de_parameters"][...].copy()
-            _, de_phy, _, _, _, _ = anc.compute_physical_parameters(
+            _, de_phy, _, _ = anc.compute_physical_parameters(
                 self.sim.n_bodies,
                 de_fit,
                 self.fitting_names,
@@ -614,7 +453,6 @@ class AnalysisTRADES:
                 mass_conv_factor=self.mass_conv_factor,
                 radius_conv_factor=self.radius_conv_factor,
             )
-            de_phy = anc.search_scale_parameter(de_phy, self.phys_type)
             self.run_and_save_from_parameters(
                 de_fit,
                 de_phy,
@@ -647,38 +485,11 @@ class AnalysisTRADES:
             self.ci_fitted,
             self.ci_physical,
         )
-
-        # ==============================================================================
-        id_sim = 1051
-        sim_name = "median_to_physical"
-        par_desc = "median of posterior and converted to physical"
-        anc.print_both("\nPARAMETERS: {} ==> {}".format(par_desc, id_sim))
-        _, median_phys, _, _, _, _ = anc.compute_physical_parameters(
-            self.sim.n_bodies,
-            median_fit,
-            self.fitting_names,
-            self.sim.system_parameters,
-            mass_conv_factor=self.mass_conv_factor,
-            radius_conv_factor=self.radius_conv_factor,
-        )
-        median_phys = anc.search_scale_parameter(median_phys, self.phys_type)
-        sys.stdout.flush()
-        self.run_and_save_from_parameters(
-            median_fit,
-            median_phys,
-            id_sim,
-            sim_name,
-            par_desc,
-            self.ci_fitted,
-            self.ci_physical,
-        )
-
-
         return
 
     def save_map_parameters(self):
         # ==============================================================================
-        # MAP == maximum a posteriori probability ID == 2050
+        # MAP == maximum loglikelihood of posterior ID == 2050
         # ==============================================================================
         id_sim = 2050
         sim_name = "map"
@@ -687,34 +498,8 @@ class AnalysisTRADES:
 
         map_idx = np.argmax(self.lnprob_posterior)
         map_fit = self.fitting_posterior[map_idx, :].copy()
-        map_phy = self.physical_posterior[map_idx, :].copy()
-
-        # _, map_phy, _, _, _, _ = anc.compute_physical_parameters(
-        #     self.sim.n_bodies,
-        #     map_fit,
-        #     self.fitting_names,
-        #     self.sim.system_parameters,
-        #     mass_conv_factor=self.mass_conv_factor,
-        #     radius_conv_factor=self.radius_conv_factor,
-        # )
-        # map_phy = anc.search_scale_parameter(map_phy, self.phys_type)
-        sys.stdout.flush()
-        self.run_and_save_from_parameters(
-            map_fit,
-            map_phy,
-            id_sim,
-            sim_name,
-            par_desc,
-            self.ci_fitted,
-            self.ci_physical,
-        )
-
-        # ==============================================================================
-        id_sim = 2051
-        sim_name = "map_to_physical"
-        par_desc = "map of posterior converted to physical"
-        anc.print_both("\nPARAMETERS: {} ==> {}".format(par_desc, id_sim))
-        _, map_phy, _, _, _, _ = anc.compute_physical_parameters(
+        # map_phy = self.physical_posterior[map_idx, :].copy()
+        _, map_phy, _, _ = anc.compute_physical_parameters(
             self.sim.n_bodies,
             map_fit,
             self.fitting_names,
@@ -722,8 +507,9 @@ class AnalysisTRADES:
             mass_conv_factor=self.mass_conv_factor,
             radius_conv_factor=self.radius_conv_factor,
         )
-        map_phy = anc.search_scale_parameter(map_phy, self.phys_type)
+
         sys.stdout.flush()
+
         self.run_and_save_from_parameters(
             map_fit,
             map_phy,
@@ -823,7 +609,7 @@ class AnalysisTRADES:
             sys.stdout.flush()
             _, adhoc_fit = anc.read_fitted_file(self.cli.from_file)
 
-            _, adhoc_phy, _, _, _, _ = anc.compute_physical_parameters(
+            _, adhoc_phy, _, _ = anc.compute_physical_parameters(
                 self.sim.n_bodies,
                 adhoc_fit,
                 self.fitting_names,
@@ -831,7 +617,6 @@ class AnalysisTRADES:
                 mass_conv_factor=self.mass_conv_factor,
                 radius_conv_factor=self.radius_conv_factor,
             )
-            adhoc_phy = anc.search_scale_parameter(adhoc_phy, self.phys_type)
 
             self.run_and_save_from_parameters(
                 adhoc_fit,
@@ -847,7 +632,7 @@ class AnalysisTRADES:
 
     def save_map_hdi_parameters(self):
         # ==============================================================================
-        # MAP_HDI == maximum log-probability=logL + logPrior of posterior within HDI ID == 668
+        # MLE == maximum loglikelihood of posterior within HDI ID == 668
         # ==============================================================================
         id_sim = 668
         sim_name = "map_hdi"
@@ -860,24 +645,8 @@ class AnalysisTRADES:
             self.lnprob_posterior,
             return_idmax=True,
         )
-        map_hdi_phy = self.physical_posterior[map_hdi_idx, :]
-        sys.stdout.flush()
-        self.run_and_save_from_parameters(
-            map_hdi_fit,
-            map_hdi_phy,
-            id_sim,
-            sim_name,
-            par_desc,
-            self.ci_fitted,
-            self.ci_physical,
-        )
-
-        # ==============================================================================
-        id_sim = 669
-        sim_name = "map_hdi_to_physical"
-        par_desc = "map of posterior within HDI converted to physical"
-        anc.print_both("\nPARAMETERS: {} ==> {}".format(par_desc, id_sim))
-        _, map_hdi_phy, _, _, _, _ = anc.compute_physical_parameters(
+        # map_hdi_phy = self.physical_posterior[map_hdi_idx, :]
+        _, map_hdi_phy, _, _ = anc.compute_physical_parameters(
             self.sim.n_bodies,
             map_hdi_fit,
             self.fitting_names,
@@ -885,8 +654,8 @@ class AnalysisTRADES:
             mass_conv_factor=self.mass_conv_factor,
             radius_conv_factor=self.radius_conv_factor,
         )
-        map_hdi_phy = anc.search_scale_parameter(map_hdi_phy, self.phys_type)
         sys.stdout.flush()
+
         self.run_and_save_from_parameters(
             map_hdi_fit,
             map_hdi_phy,
@@ -896,7 +665,6 @@ class AnalysisTRADES:
             self.ci_fitted,
             self.ci_physical,
         )
-
         return
 
     # ---------------------------------
@@ -1009,7 +777,6 @@ def run_analysis(cli):
     anc.print_both(" nfit  = {}".format(analysis.sim.nfit))
     anc.print_both("  dof  = {}".format(analysis.sim.dof))
     anc.print_both("star = {}".format(analysis.sim.MR_star))
-
     anc.print_both(
         "shape of chains_posterior = {}".format(np.shape(analysis.chains_posterior))
     )
@@ -1072,23 +839,7 @@ def run_analysis(cli):
             analysis.lnprobability_full_thinned,
             analysis.fitting_names,
             analysis.thin_steps,
-            fitting_minmax=analysis.sim.fitting_minmax,
-            physical=False
-        )
-
-        anc.print_both("\nPlotting physical chains ... ")
-        plot_chains(
-            cli,
-            logs_folder,
-            plots_folder,
-            analysis.physical_posterior,
-            analysis.physical_chains,
-            analysis.lnprobability_posterior,
-            analysis.lnprobability_full_thinned,
-            analysis.physical_names,
-            analysis.thin_steps,
-            fitting_minmax=None,
-            physical=True
+            analysis.sim.fitting_minmax,
         )
 
     # ===== Fitted Correlation Plot ===== #

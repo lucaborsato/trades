@@ -1,6 +1,8 @@
 module utils
     use constants
+    use convert_type
     use parameters
+    use parameters_conversion, only: convert_parameters
     use custom_type
     use sorting, only: indexx
 
@@ -446,7 +448,7 @@ contains
         return
     end subroutine linrange
 
-        ! subroutine to prepare steps of the integration, for each of this step
+    ! subroutine to prepare steps of the integration, for each of this step
     ! a check of RV and T0 will be performed.
     subroutine set_check_steps(t_epoch, time_to_int, step, observed_data, n_all, all_steps, all_idx)
         ! **Input**
@@ -511,10 +513,10 @@ contains
 
     subroutine set_transiting_bodies(transiting_body, do_transit_check, body_transiting_start, body_transiting_end)
         !Input
-        integer,intent(in)::transiting_body
+        integer, intent(in)::transiting_body
         !Output
-        logical,intent(out)::do_transit_check
-        integer,intent(out)::body_transiting_start, body_transiting_end
+        logical, intent(out)::do_transit_check
+        integer, intent(out)::body_transiting_start, body_transiting_end
 
         ! == NEW ==
         ! by default it will check the transit of all the planets (2->NB)
@@ -533,5 +535,209 @@ contains
 
         return
     end subroutine set_transiting_bodies
+
+! ===============================================================================================
+
+    subroutine asymmetric_gaussian(fit, val, nsigma, psigma, out)
+        real(dp), intent(in)::fit, val, nsigma, psigma
+        real(dp), intent(out)::out
+
+        real(dp)::delta
+
+        out = zero
+        delta = fit-val
+        if (delta < 0.0) then
+            out = -half*((delta*delta)/(nsigma*nsigma))
+        else
+            out = -half*((delta*delta)/(psigma*psigma))
+        end if
+
+        return
+    end subroutine asymmetric_gaussian
+
+! ===============================================================================================
+
+    subroutine ln_priors(allpar, fit_parameters, names, values, lnp)
+        real(dp), dimension(:), intent(in)::allpar, fit_parameters
+        character(10), dimension(:), intent(in)::names
+        real(dp), dimension(:, :), intent(in)::values
+        real(dp), intent(out)::lnp
+
+        real(dp)::xpen, xpar, mass_conv, radius_conv
+        integer::npriors, iprior
+        integer::ipar
+        integer::cnt_prior
+
+        real(dp), dimension(:), allocatable::mass, radius, period, sma, ecc
+        real(dp), dimension(:), allocatable::argp, meanA, inc, longN
+        logical::checkpar ! not used, only because needed in convert_parameters
+
+        character(10):: jit_name
+        logical, dimension(:), allocatable::done_priors
+
+        npriors = size(names)
+        allocate( done_priors(npriors))
+        lnp = zero
+        xpen = zero
+        cnt_prior = 0
+        done_priors = .false.
+        
+
+        allocate (mass(NB), radius(NB), period(NB), sma(NB), ecc(NB))
+        allocate (argp(NB), meanA(NB), inc(NB), longN(NB))
+
+        call convert_parameters(allpar, fit_parameters,&
+            &mass, radius, period, sma, ecc, argp, meanA, inc, longN,&
+            &checkpar)
+
+        priors_loop: do iprior = 1, npriors
+
+            ! FIRST CHECK IF PRIORS NAMES IN FITTING PARAMETER ID (PARID)
+            do ipar = 1, nfit
+                xpen = zero
+                if (trim(names(iprior)) .eq. trim(parid(ipar))) then
+                    if (.not. done_priors(iprior))then 
+                        call asymmetric_gaussian(fit_parameters(ipar),&
+                            &values(iprior, 1), values(iprior, 2), values(iprior, 3),&
+                            &xpen)
+                        lnp = lnp+xpen
+                        cnt_prior = cnt_prior+1
+                        done_priors(iprior) = .true.
+                    end if
+                end if
+            end do
+            if (cnt_prior .ge. npriors) then
+                exit priors_loop
+            end if
+            ! THEN CHECK IF PRIORS NAMES IN PHYSICAL PARAMETERS
+            do ipar = 1, NB
+                ! mass
+                if (ipar .eq. 1)then
+                    mass_conv = one
+                else
+                    mass_conv = Msear
+                end if
+                if (trim(names(iprior)) .eq. trim(mass_id(ipar))) then
+                    if (.not. done_priors(iprior))then 
+                        call asymmetric_gaussian(mass(ipar)*mass_conv,&
+                            &values(iprior, 1), values(iprior, 2), values(iprior, 3),&
+                            &xpen)
+                        lnp = lnp+xpen
+                        cnt_prior = cnt_prior+1
+                        done_priors(iprior) = .true.
+                    end if
+                end if
+                ! radius
+                if (ipar .eq. 1)then
+                    radius_conv = one
+                else
+                    radius_conv = Rsun/Rear
+                end if
+                if (trim(names(iprior)) .eq. trim(radius_id(ipar))) then
+                    if (.not. done_priors(iprior))then 
+                        call asymmetric_gaussian(radius(ipar)*radius_conv,&
+                            &values(iprior, 1), values(iprior, 2), values(iprior, 3),&
+                            &xpen)
+                        lnp = lnp+xpen
+                        cnt_prior = cnt_prior+1
+                        done_priors(iprior) = .true.
+                    end if
+                end if
+                ! sma
+                if (trim(names(iprior)) .eq. trim(sma_id(ipar))) then
+                    if (.not. done_priors(iprior))then 
+                        call asymmetric_gaussian(sma(ipar),&
+                            &values(iprior, 1), values(iprior, 2), values(iprior, 3),&
+                            &xpen)
+                        lnp = lnp+xpen
+                        cnt_prior = cnt_prior+1
+                        done_priors(iprior) = .true.
+                    end if
+                end if
+                ! ecc
+                if (trim(names(iprior)) .eq. trim(ecc_id(ipar))) then
+                    if (.not. done_priors(iprior))then 
+                        call asymmetric_gaussian(ecc(ipar),&
+                            &values(iprior, 1), values(iprior, 2), values(iprior, 3),&
+                            &xpen)
+                        lnp = lnp+xpen
+                        cnt_prior = cnt_prior+1
+                        done_priors(iprior) = .true.
+                    end if
+                end if
+                ! argp
+                if (trim(names(iprior)) .eq. trim(argp_id(ipar))) then
+                    if (.not. done_priors(iprior))then 
+                        call asymmetric_gaussian(argp(ipar),&
+                            &values(iprior, 1), values(iprior, 2), values(iprior, 3),&
+                            &xpen)
+                        lnp = lnp+xpen
+                        cnt_prior = cnt_prior+1
+                        done_priors(iprior) = .true.
+                    end if
+                end if
+                ! meana
+                if (trim(names(iprior)) .eq. trim(meana_id(ipar))) then
+                    if (.not. done_priors(iprior))then 
+                        call asymmetric_gaussian(meana(ipar),&
+                            &values(iprior, 1), values(iprior, 2), values(iprior, 3),&
+                            &xpen)
+                        lnp = lnp+xpen
+                        cnt_prior = cnt_prior+1
+                        done_priors(iprior) = .true.
+                    end if
+                end if
+                ! inc
+                if (trim(names(iprior)) .eq. trim(inc_id(ipar))) then
+                    if (.not. done_priors(iprior))then 
+                        call asymmetric_gaussian(inc(ipar),&
+                            &values(iprior, 1), values(iprior, 2), values(iprior, 3),&
+                            &xpen)
+                        lnp = lnp+xpen
+                        cnt_prior = cnt_prior+1
+                        done_priors(iprior) = .true.
+                    end if
+                end if
+                ! longn
+                if (trim(names(iprior)) .eq. trim(longn_id(ipar))) then
+                    if (.not. done_priors(iprior))then 
+                        call asymmetric_gaussian(longN(ipar),&
+                            &values(iprior, 1), values(iprior, 2), values(iprior, 3),&
+                            &xpen)
+                        lnp = lnp+xpen
+                        cnt_prior = cnt_prior+1
+                        done_priors(iprior) = .true.
+                    end if
+                end if
+
+                if (cnt_prior .ge. npriors) then
+                    exit priors_loop
+                end if
+            end do
+
+            ! CHECK IF JITTER IN NORMAL UNIT (FITTING LOG2JITTER)
+            if (nRVset .gt. 0) then
+                do ipar = 1, nRVset
+                    jit_name = trim("jitter_"//trim(adjustl(string(ipar))))
+                    if (trim(names(iprior)) .eq. trim(jit_name)) then
+                        if (.not. done_priors(iprior))then
+                            xpar = two**fit_parameters(nkel+ipar)
+                            call asymmetric_gaussian(xpar,&
+                                &values(iprior, 1), values(iprior, 2), values(iprior, 3),&
+                                &xpen)
+                            lnp = lnp+xpen
+                            cnt_prior = cnt_prior+1
+                            done_priors(iprior) = .true.
+                        end if
+                    end if
+                end do
+            end if
+
+        end do priors_loop
+
+        return
+    end subroutine ln_priors
+
+! ===============================================================================================
 
 end module utils

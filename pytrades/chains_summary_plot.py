@@ -30,17 +30,22 @@ def plot_chains(
     lnprobability,
     fitting_names,
     thin_steps,
-    fitting_minmax,
-    show_plots = False
+    fitting_minmax=None,
+    show_plots = False,
+    physical=False
 ):
 
     os.makedirs(log_folder, exist_ok=True)
     log_file = os.path.join(log_folder, "log_chains.txt")
+    if physical:
+        log_file = log_file.replace(".txt", "_physical.txt")
     olog = open(log_file, "w")
-
     anc.print_both("", output=olog)
     anc.print_both(" ======================== ", output=olog)
-    anc.print_both(" CHAIN PLOTS", output=olog)
+    l = " CHAIN PLOTS"
+    if physical:
+        l = "PHYSICAL{:s}".format(l)
+    anc.print_both(l, output=olog)
     anc.print_both(" ======================== ", output=olog)
     anc.print_both("", output=olog)
 
@@ -48,9 +53,12 @@ def plot_chains(
     chains = chains_in.copy()
 
     # set label and legend names
-    kel_labels = anc.keplerian_legend(fitting_names, cli.m_type)
+    # kel_labels = anc.keplerian_legend(fitting_names, cli.m_type)
+    kel_labels = fitting_names
     k = anc.get_auto_bins(fitting_posterior)
     m_factor, m_unit, r_factor, r_unit = anc.mass_radius_type_factor(mtype=cli.m_type)
+    if physical:
+        m_factor, r_factor = 1.0, 1.0
 
     sys.stdout.flush()
     ## OPEN summary_parameters.hdf5 FILE
@@ -58,26 +66,21 @@ def plot_chains(
     with h5py.File(
         os.path.join(cli.full_path, "summary_parameters.hdf5"), "r"
     ) as s_h5f:
+        l = "fitted"
+        if physical:
+            l = "physical"
         # sample_parameters
-        ci_fitted = s_h5f["confidence_intervals/fitted/ci"][...]
+        ci_fitted = s_h5f["confidence_intervals/{:s}/ci".format(l)][...]
 
         anc.print_both("Set overplot ...", output=olog)
         overplot = anc.set_overplot(cli.overplot)
         if overplot is not None:
             sim_id_str = "{}".format(overplot)
-            overp_par = s_h5f["parameters/{:s}/fitted/parameters".format(sim_id_str)][
+            overp_par = s_h5f["parameters/{:s}/{:s}/parameters".format(sim_id_str, l)][
                 ...
             ]
     sys.stdout.flush()
 
-    # nruns_full, _, _ = np.shape(chains_full)
-    # nruns_thinned, _, _ = np.shape(chains_full_thinned)
-    # if cli.use_thin or cli.use_thin > 0:
-    #     nburnin_plt = np.rint(cli.nburnin / thin_steps).astype(int)
-    #     nend = np.rint(nruns_thinned / thin_steps).astype(int)
-    # else:
-    #     nburnin_plt = cli.nburnin
-    #     nend = nruns_full
     nruns, _, _ = np.shape(chains) # it could be full or full_thinned, with full steps or completed_steps
     if cli.use_thin > 1:
         nburnin_plt = np.rint(cli.nburnin / thin_steps).astype(int)
@@ -93,33 +96,24 @@ def plot_chains(
     anc.print_both("current    nruns = {}".format(nend), output=olog)
     sys.stdout.flush()
 
-    fitting_boundaries = fitting_minmax.copy()
+    if fitting_minmax is not None:
+        fitting_boundaries = fitting_minmax.copy()
 
     anc.print_both("Plotting chains ...", output=olog)
     sys.stdout.flush()
 
+    add_c = 1
+    if physical:
+        add_c = 501
     for i, pnames in enumerate(fitting_names):
         if "Ms" in pnames:
             conv_plot = m_factor
         else:
             conv_plot = 1.0
 
-        if (pnames[0] in ["w"]) or (pnames[0:2] == "mA") or ("lambda" in pnames):
-            overp_par[i] %= 360.0
-            ci_fitted[i, :] %= 360.0
-            fitting_boundaries[i, :] %= 360.0
-            fitting_posterior[:, i] %= 360.0
-            chains[:, :, i] %= 360.0
-            # if("lambda" in pnames):
-            #     print("{} min = {} max = {}".format(
-            #         pnames, 
-            #         np.min(fitting_posterior[:, i]),
-            #         np.max(fitting_posterior[:, i]),
-            #     ))
-
         chain_file = os.path.join(
             plot_folder,
-            "Chain_{:03d}_{:s}.png".format(i + 1, pnames.strip()),
+            "Chain_{:03d}_{:s}.png".format(i + add_c, pnames.strip()),
         )
         anc.print_both("{:s} ==> {:s}".format(pnames, chain_file), output=olog)
         sys.stdout.flush()
@@ -162,11 +156,6 @@ def plot_chains(
 
         # ===================
         # CHAINS PLOT
-        # # chains with the burn-in
-        # if cli.use_thin > 1:
-        #     axChain.plot(chains_full_thinned[:, :, i] * conv_plot, "-", alpha=0.3)
-        # else:
-        #     axChain.plot(chains_full[:, :, i] * conv_plot, "-", alpha=0.3)
         axChain.plot(chains[:, :, i] * conv_plot, "-", alpha=0.3)
 
         axChain.axvspan(0, nburnin_plt, color="gray", alpha=0.45)
@@ -215,11 +204,16 @@ def plot_chains(
         y_max = fitting_posterior[:, i].max() * conv_plot
 
         axChain.set_ylim([y_min, y_max])
-        stitle = "Full chain {:s}:=[{:.3f} , {:.3f}]".format(
-            kel_labels[i],
-            fitting_boundaries[i, 0] * conv_plot,
-            fitting_boundaries[i, 1] * conv_plot,
+
+        stitle = "Full chain {:s}".format(
+            kel_labels[i]
         )
+        if fitting_minmax is not None:
+            stitle = "{:s}:=[{:.3f} , {:.3f}]".format(
+                stitle,
+                fitting_boundaries[i, 0] * conv_plot,
+                fitting_boundaries[i, 1] * conv_plot,
+            )
         axChain.set_title(
             stitle,
             fontsize=plt.rcParams["xtick.labelsize"] - 2,
@@ -274,49 +268,49 @@ def plot_chains(
 
     fig = plt.figure(figsize=(6, 6))
 
-    # lnprob
+    if not physical:
+        # lnprob
+        lnprob_file = os.path.join(plot_folder, "emcee_lnprobability.png")
+        anc.print_both("lnprob ==> {:s}".format(lnprob_file), output=olog)
+        xlabel = "$N_\mathrm{steps}$"
+        xlabel_post = "{:s} + {:d}".format(xlabel, nburnin_plt)
+        if cli.use_thin > 1:
+            xlabel = "$N_\mathrm{{steps}} \\times {:d}$".format(thin_steps)
+            xlabel_post = "$N_\mathrm{{steps}} + {:d} \\times {:d}$".format(nburnin_plt, thin_steps)
 
-    lnprob_file = os.path.join(plot_folder, "emcee_lnprobability.png")
-    anc.print_both("lnprob ==> {:s}".format(lnprob_file), output=olog)
-    xlabel = "$N_\mathrm{steps}$"
-    xlabel_post = "{:s} + {:d}".format(xlabel, nburnin_plt)
-    if cli.use_thin > 1:
-        xlabel = "$N_\mathrm{{steps}} \\times {:d}$".format(thin_steps)
-        xlabel_post = "$N_\mathrm{{steps}} + {:d} \\times {:d}$".format(nburnin_plt, thin_steps)
+        nrows, ncols = 3, 1
 
-    nrows, ncols = 3, 1
+        axs = []
 
-    axs = []
+        ax = plt.subplot2grid((nrows, ncols), (0, 0), rowspan=1)
+        ax.plot(lnprobability, "-", alpha=0.3)
+        ax.axvline(nburnin_plt, color="gray", ls="-", lw=1.5)
+        ax.set_ylabel("lnprob")
+        ax.set_xlabel(xlabel)
+        axs.append(ax)
 
-    ax = plt.subplot2grid((nrows, ncols), (0, 0), rowspan=1)
-    ax.plot(lnprobability, "-", alpha=0.3)
-    ax.axvline(nburnin_plt, color="gray", ls="-", lw=1.5)
-    ax.set_ylabel("lnprob")
-    ax.set_xlabel(xlabel)
-    axs.append(ax)
+        ax = plt.subplot2grid((nrows, ncols), (1, 0), rowspan=2)
+        ax.plot(lnprob_posterior, "-", alpha=0.3)
 
-    ax = plt.subplot2grid((nrows, ncols), (1, 0), rowspan=2)
-    ax.plot(lnprob_posterior, "-", alpha=0.3)
+        min_lnp = np.min(lnprob_posterior, axis=0).min()
+        max_lnp = np.max(lnprob_posterior, axis=0).max()
+        y_min, y_max = anc.compute_limits(np.asarray([min_lnp, max_lnp]), 0.05)
+        ax.set_ylim((y_min, y_max))
+        ax.set_ylabel("lnprob")
+        ax.set_xlabel(xlabel_post)
+        axs.append(ax)
 
-    min_lnp = np.min(lnprob_posterior, axis=0).min()
-    max_lnp = np.max(lnprob_posterior, axis=0).max()
-    y_min, y_max = anc.compute_limits(np.asarray([min_lnp, max_lnp]), 0.05)
-    ax.set_ylim((y_min, y_max))
-    ax.set_ylabel("lnprob")
-    ax.set_xlabel(xlabel_post)
-    axs.append(ax)
+        fig.align_ylabels(axs)
+        plt.tight_layout()
 
-    fig.align_ylabels(axs)
-    plt.tight_layout()
-
-    if show_plots:
-        plt.show(fig)
-    fig.savefig(
-        lnprob_file,
-        bbox_inches="tight",
-        # dpi=150,
-    )
-    plt.close(fig)
+        if show_plots:
+            plt.show(fig)
+        fig.savefig(
+            lnprob_file,
+            bbox_inches="tight",
+            # dpi=150,
+        )
+        plt.close(fig)
 
     olog.close()
 
