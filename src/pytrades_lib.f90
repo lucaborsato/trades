@@ -47,10 +47,10 @@ module f90trades
 
     ! needed because TRADES now uses these variables in data type
     integer::ndata, nfree, dof
-    integer::nRV !,nRVset it is global now
+    integer::nRV=0 !,nRVset it is global now
     integer, dimension(:), allocatable::nT0
     real(dp), dimension(:), allocatable::Pephem, Tephem
-    integer::nTTs, nDurs
+    integer::nTTs=0, nDurs=0
 
 !   real(dp)::ln_err_const,inv_dof
     real(dp)::inv_dof
@@ -730,6 +730,7 @@ contains
         call deallocate_dataRV(obsData%obsRV)
 
         n = size(time_rv)
+        nRV = n
         if (n .gt. 0) then
             rvcheck = 1
             call init_dataRV(n, obsData%obsRV)
@@ -748,6 +749,7 @@ contains
     subroutine deallocate_rv_dataset()
 
         call deallocate_dataRV(obsData%obsRV)
+        nRV = 0
 
         return
     end subroutine deallocate_rv_dataset
@@ -769,6 +771,8 @@ contains
             obsData%obsT0(i_body)%T0 = obs_t0
             obsData%obsT0(i_body)%eT0 = obs_et0
             obsData%nTTs = sum(obsData%obsT0(:)%nT0)
+            nTTs = obsData%nTTs
+            nDurs = nTTs
             if (durcheck .eq. 1) then
                 obsData%nDurs = obsData%nTTs
             end if
@@ -785,9 +789,11 @@ contains
 
         call deallocate_dataT0(obsData%obsT0(body_id-1))
         obsData%nTTs = sum(obsData%obsT0(:)%nT0)
+        nTTs=obsData%nTTs
         if (durcheck .eq. 1) then
             obsData%nDurs = obsData%nTTs
         end if
+        nDurs=obsData%nTTs
 
         return
     end subroutine deallocate_t0_dataset
@@ -795,6 +801,9 @@ contains
     subroutine deallocate_all_data()
 
         call deallocate_dataObs(obsData)
+        nRV=0
+        nTTS=0
+        nDurs=0
 
         return
     end subroutine deallocate_all_data

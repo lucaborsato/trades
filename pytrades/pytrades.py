@@ -96,11 +96,13 @@ def kelements_to_rv_and_t0s(
     inc_deg,
     lN_deg,
     transit_flag,
-    n_rv,
-    n_T0s,
+    # n_rv,
+    # n_T0s,
 ):
 
     n_kep = 8  # number of keplerian elements in output for each T0s
+    n_rv = f90trades.nrv
+    n_T0s = f90trades.ntts
     (
         rv_sim,
         body_T0_sim,
@@ -142,9 +144,10 @@ def kelements_to_rv(
     mA_deg,
     inc_deg,
     lN_deg,
-    n_rv,
+    # n_rv,
 ):
 
+    n_rv = f90trades.nrv
     rv_sim = f90trades.kelements_to_rv(
         t_start,
         t_epoch,
@@ -177,10 +180,11 @@ def kelements_to_t0s(
     inc_deg,
     lN_deg,
     transit_flag,
-    n_T0s,
+    # n_T0s,
 ):
 
     n_kep = 8  # number of keplerian elements in output for each T0s
+    n_T0s = f90trades.ntts
     body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim = f90trades.kelements_to_t0s(
         t_start,
         t_epoch,
