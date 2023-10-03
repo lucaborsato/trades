@@ -23,7 +23,7 @@ make full_parallel_release
 I suggest to create an `anaconda environment`, install all the dependencies and then do `make full_parallel_release`.
 There is not a full list of all dependencies, many of them are due to all the python packages. I.e., `PyDE` is within `Pytransit`, that needs many dependencies not listed here. Sorry.  
 To use with `python` as it would be in [PyORBIT](https://github.com/LucaMalavolta/PyORBIT) 
-see notebook [import_trades_for_PyORBIT](trades_example/python_examples/import_trades_for_PyORBIT.ipynb) 
+see notebook [import_trades_for_python](trades_example/python_examples/import_trades_for_python.ipynb) 
 in [trades_example/python_examples/](trades_example/python_examples/).  
 In this way you will integrates the orbits of the planets and it will return the Radial Velocities (RVs) if present, and the Transit Times (T0s), if present, with the Transit Durations (T14s) and the orbital elements at each T0s.  
 Currently, `TRADES` is ready to be used as a photo-dynamical (`photoTRADES`) code,
