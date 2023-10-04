@@ -464,10 +464,12 @@ def add_photometry_trend(
     obs_photometry, sim_photometry, photometry_flux_trend, ancillary_coeff
 ):
 
+    out_trend = {}
     out_photometry = {}
     for name_phot, phot in obs_photometry.items():
         sim_phot = sim_photometry[name_phot]
         out_photometry[name_phot] = {}
+        out_trend[name_phot] = {}
         # anc_phot = phot["ancillary"]
         for k, vis in phot.items():
             t = vis["time"]
@@ -493,8 +495,9 @@ def add_photometry_trend(
             flux *= ftrend
 
             out_photometry[name_phot][k] = flux
+            out_trend[name_phot][k] = ftrend
 
-    return out_photometry
+    return out_photometry, out_trend
 
 
 def plot_photometry(photometry, sim_photometry, show_plot=True, output_folder=None, return_rms=False):
@@ -1175,6 +1178,7 @@ class PhotoTRADES:
         figsize=(4, 2),
         show_plot=True,
         output_folder=None,
+        remove_dataset=None
     ):
 
         t_epoch = self.t_epoch
@@ -1185,7 +1189,15 @@ class PhotoTRADES:
             np.linspace(0.1, 0.9, endpoint=True, num=len(gamma_rv))
         )
 
-        nrows, ncols = 4, 1
+        if remove_dataset is not None and len(remove_dataset) > 0:
+            additional_panel = True
+        else:
+            additional_panel = False
+        nrows, ncols = 3, 1
+        if additional_panel:
+            nrows += 1
+
+        axs = []
 
         ax1 = plt.subplot2grid((nrows, ncols), (0, 0), rowspan=2)
         ax1.ticklabel_format(useOffset=False)
@@ -1194,12 +1206,12 @@ class PhotoTRADES:
 
         ax2 = plt.subplot2grid((nrows, ncols), (2, 0))
         ax2.ticklabel_format(useOffset=False)
-        ax2.get_xaxis().set_ticks([])
         ax2.tick_params(axis="both", labelsize=plt.rcParams["xtick.labelsize"] - 4)
 
-        ax3 = plt.subplot2grid((nrows, ncols), (3, 0))
-        ax3.ticklabel_format(useOffset=False)
-        ax3.tick_params(axis="both", labelsize=plt.rcParams["xtick.labelsize"] - 4)
+        if additional_panel:
+            ax3 = plt.subplot2grid((nrows, ncols), (3, 0))
+            ax3.ticklabel_format(useOffset=False)
+            ax3.tick_params(axis="both", labelsize=plt.rcParams["xtick.labelsize"] - 4)
 
         rvs_full = np.zeros_like(self.t_rv_obs)
 
@@ -1270,21 +1282,22 @@ class PhotoTRADES:
                 capsize=0,
             )
 
-            ax3.axhline(0.0, color="black", ls="-", lw=0.7)
-            if k.lower() != "chiron":
-                ax3.errorbar(
-                    t_o,
-                    res,
-                    yerr=eres,
-                    color=colors[i_k],
-                    marker=markers[k],
-                    ms=ms,
-                    mec="white",
-                    mew=0.4,
-                    ls="",
-                    elinewidth=0.7,
-                    capsize=0,
-                )
+            if additional_panel:
+                ax3.axhline(0.0, color="black", ls="-", lw=0.7)
+                if k.lower() not in remove_dataset:
+                    ax3.errorbar(
+                        t_o,
+                        res,
+                        yerr=eres,
+                        color=colors[i_k],
+                        marker=markers[k],
+                        ms=ms,
+                        mec="white",
+                        mew=0.4,
+                        ls="",
+                        elinewidth=0.7,
+                        capsize=0,
+                    )
 
         ax1.legend(
             bbox_to_anchor=(1.05, 0.5), loc="upper left", fontsize=6, frameon=False
@@ -1295,13 +1308,18 @@ class PhotoTRADES:
         ax2.set_ylabel("res (m/s)", fontsize=6)
         ax2.set_xlim(xlims)
 
-        ax3.set_ylabel("res (m/s)", fontsize=6)
-        ax3.set_xlim(xlims)
-
-        ax3.set_xlabel("time", fontsize=6)
+        if additional_panel:
+            ax2.get_xaxis().set_ticks([])
+            ax3.set_ylabel("res (m/s)", fontsize=6)
+            ax3.set_xlim(xlims)
+            ax3.set_xlabel("time", fontsize=6)
+            axs = [ax1, ax2, ax3]
+        else:
+            ax2.set_xlabel("time", fontsize=6)
+            axs = [ax1, ax2]
 
         plt.subplots_adjust(hspace=0.05)
-        fig.align_ylabels([ax1, ax2, ax3])
+        fig.align_ylabels()
 
         if output_folder is not None:
             output_file = os.path.join(output_folder, "RV_plot.png")
