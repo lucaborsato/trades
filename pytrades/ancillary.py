@@ -758,6 +758,7 @@ class ConfigurationRun:
 
 class ConfigurationAnalysis:
     def __init__(self, yaml_file):
+        self.yaml_file = yaml_file
         with open(yaml_file) as f:
             conf_all = yaml.load(f, Loader=yaml.FullLoader)
 

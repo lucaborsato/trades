@@ -38,6 +38,7 @@ def compute_gr(cli, log_folder, plot_folder, chains, fitting_names):
     # else:
     #     n_steps = nruns
     n_steps, _, nfit = np.shape(chains)
+    
     gr_steps = int(cli.gr_steps)
     if gr_steps == 0:
         gr_steps = 10
@@ -45,8 +46,12 @@ def compute_gr(cli, log_folder, plot_folder, chains, fitting_names):
     # steps = np.linspace(start=0, stop=n_steps, num=gr_steps, endpoint=True, dtype=int)
     # steps[0] = 10
     # gr_steps = len(steps)
-    step = int(n_steps/gr_steps)
-    steps = np.arange(step, n_steps+step, step)
+
+    # step = int(n_steps/gr_steps)
+    # steps = np.arange(step, n_steps+step, step)
+    step = int((n_steps -10)/gr_steps)
+    steps = np.rint(np.linspace(step, n_steps, endpoint=True, num=gr_steps)).astype(int)
+
     anc.print_both('number of GR steps: {}'.format(gr_steps), output=olog)
 
     gr_Rc_2 = np.ones((gr_steps, nfit)) + 99.0
@@ -61,8 +66,10 @@ def compute_gr(cli, log_folder, plot_folder, chains, fitting_names):
         fig = plt.figure()
         ax = plt.subplot2grid((1, 1), (0, 0))
 
-        for istep in range(0, gr_steps):
-            gr_Rc_2[istep, ifit] = anc.GelmanRubin(chains[: steps[istep], :, ifit])
+        # for istep in range(0, gr_steps):
+        #     gr_Rc_2[istep, ifit] = anc.GelmanRubin(chains[: steps[istep], :, ifit])
+        for istep, vstep in enumerate(steps):
+            gr_Rc_2[istep, ifit] = anc.GelmanRubin(chains[: vstep, :, ifit])
 
         ax.axhline(1.01, color="gray")
         ax.plot(steps, gr_Rc_2[:, ifit], "-", color="k", lw=1.3, label="LBo 2")

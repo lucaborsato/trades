@@ -8,6 +8,8 @@ from pytrades_lib import f90trades
 import ancillary as anc
 import constants as cst
 
+from scipy.interpolate import interp1d
+
 os.environ["OMP_NUM_THREADS"] = "1"
 import pytransit
 import numba
@@ -407,7 +409,7 @@ def orbital_parameters_to_transits(
         n_all_transits, time_steps, mass, radius, orbits, transiting_body
     )
     # kep_elem == period 0, sma 1, ecc 2, inc 3, meana 4, argp 5, truea 6, longn 7
-    return transits, durations, kep_elem, body_flag, rv_sim
+    return time_steps, orbits, transits, durations, kep_elem, body_flag, rv_sim
 
 
 def set_transit_parameters(radius, transits, body_flag, kep_elem):
@@ -423,11 +425,11 @@ def set_transit_parameters(radius, transits, body_flag, kep_elem):
 
 
 def get_simulate_flux(
-    tm, photometry, transits, durations, rp_rs, ld_quad, per, aRs, inc, ecc, w
+    tm, photometry, transits, durations, rp_rs, ld_quad, per, aRs, inc, ecc, w, time_key="time"
 ):
     sim_photometry = {}
     for k, vis in photometry.items():
-        t = vis["time"]
+        t = vis[time_key]
 
         tra_in_t = np.logical_and(transits >= t.min(), transits <= t.max())
         n_tra = np.sum(tra_in_t)
@@ -461,36 +463,41 @@ def get_simulate_flux(
 
 
 def add_photometry_trend(
-    obs_photometry, sim_photometry, photometry_flux_trend, ancillary_coeff
+    obs_photometry, sim_photometry, photometry_flux_trend, ancillary_coeff, time_key="time"
 ):
 
     out_trend = {}
     out_photometry = {}
     for name_phot, phot in obs_photometry.items():
+        # print(name_phot, end=" ", flush=True)
         sim_phot = sim_photometry[name_phot]
         out_photometry[name_phot] = {}
         out_trend[name_phot] = {}
         # anc_phot = phot["ancillary"]
         for k, vis in phot.items():
-            t = vis["time"]
-
+            # print("lc{}".format(k), end=" ", flush=True)
+            t = vis[time_key]
+            nt = len(t)
             flux = sim_phot[k].copy()
+            # print("nt", nt, end=" ", flush=True)
+            # print("nf", len(flux), end=" ", flush=True)
             pho_trend = photometry_flux_trend[name_phot][k]
             # ntrend = len(pho_trend)
             tscale = t - t.min()
-            ftrend = 1.0
+            ftrend = np.ones((nt))
             if pho_trend is not None:
-                ftrend = 0.0
+                ftrend = np.zeros((nt))
                 for o, c in enumerate(pho_trend):
                     ftrend += c * (tscale**o)
             # flux *= ftrend
-            anc_phot = vis["ancillary"]
+            # anc_phot = vis["ancillary"]
+            anc_phot = vis["ancillary_interp"]
             acoeff = ancillary_coeff[name_phot][k]
             if (anc_phot is not None) and (acoeff is not None):
                 if (len(anc_phot) > 0) and (len(acoeff) > 0):
                     fanc = 0.0
                     for i_c, kk in enumerate(anc_phot.keys()):
-                        fanc += acoeff[i_c] * anc_phot[kk]
+                        fanc += acoeff[i_c] * anc_phot[kk](t)
                     ftrend += fanc
             flux *= ftrend
 
@@ -500,12 +507,25 @@ def add_photometry_trend(
     return out_photometry, out_trend
 
 
-def plot_photometry(photometry, sim_photometry, show_plot=True, output_folder=None, return_rms=False):
+def plot_photometry(
+    photometry,
+    sim_photometry,
+    mod_photometry=None,
+    trend_photometry=None,
+    figsize=(3, 3),
+    show_plot=True,
+    output_folder=None,
+    return_rms=False,
+):
 
     rms_photometry = {}
 
     for name_phot, phot in photometry.items():
         sim_phot = sim_photometry[name_phot]
+        if mod_photometry is not None:
+            mod_phot = mod_photometry[name_phot]
+        if trend_photometry is not None:
+            trend_phot = trend_photometry[name_phot]
 
         rms_vis = {}
         for i_k, vis in phot.items():
@@ -517,7 +537,7 @@ def plot_photometry(photometry, sim_photometry, show_plot=True, output_folder=No
 
             lsize = plt.rcParams["font.size"] - 2
 
-            fig = plt.figure(figsize=(4, 2))
+            fig = plt.figure(figsize=figsize)
             title = "{} - id {}".format(name_phot, i_k)
             # plt.title(title, fontsize=lsize+1)
             axs = []
@@ -545,9 +565,34 @@ def plot_photometry(photometry, sim_photometry, show_plot=True, output_folder=No
                 ecolor="gray",
                 capsize=0,
                 zorder=4,
+                label="obs",
             )
-            ax.plot(t, flux, color="C0", marker="o", ms=1.0, ls="", zorder=5)
+            if mod_photometry is not None:
+                m = mod_phot[i_k]
+                ax.plot(
+                    t, m, color="C1", marker="o", ms=0.6, ls="", zorder=6, label="mod"
+                )
+            if trend_photometry is not None:
+                m = trend_phot[i_k]
+                ax.plot(
+                    t, m, color="C2", marker="o", ms=0.4, ls="", zorder=5, label="trend"
+                )
+            ax.plot(
+                t,
+                flux,
+                color="C0",
+                marker="o",
+                ms=1.0,
+                ls="",
+                zorder=7,
+                label="mod+trend",
+            )
             ax.set_ylabel("flux", fontsize=lsize)
+            ax.legend(
+                bbox_to_anchor=(1.02, 0.5),
+                loc="center left",
+                fontsize=5,
+            )
             axs.append(ax)
 
             irow, icol = 2, 0
@@ -748,10 +793,21 @@ def set_photometry_portion(
     portion["flux"] = flux
     portion["flux_err"] = flux_err
     portion["ancillary"] = ancillary
+    if ancillary is not None:
+        portion["ancillary_interp"] = {
+            k: interp1d(time, a, bounds_error=False, fill_value=(a[0],a[-1])) for k, a in ancillary.items()
+        }
+    else:
+        portion["ancillary_interp"] = ancillary
     portion["ndata"] = ndata
     portion["t_exp_d"] = t_exp_d
     portion["n_oversample"] = n_oversample
-    portion["t_med"] = np.median(time)
+    time_min = np.min(time)
+    time_max = np.max(time)
+    portion["time_min"] = time_min
+    portion["time_max"] = time_max
+    portion["time_med"] = np.median(time)
+    portion["time_full"] = np.arange(time_min, time_max+0.5*t_exp_d, t_exp_d)
 
     return portion
 
@@ -777,9 +833,12 @@ def get_transit_times_residuals(obs_transits, sim_transits):
     res, err2 = [], []
     for bd, otra in obs_transits.items():
         oT0 = otra["T0s"]
-        sT0 = sim_transits[bd]
-        rT0 = oT0 - sT0
         eT0 = otra["err_T0s"]
+        if bd in sim_transits:
+            sT0 = sim_transits[bd]
+            rT0 = oT0 - sT0
+        else:
+            rT0 = oT0
         res = np.concatenate([res, rT0])
         err2 = np.concatenate([err2, eT0 * eT0])
 
@@ -1070,6 +1129,8 @@ class PhotoTRADES:
     ):
 
         (
+            time_steps,
+            orbits,
             transits,
             durations,
             kep_elem,
@@ -1089,10 +1150,10 @@ class PhotoTRADES:
             long,
             self.t_rv_obs,
         )
-        return transits, durations, kep_elem, body_flag, rv_sim
+        return time_steps, orbits, transits, durations, kep_elem, body_flag, rv_sim
 
     def get_simulate_flux(
-        self, radius, ld_quads, transits, durations, body_flag, kep_elem
+        self, radius, ld_quads, transits, durations, body_flag, kep_elem, time_key="time"
     ):
 
         rp_rs, per, aRs, inc, ecc, w = set_transit_parameters(
@@ -1113,6 +1174,7 @@ class PhotoTRADES:
                 inc,
                 ecc,
                 w,
+                time_key=time_key
             )
             sim_photometry[phot_name] = sim_phot
         return sim_photometry
@@ -1120,6 +1182,8 @@ class PhotoTRADES:
     def full_photodyn(self, mass, radius, period, ecc, w, ma, inc, long, ld_quads):
 
         (
+            time_steps,
+            orbits,
             transits,
             durations,
             kep_elem,
@@ -1129,7 +1193,7 @@ class PhotoTRADES:
             mass, radius, period, ecc, w, ma, inc, long
         )
         sim_photometry = self.get_simulate_flux(
-            radius, ld_quads, transits, durations, body_flag, kep_elem
+            radius, ld_quads, transits, durations, body_flag, kep_elem, time_key="time"
         )
         if len(self.transits) > 0:
             sim_transits = self.get_simulated_transits(transits, body_flag)
@@ -1138,11 +1202,23 @@ class PhotoTRADES:
 
         return sim_photometry, rv_sim, sim_transits
 
-    def plot_photometry(self, sim_photometry, show_plot=True, output_folder=None, return_rms=False):
+    def plot_photometry(
+        self,
+        sim_photometry,
+        mod_photometry=None,
+        trend_photometry=None,
+        figsize=(3, 3),
+        show_plot=True,
+        output_folder=None,
+        return_rms=False,
+    ):
 
         rms = plot_photometry(
             self.photometry,
             sim_photometry,
+            mod_photometry=mod_photometry,
+            trend_photometry=trend_photometry,
+            figsize=figsize,
             show_plot=show_plot,
             output_folder=output_folder,
             return_rms=return_rms,
@@ -1178,7 +1254,7 @@ class PhotoTRADES:
         figsize=(4, 2),
         show_plot=True,
         output_folder=None,
-        remove_dataset=None
+        remove_dataset=None,
     ):
 
         t_epoch = self.t_epoch

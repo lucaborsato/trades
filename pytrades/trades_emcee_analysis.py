@@ -8,6 +8,7 @@ import ancillary as anc
 # import constants as cst  # local constants module
 from gelman_rubin import compute_gr
 from geweke import compute_geweke
+from convergence import compute_convergence, full_statistics, log_probability_trace
 from chains_summary_plot import plot_chains
 from fitted_correlation_plot import plot_triangle as correlation_fitted
 from physical_correlation_plot import plot_triangle as correlation_physical
@@ -1002,6 +1003,7 @@ def run_analysis(cli):
     anc.print_both("")
 
     analysis = AnalysisTRADES(cli)
+    conf_run = anc.ConfigurationRun(cli.yaml_file)
     sys.stdout.flush()
 
     # analysis.fit_to_physical()
@@ -1035,61 +1037,163 @@ def run_analysis(cli):
 
     anc.print_both("Completed analysis of TRADES simulation.")
 
-    # ===== Gelman-Rubin ===== #
-    if cli.gelman_rubin:
-        anc.print_both("\nGet Gelman-Rubin stats ... ")
-        compute_gr(
-            cli,
-            logs_folder,
-            plots_folder,
-            # analysis.chains_posterior,
-            analysis.chains_full_thinned,
-            analysis.fitting_names,
-        )
 
-    # ===== Geweke ===== #
-    if cli.geweke:
-        anc.print_both("\nGet Geweke stats ... ")
-        compute_geweke(
-            cli,
-            logs_folder,
-            plots_folder,
-            # analysis.chains_posterior,
-            analysis.chains_full_thinned,
-            analysis.fitting_names,
-        )
+    # ===== LOG-PROB TRACE plot ===== #
+    log_probability_trace(
+        analysis.lnprobability_full_thinned, 
+        analysis.lnprob_posterior, 
+        plots_folder, 
+        n_burn=cli.nburnin,
+        n_thin=conf_run.thin_by,
+        show_plot=False, 
+        figsize=(6, 6)
+    )
 
-    # ===== Chains ===== #
-    if cli.chain:
-        anc.print_both("\nPlotting chains ... ")
-        plot_chains(
-            cli,
-            logs_folder,
-            plots_folder,
-            analysis.fitting_posterior,
-            analysis.chains_full_thinned,  # it has the burn-in and thinned at needs
-            analysis.lnprobability_posterior,
-            analysis.lnprobability_full_thinned,
-            analysis.fitting_names,
-            analysis.thin_steps,
-            fitting_minmax=analysis.sim.fitting_minmax,
-            physical=False
-        )
+    # ===== CONVERGENCE ===== #
+    if cli.gelman_rubin or cli.geweke or cli.chain:
+        # try:
+        #     conf_run = anc.ConfigurationRun(cli.yaml_file)
+        #     used_thin = conf_run.thin_by
+        # except:
+        #     used_thin = 1
+        # n_cv = np.maximum(10, np.minimum(cli.gr_steps, cli.gk_steps))
+        
+        anc.print_both("\nComputing converging stats ...")
+        par_file = os.path.join(cli.full_path, "summary_parameters.hdf5")
+        stats_file = os.path.join(logs_folder, "convergence_stats.logs")
+        overplot = anc.set_overplot(cli.overplot)
+        with open(stats_file, 'w') as olog:
+            with h5py.File(par_file, "r") as s_h5f:
+                l = "fitted"
+                if overplot is not None:
+                    sim_id_str = "{}".format(overplot)
+                    overp_par = s_h5f["parameters/{:s}/{:s}/parameters".format(sim_id_str, l)][
+                        ...
+                    ]
+                else:
+                    overp_par = analysis.fitting_posterior[np.argmax(analysis.lnprob_posterior), :]
+                # compute_convergence(
+                #     analysis.chains_full_thinned,
+                #     analysis.fitting_names,
+                #     logs_folder,
+                #     plots_folder,
+                #     n_cv = n_cv,
+                #     n_thin=used_thin
+                # )
+                exp_acf_fit, exp_steps_fit = full_statistics(
+                    analysis.chains_full_thinned,
+                    analysis.fitting_posterior,
+                    analysis.fitting_names,
+                    overp_par,
+                    analysis.lnprob_posterior,
+                    plots_folder,
+                    olog=olog,
+                    ilast=0,
+                    n_burn=cli.nburnin,
+                    n_thin=conf_run.thin_by,
+                    show_plot=False,
+                    figsize=(6, 6),
+                )
+                
+                l = "physical"
+                if overplot is not None:
+                    sim_id_str = "{}".format(overplot)
+                    overp_par = s_h5f["parameters/{:s}/{:s}/parameters".format(sim_id_str, l)][
+                        ...
+                    ]
+                else:
+                    overp_par = analysis.physical_posterior[np.argmax(analysis.lnprob_posterior), :]
+                exp_acf_phy, exp_steps_phy = full_statistics(
+                    analysis.physical_chains,
+                    analysis.physical_posterior,
+                    analysis.physical_names,
+                    overp_par,
+                    analysis.lnprob_posterior,
+                    plots_folder,
+                    olog=olog,
+                    ilast=analysis.sim.nfit,
+                    n_burn=cli.nburnin,
+                    n_thin=conf_run.thin_by,
+                    show_plot=False,
+                    figsize=(6, 6),
+                )
+            anc.print_both("", output=olog)
+            anc.print_both(
+                "All expected steps   for each parameter needed to reach full convergence:\n{}".format(
+                    exp_steps_fit
+                ),
+                output=olog,
+            )
+            anc.print_both(
+                "All expected ACF len for each parameter needed to reach full convergence:\n{}".format(
+                    exp_acf_fit
+                ),
+                output=olog,
+            )
+            imax_acf = np.argmax(exp_acf_fit)
+            anc.print_both(
+                "MAX ACF = {} ==> needed chains of {} steps\n".format(
+                    exp_acf_fit[imax_acf], exp_steps_fit[imax_acf]
+                ),
+                output=olog,
+            )
 
-        anc.print_both("\nPlotting physical chains ... ")
-        plot_chains(
-            cli,
-            logs_folder,
-            plots_folder,
-            analysis.physical_posterior,
-            analysis.physical_chains,
-            analysis.lnprobability_posterior,
-            analysis.lnprobability_full_thinned,
-            analysis.physical_names,
-            analysis.thin_steps,
-            fitting_minmax=None,
-            physical=True
-        )
+    # # ===== Gelman-Rubin ===== #
+    # if cli.gelman_rubin:
+    #     anc.print_both("\nGet Gelman-Rubin stats ... ")
+    #     compute_gr(
+    #         cli,
+    #         logs_folder,
+    #         plots_folder,
+    #         # analysis.chains_posterior,
+    #         analysis.chains_full_thinned,
+    #         analysis.fitting_names,
+    #     )
+
+    # # ===== Geweke ===== #
+    # if cli.geweke:
+    #     anc.print_both("\nGet Geweke stats ... ")
+    #     compute_geweke(
+    #         cli,
+    #         logs_folder,
+    #         plots_folder,
+    #         # analysis.chains_posterior,
+    #         analysis.chains_full_thinned,
+    #         analysis.fitting_names,
+    #     )
+
+
+    # # ===== Chains ===== #
+    # if cli.chain:
+    #     anc.print_both("\nPlotting chains ... ")
+    #     plot_chains(
+    #         cli,
+    #         logs_folder,
+    #         plots_folder,
+    #         analysis.fitting_posterior,
+    #         analysis.chains_full_thinned,  # it has the burn-in and thinned at needs
+    #         analysis.lnprobability_posterior,
+    #         analysis.lnprobability_full_thinned,
+    #         analysis.fitting_names,
+    #         analysis.thin_steps,
+    #         fitting_minmax=analysis.sim.fitting_minmax,
+    #         physical=False
+    #     )
+
+    #     anc.print_both("\nPlotting physical chains ... ")
+    #     plot_chains(
+    #         cli,
+    #         logs_folder,
+    #         plots_folder,
+    #         analysis.physical_posterior,
+    #         analysis.physical_chains,
+    #         analysis.lnprobability_posterior,
+    #         analysis.lnprobability_full_thinned,
+    #         analysis.physical_names,
+    #         analysis.thin_steps,
+    #         fitting_minmax=None,
+    #         physical=True
+    #     )
 
     # ===== Fitted Correlation Plot ===== #
     if cli.correlation_fitted:
