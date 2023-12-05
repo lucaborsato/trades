@@ -425,8 +425,19 @@ def set_transit_parameters(radius, transits, body_flag, kep_elem):
 
 
 def get_simulate_flux(
-    tm, photometry, transits, durations, rp_rs, ld_quad, per, aRs, inc, ecc, w, time_key="time"
+    tm, 
+    photometry, 
+    transits, 
+    durations, 
+    rp_rs, ld_quad, per, aRs, inc, ecc, w, 
+    time_key="time"
 ):
+    if "full" in time_key:
+        n_over_key = "n_oversample_full"
+        t_exp_key = "t_exp_d_full"
+    else:
+        n_over_key = "n_oversample"
+        t_exp_key = "t_exp_d"
     sim_photometry = {}
     for k, vis in photometry.items():
         t = vis[time_key]
@@ -441,7 +452,7 @@ def get_simulate_flux(
         n = max(n_tra, n_dur)
         if n > 0:
             # print("n(t) = ", len(t), " ld_quad = ", ld_quad, "n = ", n)
-            tm.set_data(t, nsamples=vis["n_oversample"], exptimes=vis["t_exp_d"])
+            tm.set_data(t, nsamples=vis[n_over_key], exptimes=vis[t_exp_key])
             flux = tm.evaluate(
                 k=rp_rs[tra_in_t],
                 # ldc=np.tile(ld_quad, [n,1,1]),
@@ -463,34 +474,30 @@ def get_simulate_flux(
 
 
 def add_photometry_trend(
-    obs_photometry, sim_photometry, photometry_flux_trend, ancillary_coeff, time_key="time"
+    obs_photometry, 
+    sim_photometry, 
+    photometry_coeff_trend, 
+    ancillary_coeff, 
+    time_key="time"
 ):
 
     out_trend = {}
     out_photometry = {}
     for name_phot, phot in obs_photometry.items():
-        # print(name_phot, end=" ", flush=True)
         sim_phot = sim_photometry[name_phot]
         out_photometry[name_phot] = {}
         out_trend[name_phot] = {}
-        # anc_phot = phot["ancillary"]
         for k, vis in phot.items():
-            # print("lc{}".format(k), end=" ", flush=True)
             t = vis[time_key]
             nt = len(t)
             flux = sim_phot[k].copy()
-            # print("nt", nt, end=" ", flush=True)
-            # print("nf", len(flux), end=" ", flush=True)
-            pho_trend = photometry_flux_trend[name_phot][k]
-            # ntrend = len(pho_trend)
+            pho_trend = photometry_coeff_trend[name_phot][k]
             tscale = t - t.min()
             ftrend = np.ones((nt))
             if pho_trend is not None:
                 ftrend = np.zeros((nt))
                 for o, c in enumerate(pho_trend):
                     ftrend += c * (tscale**o)
-            # flux *= ftrend
-            # anc_phot = vis["ancillary"]
             anc_phot = vis["ancillary_interp"]
             acoeff = ancillary_coeff[name_phot][k]
             if (anc_phot is not None) and (acoeff is not None):
@@ -807,7 +814,11 @@ def set_photometry_portion(
     portion["time_min"] = time_min
     portion["time_max"] = time_max
     portion["time_med"] = np.median(time)
-    portion["time_full"] = np.arange(time_min, time_max+0.5*t_exp_d, t_exp_d)
+    t_exp_d_full = min(t_exp_d, 60.0*cst.sec2day)
+    portion["t_exp_d_full"] = t_exp_d_full
+    portion["time_full"] = np.arange(time_min, time_max+(0.5*t_exp_d_full), t_exp_d_full)
+    portion["ndata_full"] = len(portion["time_full"])
+    portion["n_oversample_full"] = 1
 
     return portion
 
