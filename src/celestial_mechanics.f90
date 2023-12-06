@@ -1144,7 +1144,8 @@ contains
         real(dp), dimension(:), intent(out)::period, sma, ecc, inc, meanA, argp, trueA, longN, dttau
         ! real(dp), dimension(6)::svec
         ! real(dp)::mu
-        integer::i_body
+
+        integer::n_body, i_body
         ! integer::ncj
 
         ! init all orbital elements
@@ -1158,6 +1159,8 @@ contains
         ! longN = 180.0_dp ! longitude of node
         ! dttau = zero
 
+        n_body = size(mass)
+
         period(1) = zero
         sma(1) = zero
         ecc(1) = zero
@@ -1168,7 +1171,7 @@ contains
         longN(1) = zero ! longitude of node
         dttau(1) = zero
 
-        cicle: do i_body = 2, NB
+        cicle: do i_body = 2, n_body
             call elements_one_body(i_body, mass, rin,&
                 &period(i_body), sma(i_body), ecc(i_body), inc(i_body),&
                 &meanA(i_body), argp(i_body), longN(i_body), trueA(i_body),&
