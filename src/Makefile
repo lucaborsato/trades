@@ -15,7 +15,9 @@ F77 = gfortran
 # F2PYCC = f2py --fcompiler=$(CC)
 # FVENDOR=g95
 FVENDOR=$(CC)
-F2PYCC = f2py --fcompiler=$(FVENDOR) --f90exec=$(CC) --f77exec=$(F77)
+# F2PYCC = f2py --fcompiler=$(FVENDOR) --f90exec=$(CC) --f77exec=$(F77)
+F2PYCC = FC=$(CC) f2py
+
 # F2PYCC = f2py --quiet --f90exec=$(CC)
 # WARNING: file .f2py_f2cmap must be present (it is within the src/ folder)
 

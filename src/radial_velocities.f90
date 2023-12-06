@@ -16,10 +16,14 @@ contains
         real(dp), dimension(:), intent(in)::ri
         real(dp), intent(out)::rv_sim
 
+        ! Local
+        integer::n_body, nb_dim
         real(dp), dimension(:), allocatable::rbarRV
         real(dp), dimension(:), allocatable::barRV
 
-        allocate (barRV(6), rbarRV(NBDIM))
+        n_body = size(mass)
+        nb_dim = n_body * 6
+        allocate (barRV(6), rbarRV(nb_dim))
         call barycenter(mass, ri, barRV, rbarRV) ! astrocentric 2 barycentric
         rv_sim = -rbarRV(6)*AU/s24h ! rv as -Zstar,bar m/s
         deallocate (barRV, rbarRV)
