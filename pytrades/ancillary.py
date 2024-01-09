@@ -859,6 +859,7 @@ class ConfigurationAnalysis:
 
         # print("conf_input[sim_name] = {}".format(conf_input["sim_name"]))
         # print("conf_oc[sim_name]    = {}".format(conf_oc["sim_name"]))
+        # print("conf_oc[samples_file]    = {} is {}".format(conf_oc["samples_file"], type(conf_oc["samples_file"])))
 
         self.plot_oc = conf_oc["plot_oc"]
         self.idplanet_name = conf_oc["idplanet_name"]
@@ -873,6 +874,10 @@ class ConfigurationAnalysis:
             if (keyn in conf_oc["sim_name"]) and not (keyp in conf_oc["sim_name"]):
                 conf_oc["sim_name"].append(keyp)
 
+        if str(conf_oc["samples_file"]).lower() != "none":
+            samples_file = os.path.join(fpath, conf_oc["samples_file"])
+        else:
+            samples_file = None
         for sname in conf_oc["sim_name"]:
             xname = "sim_{}".format(sname)
             for pfolder in parameters_folders:
@@ -886,7 +891,7 @@ class ConfigurationAnalysis:
                             lmflag=conf_oc["lmflag"],
                             tscale=conf_oc["tscale"],
                             ocunit=conf_oc["unit"],
-                            samples_file=os.path.join(fpath, conf_oc["samples_file"]),
+                            samples_file = samples_file,
                             limits=conf_oc["limits"],
                             kep_ele=conf_oc["kep_ele"],
                         )
@@ -927,6 +932,10 @@ class ConfigurationAnalysis:
                 if (keyn in conf_rv["sim_name"]) and not (keyp in conf_rv["sim_name"]):
                     conf_rv["sim_name"].append(keyp)
 
+            if str(conf_rv["samples_file"]).lower() != "none":
+                samples_file=os.path.join(fpath, conf_rv["samples_file"])
+            else:
+                samples_file = None
             for sname in conf_rv["sim_name"]:
                 xname = "sim_{}".format(sname)
                 for pfolder in parameters_folders:
@@ -940,7 +949,7 @@ class ConfigurationAnalysis:
                                 idsim=isim,
                                 lmflag=conf_rv["lmflag"],
                                 tscale=conf_rv["tscale"],
-                                samples_file=os.path.join(fpath, conf_rv["samples_file"]),
+                                samples_file=samples_file,
                                 limits=conf_rv["limits"],
                                 labels=conf_rv["labels"],
                                 color_map=conf_rv["color_map"],

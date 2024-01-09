@@ -18,11 +18,6 @@ wrttime = 0.04167
 NB = 3
 # number of the body to check if it transits (from 2 to N, 1 for everyone, 0 for no check).
 idtra = 1
-# oc_fit = 0: the program has to fit T0_obs-T0_sim (default)
-# oc_fit = 1: the program has to fit O-C_obs(sim) = T0_obs(sim)-T0_lin,obs(sim)
-# oc_fit = 2: the program has to fit (T0_obs-T0_sim)/2 + (O-C_obs(sim))/2
-# By default it is set to 0
-oc_fit = 0
 # 0/1=no/yes duration fit
 durcheck = 0
 # tolerance in the integration (stepsize selection etc)
@@ -45,6 +40,6 @@ lmon = 0
 # Default secondary_parameters = 0.
 secondary_parameters = 0
 # Hill check
-do_hill_check = T
+do_hill_check = F
 # number of cpu to use with opemMP. Default is 1.
 ncpu = 1

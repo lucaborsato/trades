@@ -26,11 +26,17 @@ except:
     except:
         print("PyDE not installed, errors could occur.")
 
+
 from constants import Mjups, Msear
 # from pytrades_lib import f90trades
 import pytrades
 import ancillary as anc
 import de_plot as dep
+
+import numba
+numba.set_num_threads(1)
+numba.config.THREADING_LAYER = "tbb"
+# numba.config.DISABLE_JIT = 1
 
 # =============================================================================
 
@@ -55,8 +61,7 @@ compute_initial_walkers = anc.compute_initial_walkers
 
 yml_file = anc.get_input_file()
 cli = anc.ConfigurationRun(yml_file)
-
-os.environ["OMP_NUM_THREADS"] = "1"
+# os.environ["OMP_NUM_THREADS"] = str(cli.nthreads)
 
 # STARTING TIME
 start = time.time()

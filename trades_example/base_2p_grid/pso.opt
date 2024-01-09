@@ -1,0 +1,12 @@
+10     # number of particle
+10     # number of iterations to do
+0      # counter to write to screen PSO run...if 0 = no write
+0      # wrtAll = 0 [not writing all individuals for each iteration] 1 [writing all individuals for each iteration]
+1      # nGlobal = number of global search, number of times that PSO will be run, i.e., Npart x Niter x nGlobal
+123456  # seed
+0.9     # inertia = inertia parameter. Reccomended 0.9
+2.0     # self = self intention parameter. Reccomended 2.0
+2.0     # swarm = swarm intention parameter. Reccomended 2.0
+1.0e-5  # randsearch = random search parameter. Reccomended very small 1.0e-5
+0.5     # vmax = limit of vector length. Reccomended between 0.5 and 1.0
+0.07    # vrand = velocity perturbation parameter. Reccomended between 0.0 and 0.1 

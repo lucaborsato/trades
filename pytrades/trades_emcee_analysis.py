@@ -25,6 +25,11 @@ import emcee
 
 import matplotlib.pyplot as plt
 
+import numba
+numba.set_num_threads(1)
+numba.config.THREADING_LAYER = "tbb"
+# numba.config.DISABLE_JIT = 1
+
 # ==============================================================================
 # custom modules
 script_path = os.path.realpath(__file__)
@@ -34,6 +39,7 @@ sys.path.append(module_path)
 # ==============================================================================
 anc.set_rcParams()
 # ==============================================================================
+
 
 
 def get_emcee_run(cli):
@@ -1004,6 +1010,7 @@ def run_analysis(cli):
 
     analysis = AnalysisTRADES(cli)
     conf_run = anc.ConfigurationRun(cli.yaml_file)
+    # os.environ["OMP_NUM_THREADS"] = str(cli.nthreads)
     sys.stdout.flush()
 
     # analysis.fit_to_physical()
@@ -1225,7 +1232,8 @@ def run_analysis(cli):
             for coc in cli.ocs:
                 if coc.tscale is None or str(coc.tscale).lower() == "none":
                     coc.tscale = analysis.sim.tepoch
-                if samples_oc is None:
+                print(coc.samples_file)
+                if samples_oc is None and coc.samples_file is not None:
                     samples_oc = poc.read_samples(samples_file=coc.samples_file)
                 anc.print_both("\n ================ ")
                 anc.print_both("OC of {}".format(os.path.basename(coc.full_path)))
@@ -1255,7 +1263,7 @@ def run_analysis(cli):
             for crv in cli.rvs:
                 if crv.tscale is None or str(crv.tscale).lower() == "none":
                     crv.tscale = analysis.sim.tepoch
-                if samples_rv is None:
+                if samples_rv is None and crv.samples_file is not None:
                     samples_rv = prv.read_samples(crv, samples_file=crv.samples_file)
                 anc.print_both("\n ================ ")
                 anc.print_both("RV of {}".format(os.path.basename(crv.full_path)))

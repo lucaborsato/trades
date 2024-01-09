@@ -1,0 +1,15 @@
+10.     # ctrl(1) = number of individuals
+10.     # ctrl(2) = number of generations
+7.      # ctrl(3) = number of significant digits
+0.85    # ctrl(4) = crossover probability; must be  <= 1.0 (default is 0.85)
+2.      # ctrl(5) = mutation mode; 1/2=steady/variable (default is 2)
+0.02    # ctrl(6) = initial mutation rate; should be small (default is 0.005) (Note: the mutation rate is the probability that any one gene locus will mutate in any one generation.)
+0.0005  # ctrl(7) = minimum mutation rate; must be >= 0.0 (default is 0.0005)
+0.3     # ctrl(8) = maximum mutation rate; must be <= 1.0 (default is 0.25)
+1.      # ctrl(9) = relative fitness differential; range from 0 (none) to 1 (maximum).  (default is 1.)
+1       # ctrl(10) = reproduction plan; 1/2/3=Full generational replacement/Steady-state-replace-random/Steady-state-replace-worst (default is 3)
+0       # ctrl(11) = elitism flag; 0/1=off/on (default is 0) (Applies only to reproduction plans 1 and 2)
+0       # ctrl(12) = printed output 0/1/2=None/Minimal/Verbose (default is 0)
+123456  # seed
+0       # wrtAll = 0 [not writing all individuals for each iteration] 1 [writing all individuals for each iteration]
+1       # nGlobal = number of global search, number of times that GA will be run, i.e., Nindividual x Ngeneration x nGlobal

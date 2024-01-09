@@ -1,7 +1,7 @@
 # RUN SECTION e.g. for EMCEE, DE+EMCEE, etc.
 run:
-    full_path: /full/or/relative/path
-    sub_folder: sub_folder
+    full_path: .
+    sub_folder: test_emcee
     seed: 42
     mass_type: e
     delta_sigma: 1.0e-4
@@ -47,7 +47,7 @@ run:
         pfrac: 0.8
 # ANALYSIS SECTION, TO RUN AFTER EMCEE SAVED AT LEAST ONE SAVE POINT, YOU CAN RUN IT ALSO FOR DE/PSO OUTPUT
 analysis:
-    full_path: /full/or/relative/path/sub_folder
+    full_path: ./test_emcee
     m_type: "e" # suggested: j, e, n
     nburnin: 100 # number of steps to discard as burn-in
     emcee_old_save: False # True
@@ -71,7 +71,7 @@ analysis:
 # O-C PLOTS, if missing the SECTION NO PLOT AT ALL
 OC:
     plot_oc: True
-    full_path: /full/or/relative/path/sub_folder
+    full_path: ./test_emcee
     sim_name: ["de", "initial", "median", "map_hdi", "map"] # list of [initial, pso, de, median, map_hdi, map, mode, from_file]
     # full_sim_path: "./0668_sim_map_hdi" # one of the folder created by analysis/save_parameters in the form XXXX_sim_TYPE
     # sim_id: 668 # the first number of the above parameter name
@@ -84,7 +84,7 @@ OC:
     kep_ele: False # NOT IMPLEMENTED plot of Keplerian Elements of each transiting body during transits
 RV:
     plot_rv: True
-    full_path: /full/or/relative/path/sub_folder
+    full_path: ./test_emcee
     sim_name: ["de", "initial", "median", "map_hdi", "map"] # list of [initial, pso, de, median, map_hdi, map, mode, from_file]
     lmflag: 0 # if LM has been run (1) or not (0). Default 0.0
     tscale: None # time scale to remove from x-axis plot, Default None means removing tepoch of the simulation.
