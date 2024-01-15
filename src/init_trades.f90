@@ -449,7 +449,7 @@ contains
         inquire (file=trim(path)//trim(bfiles(1)), exist=fstat)
         if (fstat) then
             call init_zero_par(mass, radius, period, sma, ecc, argp, meana, inc, longn, tau)
-            !read and convert star mass from Msun to Mjup
+            !read star mass
             unit = get_unit(cpuid)
             open (unit, file=trim(path)//bfiles(1), status='OLD')
 
@@ -475,8 +475,8 @@ contains
             mass(1) = MR_star(1, 1)
             all_parameters(1) = MR_star(1, 1)
 
-            par_min(1) = max(MR_star(1, 1)-s_sigma*MR_star(1, 2), TOLERANCE)
-            par_max(1) = MR_star(1, 1)    +s_sigma*MR_star(1, 2)
+            par_min(1) = max(MR_star(1, 1)-(s_sigma*MR_star(1, 2)), TOL_dp)
+            par_max(1) = MR_star(1, 1)    +(s_sigma*MR_star(1, 2))
 
             ! Rstar
             radius(1) = MR_star(2, 1)

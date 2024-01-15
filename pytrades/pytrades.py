@@ -1723,7 +1723,7 @@ class TRADESfolder:
             ln_const,
             bic,
             check,
-        ) = f90trades.fortran_fitness_function(np.asarray(fit_pars, dtype=np.float64))
+        ) = f90trades.fortran_fitness_function(np.asarray(fit_pars, dtype=float))
 
         return chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic, check
 

@@ -606,10 +606,11 @@ def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), sav
 
     axs.append(ax)
 
-    if sim.ncols in [11, 19]:
+    dur_cols = sim.ncols in [11, 19]
+    dur_fit = (sim.T41o is not None and len(sim.T41o) > 0)
+    if dur_cols and dur_fit:
         # ==============================================
         # T41 duration
-
         y = np.concatenate(
             (
                 sim.T41o * ocu[0] - sim.eT41o * ocu[0],

@@ -17,15 +17,15 @@ from scipy import optimize as sopt
 from multiprocessing import Pool
 
 import emcee
-try:
-    from pytransit.utils.de import DiffEvol
-except:
-    print("PyDE not within PyTransit")
-    try:
-        from pyde.de import DiffEvol
-    except:
-        print("PyDE not installed, errors could occur.")
-
+# try:
+#     from pytransit.utils.de import DiffEvol
+# except:
+#     print("PyDE not within PyTransit")
+#     try:
+#         from pyde.de import DiffEvol
+#     except:
+#         print("PyDE not installed, errors could occur.")
+from de import DiffEvol
 
 from constants import Mjups, Msear
 # from pytrades_lib import f90trades
@@ -33,10 +33,12 @@ import pytrades
 import ancillary as anc
 import de_plot as dep
 
-import numba
-numba.set_num_threads(1)
-numba.config.THREADING_LAYER = "tbb"
-# numba.config.DISABLE_JIT = 1
+
+# import numba
+# numba.set_num_threads(1)
+# numba.config.THREADING_LAYER = "tbb"
+# numba.config.THREADING_LAYER = "'workqueue'"
+# # numba.config.DISABLE_JIT = 1
 
 # =============================================================================
 
@@ -61,7 +63,8 @@ compute_initial_walkers = anc.compute_initial_walkers
 
 yml_file = anc.get_input_file()
 cli = anc.ConfigurationRun(yml_file)
-# os.environ["OMP_NUM_THREADS"] = str(cli.nthreads)
+
+os.environ["OMP_NUM_THREADS"] = "1"
 
 # STARTING TIME
 start = time.time()
@@ -70,6 +73,7 @@ start = time.time()
 working_path = cli.full_path
 nthreads = cli.nthreads
 np.random.seed(cli.seed)
+# os.environ["OMP_NUM_THREADS"] = str(nthreads)
 
 # INITIALISE TRADES WITH SUBROUTINE WITHIN TRADES_LIB -> PARAMETER NAMES, MINMAX, INTEGRATION ARGS, READ DATA ...
 # pytrades.initialize_trades(working_path, cli.sub_folder, nthreads)
@@ -110,6 +114,12 @@ def lnprob(fitting_parameters):
 
     return lgllhd+lnprior
 
+def lnprob_de(fitting_parameters):
+    lnP = lnprob(fitting_parameters)
+    if np.isinf(lnP):
+        lnP = -2.0e30
+    return lnP
+
 def minimize_func(fitting_parameters):
 
     lnL = lnprob(fitting_parameters)
@@ -145,6 +155,7 @@ de_to_emcee = cli.de_type.lower() == "to_emcee"
 
 # PYDE
 if de_run or de_resume or de_to_emcee:
+
     de_path = working_folder
     de_file = os.path.join(de_path, "de_run.hdf5")
 
@@ -182,10 +193,10 @@ if de_run or de_resume or de_to_emcee:
         )
         de_pop_best, de_fit_best = np.zeros((ngen_de, nfit)), np.zeros((ngen_de))-1.0e-30
 
-        with Pool(cli.nthreads) as threads_pool:
+        with Pool(nthreads) as threads_pool:
             # create pyDE object
             de_evol = DiffEvol(
-                lnprob,
+                lnprob_de,
                 de_bounds,
                 npop_de,
                 f=de_f,
@@ -366,6 +377,7 @@ else:
     fitting_parameters = sim.fitting_parameters.copy()
 
 sys.stdout.flush()
+# numba.set_num_threads(1)
 
 # save initial_fitting parameters into array
 initial_parameters = fitting_parameters.copy()
@@ -421,6 +433,26 @@ if cli.nruns > 0:
         anc.print_both("continue emcee analysis ...", output=of_run)
     else:
         anc.print_both("new run of emcee analysis ...", output=of_run)
+        if cli.pre_optimise:
+            def neg_lnprob(p):
+                lnP = lnprob_de(p)
+                return -lnP
+            opt_res = sopt.minimize(
+                neg_lnprob, 
+                fitting_parameters, 
+                method="Nelder-Mead", 
+                bounds=[(bd[0], bd[1]) for bd in sim.fitting_minmax]
+            )
+            anc.print_both(
+                "Optimised fitting parameters with Minimize(Nelder-Mead)", output=of_run
+            )
+            fitting_parameters = opt_res.x
+            anc.print_both(
+                "Opt Message: {}".format(opt_res.message), output=of_run
+            )
+            anc.print_both(
+                "Opt Success: {}".format(opt_res.success), output=of_run
+            )
         p0 = compute_initial_walkers(
             # lnprob_sq,
             lnprob,
@@ -436,38 +468,9 @@ if cli.nruns > 0:
         )
     sys.stdout.flush()
 
-    # # ===================================
-    # # TESTING
-
-    # last_iteration = backend.get_chain(discard=completed_steps-1, flat=True)
-    # anc.print_both("shape of last_iteration = {}".format(np.shape(last_iteration)), output=of_run)
-    # last_lnprob = backend.get_log_prob(discard=completed_steps-1, flat=True)
-    # anc.print_both("shape of last_lnprob = {}".format(np.shape(last_lnprob)), output=of_run)
-
-    # # test_lnprob = []
-    # for i_last in range(0, cli.nwalkers):
-    #     xpar = last_iteration[i_last, :]
-    #     # xlnp = lnprob(xpar)
-    #     (
-    #         xchi_square,
-    #         xrchi_square,
-    #         xlgL,
-    #         xlnp,
-    #         xlnc,
-    #         xbic,
-    #         xcheck,
-    #     ) = sim.run_and_get_stats_from_parameters(xpar)
-    #     xlnP = xlgL + xlnp
-    #     anc.print_both("Walker num {:3d} with lnProb = {:10.2f} (original = {:10.2f}) -- RedChiSq = {:8.3f} check = {}--".format(
-    #         i_last, xlnP, last_lnprob[i_last],
-    #         xrchi_square, xcheck
-    #         ), output=of_run
-    #     )
-
-    # # sys.exit()
-    # p0 = last_iteration
     anc.print_both("emcee moves: {}".format(cli.emcee_move), output=of_run)
 
+    # os.environ["OMP_NUM_THREADS"] = "1"
     with Pool(nthreads) as threads_pool:
         sampler = emcee.EnsembleSampler(
             cli.nwalkers,

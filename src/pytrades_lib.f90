@@ -138,8 +138,10 @@ contains
     subroutine initialize_trades(path_in, sub_folder, n_threads_in)
         !f2py real(dp),dimension(:),allocatable::eRVobs
         !f2py real(dp),dimension(:,:),allocatable::eT0obs
+        ! 
+        ! character*(*), intent(in)::path_in, sub_folder
         character*(*), intent(in)::path_in, sub_folder
-        integer, intent(in)::n_threads_in
+        integer, intent(in),optional::n_threads_in
         ! Local
         real(dp), dimension(:), allocatable::mass, radius, period, sma, ecc, argp, meanA, inc, longN
         integer, dimension(:), allocatable::nset

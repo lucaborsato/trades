@@ -28,6 +28,7 @@ run:
         thin_by: 100 # !! the true nruns will be nruns x thin_by, this is also the keyword used by emcee and it will keep only thin_by steps
         emcee_restart: False
         emcee_progress: True
+        pre_optimise: True
         move:
             type: ["de", "desnooker"]
             fraction: [0.8, 0.2]

@@ -156,22 +156,26 @@ copy_pytrades:
 	cp $(TRADESLIB0) ../pytrades/$(TRADESLIB).so
 
 pylib_serial_debug:
-	$(F2PYCC) --verbose --f90flags='$(F2PYCF) $(CFLAGS)' -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+	FFLAGS='$(F2PYCF) $(CFLAGS)' $(F2PYCC) --verbose -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+#	$(F2PYCC) --verbose --f90flags='$(F2PYCF) $(CFLAGS)' -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
 
 pytrades_serial_debug: obj_serial_debug pylib_serial_debug
 
 pylib_serial_release:
-	$(F2PYCC) --quiet --f90flags='$(F2PYCF) $(COPT)' -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+	FFLAGS='$(F2PYCF) $(COPT)' $(F2PYCC) --quiet -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+#	$(F2PYCC) --quiet --f90flags='$(F2PYCF) $(COPT)' -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
 
 pytrades_serial_release: obj_serial_release pylib_serial_release
 
 pylib_parallel_debug:
-	$(F2PYCC) --verbose --f90flags='$(F2PYCF) $(CFLAGS) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+	FFLAGS='$(F2PYCF) $(CFLAGS) $(COMP)' $(F2PYCC) --verbose $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+#	$(F2PYCC) --verbose --f90flags='$(F2PYCF) $(CFLAGS) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
 
 pytrades_parallel_debug: obj_parallel_debug pylib_parallel_debug copy_pytrades
 
 pylib_parallel_release:
-	$(F2PYCC) --quiet --f90flags='$(F2PYCF) $(COPT) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+	FFLAGS='$(F2PYCF) $(COPT) $(COMP)' $(F2PYCC) --quiet $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+#	$(F2PYCC) --quiet --f90flags='$(F2PYCF) $(COPT) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
 
 pytrades_parallel_release: obj_parallel_release pylib_parallel_release copy_pytrades
 
@@ -193,6 +197,11 @@ test_release: pytrades_serial_release
 	$(CC) $(F2PYCF) $(COPT) -I. -c $(TRADESLIB).f90
 	@mkdir -p ../bin
 	$(CC) $(COPT) $(FOBJS) $(TRADESLIB).o -I. trades_test.f90 -o $(TARGET_SER_5)
+
+#test_meson: obj_parallel_release
+#	FFLAGS='$(COPT) $(COMP)' $(F2PYCC) --quiet $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+#	FFLAGS='' $(F2PYCC) --quiet $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+#	copy_pytrades
 
 # clean objs, mod, and lib
 clean:

@@ -20,8 +20,10 @@ make cleanall
 make full_parallel_release
 ```
 
-I suggest to create an `anaconda environment`, install all the dependencies and then do `make full_parallel_release`.
-There is not a full list of all dependencies, many of them are due to all the python packages. I.e., `PyDE` is within `Pytransit`, that needs many dependencies not listed here. Sorry.  
+I suggest to create an `anaconda environment`, install all the dependencies and then do `make full_parallel_release`.  
+**WARNING**: not working with `python>=3.11s` and `numpy>=1.26` due to deprecated `distutils` for `f2py`, now using `meson`.  
+**SUGGESTION**: `conda create --name trades_env python=3.10 numpy=1.23.5` and other packages should be installed properly.  
+There is not a full list of all dependencies, many of them are due to all the python packages. E.g. `Pytransit` needs many dependencies not listed here. Sorry.  
 To use with `python` as it would be in [PyORBIT](https://github.com/LucaMalavolta/PyORBIT) 
 see notebook [import_trades_for_python](trades_example/python_examples/import_trades_for_python.ipynb) 
 in [trades_example/python_examples/](trades_example/python_examples/).  
@@ -31,8 +33,8 @@ the example, as python notebook, is still in development.
 
 To use as it was initially intended you can:  
 
-1. copy a folder in [trades_example](trades_example) based on the number of planets (i.e. 2p for 2, 3 for 3p, and so on)  
-2. copy in it the [configuration.yml](trades_example/configuration.yml) and adapt the `run` section, change `PyDE` and `emcee` sections etc  
+1. copy a folder in [trades_example](trades_example) based on the number of planets (i.e. 2p for 2, 3 for 3p, and so on). The `base_2p_grid` is a version for the old `Fortran` grid version.  
+2. copy inside the folder, if not present, the [configuration.yml](trades_example/configuration.yml) and adapt the `run` section, change `PyDE` and `emcee` sections etc (`ultranest` and `dynesty` in development, not fully tested).  
 3. from terminal type:  
   > `python /path/to/pytrades/trades_emcee.py --input configuration.yml`  
 4. after it finished you have to modify the `analysis`, `OC` and `RV` sections of the `configuration.yml` file and you will have the analysis results with  
