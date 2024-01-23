@@ -23,7 +23,45 @@ make full_parallel_release
 I suggest to create an `anaconda environment`, install all the dependencies and then do `make full_parallel_release`.  
 **WARNING**: not working with `python>=3.11s` and `numpy>=1.26` due to deprecated `distutils` for `f2py`, now using `meson`.  
 **SUGGESTION**: `conda create --name trades_env python=3.10 numpy=1.23.5` and other packages should be installed properly.  
-There is not a full list of all dependencies, many of them are due to all the python packages. E.g. `Pytransit` needs many dependencies not listed here. Sorry.  
+
+Possible way to create an environment and install all dependencies:  
+
+create env with python and numpy and matplotlib
+`conda create --name trades_env python=3.10 numpy=1.23.5 matplotlib`  
+activate env  
+`conda activate trades_env`  
+optional `cython`:  
+`conda install cython`  
+install `h5py`, `pyyaml`, `tqdm`, `emcee`, `scipy`, `pandas`, `pygtc`:  
+
+`conda install h5py`  
+`pip install pyyaml`  
+`conda install -c conda-forge tqdm` or `pip install tqdm`  
+`pip install corner`
+`conda install -c conda-forge emcee`  
+`conda install pandas` or `conda install -c conda-forge pandas`  
+`conda install scipy` or `conda install -c conda-forge scipy`  
+`conda install -c conda-forge astropy`  
+`conda install -c conda-forge pygtc`  
+
+some packages needs `celerite`:  
+`conda install -c conda-forge pybind11`  
+`conda install -c conda-forge celerite`  
+
+for photo-dynamical approach it is needed to install `pytransit`:  
+`conda install numba cudatoolkit`  
+`pip install semantic-version`  
+`conda install -c conda-forge arviz`  
+`git clone https://github.com/hpparvi/PyTransit.git`  
+`cd PyTransit`  
+`python setup.py install`  
+
+Still not fully tested and in development, `dynesty` and `ultranest`:  
+`pip install dynesty` 
+`conda install -c conda-forge ultranest`  
+(could use `mpi4py`, I was not able to install it)  
+
+
 To use with `python` as it would be in [PyORBIT](https://github.com/LucaMalavolta/PyORBIT) 
 see notebook [import_trades_for_python](trades_example/python_examples/import_trades_for_python.ipynb) 
 in [trades_example/python_examples/](trades_example/python_examples/).  

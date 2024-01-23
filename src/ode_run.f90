@@ -726,7 +726,8 @@ contains
                 end if
             end if
 
-            call set_weighted_residuals(obsData, simRV, simT0, resw, oc_fit)
+            ! call set_weighted_residuals(obsData, simRV, simT0, resw, oc_fit)
+            call set_weighted_residuals(obsData, simRV, simT0, resw)
 
         end if
 
@@ -886,7 +887,8 @@ contains
                 end if
             end if
 
-            call set_weighted_residuals(obsData, simRV, simT0, resw, oc_fit)
+            ! call set_weighted_residuals(obsData, simRV, simT0, resw, oc_fit)
+            call set_weighted_residuals(obsData, simRV, simT0, resw)
 
             chi_square = sum(resw*resw)
         end if
@@ -963,7 +965,8 @@ contains
                 end if
             end if
 
-            call set_weighted_residuals(oDataIn, simRV, simT0, resw, oc_fit)
+            ! call set_weighted_residuals(oDataIn, simRV, simT0, resw, oc_fit)
+            call set_weighted_residuals(oDataIn, simRV, simT0, resw)
 
         end if
 
@@ -1385,7 +1388,8 @@ contains
                     end if
                 end if
 
-                call set_weighted_residuals(obsData, simRV, simT0, resw, oc_fit)
+                ! call set_weighted_residuals(obsData, simRV, simT0, resw, oc_fit)
+                call set_weighted_residuals(obsData, simRV, simT0, resw)
 
                 if (simRV%nRV .gt. 0) then
                     call check_periodogram(obsData%obsRV%jd,&
@@ -1423,6 +1427,7 @@ contains
             if (allocated(simT0) .and. sum(simT0(:)%nT0) .gt. 0) then
                 write (*, *)
                 write (*, '(a,i5)') " T0 SIM found ", sum(simT0(:)%nT0)
+                if (durcheck .eq. 1) write (*, '(a,i5)') " T41 SIM found ", sum(simT0(:)%nDur)
                 write (*, *)
                 call write_T0(cpuid, isim, wrtid, simT0)
                 flush (6)

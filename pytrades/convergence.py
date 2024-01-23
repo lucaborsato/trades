@@ -241,6 +241,7 @@ def full_statistics(
     tsize = lsize - 3
 
     n_steps, n_walkers, n_par = np.shape(chains)
+    print("### n_steps, n_walkers, n_par = {}, {}, {}".format(n_steps, n_walkers, n_par))
 
     n_gr = 10
     if n_steps <= n_gr:
@@ -255,6 +256,7 @@ def full_statistics(
 
     for ipar, pname in enumerate(names):
         p = pars[ipar]
+        anc.print_both("Parameter {}".format(pname), output=olog)
         if (
             pname[0] == "w"
             or pname[0:2] == "mA"
@@ -354,8 +356,11 @@ def full_statistics(
         integrated_ACF = emcee.autocorr.integrated_time(
             chains[:, :, ipar], tol=tolerance, quiet=True
         )
-        acf_len = int(np.nanmax(integrated_ACF))
+        print("integrated_ACF ",integrated_ACF)
+        acf_len = np.rint(np.nanmax(integrated_ACF)).astype(int)
+        print("acf_len        ",acf_len)
         n_expected = acf_len * tolerance
+        print("n_expected     ",n_expected)
         anc.print_both(
             "ACF {}x{} expected chain long as n = {}x{} (current {} steps)".format(
                 acf_len, n_thin, n_expected, n_thin, n_steps
@@ -363,14 +368,18 @@ def full_statistics(
             output=olog,
         )
         expected_steps[ipar] = n_expected
+        print("expected_steps[ipar] ",expected_steps[ipar])
         expected_acf[ipar] = acf_len
-
-        n_acf = acf_len * tolerance  # ??
+        print("expected_acf[ipar] ",expected_acf[ipar])
 
         n_acf = 10
+        acf_start = acf_len // 2
+        if acf_start < 1:
+            acf_start = 1
         acf_steps = np.rint(
-            np.linspace(acf_len // 2, n_steps, endpoint=True, num=n_acf)
+            np.linspace(acf_start, n_steps, endpoint=True, num=n_acf)
         ).astype(int)
+        print("acf_steps ",acf_steps)
         tau_est = np.zeros((n_acf))
         for i_acf, n_s in enumerate(acf_steps):
             acf_mean = np.zeros((n_s))

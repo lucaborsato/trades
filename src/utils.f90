@@ -131,8 +131,10 @@ contains
 
         end if
 
-        ln_const = -(half*real(obsData_in%ndata, dp)*log(dpi))&
-          &-(half*(ln_eRV+ln_eT0+ln_edur))
+        ! ln_const = -(half*real(obsData_in%ndata, dp)*log(dpi))&
+        !   &-(half*(ln_eRV+ln_eT0+ln_edur))
+        ln_const = ln_const -(half*real(obsData_in%ndata, dp)*log(dpi))
+        ln_const = ln_const -half*(ln_eRV+ln_eT0+ln_edur)
 
     end function get_lnec_full
 
@@ -155,7 +157,7 @@ contains
             do iRV = 1, nRV
                 xRV = obsRV%RV(iRV)-(simRV%RV(iRV)+simRV%gamma_rv(iRV)+simRV%trend(iRV))
                 RVset = simRV%RVsetID(iRV)
-                resw(iRV) = xRV/sqrt(obsRV%eRV(iRV)**2+simRV%jitter(RVset)**2)
+                resw(iRV) = xRV/sqrt((obsRV%eRV(iRV)**2)+(simRV%jitter(RVset)**2))
                 ! write(*,*)iRV, RVset, obsRV%RV(iRV),&
                 !   &simRV%RV(iRV), simRV%gamma_rv(iRV), simRV%trend(iRV),&
                 !   &simRV%jitter(RVset),resw(iRV)
@@ -269,12 +271,15 @@ contains
         real(dp), dimension(:), allocatable::jitter
         real(dp)::inv_dof
 
+        ! write(*,*)"set_fitness_values"
         if (chi_square .ge. resmax) then
             chi_square = resmax
         end if
+        ! write(*,*)"chi_square = ",chi_square
 
         inv_dof = obsData%inv_dof !one/real(obsData%dof, dp)
         reduced_chi_square = chi_square*inv_dof
+        ! write(*,*)"reduced_chi_square = ",reduced_chi_square
 
         ln_const = zero
         if (nRVset .gt. 0) then
@@ -287,27 +292,31 @@ contains
         else
             ln_const = get_lnec(obsData)
         end if
+        ! write(*,*)"ln_const = ",ln_const
 
         lnLikelihood = -half*chi_square+ln_const
+        ! write(*,*)"lnLikelihood = ",lnLikelihood
 
         ! bic = -two*lnLikelihood + real(nfit,dp)*log(real(ndata,dp))
         bic = -two*lnLikelihood+bic_const ! bic_const global variable
+        ! write(*,*)"bic = ",bic
 
         return
     end subroutine set_fitness_values
 
     ! setting properly the weighted residuals: RV and T0 or OC
     !   subroutine set_weighted_residuals(RV_obs,RV_sim,e_RVobs,gamma,epoT0_obs,T0_obs,eT0_obs,T0_sim,resw,ocfit)
-    subroutine set_weighted_residuals(oDataIn, simRV, simT0, resw, ocfit)
+    ! subroutine set_weighted_residuals(oDataIn, simRV, simT0, resw, ocfit)
+    subroutine set_weighted_residuals(oDataIn, simRV, simT0, resw)
         type(dataObs), intent(in)::oDataIn
 !     type(dataRV),intent(in)::simRV
 !     type(dataT0),dimension(:),intent(in)::simT0
         type(dataRV), intent(inout)::simRV
         type(dataT0), dimension(:), intent(inout)::simT0
         real(dp), dimension(:), intent(out)::resw
-        integer, intent(in)::ocfit
+        ! integer, intent(in)::ocfit
 
-        real(dp), dimension(:), allocatable::val, val_T0, val_dur, val_oc
+        real(dp), dimension(:), allocatable::val, val_T0, val_dur !, val_oc
         integer::nRV, nTTs, nDurs
 
         nRV = oDataIn%obsRV%nRV
@@ -323,65 +332,65 @@ contains
         ! write(*,*)" DEBUG: || nRV = ",nRV
         ! write(*,*)" DEBUG: || set_RV_resw"
         if (nRV .gt. 0) call set_RV_resw(oDataIn%obsRV, simRV, val(1:nRV))
-        ! write(*,*)" DEBUG: || sum(val*val) = ",sum(val*val)
+        ! write(*,*)" DEBUG: || c2rv = ",sum(val(1:nRV)*val(1:nRV))
 
-        if (ocfit .eq. 1) then
-            ! fit only O-C
+        ! if (ocfit .eq. 1) then
+        !     ! fit only O-C
 
-            allocate (val_oc(nTTs))
-            val_oc = zero
-            call set_oc_resw(oDataIn%obsT0, simT0, val_oc)
-            val(nRV+1:nRV+nTTs) = val_oc
-            deallocate (val_oc)
+        !     allocate (val_oc(nTTs))
+        !     val_oc = zero
+        !     call set_oc_resw(oDataIn%obsT0, simT0, val_oc)
+        !     val(nRV+1:nRV+nTTs) = val_oc
+        !     deallocate (val_oc)
 
-            if (durcheck .eq. 1) then
-                allocate (val_dur(nDurs))
-                val_dur = zero
-                call set_dur_resw(oDataIn%obsT0, simT0, val_dur)
-                val(nRV+nTTs+1:nRV+nTTs+nDurs) = val_dur
-                deallocate (val_dur)
-            end if
+        !     if (durcheck .eq. 1) then
+        !         allocate (val_dur(nDurs))
+        !         val_dur = zero
+        !         call set_dur_resw(oDataIn%obsT0, simT0, val_dur)
+        !         val(nRV+nTTs+1:nRV+nTTs+nDurs) = val_dur
+        !         deallocate (val_dur)
+        !     end if
 
-        else if (ocfit .eq. 2) then
-            ! fit T0 and O-C and weight it half
+        ! else if (ocfit .eq. 2) then
+        !     ! fit T0 and O-C and weight it half
 
-            allocate (val_T0(nTTs), val_oc(nTTs))
-            val_T0 = zero
-            call set_T0_resw(oDataIn%obsT0, simT0, val_T0)
-            val_oc = zero
-            call set_oc_resw(oDataIn%obsT0, simT0, val_oc)
-            val(nRV+1:nRV+nTTs) = sqrt_half*sqrt(val_T0*val_T0+val_oc*val_oc)
-            deallocate (val_T0, val_oc)
+        !     allocate (val_T0(nTTs), val_oc(nTTs))
+        !     val_T0 = zero
+        !     call set_T0_resw(oDataIn%obsT0, simT0, val_T0)
+        !     val_oc = zero
+        !     call set_oc_resw(oDataIn%obsT0, simT0, val_oc)
+        !     val(nRV+1:nRV+nTTs) = sqrt_half*sqrt(val_T0*val_T0+val_oc*val_oc)
+        !     deallocate (val_T0, val_oc)
 
-            if (durcheck .eq. 1) then
-                allocate (val_dur(nDurs))
-                val_dur = zero
-                call set_dur_resw(oDataIn%obsT0, simT0, val_dur)
-                val(nRV+nTTs+1:nRV+nTTs+nDurs) = val_dur
-                deallocate (val_dur)
-            end if
+        !     if (durcheck .eq. 1) then
+        !         allocate (val_dur(nDurs))
+        !         val_dur = zero
+        !         call set_dur_resw(oDataIn%obsT0, simT0, val_dur)
+        !         val(nRV+nTTs+1:nRV+nTTs+nDurs) = val_dur
+        !         deallocate (val_dur)
+        !     end if
 
-        else
+        ! else
             ! fit only T0, default way
 
-            allocate (val_T0(nTTs))
-            val_T0 = zero
-            ! write(*,*)" DEBUG: || set_T0_resw"
-            call set_T0_resw(oDataIn%obsT0, simT0, val_T0)
-            ! write(*,*)" DEBUG: || sum(val_T0*val_T0) = ",sum(val_T0*val_T0)
-            val(nRV+1:nRV+nTTs) = val_T0
-            ! write(*,*)" DEBUG: || sum(val*val) = ",sum(val*val)
-            deallocate (val_T0)
+        allocate (val_T0(nTTs))
+        val_T0 = zero
+        ! write(*,*)" DEBUG: || set_T0_resw"
+        call set_T0_resw(oDataIn%obsT0, simT0, val_T0)
+        ! write(*,*)" DEBUG: || sum(val_T0*val_T0) = ",sum(val_T0*val_T0)
+        val(nRV+1:nRV+nTTs) = val_T0
+        ! write(*,*)" DEBUG: || c2t0 = ",sum(val_T0*val_T0)
+        deallocate (val_T0)
 
-            if (durcheck .eq. 1) then
-                allocate (val_dur(nDurs))
-                val_dur = zero
-                call set_dur_resw(oDataIn%obsT0, simT0, val_dur)
-                val(nRV+nTTs+1:nRV+nTTs+nDurs) = val_dur
-                deallocate (val_dur)
-            end if
-
+        if (durcheck .eq. 1) then
+            allocate (val_dur(nDurs))
+            val_dur = zero
+            call set_dur_resw(oDataIn%obsT0, simT0, val_dur)
+            val(nRV+nTTs+1:nRV+nTTs+nDurs) = val_dur
+            deallocate (val_dur)
         end if
+
+        ! end if
         ! call set_fitness(obsData,val,resw)
         resw = val
         ! write(*,*)" DEBUG: || sum(resw*resw) = ",sum(resw*resw)

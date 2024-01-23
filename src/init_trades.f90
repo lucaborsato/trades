@@ -244,8 +244,8 @@ contains
                                         exit
                                     end if
                                 end do
-                            else if (line(1:idx-1) .eq. 'oc_fit') then
-                                read (line(idx+1:idh), *) oc_fit
+                            ! else if (line(1:idx-1) .eq. 'oc_fit') then
+                            !     read (line(idx+1:idh), *) oc_fit
                             else if (line(1:idx-1) .eq. 'ncpu') then
                                 read (line(idx+1:idh), *) ncpu_in
                             end if
@@ -681,7 +681,7 @@ contains
                     if (row(1:1) .ne. "#") then
                         j = j+1
                         read (row, *) obsData%obsRV%jd(j), obsData%obsRV%RV(j),&
-                          &obsData%obsRV%eRV(j), obsData%obsRV%RVsetID(j)
+                            &obsData%obsRV%eRV(j), obsData%obsRV%RVsetID(j)
                         if (j .gt. 1) then
                             if (obsData%obsRV%RVsetID(j) .ne. obsData%obsRV%RVsetID(j-1))&
                               &nRVset = nRVset+1

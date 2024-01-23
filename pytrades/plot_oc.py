@@ -40,6 +40,7 @@ import pytrades
 
 CLI_OC = anc.CLI_OC
 
+
 # ==============================================================================
 class sim_data:
     def __init__(self):
@@ -97,11 +98,11 @@ class sim_data:
 
         if kep_ele is False:
             if self.ncols == 11:  # T0 + T41
-                self.T41o = sim_in[:, 6] / 1440.0  # duration saved in min
-                self.eT41o = sim_in[:, 7] / 1440.0
-                self.T41s = sim_in[:, 8] / 1440.0
-                self.dT41os = sim_in[:, 9] / 1440.0
-                self.T41stat = sim_in[:, 10]
+                self.T41o = sim_in[:, -5] / 1440.0  # duration saved in min
+                self.eT41o = sim_in[:, -4] / 1440.0
+                self.T41s = sim_in[:, -3] / 1440.0
+                self.dT41os = sim_in[:, -2] / 1440.0
+                self.T41stat = sim_in[:, -1]
         elif kep_ele is True:
             if self.ncols == 14:  # T0 + kep elements
                 self.period = sim_in[:, 6]
@@ -113,24 +114,23 @@ class sim_data:
                 self.truea = sim_in[:, 12]
                 self.longn = sim_in[:, 13]
             elif self.ncols == 19:  # T0 + T41 + kep elements
-                self.T41o = sim_in[:, 6] / 1440.0  # duration saved in min
-                self.eT41o = sim_in[:, 7] / 1440.0
-                self.T41s = sim_in[:, 8] / 1440.0
-                self.dT41os = sim_in[:, 9] / 1440.0
-                self.T41stat = sim_in[:, 10]
-                self.period = sim_in[:, 11]
-                self.sma = sim_in[:, 12]
-                self.ecc = sim_in[:, 13]
-                self.inc = sim_in[:, 14]
-                self.meana = sim_in[:, 15]
-                self.argp = sim_in[:, 16]
-                self.truea = sim_in[:, 17]
-                self.longn = sim_in[:, 18]
+                self.period = sim_in[:, 6]
+                self.sma = sim_in[:, 7]
+                self.ecc = sim_in[:, 8]
+                self.inc = sim_in[:, 9]
+                self.meana = sim_in[:, 10]
+                self.argp = sim_in[:, 11]
+                self.truea = sim_in[:, 12]
+                self.longn = sim_in[:, 13]
+                self.T41o = sim_in[:, -5] / 1440.0  # duration saved in min
+                self.eT41o = sim_in[:, -4] / 1440.0
+                self.T41s = sim_in[:, -3] / 1440.0
+                self.dT41os = sim_in[:, -2] / 1440.0
+                self.T41stat = sim_in[:, -1]
 
         return
 
     def plot_kep_elem(self, cli, show_plot=False):
-
         nkep = 8
 
         lfont = plt.rcParams["font.size"]
@@ -155,7 +155,7 @@ class sim_data:
             )
         )
         kep_names = [
-            "$P\ (d)$",
+            "$P\ (\mathrm{{d}})$",
             "$a\ (\mathrm{{au}})$",
             "$e$",
             "$i\ (^\circ)$",
@@ -169,7 +169,7 @@ class sim_data:
 
         for i_k, kname in enumerate(kep_names):
             axs[i_k].plot(
-                x, kep[:, i_k], color="C0", marker="o", ms=3, mec="None", ls=""
+                x, kep[:, i_k], color="C0", marker="o", ms=2, mec="None", ls=""
             )
             axs[i_k].set_ylabel(kname, fontsize=lfont)
             axs[i_k].ticklabel_format(useOffset=False)
@@ -188,10 +188,10 @@ class sim_data:
         plt_file = os.path.join(
             folder_out, "{}_KepElements".format(os.path.splitext(fname)[0])
         )
-        fig.savefig("%s.png" % (plt_file), bbox_inches="tight", dpi=200)
+        fig.savefig("%s.png" % (plt_file), bbox_inches="tight", dpi=300)
         print("Saved plot into:")
         print("%s" % ("%s.png" % (plt_file)))
-        fig.savefig("%s.pdf" % (plt_file), bbox_inches="tight", dpi=72)
+        fig.savefig("%s.pdf" % (plt_file), bbox_inches="tight", dpi=300)
         print("%s" % ("%s.pdf" % (plt_file)))
         if show_plot:
             plt.show()
@@ -226,11 +226,11 @@ class oc_sample:
         self.T41s = self.T41s[sel]
         self.nTTs = len(self.TTs)
 
+
 # ==============================================================================
 
 
 def get_sim_data(file_in, kep_ele=False):
-
     # epo 0 TTo 1 eTTo 2 TTs 3 dTTos 4 TTstat 5 T41o 6 eT41o 7 T41s 8 dT41os 9 T41stat 10
     sim_in = np.genfromtxt(file_in)
     body_id = int(file_in.split("NB")[1].split("_simT0")[0])
@@ -246,7 +246,6 @@ def get_sim_data(file_in, kep_ele=False):
 
 
 def get_simT0_file_list(cli):
-
     # file_pattern = os.path.join(cli.full_path, '%d_%d_NB*_simT0.dat' \
     #                                             %(cli.idsim, cli.lmflag)
     #                             )
@@ -269,9 +268,7 @@ def get_simT0_file_list(cli):
 
 
 def read_samples(samples_file=None):
-
     if samples_file is not None:
-
         read_file = os.path.abspath(samples_file)
         print("Reading samples file {}".format(read_file))
         sh5 = h5py.File(read_file, "r")
@@ -292,7 +289,6 @@ def read_samples(samples_file=None):
         sh5.close()
 
     else:
-
         samples = None
 
     return samples
@@ -300,8 +296,8 @@ def read_samples(samples_file=None):
 
 # ==============================================================================
 
-def set_unit_base(u_in, Aoc_d):
 
+def set_unit_base(u_in, Aoc_d):
     try:
         if u_in.lower() in "s sec second seconds".split():
             ocu = [86400.0, "s"]
@@ -320,7 +316,6 @@ def set_unit_base(u_in, Aoc_d):
 
 
 def set_unit(cli, Aoc_d):
-
     u_in = cli.ocunit
 
     ocu = set_unit_base(u_in, Aoc_d)
@@ -334,7 +329,6 @@ def set_unit(cli, Aoc_d):
 def set_axis_default(
     ax, ticklabel_size=plt.rcParams["xtick.labelsize"], aspect="equal", labeldown=True
 ):
-
     ax.ticklabel_format(useOffset=False)
     ax.tick_params(direction="inout", labelsize=ticklabel_size, labelbottom=labeldown)
     ax.set_aspect(aspect)
@@ -343,7 +337,6 @@ def set_axis_default(
 
 
 def set_symmetric_lim(ax, val):
-
     ax.set_xlim(-val, val)
     ax.set_ylim(-val, val)
 
@@ -351,7 +344,6 @@ def set_symmetric_lim(ax, val):
 
 
 def axtitle(ax, labtitle="", fontsize=plt.rcParams["xtick.labelsize"]):
-
     ax.text(
         0.5,
         1.02,
@@ -369,9 +361,17 @@ def axtitle(ax, labtitle="", fontsize=plt.rcParams["xtick.labelsize"]):
 # ==============================================================================
 
 
-def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), save_plot=True, show_plot=False):
-
+def plot_oc_T41(
+    cli,
+    file_in,
+    planet_name=None,
+    samples=None,
+    figsize=(5, 5),
+    save_plot=True,
+    show_plot=False,
+):
     sim = get_sim_data(file_in, kep_ele=cli.kep_ele)
+    
 
     if cli.tscale is None:
         tscale = 2440000.5
@@ -393,14 +393,13 @@ def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), sav
     sim.planet = planet
 
     print("Planet {}".format(sim.planet))
-    print("Observed  A_TTV = (MAX OC - MIN OC)/2 = {} {}".format(Aoc_d*ocu[0], ocu[1]))
+    print(
+        "Observed  A_TTV = (MAX OC - MIN OC)/2 = {} {}".format(Aoc_d * ocu[0], ocu[1])
+    )
     print("Tref = {} +/- {}".format(sim.Teph, sim.eTPeph[0]))
     print("Pref = {} +/- {}".format(sim.Peph, sim.eTPeph[1]))
 
-    model_file = os.path.join(
-        cli.full_path,
-        "{:s}_models.hdf5".format(cli.sim_type)
-    )
+    model_file = os.path.join(cli.full_path, "{:s}_models.hdf5".format(cli.sim_type))
     oc_models = read_samples(samples_file=model_file)
     oc_model = [oo for oo in oc_models if oo.idplanet == sim.body_id][0]
     oc_model.update(sim.Teph, sim.Peph)
@@ -425,7 +424,7 @@ def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), sav
 
     fig = plt.figure(figsize=(6, 6))
     fig.subplots_adjust(hspace=0.05, wspace=0.25)
-    
+
     axs = []
 
     nrows = 3
@@ -516,7 +515,7 @@ def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), sav
     xx = oc_model.TTlin - tscale
     xxx = np.concatenate((xxx, xx))
     yy = np.concatenate((y, oc_model.oc * ocu[0]))
-    (lmod, ) = ax.plot(
+    (lmod,) = ax.plot(
         xx,
         oc_model.oc * ocu[0],
         color=cfm,
@@ -550,7 +549,9 @@ def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), sav
             )
             lsmp.append(ll)
 
-        ax.legend(handles=[lobs, lsim, lmod, lsmp[0]], loc="best", fontsize=lfont - dlfont)
+        ax.legend(
+            handles=[lobs, lsim, lmod, lsmp[0]], loc="best", fontsize=lfont - dlfont
+        )
     else:
         ax.legend(loc="best", fontsize=lfont - dlfont)
 
@@ -600,15 +601,19 @@ def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), sav
         zorder=6,
     )
     rms_res = np.percentile(np.abs(sim.dTTos * ocu[0]), 68.27)
-    print("rms Obs-Sim = 68.27th percentile of |residuals| = {} {}".format(rms_res, ocu[1]))
+    print(
+        "rms Obs-Sim = 68.27th percentile of |residuals| = {} {}".format(
+            rms_res, ocu[1]
+        )
+    )
 
     ax.set_xlim(minx, maxx)
 
     axs.append(ax)
 
-    dur_cols = sim.ncols in [11, 19]
-    dur_fit = (sim.T41o is not None and len(sim.T41o) > 0)
-    if dur_cols and dur_fit:
+    n_cols = sim.ncols in [11, 19]
+    dur_fit = sim.T41o is not None and len(sim.T41o) > 0
+    if n_cols and dur_fit:
         # ==============================================
         # T41 duration
         y = np.concatenate(
@@ -667,7 +672,7 @@ def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), sav
         )
         # model
         yy = np.concatenate((y, oc_model.T41s * ocu[0]))
-        (lmod, ) = ax.plot(
+        (lmod,) = ax.plot(
             xx,
             oc_model.T41s * ocu[0],
             color=cfm,
@@ -757,12 +762,16 @@ def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), sav
             os.makedirs(folder_out)
         fname = os.path.basename(file_in)
         plt_file = os.path.join(folder_out, os.path.splitext(fname)[0])
-        fig.savefig("%s.png" % (plt_file), bbox_inches="tight",
+        fig.savefig(
+            "%s.png" % (plt_file),
+            bbox_inches="tight",
             # dpi=200
         )
         print("Saved plot into:")
         print("%s" % ("%s.png" % (plt_file)))
-        fig.savefig("%s.pdf" % (plt_file), bbox_inches="tight",
+        fig.savefig(
+            "%s.pdf" % (plt_file),
+            bbox_inches="tight",
             # dpi=72
         )
         print("%s" % ("%s.pdf" % (plt_file)))
@@ -770,6 +779,10 @@ def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), sav
         plt.show()
     # plt.close(fig)
 
+
+    if cli.kep_ele:
+        sim.plot_kep_elem(cli, show_plot=show_plot)
+        
     return fig
 
 
@@ -804,7 +817,6 @@ def plot_oc_T41(cli, file_in, planet_name=None, samples=None, figsize=(5,5), sav
 
 
 def get_args():
-
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -918,14 +930,20 @@ def get_args():
 
 
 def main():
-
     cli = get_args()
     samples = read_samples(samples_file=cli.samples_file)
     file_list = get_simT0_file_list(cli)
     # sims = []
     for idbody, f in file_list.items():
         pl_name = "{}".format(idbody)
-        fig = plot_oc_T41(cli, f, planet_name =pl_name, samples=samples, save_plot=True, show_plot=False)
+        fig = plot_oc_T41(
+            cli,
+            f,
+            planet_name=pl_name,
+            samples=samples,
+            save_plot=True,
+            show_plot=False,
+        )
         plt.close(fig)
 
     return

@@ -10,12 +10,14 @@ import constants as cst
 
 from scipy.interpolate import interp1d
 
-os.environ["OMP_NUM_THREADS"] = "1"
 import pytransit
 import numba
 
-numba.set_num_threads(1)
-numba.config.THREADING_LAYER = "tbb"
+# os.environ["OMP_NUM_THREADS"] = "1"
+
+# numba.set_num_threads(1)
+# numba.config.THREADING_LAYER = "tbb"
+
 # numba.config.DISABLE_JIT = 1
 
 
@@ -27,7 +29,11 @@ import matplotlib.pyplot as plt
 anc.set_rcParams()
 
 # =============================================================================
-
+set_fitness = f90trades.set_fitness
+convert_trades_par_to_kepelem = f90trades.convert_trades_par_to_kepelem
+compute_ln_priors = f90trades.compute_ln_priors
+check_boundaries = f90trades.check_boundaries
+# =============================================================================
 
 def args_init(n_body, duration_check, t_epoch=None, t_start=None, t_int=None):
 
@@ -45,6 +51,14 @@ def args_init(n_body, duration_check, t_epoch=None, t_start=None, t_int=None):
 
     return
 
+# =============================================================================
+# get_priors = f90trades.get_priors
+def get_priors():
+
+    n_priors = (f90trades.n_priors).item()
+    names, values = f90trades.get_priors(n_priors)
+    names = [n.decode("utf-8") for n in names]
+    return names, values
 
 # =============================================================================
 def deallocate_rv_dataset():
@@ -1468,7 +1482,6 @@ class PhotoTRADES:
 # IT USES THE LOGLIKELIHOOD IN FORTRAN90 AND DEFAULT PARAMETERIZATION
 # =============================================================================
 
-
 class TRADESfolder:
     def __init__(self, input_path, sub_folder="", nthreads=1, seed=42, m_type="e"):
 
@@ -1510,7 +1523,9 @@ class TRADESfolder:
         self.dof = (f90trades.dof).item()  # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
         self.inv_dof = (f90trades.inv_dof).item()
 
+        self.tstart = (f90trades.tstart).item()
         self.tepoch = (f90trades.tepoch).item()
+        self.tint   = (f90trades.tint).item()
 
         # fitting parameters
         str_len = f90trades.str_len
@@ -1524,6 +1539,12 @@ class TRADESfolder:
 
         # all system_parameters
         self.system_parameters = f90trades.system_parameters.copy()
+
+        # priors
+        self.n_priors = (f90trades.n_priors).item()
+
+        # rv trend
+        self.rv_trend_order = (f90trades.rv_trend_order).item()
 
         # Stellar Mass and Radius
         self.MR_star = f90trades.mr_star.copy()

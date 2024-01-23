@@ -28,15 +28,18 @@ module f90trades
     !f2py integer::lmon
     !f2py integer::npar,nkel, nfit
     !f2py integer::nRVset
+    !f2py integer::rv_trend_order
 
     !f2py real(dp),parameter::resmax=1.e10_dp
-    !f2py real(dp)::tepoch,tint
+    !f2py real(dp)::tepoch,tstart,tint
     !f2py integer::idpert
     !f2py real(dp)::wrttime
 
     !f2py real(dp),dimension(2,2)::MR_star
     !f2py real(dp),dimension(:),allocatable::system_parameters
     !f2py real(dp),dimension(:),allocatable::par_min,par_max ! dimension: system_parameters
+
+    !f2py integer::n_priors
 
     !f2py real(dp),dimension(:,:,:),allocatable::population
     !f2py real(dp),dimension(:,:),allocatable::population_fitness
@@ -182,6 +185,13 @@ contains
         if (.not. allocated(nT0)) allocate (nT0(NB-1))
         nT0 = 0
         call read_T0obs(1)
+        if (idtra .ne. 0) then
+            write (*, '(a,1000(i5,1x))') " T0 DATA: nT0 = ",&
+                &obsData%obsT0(:)%nT0
+            if (durcheck .eq. 1) write (*, '(a,1000(i5,1x))') " DUR DATA: nT0 = ",&
+                &obsData%obsT0(:)%nT0
+            write (*, '(a,1000(l2,1x))') ' DO TRANSIT FLAG: ', do_transit
+        end if
 
         nT0 = obsData%obsT0(:)%nT0
 
@@ -320,6 +330,33 @@ contains
 
     ! ============================================================================
 
+    subroutine get_priors(n,  names, values)
+        integer, intent(in) :: n
+        character(10), dimension(n), intent(out) ::  names
+        real(dp), dimension(n, 3), intent(out):: values
+
+        names = priors_names
+        values = priors_values
+    
+        return
+    end subroutine get_priors
+    ! ============================================================================
+
+    subroutine compute_ln_priors(n_all, all_fix_par, n_fit, fit_par, n, names, values, lnpr)
+        integer,intent(in)::n_all, n_fit, n
+        real(dp), dimension(n_all), intent(in):: all_fix_par
+        real(dp), dimension(n_fit), intent(in):: fit_par
+        character(10), dimension(n), intent(in) ::  names
+        real(dp), dimension(n, 3), intent(in):: values
+        real(dp),intent(out)::lnpr
+
+        call ln_priors(all_fix_par, fit_par, names, values, lnpr)
+
+        return
+    end subroutine compute_ln_priors
+    
+    ! ============================================================================
+
     ! subroutine that returns the args stored in constants
 
     ! subroutine that sets the args stored in constants
@@ -374,6 +411,19 @@ contains
 
         return
     end subroutine init_pso
+
+    ! ============================================================================
+    subroutine check_boundaries(n_all, all_fix_par, n_fit, fit_par, check)
+        integer,intent(in)::n_all, n_fit
+        real(dp),dimension(n_all),intent(in)::all_fix_par
+        real(dp),dimension(n_fit),intent(in)::fit_par
+        logical,intent(out)::check
+
+        check = .true.
+        check = check_only_boundaries(all_fix_par, fit_par)
+
+        return
+    end subroutine
 
     ! ============================================================================
 
@@ -592,6 +642,58 @@ contains
 
         return
     end subroutine write_summary_files_long
+
+    ! ============================================================================
+
+    subroutine set_fitness(nrv, nt0, ndur, err_rv, err_t0, err_dur, dof, chi_square_in, chi_square, &
+        &reduced_chi_square, lnLikelihood, ln_const, bic)
+        integer,intent(in)::nrv, nt0, ndur, dof
+        real(dp),dimension(nrv),intent(in)::err_rv
+        real(dp),dimension(nt0),intent(in)::err_t0
+        real(dp),dimension(ndur),intent(in)::err_dur
+        real(dp),intent(in)::chi_square_in
+        real(dp), intent(out)::chi_square,reduced_chi_square, lnLikelihood, ln_const, bic
+
+        ! Local variables
+        real(dp)::inv_dof, nd, ln_rv=zero, ln_t0=zero, ln_dur=zero
+
+        ! write(*,*)"in set_fitness"
+        chi_square = chi_square_in
+        ! write(*,*) "chi_square_in -> chi_square"
+
+        if (chi_square .ge. resmax) then
+            chi_square = resmax
+        end if
+        ! write(*,*)"chi_square = ",chi_square
+
+        inv_dof =one/real(dof,dp)
+        reduced_chi_square = chi_square*inv_dof
+        ! write(*,*)"reduced_chi_square = ",reduced_chi_square
+
+        ln_const = zero
+        if (nrv .gt. 0)then
+            ln_rv = sum(log(pack(err_rv, err_rv /= zero)*pack(err_rv, err_rv /= zero)))
+        end if
+        if (nt0 .gt. 0)then
+            ln_t0 = sum(log(pack(err_t0, err_t0 /= zero)*pack(err_t0, err_t0 /= zero)))
+        end if
+        if (ndur .gt. 0)then
+            ln_dur = sum(log(pack(err_dur, err_dur /= zero)*pack(err_dur, err_dur /= zero)))
+        end if
+        nd = real(nrv+nt0+ndur, dp)
+        ln_const = ln_const -half*nd*log(dpi)
+        ln_const = ln_const -half*(ln_rv + ln_t0 + ln_dur)
+
+        lnLikelihood = -half*chi_square+ln_const
+        ! write(*,*)"lnLikelihood = ",lnLikelihood
+
+        ! bic = -two*lnLikelihood + real(nfit,dp)*log(real(ndata,dp))
+        bic = -two*lnLikelihood+bic_const ! bic_const global variable
+        ! write(*,*)"bic = ",bic
+
+
+        return
+    end subroutine set_fitness
 
     ! ============================================================================
 
@@ -1499,6 +1601,8 @@ contains
 
         return
     end subroutine linear_fit_errors
+
+    ! ============================================================================
 
     ! ============================================================================
 

@@ -20,7 +20,7 @@ module parameters
     ! stability-like
     logical::do_hill_check = .false.
     ! FITNESS PARAMETERS
-    integer::oc_fit = 0
+    ! integer::oc_fit = 0
 
     integer::NBDIM
     integer, parameter::DIMMAX = 500000

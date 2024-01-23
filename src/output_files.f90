@@ -425,23 +425,38 @@ contains
         integer::j, nRV
         character(80)::fmt
 
+        real(dp),dimension(:),allocatable::jitter
+        integer::k, nj
+
+
         nRV = simRV%nRV
         ! allocate(RV_simwrt(nRV),gamma_wrt(nRV,2))
         ! call setWriteRV(simRV,RV_simwrt,gamma_wrt)
-        allocate (RV_simwrt(nRV))
+        allocate (RV_simwrt(nRV), jitter(nRV))
         RV_simwrt = simRV%RV+simRV%gamma_rv+simRV%trend
-        write (*, '(a)') "# JD RVobs eRVobs rv_sim RV_sim gamma_rv trend &
+
+        jitter = zero
+        nj = size(simRV%jitter)
+        do k=1,nj
+            do j=1,nRV
+                if (obsData%obsRV%RVsetID(j) .eq. k) then
+                    jitter(j) = simRV%jitter(k)
+                end if
+            end do
+        end do
+
+        write (*, '(a)') "# JD RVobs eRVobs rv_sim RV_sim gamma_rv trend jitter &
           &RVsetID RV_stat"
         fmt = adjustl("(7("//trim(sprec)//",1x),i3,1x,i3)")
         do j = 1, nRV
             write (*, trim(fmt)) obsData%obsRV%jd(j), obsData%obsRV%RV(j),&
               &obsData%obsRV%eRV(j), simRV%RV(j), RV_simwrt(j),&
-              &simRV%gamma_rv(j), simRV%trend(j),&
+              &simRV%gamma_rv(j), simRV%trend(j), jitter(j),&
               &obsData%obsRV%RVsetID(j),&
               &simRV%RV_stat(j)
         end do
         ! deallocate(RV_simwrt,gamma_wrt)
-        deallocate (RV_simwrt)
+        deallocate (RV_simwrt,jitter)
 
         return
     end subroutine write_RV_s
@@ -459,11 +474,25 @@ contains
         character(80)::fmt
         integer::nRV
 
+        real(dp),dimension(:),allocatable::jitter
+        integer::k, nj
+
         nRV = simRV%nRV
         ! allocate(RV_simwrt(nRV),gamma_wrt(nRV,2))
         ! call setWriteRV(simRV,RV_simwrt,gamma_wrt)
-        allocate (RV_simwrt(nRV))
+        allocate (RV_simwrt(nRV), jitter(nRV))
         RV_simwrt = simRV%RV+simRV%gamma_rv+simRV%trend
+
+        jitter = zero
+        nj = size(simRV%jitter)
+        do k=1,nj
+            do j=1,nRV
+                if (obsData%obsRV%RVsetID(j) .eq. k) then
+                    jitter(j) = simRV%jitter(k)
+                end if
+            end do
+        end do
+
         uRV = get_unit(cpuid)
         flRV = ""
         flRV = trim(path)//trim(adjustl(string(isim)))//"_"//&
@@ -471,20 +500,21 @@ contains
         flRV = trim(adjustl(flRV))
         open (uRV, file=trim(flRV))
 !     fmt=adjustl("(a,28x,a,19x,a,18x,a,10x,2(a,"//trim(sprec)//"))")
-        write (uRV, '(a)') "# JD RVobs eRVobs rv_sim RV_sim gamma_rv trend &
+        write (uRV, '(a)') "# JD RVobs eRVobs rv_sim RV_sim gamma_rv trend jitter &
           &RVsetID RV_stat"
         fmt = ""
-        fmt = adjustl("(7("//trim(sprec)//",1x),i3,1x,i3)")
+        ! fmt = adjustl("(7("//trim(sprec)//",1x),i3,1x,i3)")
+        fmt = adjustl("(8("//trim(sprec)//",1x),i3,1x,i3)")
         do j = 1, nRV
             write (uRV, trim(fmt)) obsData%obsRV%jd(j), obsData%obsRV%RV(j),&
               &obsData%obsRV%eRV(j), simRV%RV(j), RV_simwrt(j),&
-              &simRV%gamma_rv(j), simRV%trend(j),&
+              &simRV%gamma_rv(j), simRV%trend(j), jitter(j),&
               &obsData%obsRV%RVsetID(j),&
               &simRV%RV_stat(j)
         end do
         close (uRV)
         ! deallocate(RV_simwrt,gamma_wrt)
-        deallocate (RV_simwrt)
+        deallocate (RV_simwrt,jitter)
         write (*, '(a,a)') " WRITTEN RV INTO FILE: ", trim(flRV)
 
         return

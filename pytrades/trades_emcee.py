@@ -141,9 +141,19 @@ working_folder, _, of_run = init_folder(working_path, cli.sub_folder)
 sys.stdout.flush()
 
 anc.print_both("")
-anc.print_both("fitting parameters:")
-anc.print_both(" ".join([n for n in sim.fitting_names]))
+# anc.print_both("fitting parameters:")
+# anc.print_both(" ".join([n for n in sim.fitting_names]))
+anc.print_both("{:>20s} {:>13s} {:>13s} {:>13s}".format(
+        "name", "parameter", "min", "max"
+    ))
+for n, p, bd in zip(sim.fitting_names, sim.fitting_parameters, sim.fitting_minmax):
+    anc.print_both("{:20s} {:13.6f} {:13.6f} {:13.6f}".format(
+        n, p, bd[0], bd[1]
+    ))
 anc.print_both("")
+
+initial_parameters = sim.fitting_parameters.copy()
+fitting_parameters = sim.fitting_parameters.copy()
 
 # check pyde args
 anc.print_both("\n Check pyDE configuration ... ", output=of_run)
@@ -379,6 +389,17 @@ else:
 sys.stdout.flush()
 # numba.set_num_threads(1)
 
+for ifit, fitn in enumerate(sim.fitting_names):
+    if (
+        fitn[0] == "w"
+        or fitn[0:2] == "mA"
+        or fitn[0:2] == "lN"
+        or "lambda" in fitn
+    ):
+        p = fitting_parameters[ifit]
+        if (p < 0.0) or (p > 360.0):
+            fitting_parameters[ifit] = p % 360.0
+
 # save initial_fitting parameters into array
 initial_parameters = fitting_parameters.copy()
 (
@@ -434,6 +455,9 @@ if cli.nruns > 0:
     else:
         anc.print_both("new run of emcee analysis ...", output=of_run)
         if cli.pre_optimise:
+            anc.print_both(
+                "Optimise fitting parameters with Minimize(Nelder-Mead) ...", output=of_run
+            )
             def neg_lnprob(p):
                 lnP = lnprob_de(p)
                 return -lnP
@@ -444,15 +468,15 @@ if cli.nruns > 0:
                 bounds=[(bd[0], bd[1]) for bd in sim.fitting_minmax]
             )
             anc.print_both(
-                "Optimised fitting parameters with Minimize(Nelder-Mead)", output=of_run
-            )
-            fitting_parameters = opt_res.x
-            anc.print_both(
                 "Opt Message: {}".format(opt_res.message), output=of_run
             )
             anc.print_both(
                 "Opt Success: {}".format(opt_res.success), output=of_run
             )
+            if opt_res.success:
+                fitting_parameters = opt_res.x
+            else:
+                anc.print_both("Not changing fitting parameters")
         p0 = compute_initial_walkers(
             # lnprob_sq,
             lnprob,

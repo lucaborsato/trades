@@ -14,18 +14,12 @@ import sys
 import h5py
 
 import emcee.interruptible_pool as emcee_pool
-#import multiprocessing as mp
-#import gc
 # ==============================================================================
 import matplotlib as mpl
-#from matplotlib import use as mpluse
 mpl.use("Agg", warn=False)
-#mpluse("Qt4Agg")
-#mpluse("TkAgg")
 import matplotlib.pyplot as plt
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
-#import matplotlib.mlab as mlab
 import matplotlib.cm as cm
 # ==============================================================================
 import gls
