@@ -2,9 +2,9 @@
 0.823 0.1 1.0           # Radius min max [Rjup]
 38.986097 37.0 41.0     # Period min max [day] - set it > 9000000. to calculate from semi-major axis
 999. 0.0 0.0            # semi major axis min max [AU] - set it to 999.0 if there is no value available
-0.067645 0.0 0.5        # eccentricity min max
+0.067645 0.0 0.25        # eccentricity min max
 167.573369 0.0 360.0    # argument of the pericenter min max [deg]
 307.432620 0.0 360.0    # mean anomaly min max [deg]: if set to >= 999. the time of pericenter passage (next row) will be used
 9.e8 0.0 0.0            # time of pericenter passage min max [JD]: if set to >= 9.e8 the mean anomaly (previous row) will be used
-89.12 0.0 0.0           # orbit inclination min max[deg]
-359.889907 0.0 0.0      # longitude of the ascending node min max [deg]
+89.12 80.0 100.0           # orbit inclination min max[deg]
+180.0 160.0 200.0      # longitude of the ascending node min max [deg]

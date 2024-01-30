@@ -25,9 +25,10 @@ import emcee
 
 import matplotlib.pyplot as plt
 
-import numba
-numba.set_num_threads(1)
-numba.config.THREADING_LAYER = "tbb"
+# import numba
+# numba.set_num_threads(1)
+# numba.config.THREADING_LAYER = "tbb"
+
 # numba.config.DISABLE_JIT = 1
 
 # ==============================================================================
@@ -861,49 +862,63 @@ class AnalysisTRADES:
         par_desc = "map_hdi of posterior"
         anc.print_both("\nPARAMETERS: {} ==> {}".format(par_desc, id_sim))
 
-        map_hdi_fit, _, map_hdi_idx = anc.select_maxlglhd_with_hdi(
-            self.fitting_posterior,
-            self.ci_fitted.T,
-            self.lnprob_posterior,
-            return_idmax=True,
-        )
-        map_hdi_phy = self.physical_posterior[map_hdi_idx, :]
-        sys.stdout.flush()
-        self.run_and_save_from_parameters(
-            map_hdi_fit,
-            map_hdi_phy,
-            id_sim,
-            sim_name,
-            par_desc,
-            self.ci_fitted,
-            self.ci_physical,
-        )
+        try:
+            map_hdi_fit, _, map_hdi_idx = anc.select_maxlglhd_with_hdi(
+                self.fitting_posterior,
+                self.ci_fitted.T,
+                self.lnprob_posterior,
+                return_idmax=True,
+            )
+            map_hdi_phy = self.physical_posterior[map_hdi_idx, :]
+            sys.stdout.flush()
+            self.run_and_save_from_parameters(
+                map_hdi_fit,
+                map_hdi_phy,
+                id_sim,
+                sim_name,
+                par_desc,
+                self.ci_fitted,
+                self.ci_physical,
+            )
 
-        # ==============================================================================
-        id_sim = 669
-        sim_name = "map_hdi_to_physical"
-        par_desc = "map of posterior within HDI converted to physical"
-        anc.print_both("\nPARAMETERS: {} ==> {}".format(par_desc, id_sim))
-        _, map_hdi_phy, _, _, _, _ = anc.compute_physical_parameters(
-            self.sim.n_bodies,
-            map_hdi_fit,
-            self.fitting_names,
-            self.sim.system_parameters,
-            mass_conv_factor=self.mass_conv_factor,
-            radius_conv_factor=self.radius_conv_factor,
-        )
-        map_hdi_phy = anc.search_scale_parameter(map_hdi_phy, self.phys_type)
-        sys.stdout.flush()
-        self.run_and_save_from_parameters(
-            map_hdi_fit,
-            map_hdi_phy,
-            id_sim,
-            sim_name,
-            par_desc,
-            self.ci_fitted,
-            self.ci_physical,
-        )
+            # ==============================================================================
+            id_sim = 669
+            sim_name = "map_hdi_to_physical"
+            par_desc = "map of posterior within HDI converted to physical"
+            anc.print_both("\nPARAMETERS: {} ==> {}".format(par_desc, id_sim))
+            _, map_hdi_phy, _, _, _, _ = anc.compute_physical_parameters(
+                self.sim.n_bodies,
+                map_hdi_fit,
+                self.fitting_names,
+                self.sim.system_parameters,
+                mass_conv_factor=self.mass_conv_factor,
+                radius_conv_factor=self.radius_conv_factor,
+            )
+            map_hdi_phy = anc.search_scale_parameter(map_hdi_phy, self.phys_type)
+            sys.stdout.flush()
+            self.run_and_save_from_parameters(
+                map_hdi_fit,
+                map_hdi_phy,
+                id_sim,
+                sim_name,
+                par_desc,
+                self.ci_fitted,
+                self.ci_physical,
+            )
 
+        except:
+            par_desc += " !! MAP WITHIN HDI NOT FOUND --> USING MAP"
+            full_sim_name = "{:04d}_sim_{:s}".format(id_sim, sim_name)
+            out_folder = os.path.join(os.path.join(self.sim.full_path, full_sim_name), "")
+            os.makedirs(out_folder, exist_ok=True)
+            warn_file = os.path.join(out_folder, "WARNING.txt")
+            anc.print_both("WRITING WARNING FILE: {:s}".format(warn_file))
+            with open(os.path.join(out_folder, "WARNING.txt"), "w") as warn_o:
+                anc.print_both("*******\nWARNING: {}\n*******".format(par_desc), output=warn_o)
+            anc.print_both("")
+            anc.print_both("# " + "=" * 40)
+            anc.print_both("")
+        
         return
 
     # ---------------------------------

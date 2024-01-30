@@ -33,6 +33,8 @@ set_fitness = f90trades.set_fitness
 convert_trades_par_to_kepelem = f90trades.convert_trades_par_to_kepelem
 compute_ln_priors = f90trades.compute_ln_priors
 check_boundaries = f90trades.check_boundaries
+set_one_fit_par_boundaries = f90trades.set_one_fit_par_boundaries
+reset_all_fit_boundaries = f90trades.reset_all_fit_boundaries
 # =============================================================================
 
 def args_init(n_body, duration_check, t_epoch=None, t_start=None, t_int=None):
@@ -1670,11 +1672,20 @@ class TRADESfolder:
 
         return
 
-    # def set_args(
-    #     self,
-    # ):
+    def set_one_fit_par_boundaries(self, ifit, min_val, max_val):
 
-    #     return
+        self.fitting_minmax[ifit, 0] = min_val
+        self.fitting_minmax[ifit, 1] = max_val
+        set_one_fit_par_boundaries(ifit+1, min_val, max_val)
+
+        return
+    
+    def reset_all_fit_boundaries(self):
+
+        reset_all_fit_boundaries()
+        self.fitting_minmax = f90trades.parameters_minmax.copy()
+
+        return
 
     def path_change(self, new_path):
 

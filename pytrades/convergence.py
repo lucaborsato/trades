@@ -289,8 +289,9 @@ def full_statistics(
         topl.tick_params(axis="x", labelrotation=0, labelsize=tsize)
         topl.tick_params(axis="y", labelrotation=45, labelsize=tsize)
         gr = np.zeros((n_gr)) + 100
-        for istep in range(n_gr):
-            gr[istep] = anc.GelmanRubin(chains[: steps[istep], :, ipar])
+        for istep, vstep in enumerate(steps):
+            # gr[istep] = anc.GelmanRubin(chains[:vstep, :, ipar])
+            gr[istep] = anc.GelmanRubin_PyORBIT(chains[:vstep, :, ipar])
         topl.plot(
             steps,
             gr,

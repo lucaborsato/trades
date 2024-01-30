@@ -201,7 +201,7 @@ contains
 
         allocate (done(nfit))
         done = .false.
-        if (.not. allocated(minpar)) allocate (minpar(nfit), maxpar(nfit))
+        if (.not. allocated(minpar)) allocate (minpar(nfit), maxpar(nfit), minpar_bck(nfit), maxpar_bck(nfit))
         ifit = 0
         do ipar = 1, npar
             if (tofit(ipar) .eq. 1) then
@@ -309,6 +309,8 @@ contains
                 done(ifit) = .true.
             end do ! ipar -> rv_trend_order
         end if
+        minpar_bck = minpar
+        maxpar_bck = maxpar
 
         return
     end subroutine set_minmax
@@ -672,9 +674,10 @@ contains
         real(dp), dimension(:), intent(in)::fit_parameters
         logical::check
 
-        real(dp)::temp
-        character::p1
-        character(2)::p2
+        ! real(dp)::temp
+        ! character::p1
+        ! character(2)::p2
+
         integer::ifit
 
         check = .true.
@@ -688,23 +691,26 @@ contains
                     &(fit_parameters(ifit) .gt. maxpar(ifit))) then ! fit > max
 
                     check = .false.
-                    if (.not. check) then
-                        p1 = parid(ifit) (1:1)
-                        p2 = parid(ifit) (1:2)
-                        if ((p1 .eq. 'w') .or.&
-                            &(p2 .eq. 'mA') .or.&
-                            &(p2 .eq. 'la'))&
-                            &then
-                            temp = mod(mod(fit_parameters(ifit), circ)+circ, circ)
-                            ! write(*,*)parid(ifit), temp, minpar(ifit), maxpar(ifit)
-                            if ((temp .ge. minpar(ifit)) .and.&
-                                &(temp .le. maxpar(ifit))) then
-                                check = .true.
-                            end if
 
-                        end if
-                    end if
-                end if
+                    ! USED TO ALLOW ANGLES WITH NEGATIVE VALUES ... BUT IT WOULD INCREASE THE HYPER-SPACE ...
+                    ! if (.not. check) then
+                    !     p1 = parid(ifit) (1:1)
+                    !     p2 = parid(ifit) (1:2)
+
+                    !     if ((p1 .eq. 'w') .or.&
+                    !         &(p2 .eq. 'mA') .or.&
+                    !         &(p2 .eq. 'la'))&
+                    !         &then
+                    !         temp = mod(mod(fit_parameters(ifit), circ)+circ, circ)
+                    !         ! write(*,*)parid(ifit), temp, minpar(ifit), maxpar(ifit)
+                    !         if ((temp .ge. minpar(ifit)) .and.&
+                    !             &(temp .le. maxpar(ifit))) then
+                    !             check = .true.
+                    !         end if ! temp
+                    !     end if ! p1 & p2
+                    ! end if ! .not. check
+
+                end if !fit_parameteres vs minpar/maxpar
 
                 if (.not. check) return
             end do

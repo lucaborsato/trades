@@ -93,27 +93,27 @@ def get_jitter(cli):
 
 # ==============================================================================
 class rv_data:
-    def __init__(self, t, RVo, eRVo, rvs, RVs, rv_gamma, rv_trend, RVset, tscale):
+    def __init__(self, t, RVo, eRVo, rvs, RVs, rv_gamma, rv_trend, jitter, RVset, tscale):
         self.RVset = RVset
         self.t = t
         self.time_plot = self.t - tscale
         self.RVo = RVo
         self.rvo = RVo - rv_gamma
         self.eRVo = eRVo
-        self.eRV_j= eRVo # to be added the jitter
         self.rvs = rvs
         self.RVs = RVs - rv_gamma
         self.rv_gamma = rv_gamma
         self.rv_trend = rv_trend
+        self.jitter = jitter
         self.dRVos = RVo - RVs
         self.nRV = np.shape(self.RVo)[0]
+        self.eRV_j = np.sqrt(eRVo**2 + jitter**2)
+        self.wres = self.dRVos/self.eRV_j
 
     def add_jitter(self, jitter):
 
-        err_rv = self.eRVo
-        err_rv = np.sqrt(err_rv**2 + jitter**2)
-        self.eRV_j = err_rv
-
+        self.eRV_j = np.sqrt(self.eRVo**2 + jitter**2)
+        self.wres = self.dRVos/self.eRV_j
 
 
 # ==============================================================================
@@ -123,11 +123,13 @@ def get_sim_data(file_in, jitters, tscale=2440000.5):
 
     # OLD
     # JD 0 RVobs 1 eRVobs 2 rv_sim 3 RV_sim 4 gamma 5 e_gamma 6 RVsetID 7 RV_stat 8
-    
+    # itime, iRVo, ieRVo = 0,1,2
+    # irvs, iRVs, igamma, itrend, isetid = 3,4,5,6,7
+
     # NEW
-    # JD 0 RVobs 1 eRVobs 2 rv_sim 3 RV_sim 4 rv_gamma 5 rv_trend 6 RVsetID 7 RV_stat 8
+    # JD 0 RVobs 1 eRVobs 2 rv_sim 3 RV_sim 4 rv_gamma 5 rv_trend 6 jitter 7 RVsetID 8 RV_stat 9
     itime, iRVo, ieRVo = 0,1,2
-    irvs, iRVs, igamma, itrend, isetid = 3,4,5,6,7
+    irvs, iRVs, igamma, itrend, ijitter, isetid = 3,4,5,6,7,8
 
     sim_in = np.genfromtxt(file_in)
     rvsetid = np.unique(sim_in[:, isetid].astype(int))
@@ -148,7 +150,7 @@ def get_sim_data(file_in, jitters, tscale=2440000.5):
             sim_in[rvsel, iRVs],
             sim_in[rvsel, igamma],
             sim_in[rvsel, itrend],
-            # sim_in[rvsel, 7],
+            sim_in[rvsel, ijitter],
             rvsetid[i],
             tscale
         )
@@ -298,7 +300,6 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
     tfont = plt.rcParams["xtick.labelsize"]
     dlfont = 4
 
-
     print("Plotting ...")
 
     # ==========================================
@@ -329,6 +330,9 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
         mso = size_markers[i]
         mss = mso - 0.5
         rv = rv_os[i]
+        chi2 = np.sum(rv.wres*rv.wres)
+        print("RVs(set {}) contribution to the chi_square = {:.3f}".format(i, chi2))
+
         sort_obs = np.argsort(rv.time_plot)
         x.append(np.tile(rv.time_plot[sort_obs], 3))  # for obs limits
         y.append(
@@ -502,7 +506,7 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
             mew=0.4,
             ls="",
             ecolor=cjb,
-            elinewidth=0.7,
+            elinewidth=0.75,
             capsize=0,
             zorder=6,
         )

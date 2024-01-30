@@ -2408,6 +2408,27 @@ def GelmanRubin(chains_T):
     return Rc
 
 
+def GelmanRubin_PyORBIT(sampler_chain):
+    """
+    :param chain_T:
+    :return:
+    """
+
+    """
+    from PyORBIT (Luca Malavolta)
+    from http://joergdietrich.github.io/emcee-convergence.html
+    """
+    ssq = np.var(sampler_chain, axis=1, ddof=1)
+    W = np.mean(ssq, axis=0)
+    theta_b = np.mean(sampler_chain, axis=1)
+    theta_bb = np.mean(theta_b, axis=0)
+    m = sampler_chain.shape[0] * 1.0
+    n = sampler_chain.shape[1] * 1.0
+    B = n / (m - 1) * np.sum((theta_bb - theta_b) ** 2, axis=0)
+    var_theta = (n - 1) / n * W + 1 / n * B
+    Rhat = np.sqrt(var_theta / W)
+    return Rhat
+
 # ==============================================================================
 
 # Geweke 1992 test 1
@@ -5316,32 +5337,32 @@ def de_save_evolution(
 # =============================================================================
 
 
-def de_get_best_parameters(de_fit_best, de_pop_best, iter_de, de_maximize=True):
+# def de_get_best_parameters(de_fit_best, de_pop_best, iter_de, de_maximize=True):
 
-    loc_best = (
-        np.argmax(de_fit_best[: iter_de + 1])
-        if de_maximize
-        else np.argmin(de_fit_best[: iter_de + 1])
-    )
+#     loc_best = (
+#         np.argmax(de_fit_best[: iter_de + 1])
+#         if de_maximize
+#         else np.argmin(de_fit_best[: iter_de + 1])
+#     )
 
-    de_parameters = de_pop_best[loc_best, :].copy()
+#     de_parameters = de_pop_best[loc_best, :].copy()
 
-    return de_parameters
+#     return de_parameters
 
 
-# =============================================================================
-def de_load_parameters(de_file):
+# # =============================================================================
+# def de_load_parameters(de_file):
 
-    with h5py.File(
-        de_file,
-        mode="r",
-        # libver='latest',
-        swmr=True,
-    ) as de_hdf5:
-        de_parameters = de_hdf5["de_parameters"][...]
-    # de_hdf5.close()
+#     with h5py.File(
+#         de_file,
+#         mode="r",
+#         # libver='latest',
+#         swmr=True,
+#     ) as de_hdf5:
+#         de_parameters = de_hdf5["de_parameters"][...]
+#     # de_hdf5.close()
 
-    return de_parameters
+#     return de_parameters
 
 
 # =============================================================================

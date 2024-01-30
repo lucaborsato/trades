@@ -83,6 +83,8 @@ module parameters
     ! boundaries
     real(dp), dimension(:), allocatable::par_min, par_max ! dimension: system_parameters
     real(dp), dimension(:), allocatable::minpar, maxpar ! dimension: fitting parameters
+    real(dp), dimension(:), allocatable::minpar_bck, maxpar_bck ! backup
+
 
     ! for PIK/PSO
     integer::wrtAll, nGlobal
@@ -137,6 +139,7 @@ contains
 
         if (allocated(par_min)) deallocate (par_min, par_max)
         if (allocated(minpar)) deallocate (minpar, maxpar)
+        if (allocated(minpar_bck)) deallocate (minpar_bck, maxpar_bck)
 
         if (allocated(population)) deallocate (population)
         if (allocated(population_fitness)) deallocate (population_fitness)

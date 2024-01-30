@@ -350,7 +350,7 @@ contains
             rvec1 = svin(nc1+1:nc1+3)
             rsum = (radius(1)+radius(i_body))*RsunAU
             ! |r1 - (Rstar+Rplanet1)| <= 1 cm?
-            if (abs(dist(rvec1)-rsum) .le. cm_au) then
+            if ((abs(dist(rvec1))-rsum) .le. cm_au) then
                 not_colliding = .false.
                 exit body1
             end if
@@ -365,7 +365,7 @@ contains
                 dr = dist(rvec1, rvec2)
                 rsum = (radius(i_body)+radius(j_body))*RsunAU
                 ! |(|r1-r2|) - (Rplanet1+Rplanet2)| <= 1 cm?
-                if (abs(dr-rsum) .le. cm_au) then
+                if ((abs(dr)-rsum) .le. cm_au) then
                     not_colliding = .false.
                     exit body1
                 end if
@@ -1000,7 +1000,7 @@ contains
 
         ! Eccentricity and perihelion distance
         ecc = zero
-        temp = one+s*(v2/mu-two/r)
+        temp = one+s*((v2/mu)-(two/r))
 
         ! if (temp.le.zero) then
         if (temp .le. TOL_dp) then

@@ -96,15 +96,21 @@ class sim_data:
         self.oc_o = self.TTo - self.TTlin
         self.oc_s = self.TTs - self.TTlin
 
-        if kep_ele is False:
-            if self.ncols == 11:  # T0 + T41
-                self.T41o = sim_in[:, -5] / 1440.0  # duration saved in min
-                self.eT41o = sim_in[:, -4] / 1440.0
-                self.T41s = sim_in[:, -3] / 1440.0
-                self.dT41os = sim_in[:, -2] / 1440.0
-                self.T41stat = sim_in[:, -1]
-        elif kep_ele is True:
-            if self.ncols == 14:  # T0 + kep elements
+        ncols_tra = 6
+        ncols_kep = 8
+        ncols_dur = 5
+
+        self.ncols_tra = ncols_tra
+        self.ncols_kep = ncols_kep
+        self.ncols_dur = ncols_dur
+
+        print("Kep_elem {} and ncols = {}".format(kep_ele, self.ncols))
+
+        # only transits
+        if self.ncols == ncols_tra:
+            print("No Keplerian elements or Transit Durations in the file.")
+        elif self.ncols == (ncols_tra + ncols_kep):
+            if kep_ele:
                 self.period = sim_in[:, 6]
                 self.sma = sim_in[:, 7]
                 self.ecc = sim_in[:, 8]
@@ -113,7 +119,19 @@ class sim_data:
                 self.argp = sim_in[:, 11]
                 self.truea = sim_in[:, 12]
                 self.longn = sim_in[:, 13]
-            elif self.ncols == 19:  # T0 + T41 + kep elements
+        elif self.ncols == (ncols_tra + ncols_dur):
+            if kep_ele:
+                print("No Keplerian elements in the file, but found Transit durations")
+            else:
+                print("Found Transit durations in the file")
+            self.T41o = sim_in[:, -5]  # duration saved in min
+            self.eT41o = sim_in[:, -4]
+            self.T41s = sim_in[:, -3]
+            self.dT41os = sim_in[:, -2]
+            self.T41stat = sim_in[:, -1]
+        elif self.ncols == (ncols_tra + ncols_kep + ncols_dur):
+            print("Found Keplerian elements and Transit durations in the file")
+            if kep_ele:
                 self.period = sim_in[:, 6]
                 self.sma = sim_in[:, 7]
                 self.ecc = sim_in[:, 8]
@@ -122,11 +140,49 @@ class sim_data:
                 self.argp = sim_in[:, 11]
                 self.truea = sim_in[:, 12]
                 self.longn = sim_in[:, 13]
-                self.T41o = sim_in[:, -5] / 1440.0  # duration saved in min
-                self.eT41o = sim_in[:, -4] / 1440.0
-                self.T41s = sim_in[:, -3] / 1440.0
-                self.dT41os = sim_in[:, -2] / 1440.0
+                self.T41o = sim_in[:, -5]  # duration saved in min
+                self.eT41o = sim_in[:, -4]
+                self.T41s = sim_in[:, -3]
+                self.dT41os = sim_in[:, -2]
                 self.T41stat = sim_in[:, -1]
+            else:
+                self.T41o = sim_in[:, -5] # duration saved in min
+                self.eT41o = sim_in[:, -4]
+                self.T41s = sim_in[:, -3]
+                self.dT41os = sim_in[:, -2]
+                self.T41stat = sim_in[:, -1]
+
+        # if kep_ele is False:
+        #     if self.ncols == 11:  # T0 + T41
+        #         self.T41o = sim_in[:, -5] / 1440.0  # duration saved in min
+        #         self.eT41o = sim_in[:, -4] / 1440.0
+        #         self.T41s = sim_in[:, -3] / 1440.0
+        #         self.dT41os = sim_in[:, -2] / 1440.0
+        #         self.T41stat = sim_in[:, -1]
+        # elif kep_ele is True:
+        #     if self.ncols == 14:  # T0 + kep elements
+        #         self.period = sim_in[:, 6]
+        #         self.sma = sim_in[:, 7]
+        #         self.ecc = sim_in[:, 8]
+        #         self.inc = sim_in[:, 9]
+        #         self.meana = sim_in[:, 10]
+        #         self.argp = sim_in[:, 11]
+        #         self.truea = sim_in[:, 12]
+        #         self.longn = sim_in[:, 13]
+        #     elif self.ncols == 19:  # T0 + T41 + kep elements
+        #         self.period = sim_in[:, 6]
+        #         self.sma = sim_in[:, 7]
+        #         self.ecc = sim_in[:, 8]
+        #         self.inc = sim_in[:, 9]
+        #         self.meana = sim_in[:, 10]
+        #         self.argp = sim_in[:, 11]
+        #         self.truea = sim_in[:, 12]
+        #         self.longn = sim_in[:, 13]
+        #         self.T41o = sim_in[:, -5] / 1440.0  # duration saved in min
+        #         self.eT41o = sim_in[:, -4] / 1440.0
+        #         self.T41s = sim_in[:, -3] / 1440.0
+        #         self.dT41os = sim_in[:, -2] / 1440.0
+        #         self.T41stat = sim_in[:, -1]
 
         return
 
@@ -211,7 +267,7 @@ class oc_sample:
         self.epo = np.arange(0, self.nTTs, 1)
         self.TTlin = np.zeros((self.nTTs))
         self.oc = np.zeros((self.nTTs))
-        self.T41s = np.array(T41s_s) / 1440.0  # computed in min in trades
+        self.T41s = np.array(T41s_s)  # computed in min in trades
 
     def update(self, Teph, Peph):
         self.epo = anc.calculate_epoch(self.TTs, Teph, Peph)
@@ -232,6 +288,10 @@ class oc_sample:
 
 def get_sim_data(file_in, kep_ele=False):
     # epo 0 TTo 1 eTTo 2 TTs 3 dTTos 4 TTstat 5 T41o 6 eT41o 7 T41s 8 dT41os 9 T41stat 10
+    # or
+    # epoT0obs 0 T0obs 1 eT0obs 2 T0_sim 3 T0obs-T0_sim 4 T0_stat 5 
+    # period_d 6 sma_au 7 ecc 8 inc_deg 9 meana_deg 10 argp_deg 11 truea_deg 12 longn_deg 13 
+    # Dur_obs 14 eDur_obs 15 Dur_sim 16 Dur_obs-Dur_sim 17 Dur_stat 18
     sim_in = np.genfromtxt(file_in)
     body_id = int(file_in.split("NB")[1].split("_simT0")[0])
 
@@ -428,10 +488,14 @@ def plot_oc_T41(
     axs = []
 
     nrows = 3
-    if sim.ncols in [11, 19]:
-        ncols = 2
-    else:
+    # if sim.ncols in [11, 19]:
+    #     ncols = 2
+    # else:
+    #     ncols = 1
+    if sim.ncols == sim.ncols_tra:
         ncols = 1
+    else:
+        ncols = 2
 
     malpha = 0.88
     # obs marker
@@ -457,8 +521,8 @@ def plot_oc_T41(
     # O-C
     ax = plt.subplot2grid((nrows, ncols), (0, 0), rowspan=2)
     set_axis_default(ax, ticklabel_size=tfont, aspect="auto", labeldown=False)
-    ax.set_ylabel("O-C (%s)" % (ocu[1]), fontsize=lfont)
-    axtitle(ax, labtitle="planet %s: transit times" % (planet), fontsize=lfont)
+    ax.set_ylabel("O-C ({:s})".format(ocu[1]), fontsize=lfont)
+    axtitle(ax, labtitle="planet {:s}: transit times".format(planet), fontsize=lfont)
 
     ax.axhline(0.0, color="black", ls="-", lw=0.7)
 
@@ -606,21 +670,24 @@ def plot_oc_T41(
             rms_res, ocu[1]
         )
     )
+    wres = sim.dTTos/sim.eTTo
+    chi2 = np.sum(wres*wres)
+    print("T0s contribution to the chi_square = {:.3f}".format(chi2))
 
     ax.set_xlim(minx, maxx)
 
     axs.append(ax)
 
-    n_cols = sim.ncols in [11, 19]
+    n_cols = ncols == 2
     dur_fit = sim.T41o is not None and len(sim.T41o) > 0
     if n_cols and dur_fit:
         # ==============================================
         # T41 duration
         y = np.concatenate(
             (
-                sim.T41o * ocu[0] - sim.eT41o * ocu[0],
-                sim.T41o * ocu[0] + sim.eT41o * ocu[0],
-                sim.T41s * ocu[0],
+                sim.T41o - sim.eT41o,
+                sim.T41o + sim.eT41o,
+                sim.T41s,
             )
         )
         dy = np.max(y) - np.min(y)
@@ -629,10 +696,10 @@ def plot_oc_T41(
 
         ax = plt.subplot2grid((nrows, ncols), (0, 1), rowspan=2)
         set_axis_default(ax, ticklabel_size=tfont, aspect="auto", labeldown=False)
-        ax.set_ylabel("T$_{14}$ (%s)" % (ocu[1]), fontsize=lfont)
+        ax.set_ylabel("T$_{{14}}$ (min)", fontsize=lfont)
         axtitle(
             ax,
-            labtitle="planet %s: durations as T$_4$-T$_1$" % (planet),
+            labtitle="planet {:s}: durations as T$_4$-T$_1$".format(planet),
             fontsize=lfont,
         )
 
@@ -641,8 +708,8 @@ def plot_oc_T41(
         # data
         ax.errorbar(
             x,
-            sim.T41o * ocu[0],
-            yerr=sim.eT41o * ocu[0],
+            sim.T41o,
+            yerr=sim.eT41o,
             color=ceo,
             ecolor=ceo,
             fmt="o",
@@ -659,7 +726,7 @@ def plot_oc_T41(
         # trades
         ax.plot(
             x,
-            sim.T41s * ocu[0],
+            sim.T41s,
             marker="o",
             color=cfs,
             ms=mss,
@@ -671,10 +738,10 @@ def plot_oc_T41(
             label="simulations",
         )
         # model
-        yy = np.concatenate((y, oc_model.T41s * ocu[0]))
+        yy = np.concatenate((y, oc_model.T41s))
         (lmod,) = ax.plot(
             xx,
-            oc_model.T41s * ocu[0],
+            oc_model.T41s,
             color=cfm,
             marker="None",
             ls="-",
@@ -689,11 +756,11 @@ def plot_oc_T41(
             # yy = y
             for ss in samples_plt:
                 # xx = ss.TTlin - tscale
-                yy = np.concatenate((yy, ss.T41s * ocu[0]))
+                yy = np.concatenate((yy, ss.T41s))
                 # print np.min(ss.T41s*ocu[0]),np.max(ss.T41s*ocu[0])
                 ax.plot(
                     xx,
-                    ss.T41s * ocu[0],
+                    ss.T41s,
                     color=cfsm,
                     marker="None",
                     ls="-",
@@ -734,8 +801,8 @@ def plot_oc_T41(
         # data - trades
         ax.errorbar(
             x,
-            sim.dT41os * ocu[0],
-            yerr=sim.eT41o * ocu[0],
+            sim.dT41os,
+            yerr=sim.eT41o,
             color=ceo,
             ecolor=ceo,
             fmt="o",
@@ -751,10 +818,14 @@ def plot_oc_T41(
 
         ax.set_xlim(minx, maxx)
         # ax.set_xlim(xlims)
+        wres = sim.dT41os/sim.eT41o
+        chi2 = np.sum(wres*wres)
+        print("T14 contribution to the chi_square = {:.3f}".format(chi2))
 
         axs.append(ax)
 
     fig.align_ylabels(axs)
+    plt.tight_layout()
 
     if save_plot == True:
         folder_out = os.path.join(os.path.dirname(file_in), "plots")
@@ -762,23 +833,18 @@ def plot_oc_T41(
             os.makedirs(folder_out)
         fname = os.path.basename(file_in)
         plt_file = os.path.join(folder_out, os.path.splitext(fname)[0])
-        fig.savefig(
-            "%s.png" % (plt_file),
-            bbox_inches="tight",
-            # dpi=200
-        )
-        print("Saved plot into:")
-        print("%s" % ("%s.png" % (plt_file)))
-        fig.savefig(
-            "%s.pdf" % (plt_file),
-            bbox_inches="tight",
-            # dpi=72
-        )
-        print("%s" % ("%s.pdf" % (plt_file)))
+        for ext in ["png", "pdf"]:
+            fig.savefig(
+                "{:s}.{:s}".format(plt_file, ext),
+                bbox_inches="tight",
+                dpi=300
+            )   
+            print("Saved plot into:")
+            print("{:s}.{:s}".format(plt_file, ext))
+
     if show_plot:
         plt.show()
     # plt.close(fig)
-
 
     if cli.kep_ele:
         sim.plot_kep_elem(cli, show_plot=show_plot)

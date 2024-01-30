@@ -398,6 +398,30 @@ contains
 
     ! ============================================================================
 
+    subroutine set_one_fit_par_boundaries(ifit, min_val, max_val)
+        integer,intent(in)::ifit
+        real(dp),intent(in)::min_val, max_val
+
+        minpar(ifit) = min_val
+        parameters_minmax(ifit, 1) = minpar(ifit)
+        maxpar(ifit) = max_val
+        parameters_minmax(ifit, 2) = maxpar(ifit)
+
+        return
+    end subroutine set_one_fit_par_boundaries
+
+    subroutine reset_all_fit_boundaries()
+
+        minpar = minpar_bck
+        parameters_minmax(:, 1) = minpar
+        maxpar = maxpar_bck
+        parameters_minmax(:, 2) = maxpar
+
+
+        return
+    end subroutine reset_all_fit_boundaries
+
+    ! ============================================================================
     subroutine init_pso(cpuid, path_in)
         integer, intent(in)::cpuid
         character(512), intent(in)::path_in
