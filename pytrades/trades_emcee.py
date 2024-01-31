@@ -27,7 +27,7 @@ import emcee
 #     except:
 #         print("PyDE not installed, errors could occur.")
 
-from constants import Mjups, Msear
+from constants import Mjups, Msear, huge
 
 # from pytrades_lib import f90trades
 import pytrades
@@ -119,7 +119,7 @@ def lnprob(fitting_parameters):
 def lnprob_real(fitting_parameters):
     lnP = lnprob(fitting_parameters)
     if np.isinf(lnP):
-        lnP = -cst.huge
+        lnP = -huge
     return lnP
 
 
@@ -127,7 +127,7 @@ def minimize_func(fitting_parameters):
     lnL = lnprob(fitting_parameters)
     to_min = -2.0 * lnL
     if np.isinf(to_min):
-        to_min = cst.huge
+        to_min = huge
 
     return to_min
 
