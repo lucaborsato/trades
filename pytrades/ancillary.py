@@ -4038,9 +4038,9 @@ def compute_physical_parameters(
                     if posterior_fit is not None:
                         longn_post = posterior_fit[:, idx_q]
                     if chains_full_fit is not None:
-                        lf_post = chains_full_fit[:, :, idx_q]
+                        longn_f_post = chains_full_fit[:, :, idx_q]
                     if chains_posterior_fit is not None:
-                        lp_post = chains_posterior_fit[:, :, idx_q]
+                        longn_p_post = chains_posterior_fit[:, :, idx_q]
                 else:
                     idx_q = (10 + (idx_body - 2) * 8) - 1  # fortran index to python: -1
                     longn = all_system_parameters[idx_q]
@@ -4050,15 +4050,6 @@ def compute_physical_parameters(
                         longn_f_post = longn
                     if chains_posterior_fit is not None:
                         longn_p_post = longn
-            # else:
-            #     if posterior_fit is not None:
-            #         longn_post = posterior_fit[:, idx_q]
-            #     if chains_full_fit is not None:
-            #         lf_post = chains_full_fit[:, :, idx_q]
-            #     if chains_posterior_fit is not None:
-            #         lp_post = chains_posterior_fit[:, :, idx_q]
-
-            # print("DEBUG: body {} longn = {}".format(idx_body, longn))
 
             meana = (meanl - longn - argp) % 360.0
             # meana_scale = np.arctan2(np.sin(meana*cst.deg2rad), np.cos(meana*cst.deg2rad)) * cst.rad2deg
