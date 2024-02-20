@@ -35,6 +35,7 @@ compute_ln_priors = f90trades.compute_ln_priors
 check_boundaries = f90trades.check_boundaries
 set_one_fit_par_boundaries = f90trades.set_one_fit_par_boundaries
 reset_all_fit_boundaries = f90trades.reset_all_fit_boundaries
+orbits_to_elements = f90trades.orbits_to_elements
 # =============================================================================
 
 def args_init(n_body, duration_check, t_epoch=None, t_start=None, t_int=None):
@@ -1869,6 +1870,14 @@ class TRADESfolder:
         os.makedirs(out_folder, exist_ok=True)
         f90trades.path_change(out_folder)
 
+        for iname, name in enumerate(self.fitting_names):
+            if (name[0] == "w"
+                or name[0:2] == "mA"
+                or name[0:2] == "lN"
+                or "lambda" in name
+            ):
+                fit_pars[iname] %= 360.0
+                
         (
             chi_square,
             reduced_chi_square,

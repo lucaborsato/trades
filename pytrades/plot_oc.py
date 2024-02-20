@@ -492,7 +492,7 @@ def plot_oc_T41(
     #     ncols = 2
     # else:
     #     ncols = 1
-    if sim.ncols == sim.ncols_tra:
+    if (sim.ncols == sim.ncols_tra or sim.ncols == (sim.ncols_tra+sim.ncols_kep)):
         ncols = 1
     else:
         ncols = 2

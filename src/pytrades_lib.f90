@@ -1268,6 +1268,27 @@ contains
         return
     end subroutine orbits_to_transits
     ! ============================================================================
+    
+    subroutine orbits_to_elements(n_steps, n_body, nb_dim, mass, orbits, period, sma, ecc, inc, meana, argp, longn, truea, dttau)
+        integer, intent(in)::n_steps, n_body, nb_dim
+        real(dp), dimension(n_body), intent(in)::mass
+        real(dp), dimension(n_steps, nb_dim), intent(in)::orbits
+        real(dp), dimension(n_steps, n_body), intent(out)::period, sma, ecc, inc, meana, argp, longn, truea, dttau
+
+        integer::i_steps
+
+        do i_steps=1,n_steps
+            call elements(mass, orbits(i_steps, :),&
+                &period(i_steps, :), sma(i_steps, :), ecc(i_steps, :),&
+                &inc(i_steps, :), meana(i_steps, :), argp(i_steps, :),&
+                &truea(i_steps, :), longn(i_steps, :), dttau(i_steps, :))
+        end do
+
+        return
+    end subroutine
+
+
+    ! ============================================================================
 
     ! create wrappers to init the grid of a perturber body (a)
     ! and set properly the parameters to use in TRADES (b)
@@ -1552,7 +1573,9 @@ contains
         logical, intent(out)::checkpar
 
         checkpar = .true.
-        call convert_parameters(all_par, fit_par, mass, radius, period, sma,&
+        ! call convert_parameters(all_par, fit_par, mass, radius, period, sma,&
+        !     &ecc, argp, meanA, inc, longN, checkpar)
+        call only_convert_parameters(all_par, fit_par, mass, radius, period, sma,&
             &ecc, argp, meanA, inc, longN, checkpar)
 
         return
