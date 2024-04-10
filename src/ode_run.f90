@@ -1772,13 +1772,14 @@ contains
     ! ================================================================================
 
     ! ================================================================================
-    subroutine ode_keplerian_elements_to_orbits(time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits)
+    subroutine ode_keplerian_elements_to_orbits(time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits, check)
         ! Input
         real(dp), dimension(:), intent(in)::time_steps
         real(dp), dimension(:), intent(in)::mass, radius, period, ecc, argp, meanA, inc, longN
         ! Output
         ! real(dp), dimension(:, :), intent(out), allocatable::orbits
         real(dp), dimension(:, :), intent(out)::orbits
+        logical,intent(out)::check
         ! Local
         integer::n_steps, iteration
         integer::n_body, nb_dim
@@ -1786,7 +1787,6 @@ contains
         real(dp), dimension(:), allocatable::sv1, sv2
         real(dp)::trun1, trun2, integration_step
         real(dp)::working_step
-        logical::check
 
         n_steps = size(time_steps)
         n_body = size(mass)

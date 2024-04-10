@@ -5235,13 +5235,13 @@ def set_automatic_unit_time(val_d):
     val_s = val_d * cst.day2sec
 
     if val_s < 60.0:
-        scale = [86400.0, "s"]
+        scale = [86400.0, "sec"]
     elif 1.0 <= val_m < 60.0:
         scale = [1440.0, "min"]
     elif 1.0 <= val_h < 24.0:
         scale = [24.0, "hours"]
     else:
-        scale = [1.0, "d"]
+        scale = [1.0, "days"]
 
     return scale
 

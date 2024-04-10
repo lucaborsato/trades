@@ -34,6 +34,7 @@ module f90trades
     !f2py real(dp)::tepoch,tstart,tint
     !f2py integer::idpert
     !f2py real(dp)::wrttime
+    !f2py logical::do_hill_check
 
     !f2py real(dp),dimension(2,2)::MR_star
     !f2py real(dp),dimension(:),allocatable::system_parameters
@@ -72,9 +73,9 @@ contains
 
     ! SET ARGS AND PARAMETERS WITH SINGLE SUBROUTINES TO BE CALLED BY PYTHON IF NEEDED
 
-    ! --- subroutine useful to modify the working path fo TRADES from python
+    ! --- subroutine useful to modify the working path of TRADES from python
     subroutine path_change(new_path)
-        character(512), intent(in)::new_path
+        character(*), intent(in)::new_path
 
         path = trim(adjustl(new_path))
 
@@ -82,7 +83,7 @@ contains
     end subroutine path_change
 
     subroutine get_path(path_out)
-        character(512), intent(out)::path_out
+        character(*), intent(out)::path_out
 
         path_out = trim(adjustl(path))
 
@@ -423,8 +424,10 @@ contains
 
     ! ============================================================================
     subroutine init_pso(cpuid, path_in)
+        ! Input
         integer, intent(in)::cpuid
-        character(512), intent(in)::path_in
+        character(*), intent(in)::path_in
+        ! Local variables
         character(512)::path_temp
 
         path_temp = trim(adjustl(path))
@@ -745,7 +748,7 @@ contains
     ! check if there are derived parameters to compute and to check
     subroutine init_check_parameters(cpuid, path_in)
         integer, intent(in)::cpuid ! cpu number: use 1
-        character(512), intent(in)::path_in ! path of the folder with derived_boundaries.dat
+        character(*), intent(in)::path_in ! path of the folder with derived_boundaries.dat
 
         call init_check_derived_parameters(cpuid, path_in)
 
@@ -812,6 +815,16 @@ contains
 
         return
     end subroutine set_time_int
+
+    subroutine set_hill_check(hill_check)
+        ! Input
+        logical, intent(in)::hill_check
+        ! Output
+        ! NONE
+        do_hill_check = hill_check
+
+        return
+    end subroutine set_hill_check
 
     ! SUBROUTINE TO INITIALISE TRADES WITHOUT READING FILES
     subroutine args_init(n_body, duration_check)
@@ -1156,16 +1169,17 @@ contains
     end subroutine kelements_to_t0s
     ! ============================================================================
 
-    subroutine kelements_to_orbits(n_steps, n_body, nb_dim, time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits)
+    subroutine kelements_to_orbits(n_steps, n_body, nb_dim, time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits, check)
         ! Input
         integer, intent(in)::n_steps, n_body, nb_dim
         real(dp), dimension(n_steps), intent(in)::time_steps
         real(dp), dimension(n_body), intent(in)::mass, radius, period, ecc, argp, meanA, inc, longN
         ! Output
         real(dp), dimension(n_steps, nb_dim), intent(out)::orbits
+        logical,intent(out)::check
 
         call args_init(n_body, 1)
-        call ode_keplerian_elements_to_orbits(time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits)
+        call ode_keplerian_elements_to_orbits(time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits, check)
 
         return
     end subroutine kelements_to_orbits

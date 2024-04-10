@@ -17,21 +17,21 @@ import h5py
 # mpl.use('Agg')
 import matplotlib.pyplot as plt
 
-# matplotlib rc params
-# plt.rcParams['text.usetex'] = True
-plt.rcParams["text.usetex"] = False
-# plt.rcParams['font.family']       = 'sans-serif'
-plt.rcParams["font.family"] = "serif"
-plt.rcParams["font.serif"] = ["Computer Modern Roman", "Palatino", "DejaVu Serif"]
-plt.rcParams["mathtext.fontset"] = "cm"
-plt.rcParams["figure.figsize"] = [5, 5]
-plt.rcParams["figure.facecolor"] = "white"
-plt.rcParams["savefig.facecolor"] = "white"
-plt.rcParams["figure.dpi"] = 200
-plt.rcParams["savefig.dpi"] = 300
-plt.rcParams["font.size"] = 12
-plt.rcParams["xtick.labelsize"] = plt.rcParams["font.size"] - 2
-plt.rcParams["ytick.labelsize"] = plt.rcParams["xtick.labelsize"]
+# # matplotlib rc params
+# # plt.rcParams['text.usetex'] = True
+# plt.rcParams["text.usetex"] = False
+# # plt.rcParams['font.family']       = 'sans-serif'
+# plt.rcParams["font.family"] = "serif"
+# plt.rcParams["font.serif"] = ["Computer Modern Roman", "Palatino", "DejaVu Serif"]
+# plt.rcParams["mathtext.fontset"] = "cm"
+# plt.rcParams["figure.figsize"] = [5, 5]
+# plt.rcParams["figure.facecolor"] = "white"
+# plt.rcParams["savefig.facecolor"] = "white"
+# plt.rcParams["figure.dpi"] = 200
+# plt.rcParams["savefig.dpi"] = 300
+# plt.rcParams["font.size"] = 12
+# plt.rcParams["xtick.labelsize"] = plt.rcParams["font.size"] - 2
+# plt.rcParams["ytick.labelsize"] = plt.rcParams["xtick.labelsize"]
 
 # custom modules
 import constants as cst
@@ -40,6 +40,7 @@ import pytrades
 
 CLI_OC = anc.CLI_OC
 
+anc.set_rcParams()
 
 # ==============================================================================
 class sim_data:
@@ -77,6 +78,7 @@ class sim_data:
 
     def update_sim_data(self, body_id, sim_in, kep_ele=False):
         self.body_id = body_id
+        self.sim_in = sim_in
         self.nTTs, self.ncols = np.shape(sim_in)
 
         self.epo = sim_in[:, 0].astype(int)
@@ -360,7 +362,7 @@ def read_samples(samples_file=None):
 def set_unit_base(u_in, Aoc_d):
     try:
         if u_in.lower() in "s sec second seconds".split():
-            ocu = [86400.0, "s"]
+            ocu = [86400.0, "sec"]
         elif u_in.lower() in "m min minute minutes".split():
             ocu = [1440.0, "min"]
         elif u_in.lower() in "h hour hours".split():
@@ -368,7 +370,7 @@ def set_unit_base(u_in, Aoc_d):
         elif u_in.lower() == "auto":
             ocu = anc.set_automatic_unit_time(Aoc_d)
         else:
-            ocu = [1.0, "d"]
+            ocu = [1.0, "days"]
     except:
         ocu = [1.0, "days"]
 
@@ -482,7 +484,7 @@ def plot_oc_T41(
     else:
         xlabel = "BJD$_\mathrm{TDB}$"
 
-    fig = plt.figure(figsize=(6, 6))
+    fig = plt.figure(figsize=figsize)
     fig.subplots_adjust(hspace=0.05, wspace=0.25)
 
     axs = []

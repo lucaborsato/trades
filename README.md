@@ -11,44 +11,39 @@ full transit durations (T14 or T41),
  and radial velocities (RVs).
 These T0s and RVs are computed during the integration of the planetary orbits.  
 
-Download and compile `fortran90` and `python` libraries:  
+## Install
 
-```bash
-git clone https://github.com/lucaborsato/trades.git
-cd trades/src
-make cleanall
-make full_parallel_release
-```
+To **install `TRADES`** you need a `fortran90` compiler, I tested `gfortran`.
 
-I suggest to create an `anaconda environment`, install all the dependencies and then do `make full_parallel_release`.  
-**WARNING**: not working with `python>=3.11s` and `numpy>=1.26` due to deprecated `distutils` for `f2py`, now using `meson`.  
-**SUGGESTION**: `conda create --name trades_env python=3.10 numpy=1.23.5` and other packages should be installed properly.  
-
-Possible way to create an environment and install all dependencies:  
-
-create env with python and numpy and matplotlib
+I suggest to create an `anaconda environment`.  
+**WARNING**: not working with `python>=3.11` and `numpy>=1.26` due to deprecated `distutils` for `f2py`, now using `meson`.  
+**SUGGESTION**:  
 `conda create --name trades_env python=3.10 numpy=1.23.5 matplotlib`  
+and other packages should be installed properly.  
+
+Install all dependencies:  
+
 activate env  
 `conda activate trades_env`  
 optional `cython`:  
 `conda install cython`  
-install `h5py`, `pyyaml`, `tqdm`, `emcee`, `scipy`, `pandas`, `pygtc`:  
 
+install `h5py`, `pyyaml`, `tqdm`, `emcee`, `scipy`, `pandas`, `pygtc`:  
 `conda install h5py`  
 `pip install pyyaml`  
 `conda install -c conda-forge tqdm` or `pip install tqdm`  
-`pip install corner`
+`pip install corner`  
 `conda install -c conda-forge emcee`  
 `conda install pandas` or `conda install -c conda-forge pandas`  
 `conda install scipy` or `conda install -c conda-forge scipy`  
 `conda install -c conda-forge astropy`  
 `conda install -c conda-forge pygtc`  
 
-some packages needs `celerite`:  
+some packages need `celerite`:  
 `conda install -c conda-forge pybind11`  
 `conda install -c conda-forge celerite`  
 
-for photo-dynamical approach it is needed to install `pytransit`:  
+it is also needed to install `pytransit` (check latest doc for installation instructions):  
 `conda install numba cudatoolkit`  
 `pip install semantic-version`  
 `conda install -c conda-forge arviz`  
@@ -61,6 +56,15 @@ Still not fully tested and in development, `dynesty` and `ultranest`:
 `conda install -c conda-forge ultranest`  
 (could use `mpi4py`, I was not able to install it)  
 
+Then you have compile the `TRADES` code and generate the `pytrades` python module:
+```bash
+conda activate trades_env
+git clone https://github.com/lucaborsato/trades.git
+cd trades/src
+make cleanall
+make full_parallel_release
+```
+## TRADES in Python
 
 To use with `python` as it would be in [PyORBIT](https://github.com/LucaMalavolta/PyORBIT) 
 see notebook [import_trades_for_python](trades_example/python_examples/import_trades_for_python.ipynb) 

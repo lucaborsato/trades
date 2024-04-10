@@ -36,9 +36,10 @@ check_boundaries = f90trades.check_boundaries
 set_one_fit_par_boundaries = f90trades.set_one_fit_par_boundaries
 reset_all_fit_boundaries = f90trades.reset_all_fit_boundaries
 orbits_to_elements = f90trades.orbits_to_elements
+set_hill_check = f90trades.set_hill_check
 # =============================================================================
 
-def args_init(n_body, duration_check, t_epoch=None, t_start=None, t_int=None):
+def args_init(n_body, duration_check, t_epoch=None, t_start=None, t_int=None, do_hill_check=False):
 
     f90trades.args_init(
         n_body,
@@ -51,6 +52,8 @@ def args_init(n_body, duration_check, t_epoch=None, t_start=None, t_int=None):
         f90trades.set_time_start(t_start)
     if t_int is not None:
         f90trades.set_time_int(t_int)
+    if do_hill_check is not None:
+        set_hill_check(do_hill_check)
 
     return
 
@@ -231,7 +234,7 @@ def kelements_to_orbits(
 
     nb_dim = len(M_msun) * 6
 
-    orbits = f90trades.kelements_to_orbits(
+    orbits, check = f90trades.kelements_to_orbits(
         nb_dim,
         steps,
         M_msun,
@@ -244,7 +247,7 @@ def kelements_to_orbits(
         lN_deg,
     )
 
-    return orbits
+    return orbits, check
 
 
 # =============================================================================
@@ -299,7 +302,7 @@ def kelements_to_orbits_full(
         ]  # reverse the sort
 
         # n_steps_backward = len(steps_backward)
-        orbits_backward = kelements_to_orbits(
+        orbits_backward, check_backward = kelements_to_orbits(
             steps_backward,
             M_msun,
             R_rsun,
@@ -313,6 +316,8 @@ def kelements_to_orbits_full(
     else:
         steps_backward = np.array([])
         orbits_backward = np.empty((0, nb_dim))
+        check_backward = True
+
 
     if np.abs(dt_end_epoch) > 0.0:
         # forward integration
@@ -324,17 +329,19 @@ def kelements_to_orbits_full(
         steps_forward = np.sort(np.concatenate((steps_forward, t_in)))
 
         # n_steps_forward = len(steps_forward)
-        orbits_forward = kelements_to_orbits(
+        orbits_forward, check_forward = kelements_to_orbits(
             steps_forward, M_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg
         )
     else:
         steps_forward = np.array([])
         orbits_forward = np.empty((0, nb_dim))
+        check_forward = True
 
     time_steps = np.concatenate((steps_backward, steps_forward))
     orbits = np.concatenate((orbits_backward, orbits_forward))
+    check = (check_backward & check_forward)
 
-    return time_steps, orbits
+    return time_steps, orbits, check
 
 
 # =============================================================================
@@ -396,7 +403,7 @@ def orbital_parameters_to_transits(
     t_start, t_epoch, t_int, mass, radius, period, ecc, w, ma, inc, long, t_rv_obs
 ):
 
-    time_steps, orbits = kelements_to_orbits_full(
+    time_steps, orbits, check = kelements_to_orbits_full(
         t_start,
         t_epoch,
         t_int,
@@ -426,7 +433,7 @@ def orbital_parameters_to_transits(
         n_all_transits, time_steps, mass, radius, orbits, transiting_body
     )
     # kep_elem == period 0, sma 1, ecc 2, inc 3, meana 4, argp 5, truea 6, longn 7
-    return time_steps, orbits, transits, durations, kep_elem, body_flag, rv_sim
+    return time_steps, orbits, transits, durations, kep_elem, body_flag, rv_sim, check
 
 
 def set_transit_parameters(radius, transits, body_flag, kep_elem):
@@ -1133,7 +1140,7 @@ class PhotoTRADES:
         n_steps_smaller_orbits=10.0,
     ):
 
-        time_steps, orbits = kelements_to_orbits_full(
+        time_steps, orbits, check = kelements_to_orbits_full(
             self.t_start,
             self.t_epoch,
             self.t_int,
