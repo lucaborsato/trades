@@ -3,4 +3,5 @@
 K9/
 cheops/
 *.mod
-
+*.vscode
+*.ipynb_checkpoints
