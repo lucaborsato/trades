@@ -24,42 +24,44 @@ anc.set_rcParams()
 
 # ==============================================================================
 
-filled_markers = (
-    "o",
-    "s",
-    "D",
-    "^",
-    "*",
-    "v",
-    "<",
-    ">",
-    "8",
-    "p",
-    "h",
-    "H",
-    "d",
-    "P",
-    "X",
-)
+# filled_markers = (
+#     "o",
+#     "s",
+#     "D",
+#     "^",
+#     "*",
+#     "v",
+#     "<",
+#     ">",
+#     "8",
+#     "p",
+#     "h",
+#     "H",
+#     "d",
+#     "P",
+#     "X",
+# )
+filled_markers = anc.filled_markers
 
-size_default = 3.0
-size_markers = (
-    size_default,
-    size_default,
-    size_default,
-    size_default + 0.2,
-    size_default + 2.0,
-    size_default + 0.2,
-    size_default + 0.2,
-    size_default + 0.2,
-    size_default,
-    size_default,
-    size_default,
-    size_default,
-    size_default,
-    size_default,
-    size_default,
-)
+# size_default = 3.0
+# size_markers = (
+#     size_default,
+#     size_default,
+#     size_default,
+#     size_default + 0.2,
+#     size_default + 2.0,
+#     size_default + 0.2,
+#     size_default + 0.2,
+#     size_default + 0.2,
+#     size_default,
+#     size_default,
+#     size_default,
+#     size_default,
+#     size_default,
+#     size_default,
+#     size_default,
+# )
+size_markers = anc.size_markers
 
 
 CLI_RV = anc.CLI_RV
@@ -256,18 +258,7 @@ def axtitle(ax, labtitle="", fontsize=8):
 
 
 # ==============================================================================
-
-def set_colors(ncolors, colormap='Dark2'):
-
-    try:
-        cmp = plt.cm.get_cmap(colormap)
-    except:
-        cmp = plt.cm.get_cmap('Dark2')
-    x = np.linspace(0.1, 0.9, endpoint=True, num=ncolors)
-    colors = cmp(x)
-
-    return colors
-
+set_colors = anc.set_colors
 # ==============================================================================
 
 def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):

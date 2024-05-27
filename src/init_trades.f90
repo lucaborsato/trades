@@ -60,6 +60,36 @@ contains
         return
     end function get_rows
 
+    function get_cols(line) result(ncols)
+        ! Input
+        character(512), intent(in)::line
+        ! Output
+        integer::ncols
+        ! Locals
+        character(512)::line_temp
+        integer::n_len,n_space,i,cnt_rm
+
+        line_temp = trim(adjustl(line))
+        n_len = len_trim(line_temp)
+        n_space = 0
+        cnt_rm = n_len
+        do i=1,n_len
+            if(line_temp(i:i) .eq. ' ')then
+                if(line_temp(i+1:i+1) .ne. ' ') then
+                    if (line_temp(i+1:i+1) .eq. '#') then
+                        cnt_rm = i
+                        exit
+                    else
+                        n_space = n_space + 1
+                    end if
+                end if
+            end if
+        end do
+        ncols = n_space + 1
+
+        return
+    end function get_cols
+
     ! ------------------------------------------------------------------ !
     ! initialize the units needed to write files...even with openMP
     subroutine initu(nf, nc)
@@ -741,10 +771,11 @@ contains
   !! TO DO: READ DURATION FROM FILE => nT0 x 2, allocation of variables, read file change
     ! FILE TYPE: N T_0,obs err_T_0,obs
     subroutine read_T0obs(cpuid)
+        ! Input
         integer, intent(in)::cpuid
-
+        ! Locals
 !     integer::nTmax
-        integer::j, j1, uread, stat
+        integer::j, j1, uread, stat, ncol
         logical::fstat
         character(512)::flt0, row
 
@@ -806,10 +837,17 @@ contains
                             row = trim(adjustl(row))
                             if (row(1:1) .ne. "#" .and. len(trim(row)) .gt. 0) then
                                 j1 = j1+1
-!                 read(row,*)epoT0obs(j1,j),T0obs(j1,j),eT0obs(j1,j)
-                                read (row, *) obsData%obsT0(j-1)%epo(j1),&
-                                  &obsData%obsT0(j-1)%T0(j1),&
-                                  &obsData%obsT0(j-1)%eT0(j1)
+                                ncol = get_cols(row)
+                                if (ncol .ge. 4) then ! if 4 columns, read epoch, T0, eT0, source_id
+                                    read (row, *) obsData%obsT0(j-1)%epo(j1),&
+                                        &obsData%obsT0(j-1)%T0(j1),&
+                                        &obsData%obsT0(j-1)%eT0(j1),&
+                                        &obsData%obsT0(j-1)%source_id(j1)
+                                else ! else read 3 columns, read epoch, T0, eT0.
+                                    read (row, *) obsData%obsT0(j-1)%epo(j1),&
+                                        &obsData%obsT0(j-1)%T0(j1),&
+                                        &obsData%obsT0(j-1)%eT0(j1)
+                                end if
                             end if
 
                         end do T0only
@@ -845,11 +883,21 @@ contains
                             row = trim(adjustl(row))
                             if (row(1:1) .ne. "#" .and. len(trim(row)) .gt. 0) then
                                 j1 = j1+1
-                                read (row, *) obsData%obsT0(j-1)%epo(j1),&
-                                  &obsData%obsT0(j-1)%T0(j1),&
-                                  &obsData%obsT0(j-1)%eT0(j1),&
-                                  &obsData%obsT0(j-1)%dur(j1),&
-                                  &obsData%obsT0(j-1)%edur(j1)
+                                ncol = get_cols(row)
+                                if (ncol .ge. 6) then
+                                    read (row, *) obsData%obsT0(j-1)%epo(j1),&
+                                        &obsData%obsT0(j-1)%T0(j1),&
+                                        &obsData%obsT0(j-1)%eT0(j1),&
+                                        &obsData%obsT0(j-1)%dur(j1),&
+                                        &obsData%obsT0(j-1)%edur(j1),&
+                                        &obsData%obsT0(j-1)%source_id(j1)
+                                else
+                                    read (row, *) obsData%obsT0(j-1)%epo(j1),&
+                                        &obsData%obsT0(j-1)%T0(j1),&
+                                        &obsData%obsT0(j-1)%eT0(j1),&
+                                        &obsData%obsT0(j-1)%dur(j1),&
+                                        &obsData%obsT0(j-1)%edur(j1)
+                                end if
                             end if
 
                         end do T0Dur

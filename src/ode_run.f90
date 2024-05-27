@@ -238,6 +238,7 @@ contains
         logical, intent(out)::Hc
         !
 
+        Hc = .true.
         call ode_full_args(mass, radius, rin, tepoch, time_to_int, step, obsDataIn, simRV,&
         &idtra, do_transit, durcheck, simT0, Hc)
 
@@ -1007,7 +1008,8 @@ contains
         &mass, radius, period, ecc, argp, meanA, inc, longN,&
         &obsData_in,&
         &id_transit_body, transit_flag, dur_check,&
-        &simRV, simT0)
+        &simRV, simT0,&
+        &stable)
 
         real(dp), intent(in)::t_start, t_epoch, step_in, t_int
         real(dp), dimension(:), intent(in)::mass, radius, period, ecc, argp, meanA, inc, longN
@@ -1017,15 +1019,15 @@ contains
         integer, intent(in)::id_transit_body
         logical, dimension(:), intent(in)::transit_flag
         integer, intent(in)::dur_check
-
+        
         type(dataRV), intent(out)::simRV
         type(dataT0), dimension(:), allocatable, intent(out)::simT0
-
+        logical,intent(out)::stable
+        
         integer::n_body, nb_dim
         real(dp), dimension(:), allocatable::ra0, ra1
         real(dp), dimension(:), allocatable::sma
         real(dp)::dt1, dt2
-        logical::Hc
 
         integer::nRV, nTTs, nT14s
         integer::ibd, nT0
@@ -1034,7 +1036,7 @@ contains
         nTTs = obsData_in%nTTs
         nT14s = obsData_in%nDurs
 
-        Hc = .true.
+        stable = .true.
 
         n_body = size(mass)
         allocate (sma(n_body))
@@ -1071,18 +1073,19 @@ contains
 
         dt1 = t_start-t_epoch
         dt2 = dt1+t_int
+
         if (dt1 .lt. zero) then
             call ode_full_args(mass, radius, ra1, t_epoch, dt1, -step_in, obsData_in,&
               &simRV,&
               &id_transit_body, transit_flag, dur_check, simT0,&
-              &Hc)
-            if (Hc) then
+              &stable)
+            if (stable) then
                 if (abs(dt1) .le. t_int) then
                     dt2 = dt1+t_int
                     call ode_full_args(mass, radius, ra1, t_epoch, dt2, step_in, obsData_in,&
                       &simRV,&
                       &id_transit_body, transit_flag, dur_check, simT0,&
-                      &Hc)
+                      &stable)
                 end if
             end if
         else
@@ -1090,11 +1093,11 @@ contains
             call ode_full_args(mass, radius, ra1, t_epoch, dt2, step_in, obsData_in,&
               &simRV,&
               &id_transit_body, transit_flag, dur_check, simT0,&
-              &Hc)
+              &stable)
         end if
 
         ! unstable or some bad parameters case!
-        if (.not. Hc) then
+        if (.not. stable) then
             if (nRV .gt. 0) then
                 simRV%RV = zero
                 simRV%RV_stat = 0
@@ -1146,7 +1149,8 @@ contains
         &id_transit_body, transit_flag, dur_check,&
         &RV_sim,&
         &body_T0_sim, epo_sim,&
-        &T0_sim, T14_sim, kep_elem_sim)
+        &T0_sim, T14_sim, kep_elem_sim,&
+        &stable)
         ! Input
         real(dp), intent(in)::t_start, t_epoch, step_in, t_int
         real(dp), dimension(:), intent(in)::mass, radius, period, ecc, argp, meanA, inc, longN
@@ -1158,6 +1162,7 @@ contains
         integer, dimension(:), allocatable, intent(out)::body_T0_sim, epo_sim
         real(dp), dimension(:), allocatable, intent(out)::T0_sim, T14_sim
         real(dp), dimension(:, :), allocatable, intent(out)::kep_elem_sim
+        logical, intent(out)::stable
         ! Local
         type(dataRV)::simRV
         type(dataT0), dimension(:), allocatable::simT0
@@ -1178,7 +1183,7 @@ contains
         call integration_info_to_observables(t_start, t_epoch, step_in, t_int,&
             &mass, radius, period, ecc, argp, meanA, inc, longN,&
             &obsData, id_transit_body, transit_flag, dur_check,&
-            &simRV, simT0)
+            &simRV, simT0, stable)
 
         if (nRV .gt. 0) then
             ! allocate (RV_sim(nRV))

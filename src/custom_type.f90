@@ -31,6 +31,7 @@ module custom_type
         logical::transiting = .true.
         integer, dimension(:), allocatable::epo
         real(dp), dimension(:), allocatable::T0, eT0, dur, edur, oc
+        integer, dimension(:), allocatable::source_id
         integer, dimension(:), allocatable::T0_stat, dur_stat
         real(dp)::Tephem = zero, eTephem = zero, Pephem = zero, ePephem = zero
         real(dp), dimension(:), allocatable::period, sma, ecc, inc, meana
@@ -124,12 +125,13 @@ contains
             call deallocate_dataT0(T0)
         end if
         T0%nT0 = nT0
-        allocate (T0%epo(nT0), T0%T0(nT0), T0%eT0(nT0), T0%oc(nT0), T0%T0_stat(nT0))
+        allocate (T0%epo(nT0), T0%T0(nT0), T0%eT0(nT0), T0%oc(nT0), T0%T0_stat(nT0), T0%source_id(nT0))
         T0%epo = 0
         T0%T0 = zero
         T0%eT0 = zero
         T0%oc = zero
         T0%T0_stat = 0
+        T0%source_id = 1
         ! duration
         allocate (T0%dur(nT0), T0%edur(nT0), T0%dur_stat(nT0))
         T0%dur = zero
@@ -163,6 +165,7 @@ contains
         if (allocated(T0%eT0)) deallocate (T0%eT0)
         if (allocated(T0%oc)) deallocate (T0%oc)
         if (allocated(T0%T0_stat)) deallocate (T0%T0_stat)
+        if (allocated(T0%source_id)) deallocate (T0%source_id)
         if (allocated(T0%dur)) deallocate (T0%dur)
         if (allocated(T0%edur)) deallocate (T0%edur)
         if (allocated(T0%dur_stat)) deallocate (T0%dur_stat)

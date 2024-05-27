@@ -162,6 +162,7 @@ class AnalysisTRADES:
 
         # # init trades
         anc.print_both("Init trades ... ")
+        
         sim = pytrades.TRADESfolder(cli.full_path, seed=cli.seed, m_type=cli.m_type)
         sim.init_trades()
         sys.stdout.flush()
@@ -442,7 +443,8 @@ class AnalysisTRADES:
     ):
 
         full_sim_name = "{:04d}_sim_{:s}".format(id_sim, sim_name)
-        out_folder = os.path.join(os.path.join(self.sim.full_path, full_sim_name), "")
+        out_folder = os.path.join(self.cli.full_path, full_sim_name, "")
+        print(out_folder)
         os.makedirs(out_folder, exist_ok=True)
 
         # compute sigma fit/phy!!
@@ -567,7 +569,7 @@ class AnalysisTRADES:
         # IF PSO BEST FILE AVAILABLE PARAMETERS -> id 0004
         # ==============================================================================
         pso_file = os.path.join(  # or pso_pattern
-            self.sim.full_path,
+            self.cli.full_path,
             # "*_bestpso_*par.out"
             "pso_run.hdf5",
         )
@@ -604,7 +606,7 @@ class AnalysisTRADES:
         # ==============================================================================
         # IF DE BEST FILE AVAILABLE PARAMETERS -> id 0006
         # ==============================================================================
-        de_file = os.path.join(self.sim.full_path, "de_run.hdf5")
+        de_file = os.path.join(self.cli.full_path, "de_run.hdf5")
         de = os.path.exists(de_file) and os.path.isfile(de_file)
         if de:
             id_sim = 6
@@ -909,7 +911,7 @@ class AnalysisTRADES:
         except:
             par_desc += " !! MAP WITHIN HDI NOT FOUND --> USING MAP"
             full_sim_name = "{:04d}_sim_{:s}".format(id_sim, sim_name)
-            out_folder = os.path.join(os.path.join(self.sim.full_path, full_sim_name), "")
+            out_folder = os.path.join(os.path.join(self.cli.full_path, full_sim_name), "")
             os.makedirs(out_folder, exist_ok=True)
             warn_file = os.path.join(out_folder, "WARNING.txt")
             anc.print_both("WRITING WARNING FILE: {:s}".format(warn_file))
@@ -1059,7 +1061,6 @@ def run_analysis(cli):
 
     anc.print_both("Completed analysis of TRADES simulation.")
 
-
     # ===== LOG-PROB TRACE plot ===== #
     log_probability_trace(
         analysis.lnprobability_full_thinned, 
@@ -1073,13 +1074,6 @@ def run_analysis(cli):
 
     # ===== CONVERGENCE ===== #
     if cli.gelman_rubin or cli.geweke or cli.chain:
-        # try:
-        #     conf_run = anc.ConfigurationRun(cli.yaml_file)
-        #     used_thin = conf_run.thin_by
-        # except:
-        #     used_thin = 1
-        # n_cv = np.maximum(10, np.minimum(cli.gr_steps, cli.gk_steps))
-        
         anc.print_both("\nComputing converging stats ...")
         par_file = os.path.join(cli.full_path, "summary_parameters.hdf5")
         stats_file = os.path.join(logs_folder, "convergence_stats.logs")
@@ -1094,14 +1088,6 @@ def run_analysis(cli):
                     ]
                 else:
                     overp_par = analysis.fitting_posterior[np.argmax(analysis.lnprob_posterior), :]
-                # compute_convergence(
-                #     analysis.chains_full_thinned,
-                #     analysis.fitting_names,
-                #     logs_folder,
-                #     plots_folder,
-                #     n_cv = n_cv,
-                #     n_thin=used_thin
-                # )
                 exp_acf_fit, exp_steps_fit = full_statistics(
                     analysis.chains_full_thinned,
                     analysis.fitting_posterior,
@@ -1160,63 +1146,6 @@ def run_analysis(cli):
                 output=olog,
             )
 
-    # # ===== Gelman-Rubin ===== #
-    # if cli.gelman_rubin:
-    #     anc.print_both("\nGet Gelman-Rubin stats ... ")
-    #     compute_gr(
-    #         cli,
-    #         logs_folder,
-    #         plots_folder,
-    #         # analysis.chains_posterior,
-    #         analysis.chains_full_thinned,
-    #         analysis.fitting_names,
-    #     )
-
-    # # ===== Geweke ===== #
-    # if cli.geweke:
-    #     anc.print_both("\nGet Geweke stats ... ")
-    #     compute_geweke(
-    #         cli,
-    #         logs_folder,
-    #         plots_folder,
-    #         # analysis.chains_posterior,
-    #         analysis.chains_full_thinned,
-    #         analysis.fitting_names,
-    #     )
-
-
-    # # ===== Chains ===== #
-    # if cli.chain:
-    #     anc.print_both("\nPlotting chains ... ")
-    #     plot_chains(
-    #         cli,
-    #         logs_folder,
-    #         plots_folder,
-    #         analysis.fitting_posterior,
-    #         analysis.chains_full_thinned,  # it has the burn-in and thinned at needs
-    #         analysis.lnprobability_posterior,
-    #         analysis.lnprobability_full_thinned,
-    #         analysis.fitting_names,
-    #         analysis.thin_steps,
-    #         fitting_minmax=analysis.sim.fitting_minmax,
-    #         physical=False
-    #     )
-
-    #     anc.print_both("\nPlotting physical chains ... ")
-    #     plot_chains(
-    #         cli,
-    #         logs_folder,
-    #         plots_folder,
-    #         analysis.physical_posterior,
-    #         analysis.physical_chains,
-    #         analysis.lnprobability_posterior,
-    #         analysis.lnprobability_full_thinned,
-    #         analysis.physical_names,
-    #         analysis.thin_steps,
-    #         fitting_minmax=None,
-    #         physical=True
-    #     )
-
     # ===== Fitted Correlation Plot ===== #
     if cli.correlation_fitted:
         anc.print_both("\nPlotting Fitted Correlation Diagram ... ")
@@ -1253,7 +1182,6 @@ def run_analysis(cli):
                 anc.print_both("\n ================ ")
                 anc.print_both("OC of {}".format(os.path.basename(coc.full_path)))
                 file_list = poc.get_simT0_file_list(coc)
-                # sims = []
                 for idbody, flist in file_list.items():
                     if (cli.idplanet_name is None) or (len(cli.idplanet_name) == 0):
                         pl_name = None

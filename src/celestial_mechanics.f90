@@ -458,21 +458,25 @@ contains
 ! ------------------------------------------------------------------------------
     ! computes the barycenter of the system
     subroutine barycenter(m, ri, rbar, ro)
+        ! Input
         real(dp), dimension(:), intent(in)::m, ri
+        ! Output
         real(dp), dimension(:), intent(out)::rbar, ro
+        ! Local
         real(dp)::mtot
-        integer::j, nj
+        integer::nbodies, j, nj
 
+        nbodies  = size(m)
         mtot = sum(m)
         rbar = zero
         ro = zero
-        do j = 1, NB
+        do j = 1, nbodies
             nj = (j-1)*6
             rbar = rbar+ri(1+nj:6+nj)*m(j)
         end do
         rbar = rbar/mtot
         !compute the position of the star and other bodies respect to the barycenter
-        do j = 1, NB
+        do j = 1, nbodies
             nj = (j-1)*6
             ro(1+nj:6+nj) = ri(1+nj:6+nj)-rbar
         end do

@@ -75,7 +75,7 @@ contains
 
     ! --- subroutine useful to modify the working path of TRADES from python
     subroutine path_change(new_path)
-        character(*), intent(in)::new_path
+        character(512), intent(in)::new_path
 
         path = trim(adjustl(new_path))
 
@@ -83,7 +83,7 @@ contains
     end subroutine path_change
 
     subroutine get_path(path_out)
-        character(*), intent(out)::path_out
+        character(512), intent(out)::path_out
 
         path_out = trim(adjustl(path))
 
@@ -895,12 +895,13 @@ contains
         return
     end subroutine deallocate_rv_dataset
 
-    subroutine set_t0_dataset(body_id, epo, obs_t0, obs_et0, n_t0)
+    subroutine set_t0_dataset(body_id, epo, obs_t0, obs_et0, sources_id, n_t0)
         ! Input
         integer, intent(in)::body_id
         integer, intent(in)::n_t0
         integer, dimension(n_t0), intent(in)::epo
         real(dp), dimension(n_t0), intent(in)::obs_t0, obs_et0
+        integer, dimension(n_t0), intent(in)::sources_id
         ! Local
         integer::n, i_body
 
@@ -911,6 +912,7 @@ contains
             obsData%obsT0(i_body)%epo = epo
             obsData%obsT0(i_body)%T0 = obs_t0
             obsData%obsT0(i_body)%eT0 = obs_et0
+            obsData%obsT0(i_body)%source_id = sources_id
             obsData%nTTs = sum(obsData%obsT0(:)%nT0)
             nTTs = obsData%nTTs
             nDurs = nTTs
@@ -956,7 +958,7 @@ contains
         &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
         &transit_flag,& ! input
         &rv_sim,&
-        &body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim,& ! output
+        &body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable,& ! output
         &n_body, n_rv, n_tt, n_kep) ! dimensions to be not provided
 
         ! INPUT
@@ -998,6 +1000,7 @@ contains
         integer, dimension(n_tt), intent(out)::body_t0_sim, epo_sim
         real(dp), dimension(n_tt), intent(out)::t0_sim, t14_sim
         real(dp), dimension(n_tt, n_kep), intent(out)::kel_sim
+        logical, intent(out)::stable
         ! Local
         integer::id_transit_body = 1 ! needed to be == 1
         real(dp), dimension(:), allocatable::rv_temp
@@ -1013,7 +1016,8 @@ contains
             &id_transit_body, transit_flag, durcheck,&
             &rv_temp,&
             &body_t0_temp, epo_temp,&
-            &t0_temp, t14_temp, kel_temp)
+            &t0_temp, t14_temp, kel_temp,&
+            &stable)
 
         rv_sim = rv_temp
 
@@ -1032,7 +1036,7 @@ contains
 
     subroutine kelements_to_rv(t_start, t_epoch, t_int,&
         &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
-        &rv_sim,&
+        &rv_sim, stable,&
         &n_body, n_rv) ! dimensions to be not provided
 
         ! INPUT
@@ -1063,6 +1067,7 @@ contains
         real(dp), dimension(n_body), intent(in)::ecc, argp_deg, mA_deg, inc_deg, lN_deg
         ! Output
         real(dp), dimension(n_rv), intent(out)::rv_sim
+        logical, intent(out)::stable
         ! Local
         integer::id_transit_body = 0 ! needed to be == 0, so no needs to check for transits
         real(dp), dimension(:), allocatable::rv_temp
@@ -1082,7 +1087,7 @@ contains
             &id_transit_body, transit_flag, durcheck,&
             &rv_temp,&
             &body_t0_temp, epo_temp,&
-            &t0_temp, t14_temp, kel_temp)
+            &t0_temp, t14_temp, kel_temp, stable)
 
         rv_sim = rv_temp
 
@@ -1096,7 +1101,7 @@ contains
     subroutine kelements_to_t0s(t_start, t_epoch, t_int,&
         &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
         &transit_flag,& ! input
-        &body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim,& ! output
+        &body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable,& ! output
         &n_body, n_tt, n_kep) ! dimensions to be not provided
 
         ! INPUT
@@ -1136,6 +1141,7 @@ contains
         integer, dimension(n_tt), intent(out)::body_t0_sim, epo_sim
         real(dp), dimension(n_tt), intent(out)::t0_sim, t14_sim
         real(dp), dimension(n_tt, n_kep), intent(out)::kel_sim
+        logical, intent(out)::stable
         ! Local
         integer::id_transit_body = 1 ! needed to be == 1
         real(dp), dimension(:), allocatable::rv_temp
@@ -1151,7 +1157,7 @@ contains
             &id_transit_body, transit_flag, durcheck,&
             &rv_temp,&
             &body_t0_temp, epo_temp,&
-            &t0_temp, t14_temp, kel_temp)
+            &t0_temp, t14_temp, kel_temp,stable)
 
         ! rv_sim      = rv_temp
 
@@ -1636,6 +1642,25 @@ contains
     end subroutine update_parameters_from_keplerian
 
     ! ============================================================================
+    subroutine astrocentric_to_barycentric_orbits(mass, astro_orbits, bary_orbits, barycenter_position, nbodies, n_steps)
+        ! Input
+        integer, intent(in)::nbodies, n_steps
+        real(dp), dimension(nbodies), intent(in)::mass
+        real(dp), dimension(n_steps, nbodies*6), intent(in)::astro_orbits
+        ! Output
+        real(dp), dimension(n_steps, nbodies*6), intent(out)::bary_orbits
+        real(dp), dimension(n_steps, 6), intent(out)::barycenter_position
+        ! Locals
+        integer::i_step
+
+        do i_step = 1, n_steps
+            call barycenter(mass, astro_orbits(i_step, :), barycenter_position(i_step, :), bary_orbits(i_step, :))
+        end do
+
+        return
+    end subroutine astrocentric_to_barycentric_orbits
+
+    ! ============================================================================
 
     subroutine linear_fit_no_errors(nx, x, y, m, err_m, q, err_q)
         ! Input
@@ -1664,6 +1689,29 @@ contains
     end subroutine linear_fit_errors
 
     ! ============================================================================
+
+    ! add celestial mechanics subroutines to be used from python
+    subroutine f90_period_to_sma(mass_star, mass_planet, period, sma)
+        ! Input
+        real(dp), intent(in)::mass_star, mass_planet, period
+        ! Output
+        real(dp), intent(out)::sma
+
+        call period_to_sma(mass_star, mass_planet, period, sma)
+
+        return
+    end subroutine f90_period_to_sma
+
+    subroutine f90_sma_to_period(mass_star, mass_planet, sma, period)
+        ! Input
+        real(dp), intent(in)::mass_star, mass_planet, sma
+        ! Output
+        real(dp), intent(out)::period
+
+        call sma_to_period(mass_star, mass_planet, sma, period)
+
+        return
+    end subroutine f90_sma_to_period
 
     ! ============================================================================
 

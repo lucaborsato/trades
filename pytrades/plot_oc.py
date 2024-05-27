@@ -17,30 +17,41 @@ import h5py
 # mpl.use('Agg')
 import matplotlib.pyplot as plt
 
-# # matplotlib rc params
-# # plt.rcParams['text.usetex'] = True
-# plt.rcParams["text.usetex"] = False
-# # plt.rcParams['font.family']       = 'sans-serif'
-# plt.rcParams["font.family"] = "serif"
-# plt.rcParams["font.serif"] = ["Computer Modern Roman", "Palatino", "DejaVu Serif"]
-# plt.rcParams["mathtext.fontset"] = "cm"
-# plt.rcParams["figure.figsize"] = [5, 5]
-# plt.rcParams["figure.facecolor"] = "white"
-# plt.rcParams["savefig.facecolor"] = "white"
-# plt.rcParams["figure.dpi"] = 200
-# plt.rcParams["savefig.dpi"] = 300
-# plt.rcParams["font.size"] = 12
-# plt.rcParams["xtick.labelsize"] = plt.rcParams["font.size"] - 2
-# plt.rcParams["ytick.labelsize"] = plt.rcParams["xtick.labelsize"]
-
 # custom modules
 import constants as cst
 import ancillary as anc
 import pytrades
 
 CLI_OC = anc.CLI_OC
+filled_markers = anc.filled_markers
+size_markers = anc.size_markers
 
 anc.set_rcParams()
+
+# ==============================================================================
+def set_observation_sources(sources_id, idsource_name=None):
+
+    u_id = np.unique(sources_id)
+    # print("idsource_name = {}".format(idsource_name))
+    if len(u_id) == 1:
+        idname = {1: "observations"}
+    else:
+        idname = {i: "obs.{:d}".format(i) for i in u_id}
+    # print("idname = {}".format(idname))
+    if idsource_name is not None:
+        for kin, vin in idsource_name.items():
+            if kin in u_id:
+                idname[kin] = vin
+
+    # sources = np.array([""] * len(sources_id))
+    sources = [""] * len(sources_id)
+    # for kid, vid in idname.items():
+    #     sources[sources_id == kid] = vid
+    for i_id, s_id in enumerate(sources_id):
+        sources[i_id] = idname[s_id]
+    sources = np.array(sources)
+
+    return sources, idname
 
 # ==============================================================================
 class sim_data:
@@ -54,6 +65,8 @@ class sim_data:
         self.TTs = []
         self.dTTos = []
         self.TTstat = []
+        self.sources_id = []
+        self.sources = []
         self.Teph = []
         self.Peph = []
         self.eTPeph = []
@@ -76,10 +89,12 @@ class sim_data:
         self.truea = []
         self.longn = []
 
-    def update_sim_data(self, body_id, sim_in, kep_ele=False):
+    def update_sim_data(self, body_id, sim_in, idsource_name=None, kep_ele=False):
         self.body_id = body_id
         self.sim_in = sim_in
-        self.nTTs, self.ncols = np.shape(sim_in)
+        self.nTTs, self.ncols_all = np.shape(sim_in)
+        # remove source id column
+        self.ncols = self.ncols_all - 1
 
         self.epo = sim_in[:, 0].astype(int)
         self.TTo = sim_in[:, 1]
@@ -87,6 +102,8 @@ class sim_data:
         self.TTs = sim_in[:, 3]
         self.dTTos = sim_in[:, 4]
         self.TTstat = sim_in[:, 5]
+        self.sources_id = sim_in[:, -1].astype(int)
+        self.sources, self.idname = set_observation_sources(self.sources_id, idsource_name=idsource_name)
 
         Tref, Pref, chi2 = pytrades.linear_fit(self.epo, self.TTo, ey=self.eTTo)
         self.Teph = Tref[0]
@@ -126,11 +143,11 @@ class sim_data:
                 print("No Keplerian elements in the file, but found Transit durations")
             else:
                 print("Found Transit durations in the file")
-            self.T41o = sim_in[:, -5]  # duration saved in min
-            self.eT41o = sim_in[:, -4]
-            self.T41s = sim_in[:, -3]
-            self.dT41os = sim_in[:, -2]
-            self.T41stat = sim_in[:, -1]
+            self.T41o = sim_in[:, -6]  # duration saved in min
+            self.eT41o = sim_in[:, -5]
+            self.T41s = sim_in[:, -4]
+            self.dT41os = sim_in[:, -3]
+            self.T41stat = sim_in[:, -2]
         elif self.ncols == (ncols_tra + ncols_kep + ncols_dur):
             print("Found Keplerian elements and Transit durations in the file")
             if kep_ele:
@@ -142,49 +159,17 @@ class sim_data:
                 self.argp = sim_in[:, 11]
                 self.truea = sim_in[:, 12]
                 self.longn = sim_in[:, 13]
-                self.T41o = sim_in[:, -5]  # duration saved in min
-                self.eT41o = sim_in[:, -4]
-                self.T41s = sim_in[:, -3]
-                self.dT41os = sim_in[:, -2]
-                self.T41stat = sim_in[:, -1]
+                self.T41o = sim_in[:, -6]  # duration saved in min
+                self.eT41o = sim_in[:, -5]
+                self.T41s = sim_in[:, -4]
+                self.dT41os = sim_in[:, -3]
+                self.T41stat = sim_in[:, -2]
             else:
-                self.T41o = sim_in[:, -5] # duration saved in min
-                self.eT41o = sim_in[:, -4]
-                self.T41s = sim_in[:, -3]
-                self.dT41os = sim_in[:, -2]
-                self.T41stat = sim_in[:, -1]
-
-        # if kep_ele is False:
-        #     if self.ncols == 11:  # T0 + T41
-        #         self.T41o = sim_in[:, -5] / 1440.0  # duration saved in min
-        #         self.eT41o = sim_in[:, -4] / 1440.0
-        #         self.T41s = sim_in[:, -3] / 1440.0
-        #         self.dT41os = sim_in[:, -2] / 1440.0
-        #         self.T41stat = sim_in[:, -1]
-        # elif kep_ele is True:
-        #     if self.ncols == 14:  # T0 + kep elements
-        #         self.period = sim_in[:, 6]
-        #         self.sma = sim_in[:, 7]
-        #         self.ecc = sim_in[:, 8]
-        #         self.inc = sim_in[:, 9]
-        #         self.meana = sim_in[:, 10]
-        #         self.argp = sim_in[:, 11]
-        #         self.truea = sim_in[:, 12]
-        #         self.longn = sim_in[:, 13]
-        #     elif self.ncols == 19:  # T0 + T41 + kep elements
-        #         self.period = sim_in[:, 6]
-        #         self.sma = sim_in[:, 7]
-        #         self.ecc = sim_in[:, 8]
-        #         self.inc = sim_in[:, 9]
-        #         self.meana = sim_in[:, 10]
-        #         self.argp = sim_in[:, 11]
-        #         self.truea = sim_in[:, 12]
-        #         self.longn = sim_in[:, 13]
-        #         self.T41o = sim_in[:, -5] / 1440.0  # duration saved in min
-        #         self.eT41o = sim_in[:, -4] / 1440.0
-        #         self.T41s = sim_in[:, -3] / 1440.0
-        #         self.dT41os = sim_in[:, -2] / 1440.0
-        #         self.T41stat = sim_in[:, -1]
+                self.T41o = sim_in[:, -6] # duration saved in min
+                self.eT41o = sim_in[:, -5]
+                self.T41s = sim_in[:, -4]
+                self.dT41os = sim_in[:, -3]
+                self.T41stat = sim_in[:, -2]
 
         return
 
@@ -257,7 +242,6 @@ class sim_data:
 
         return
 
-
 # ==============================================================================
 
 
@@ -288,7 +272,7 @@ class oc_sample:
 # ==============================================================================
 
 
-def get_sim_data(file_in, kep_ele=False):
+def get_sim_data(file_in, idsource_name=None, kep_ele=False):
     # epo 0 TTo 1 eTTo 2 TTs 3 dTTos 4 TTstat 5 T41o 6 eT41o 7 T41s 8 dT41os 9 T41stat 10
     # or
     # epoT0obs 0 T0obs 1 eT0obs 2 T0_sim 3 T0obs-T0_sim 4 T0_stat 5 
@@ -299,7 +283,7 @@ def get_sim_data(file_in, kep_ele=False):
 
     sim = sim_data()
     sim.file_in = file_in
-    sim.update_sim_data(body_id, sim_in, kep_ele=kep_ele)
+    sim.update_sim_data(body_id, sim_in, idsource_name=idsource_name, kep_ele=kep_ele)
 
     return sim
 
@@ -432,8 +416,10 @@ def plot_oc_T41(
     save_plot=True,
     show_plot=False,
 ):
-    sim = get_sim_data(file_in, kep_ele=cli.kep_ele)
-    
+    sim = get_sim_data(file_in, idsource_name=cli.idsource_name, kep_ele=cli.kep_ele)
+    u_src = np.unique(sim.sources)
+    n_src = len(u_src)
+    ocolors = anc.set_colors(n_src, colormap=cli.color_map)
 
     if cli.tscale is None:
         tscale = 2440000.5
@@ -454,7 +440,12 @@ def plot_oc_T41(
         planet = planet_name
     sim.planet = planet
 
-    print("Planet {}".format(sim.planet))
+    print("\nPlanet {}".format(sim.planet))
+    print("Read {}".format(file_in))
+    print("sim.sources_id = {}".format(sim.sources_id))
+    print("sim.sources    = {}".format(sim.sources))
+    print("idsource_name = {}".format(cli.idsource_name))
+    print("OBS id -> name = {}".format(sim.idname))
     print(
         "Observed  A_TTV = (MAX OC - MIN OC)/2 = {} {}".format(Aoc_d * ocu[0], ocu[1])
     )
@@ -502,14 +493,16 @@ def plot_oc_T41(
     malpha = 0.88
     # obs marker
     mso = 3
-    mewo = 0.7
+    mewo = 0.6
     ewo = 0.9
-    cfo = "white"
-    ceo = "C1"
+    # cfo = "white"
+    # ceo = "C1"
+    ceo = "black"
     # sim marker
-    mss = 3
-    mews = 0.5
-    cfs = "C0"
+    # mss = 2.5
+    mss = mso * 0.70
+    mews = 0.3
+    cfs = "gray"
     ces = "white"
     # model line
     cfm = "black"
@@ -546,23 +539,28 @@ def plot_oc_T41(
     maxy = np.max(y) + py * dy
 
     # data
-    lobs = ax.errorbar(
-        x,
-        sim.oc_o * ocu[0],
-        yerr=sim.eTTo * ocu[0],
-        color=ceo,
-        ecolor=ceo,
-        fmt="o",
-        ms=mso,
-        mfc=cfo,
-        mec=ceo,
-        mew=mewo,
-        ls="",
-        elinewidth=ewo,
-        capsize=0,
-        zorder=5,
-        label="observations",
-    )
+    lobs = []
+    for isrc, src in enumerate(u_src):
+        sel = src == sim.sources
+        eco = ocolors[isrc]
+        lobs.append(ax.errorbar(
+            x[sel],
+            sim.oc_o[sel] * ocu[0],
+            yerr=sim.eTTo[sel] * ocu[0],
+            color=ocolors[isrc],
+            ecolor=eco,
+            fmt=filled_markers[isrc],
+            ms=size_markers[isrc],
+            mfc=ocolors[isrc],
+            mec=ceo,
+            mew=mewo,
+            ls="",
+            elinewidth=ewo,
+            capsize=0,
+            alpha=1.0,
+            zorder=5,
+            label=src,
+        ))
     # trades
     (lsim,) = ax.plot(
         x,
@@ -588,7 +586,7 @@ def plot_oc_T41(
         marker="None",
         ls="-",
         lw=0.6,
-        zorder=5,
+        zorder=4,
         alpha=1.0,
         label="model",
     )
@@ -609,14 +607,14 @@ def plot_oc_T41(
                 marker="None",
                 ls="-",
                 lw=0.4,
-                zorder=4,
+                zorder=3,
                 alpha=0.4,
                 label="samples",
             )
             lsmp.append(ll)
 
         ax.legend(
-            handles=[lobs, lsim, lmod, lsmp[0]], loc="best", fontsize=lfont - dlfont
+            handles= lobs + [lsim, lmod, lsmp[0]], loc="best", fontsize=lfont - dlfont
         )
     else:
         ax.legend(loc="best", fontsize=lfont - dlfont)
@@ -650,25 +648,34 @@ def plot_oc_T41(
     ax.axhline(0.0, color="black", ls="-", lw=0.7)
 
     # data - trades
-    ax.errorbar(
-        x,
-        sim.dTTos * ocu[0],
-        yerr=sim.eTTo * ocu[0],
-        color=ceo,
-        ecolor=ceo,
-        fmt="o",
-        ms=mso,
-        mfc=cfo,
-        mec=ceo,
-        mew=mewo,
-        ls="",
-        elinewidth=ewo,
-        capsize=0,
-        zorder=6,
-    )
+    for isrc, src in enumerate(u_src):
+        sel = src == sim.sources
+        eco = ocolors[isrc]
+        ax.errorbar(
+            x[sel],
+            sim.dTTos[sel] * ocu[0],
+            yerr=sim.eTTo[sel] * ocu[0],
+            color=ocolors[isrc],
+            ecolor=eco,
+            fmt=filled_markers[isrc],
+            ms=size_markers[isrc],
+            mfc=ocolors[isrc],
+            mec=ceo,
+            mew=mewo,
+            ls="",
+            elinewidth=ewo,
+            capsize=0,
+            zorder=6,
+        )
+        rms_res = np.percentile(np.abs(sim.dTTos[sel] * ocu[0]), 68.27)
+        print(
+            "rms Obs-Sim {} = 68.27th percentile of |residuals| = {} {}".format(
+                src, rms_res, ocu[1]
+            )
+        )
     rms_res = np.percentile(np.abs(sim.dTTos * ocu[0]), 68.27)
     print(
-        "rms Obs-Sim = 68.27th percentile of |residuals| = {} {}".format(
+        "rms Obs-Sim FULL = 68.27th percentile of |residuals| = {} {}".format(
             rms_res, ocu[1]
         )
     )

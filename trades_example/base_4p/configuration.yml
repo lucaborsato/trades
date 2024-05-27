@@ -83,6 +83,8 @@ OC:
     samples_file: None # hdf5 file name with samples created by analysis/n_samples > 0: i.e. samples_ttra_rv.hdf5
     limits: "obs" # x-y limits based on observations (obs) or samples (sam)
     kep_ele: False # NOT IMPLEMENTED plot of Keplerian Elements of each transiting body during transits
+    idsource_name: None # e.g {1: TESS, 2: CHEOPS}
+    color_map: "nipy_spectral"
 RV:
     plot_rv: True
     full_path: ./test_emcee

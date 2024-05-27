@@ -37,9 +37,26 @@ set_one_fit_par_boundaries = f90trades.set_one_fit_par_boundaries
 reset_all_fit_boundaries = f90trades.reset_all_fit_boundaries
 orbits_to_elements = f90trades.orbits_to_elements
 set_hill_check = f90trades.set_hill_check
+period_to_sma = f90trades.f90_period_to_sma
+sma_to_period = f90trades.f90_sma_to_period
+astrocentric_to_barycentric_orbits = f90trades.astrocentric_to_barycentric_orbits
 # =============================================================================
 
 def args_init(n_body, duration_check, t_epoch=None, t_start=None, t_int=None, do_hill_check=False):
+    """
+    Initialize the arguments for the function.
+
+    Parameters:
+        n_body (int): Number of bodies.
+        duration_check (int): Duration check value.
+        t_epoch (int, optional): Optional epoch time value.
+        t_start (int, optional): Optional start time value.
+        t_int (int, optional): Optional interval time value.
+        do_hill_check (bool, optional): Optional flag for hill check.
+
+    Returns:
+        None
+    """
 
     f90trades.args_init(
         n_body,
@@ -60,14 +77,28 @@ def args_init(n_body, duration_check, t_epoch=None, t_start=None, t_int=None, do
 # =============================================================================
 # get_priors = f90trades.get_priors
 def get_priors():
+    """
+    Retrieves the priors from f90trades, decodes the names to utf-8, and returns the names and values.
+
+    Parameters:
+    None
+
+    Returns:
+    names (list): A list of prior names decoded to utf-8.
+    values (numpy array): An array of prior values.
+    """
 
     n_priors = (f90trades.n_priors).item()
     names, values = f90trades.get_priors(n_priors)
     names = [n.decode("utf-8") for n in names]
+
     return names, values
 
 # =============================================================================
 def deallocate_rv_dataset():
+    """
+    deallocate_rv_dataset function deallocates the RV dataset.
+    """
 
     f90trades.deallocate_rv_dataset()
 
@@ -76,6 +107,19 @@ def deallocate_rv_dataset():
 
 # =============================================================================
 def set_rv_dataset(t_rv, rv_obs, erv_obs, rv_setid=None, n_rvset=1):
+    """
+    Set the RV dataset for a given set of RV observations.
+
+    Parameters:
+    t_rv (array): Array of time values for the RV observations.
+    rv_obs (array): Array of RV observations.
+    erv_obs (array): Array of errors on the RV observations.
+    rv_setid (array, optional): Array defining the RV set IDs. If not provided, default set IDs are generated.
+    n_rvset (int, optional): Number of RV sets.
+
+    Returns:
+    None
+    """
 
     if rv_setid is not None:
         n = len(np.unique(rv_setid))
@@ -89,15 +133,42 @@ def set_rv_dataset(t_rv, rv_obs, erv_obs, rv_setid=None, n_rvset=1):
 
 
 # =============================================================================
-def set_t0_dataset(body_id, epo_b, t0_b, et0_b):
+def set_t0_dataset(body_id, epo, t0, et0, sources_id=None):
+    """
+    A function to set the t0 dataset with the given parameters.
 
-    f90trades.set_t0_dataset(body_id, epo_b, t0_b, et0_b)
+    Parameters:
+    body_id (int): The ID of the body for which the t0 dataset needs to be set.
+    epo (array): Array of epoch values for the t0 observations.
+    t0 (array): Array of t0 values for the observations.
+    et0 (array): Array of errors on the t0 observations.
+    sources_id (array, optional): Array defining the sources IDs. If not provided, default sources IDs are generated.
+
+    Returns:
+    None
+    """
+
+    # If sources_id is not provided, generate default sources IDs.
+    if sources_id is None:
+        sources_id = np.ones((len(epo)), dtype=int)
+
+    # Set the t0 dataset using the F90 wrapper.
+    f90trades.set_t0_dataset(body_id, epo, t0, et0, sources_id)
 
     return
 
 
 # =============================================================================
 def deallocate_t0_dataset(body_id):
+    """
+    Deallocates a T0 dataset for a given body ID.
+
+    Parameters:
+    body_id (int): The ID of the body for which the T0 dataset needs to be deallocated.
+
+    Returns:
+    None
+    """
 
     f90trades.deallocate_t0_dataset(body_id)
 
@@ -105,7 +176,7 @@ def deallocate_t0_dataset(body_id):
 
 
 # =============================================================================
-def kelements_to_rv_and_t0s(
+def kelements_to_observed_rv_and_t0s(
     t_start,
     t_epoch,
     t_int,
@@ -118,9 +189,27 @@ def kelements_to_rv_and_t0s(
     inc_deg,
     lN_deg,
     transit_flag,
-    # n_rv,
-    # n_T0s,
 ):
+    """
+    Computes orbits from a given set of Keplerian elements and generates RVs and T0s.
+
+    Parameters:
+        t_start (float): start time
+        t_epoch (float): epoch time
+        t_int (float): integration time step
+        M_msun (float): mass of the sun
+        R_rsun (float): radius of the sun
+        P_day (float): period in days
+        ecc (float): eccentricity
+        argp_deg (float): argument of periapsis in degrees
+        mA_deg (float): mean anomaly in degrees
+        inc_deg (float): inclination in degrees
+        lN_deg (float): longitude of the ascending node in degrees
+        transit_flag (int): flag for transit
+
+    Returns:
+        tuple: Contains rv_sim (RVs), body_T0_sim (T0s), epo_sim (epochs), t0_sim, t14_sim, kel_sim
+    """
 
     n_kep = 8  # number of keplerian elements in output for each T0s
     n_rv = f90trades.nrv
@@ -132,6 +221,7 @@ def kelements_to_rv_and_t0s(
         t0_sim,
         t14_sim,
         kel_sim,
+        stable
     ) = f90trades.kelements_to_rv_and_t0s(
         t_start,
         t_epoch,
@@ -150,11 +240,11 @@ def kelements_to_rv_and_t0s(
         n_kep,
     )
 
-    return rv_sim, body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim
+    return rv_sim, body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable
 
 
 # =============================================================================
-def kelements_to_rv(
+def kelements_to_observed_rv(
     t_start,
     t_epoch,
     t_int,
@@ -168,9 +258,27 @@ def kelements_to_rv(
     lN_deg,
     # n_rv,
 ):
+    """
+    From keplerian elements compute orbits and return radial velocities (RVs) already set as global parameters/set.
+    Parameters:
+        t_start: float - start time
+        t_epoch: float - epoch time
+        t_int: float - integration time step
+        M_msun: float - mass of the sun
+        R_rsun: float - radius of the sun
+        P_day: float - orbital period in days
+        ecc: float - eccentricity
+        argp_deg: float - argument of periapsis in degrees
+        mA_deg: float - mean anomaly in degrees
+        inc_deg: float - inclination in degrees
+        lN_deg: float - longitude of the ascending node in degrees
+        n_rv: int - number of radial velocities
+    Returns:
+        rv_sim: array - simulated radial velocities
+    """
 
     n_rv = f90trades.nrv
-    rv_sim = f90trades.kelements_to_rv(
+    rv_sim, stable = f90trades.kelements_to_rv(
         t_start,
         t_epoch,
         t_int,
@@ -185,11 +293,11 @@ def kelements_to_rv(
         n_rv,
     )
 
-    return rv_sim
+    return rv_sim, stable
 
 
 # =============================================================================
-def kelements_to_t0s(
+def kelements_to_observed_t0s(
     t_start,
     t_epoch,
     t_int,
@@ -202,12 +310,35 @@ def kelements_to_t0s(
     inc_deg,
     lN_deg,
     transit_flag,
-    # n_T0s,
 ):
+    """
+    From keplerian elements compute orbits and return transit times (T0s) already set as global parameters/set.
+
+    Args:
+        t_start: The start time.
+        t_epoch: The epoch time.
+        t_int: The interval time.
+        M_msun: The mass of the bodies in Msun.
+        R_rsun: The radius of the bodies in Rsun.
+        P_day: The period in days.
+        ecc: The eccentricity.
+        argp_deg: The argument of periapsis in degrees.
+        mA_deg: The mean anomaly in degrees.
+        inc_deg: The inclination in degrees.
+        lN_deg: The longitude of the ascending node in degrees.
+        transit_flag: Flag indicating transit.
+
+    Returns:
+        body_T0_sim: The body ID of each siimulated T0.
+        epo_sim: The epoch of the simulated T0s.
+        t0_sim: The simulated transit times (T0s).
+        t14_sim: The simulated total duration (T14) in minutes.
+        kel_sim: The keplerian elements at each simulated T0.
+    """
 
     n_kep = 8  # number of keplerian elements in output for each T0s
     n_T0s = f90trades.ntts
-    body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim = f90trades.kelements_to_t0s(
+    body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable = f90trades.kelements_to_t0s(
         t_start,
         t_epoch,
         t_int,
@@ -224,13 +355,31 @@ def kelements_to_t0s(
         n_kep,
     )
 
-    return body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim
+    return body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable
 
 
 # =============================================================================
 def kelements_to_orbits(
     steps, M_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg
 ):
+    """
+    Calculate orbits from Keplerian elements.
+
+    Parameters:
+        steps (int): The number of steps.
+        M_msun (list): List of masses in solar masses.
+        R_rsun (list): List of radii in solar radii.
+        P_day (list): List of orbital periods in days.
+        ecc (list): List of eccentricities.
+        argp_deg (list): List of argument of pericenter in degrees.
+        mA_deg (list): List of mean anomalies in degrees.
+        inc_deg (list): List of inclinations in degrees.
+        lN_deg (list): List of longitude of ascending node in degrees.
+
+    Returns:
+        orbits (list): List of calculated orbits.
+        check (int): Check value (stable or not).
+    """
 
     nb_dim = len(M_msun) * 6
 
@@ -252,7 +401,6 @@ def kelements_to_orbits(
 
 # =============================================================================
 
-
 def kelements_to_orbits_full(
     t_epoch,
     t_start,
@@ -269,6 +417,30 @@ def kelements_to_orbits_full(
     step_size=None,
     n_steps_smaller_orbits=10.0,
 ):
+    """
+    Generate orbits for a given set of keplerian elements over a specified time interval.
+
+    Parameters:
+    - t_epoch: float, epoch time
+    - t_start: float, start time of the interval
+    - t_int: float, length of the time interval
+    - M_msun: array-like, masses of the bodies in solar masses
+    - R_rsun: array-like, radii of the bodies in solar radii
+    - P_day: array-like, orbital periods in days
+    - ecc: array-like, eccentricities of the orbits
+    - argp_deg: array-like, argument of periastron in degrees
+    - mA_deg: array-like, mean anomaly at epoch in degrees
+    - inc_deg: array-like, inclination in degrees
+    - lN_deg: array-like, longitude of the ascending node in degrees
+    - specific_times: array-like or None, specific times to include in the orbit computation
+    - step_size: float or None, step size for the orbit computation
+    - n_steps_smaller_orbits: float, number of steps for the smallest orbit
+
+    Returns:
+    - time_steps: array, time steps for the orbits
+    - orbits: array, calculated orbits
+    - check: bool, check flag for the orbits
+    """
 
     t_end = t_start + t_int
     dt_start_epoch = t_start - t_epoch
@@ -348,6 +520,14 @@ def kelements_to_orbits_full(
 
 
 def orbits_to_rvs(M_msun, orbits):
+    """
+    Calculate radial velocity from stellar mass and orbital state vectors.
+    Parameters:
+    - M_msun: float, shape (n_body), mass of the star in solar masses
+    - orbits: array-like, shape (n_steps, n_body * 6),orbital state vectors
+    Returns:
+    - rvs: array-like, radial velocity
+    """
 
     rvs = f90trades.orbits_to_rvs(M_msun, orbits)
 
@@ -360,6 +540,20 @@ def orbits_to_rvs(M_msun, orbits):
 def orbits_to_transits(
     n_all_transits, time_steps, M_msun, R_rsun, orbits, transiting_body
 ):
+    """
+    Convert orbital state vectors to transit times and durations.
+    
+    Args:
+        n_all_transits (int): Total number of transits
+        time_steps (ndarray): Array of time steps
+        M_msun (float): masses in solar masses
+        R_rsun (float): radii in solar radii
+        orbits (ndarray): Array of orbital state vectors
+        transiting_body (str): Name of the transiting body, 1 means all bodies
+    
+    Returns:
+        tuple: A tuple containing the transit times, durations, Keplerian elements, and body flags
+    """
 
     transits, durations, kep_elem, body_flag = f90trades.orbits_to_transits(
         n_all_transits, time_steps, M_msun, R_rsun, orbits, transiting_body
@@ -380,6 +574,19 @@ def orbits_to_transits(
 
 
 def linear_fit(x, y, ey=None):
+    """
+    Perform a linear fit on the given data points.
+
+    Parameters:
+    x (array-like): The x-values of the data points.
+    y (array-like): The y-values of the data points.
+    ey (array-like, optional): The errors associated with the y-values. Defaults to None.
+
+    Returns:
+    tuple: Tuple containing two tuples. The first tuple contains the intercept and its error (q, err_q).
+    The second tuple contains the slope and its error (m, err_m).
+    float: The chi-squared value of the fit.
+    """
 
     if ey is None:
         m, err_m, q, err_q = f90trades.linear_fit_no_errors(x, y)
@@ -402,6 +609,35 @@ def linear_fit(x, y, ey=None):
 def orbital_parameters_to_transits(
     t_start, t_epoch, t_int, mass, radius, period, ecc, w, ma, inc, long, t_rv_obs
 ):
+    """
+    From orbital parameters compute orbits of the planets and return 
+    the transits (times, durations, kep. elements. and body flags) and radial velocity at specific times.
+    Similar to kelements_to_orbits_full + orbits_to_transits + orbits_to_rvs
+
+    Parameters:
+    - t_start: float, start time
+    - t_epoch: float, epoch time
+    - t_int: float, interval time
+    - mass: array-like, mass values
+    - radius: array-like, radius values
+    - period: array-like, period values
+    - ecc: array-like, eccentricity values
+    - w: array-like, w values
+    - ma: array-like, ma values
+    - inc: array-like, inclination values
+    - long: array-like, longitude values
+    - t_rv_obs: array-like, observed RV times
+
+    Returns:
+    - time_steps: array-like, time steps
+    - orbits: array-like, orbital parameters
+    - transits: array-like, transit information
+    - durations: array-like, duration values
+    - kep_elem: array-like, Kepler elements
+    - body_flag: array-like, body flags
+    - rv_sim: dictionary, simulated RV values
+    - check: boolean, check value
+    """
 
     time_steps, orbits, check = kelements_to_orbits_full(
         t_start,
@@ -437,6 +673,23 @@ def orbital_parameters_to_transits(
 
 
 def set_transit_parameters(radius, transits, body_flag, kep_elem):
+    """
+    Set the transit parameters based on the given inputs.
+
+    Parameters:
+    - radius: array-like, the radius values
+    - transits: array-like, the transit values
+    - body_flag: int, flag indicating the body
+    - kep_elem: array-like, the Keplerian elements
+
+    Returns:
+    - rp_rs: array-like, ratio of radius to the reference radius
+    - per: array-like, period values
+    - aRs: array-like, semi-major axis values
+    - inc: array-like, inclination values
+    - ecc: array-like, eccentricity values
+    - w: array-like, argument of periastron values
+    """
 
     rp_rs = np.zeros(len(transits)) + radius[body_flag - 1] / radius[0]
     per = kep_elem[:, 0]
@@ -448,14 +701,38 @@ def set_transit_parameters(radius, transits, body_flag, kep_elem):
     return rp_rs, per, aRs, inc, ecc, w
 
 
+# TODO: generate lcids for pytransit model in order to automatically take into account multiple transits
+# in the same photometry, lcids should be based on epoch/transit number ...
 def get_simulate_flux(
     tm, 
     photometry, 
     transits, 
     durations, 
-    rp_rs, ld_quad, per, aRs, inc, ecc, w, 
+    rp_rs, ld_quad, per, aRs, inc, ecc, w,
+    #  body_flag,
     time_key="time"
 ):
+    """
+    Generate simulated flux for given parameters and photometry data.
+
+    Parameters:
+    - tm: The PyTransit model to use for simulation
+    - photometry: Dictionary containing photometry data
+    - transits: Array of transit times
+    - durations: Array of transit durations
+    - rp_rs: Array of planet-to-star radius ratios
+    - ld_quad: Limb darkening coefficients
+    - per: Array of planet orbital periods
+    - aRs: Array of semi-major axis to stellar radius ratios
+    - inc: Array of orbital inclinations
+    - ecc: Array of eccentricities
+    - w: Array of arguments of periastron
+    # - body_flag: Body number of the planet/bodies, first planet is 2 (start is 1)
+    - time_key: Key to access time values in the photometry dictionary
+
+    Returns:
+    - sim_photometry: Dictionary containing simulated flux for each dataset
+    """
     if "full" in time_key:
         n_over_key = "n_oversample_full"
         t_exp_key = "t_exp_d_full"
@@ -466,30 +743,85 @@ def get_simulate_flux(
     for k, vis in photometry.items():
         t = vis[time_key]
 
+        # select transiting planets in the time range
         tra_in_t = np.logical_and(transits >= t.min(), transits <= t.max())
         n_tra = np.sum(tra_in_t)
+        # select partial transits in the time range
         tra_dur_in_t = np.logical_and(
             transits - 0.5 * durations * cst.min2day >= t.min(),
             transits + 0.5 * durations * cst.min2day <= t.max(),
         )
         n_dur = np.sum(tra_dur_in_t)
-        n = max(n_tra, n_dur)
+        # number of events based on the max between n_tra and n_dur
+        # n = max(n_tra, n_dur)
+        if n_tra >= n_dur:
+            n = n_tra
+            sel_tra = tra_in_t
+        else:
+            n = n_dur
+            sel_tra = tra_dur_in_t
+        # sel_body = body_flag[sel_tra]
+
         if n > 0:
-            # print("n(t) = ", len(t), " ld_quad = ", ld_quad, "n = ", n)
-            tm.set_data(t, nsamples=vis[n_over_key], exptimes=vis[t_exp_key])
-            flux = tm.evaluate(
-                k=rp_rs[tra_in_t],
-                # ldc=np.tile(ld_quad, [n,1,1]),
-                ldc=np.array([ld_quad] * n),
-                t0=transits[tra_in_t],
-                p=per[tra_in_t],
-                a=aRs[tra_in_t],
-                i=inc[tra_in_t],
-                e=ecc[tra_in_t],
-                w=w[tra_in_t],
-            )
-            f2d = np.atleast_2d(flux - 1.0)
-            flux_ = np.sum(f2d, axis=0) + 1.0
+            # u_nb = np.unique(sel_body)
+            # flux = []
+            # for bd in u_nb:
+            #     sel = np.logical_and(sel_tra, sel_body == bd)
+            #     nsel = np.sum(sel)
+            #     tra = np.atleast_1d(transits[sel])
+            #     Px  = np.atleast_1d(per[sel])[0]
+            #     epo = np.rint( (tra - tra[0]) / Px).astype(int)
+            #     lid = np.rint( (t   - tra[0]) / Px).astype(int)
+            #     tm.set_data(
+            #         t,
+            #         lcids=lid,
+            #         epids=epo,
+            #         nsamples=vis[n_over_key],
+            #         exptimes=vis[t_exp_key]
+            #     )
+            #     ff = tm.evaluate(
+            #         k=rp_rs[sel],
+            #         ldc=np.array([ld_quad] * nsel),
+            #         t0=tra,
+            #         p=per[sel],
+            #         a=aRs[sel],
+            #         i=inc[sel],
+            #         e=ecc[sel],
+            #         w=w[sel],
+            #     )
+            #     flux.append(ff)
+
+            tra_sel = np.atleast_1d(transits[sel_tra])
+            rp_rs_sel = np.atleast_1d(rp_rs[sel_tra])
+            per_sel = np.atleast_1d(per[sel_tra])
+            aRs_sel = np.atleast_1d(aRs[sel_tra])
+            inc_sel = np.atleast_1d(inc[sel_tra])
+            ecc_sel = np.atleast_1d(ecc[sel_tra])
+            w_sel = np.atleast_1d(w[sel_tra])
+
+            flux = []
+            for itra, tra in enumerate(tra_sel):
+                sel_t = np.logical_and(
+                    t >= tra - 0.5 * per[itra],
+                )
+                tm.set_data(
+                    t[sel_t],
+                    nsamples=vis[n_over_key],
+                    exptimes=vis[t_exp_key]
+                )
+                ff = tm.evaluate(
+                    k=rp_rs_sel[itra],
+                    ldc=ld_quad,
+                    t0=tra,
+                    p=per_sel[itra],
+                    a=aRs_sel[itra],
+                    i=inc_sel[itra],
+                    e=ecc_sel[itra],
+                    w=w_sel[itra],
+                )
+                flux.append(ff)
+            f2d = np.atleast_2d(flux)
+            flux_ = np.sum(f2d-1.0, axis=0) + 1.0
         else:
             flux_ = np.ones((len(t)))
         sim_photometry[k] = flux_
@@ -504,6 +836,20 @@ def add_photometry_trend(
     ancillary_coeff, 
     time_key="time"
 ):
+    """
+    Generate photometry trend for observed and simulated photometry data.
+
+    Parameters:
+    - obs_photometry (dict): A dictionary containing observed photometry data.
+    - sim_photometry (dict): A dictionary containing simulated photometry data.
+    - photometry_coeff_trend (dict): A dictionary containing photometry coefficient trends.
+    - ancillary_coeff (dict): A dictionary containing ancillary coefficients.
+    - time_key (str): The key for the time values in the photometry data. Defaults to "time".
+
+    Returns:
+    - out_photometry (dict): A dictionary containing the photometry data with trends applied.
+    - out_trend (dict): A dictionary containing the trend values for each photometry data.
+    """
 
     out_trend = {}
     out_photometry = {}
@@ -548,6 +894,22 @@ def plot_photometry(
     output_folder=None,
     return_rms=False,
 ):
+    """
+    A function to plot photometry data along with simulated, model, and trend photometry.
+    
+    Parameters:
+    - photometry: dictionary containing photometry data
+    - sim_photometry: dictionary containing simulated photometry data
+    - mod_photometry: dictionary containing model photometry data (optional)
+    - trend_photometry: dictionary containing trend photometry data (optional)
+    - figsize: tuple specifying the figure size (default is (3, 3))
+    - show_plot: boolean indicating whether to display the plot (default is True)
+    - output_folder: string specifying the output folder for saving plots
+    - return_rms: boolean indicating whether to return the root mean square values
+    
+    Returns:
+    - rms_photometry: dictionary containing root mean square values if return_rms is True, otherwise None
+    """
 
     rms_photometry = {}
 
@@ -1209,6 +1571,7 @@ class PhotoTRADES:
                 inc,
                 ecc,
                 w,
+                # body_flag,
                 time_key=time_key
             )
             sim_photometry[phot_name] = sim_phot
@@ -2015,3 +2378,11 @@ class TRADESfolder:
         f90trades.deallocate_variables()
 
         return
+
+
+# =============================================================================
+# rename some functions for backward compatibility
+kelements_to_rv_and_t0s = kelements_to_observed_rv_and_t0s
+kelements_to_rv = kelements_to_observed_rv
+kelements_to_t0s = kelements_to_observed_t0s
+# =============================================================================

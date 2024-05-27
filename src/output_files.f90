@@ -532,9 +532,11 @@ contains
 !     real(dp),dimension(:,:),intent(in)::T0_sim
 !     integer,dimension(:,:),intent(in)::T0_stat
         integer::i_body, i_T0, nT0o, nT0s, nT0
-        character(80)::fmt
+        character(128)::fmt,hea
 
-        fmt = adjustl("(i6,2(4("//trim(sprec)//",1x),i3))")
+        ! fmt = adjustl("(i6,2(4("//trim(sprec)//",1x),i3))")
+        fmt = adjustl("i6,1x,4("//trim(sprec)//",1x),i3,1x,")
+        hea = adjustl("a,5(1x,a),")
         do i_body = 1, NB-1
             nT0s = simT0(i_body)%nT0
             nT0o = obsData%obsT0(i_body)%nT0
@@ -543,33 +545,54 @@ contains
             if (nT0 .gt. 0) then
 
                 if (durcheck .eq. 0) then ! do not check duration
-                    write (*, '(a,1x,a,19x,a,18x,a,18x,a,5x,a)') &
-                      "# epoT0obs ", " T0obs ", " eT0obs ", " T0_sim ",&
-                      &" T0obs-T0_sim ", " T0_stat "
+                    fmt = adjustl(trim(fmt))//"i3"
+                    hea = adjustl(trim(hea))//"1x,a"
+                    write (*, "("//trim(hea)//")")&
+                        &"# epoT0obs",&
+                        &"T0obs", "eT0obs", "T0_sim", "T0obs-T0_sim",&
+                        &"T0_stat",&
+                        &"source_id"
+                    ! write (*, '(a,1x,a,19x,a,18x,a,18x,a,5x,a)') &
+                    !   "# epoT0obs ", " T0obs ", " eT0obs ", " T0_sim ",&
+                    !   &" T0obs-T0_sim ", " T0_stat ", " source_id "
                     do i_T0 = 1, nT0
-                        write (*, trim(fmt)) obsData%obsT0(i_body)%epo(i_T0),&
-                          &obsData%obsT0(i_body)%T0(i_T0), obsData%obsT0(i_body)%eT0(i_T0),&
-                          &simT0(i_body)%T0(i_T0),&
-                          &(obsData%obsT0(i_body)%T0(i_T0)-simT0(i_body)%T0(i_T0)),&
-                          &simT0(i_body)%T0_stat(i_T0)
+                        write (*, "("//trim(fmt)//")")&
+                            &obsData%obsT0(i_body)%epo(i_T0),&
+                            &obsData%obsT0(i_body)%T0(i_T0),&
+                            &obsData%obsT0(i_body)%eT0(i_T0),&
+                            &simT0(i_body)%T0(i_T0),&
+                            &(obsData%obsT0(i_body)%T0(i_T0)-simT0(i_body)%T0(i_T0)),&
+                            &simT0(i_body)%T0_stat(i_T0),&
+                            &obsData%obsT0(i_body)%source_id(i_T0)
                     end do
 
                 else ! do check duration
 
-                    write (*, '(a,2(1x,a,19x,a,18x,a,18x,a,5x,a))')&
-                      &"# epoT0obs ", " T0obs ", " eT0obs ", " T0_sim ",&
-                      &" T0obs-T0_sim ", " T0_stat ",&
-                      &" Dur_obs ", " eDur_obs ", " Dur_sim ", " Dur_obs-Dur_sim",&
-                      &" Dur_stat "
+                    fmt = adjustl(trim(fmt))//"4("//trim(sprec)//",1x),2(i3,1x)"
+                    hea = adjustl(trim(hea))//"7(1x,a)"
+                    write (*, "("//trim(hea)//")")&
+                       &"# epoT0obs",&
+                       &"T0obs", "eT0obs", "T0_sim", "T0obs-T0_sim",&
+                       &"T0_stat",&
+                       &"Dur_obs", "eDur_obs", "Dur_sim", "Dur_obs-Dur_sim",&
+                       &"Dur_stat ",&
+                       &"source_id"
+                    ! write (*, '(a,2(1x,a,19x,a,18x,a,18x,a,5x,a))')&
+                    !     &"# epoT0obs ", " T0obs ", " eT0obs ", " T0_sim ",&
+                    !     &" T0obs-T0_sim ", " T0_stat ",&
+                    !     &" Dur_obs ", " eDur_obs ", " Dur_sim ", " Dur_obs-Dur_sim",&
+                    !     &" Dur_stat ", " source_id "
                     do i_T0 = 1, nT0
-                        write (*, trim(fmt)) obsData%obsT0(i_body)%epo(i_T0),&
-                          &obsData%obsT0(i_body)%T0(i_T0), obsData%obsT0(i_body)%eT0(i_T0),&
-                          &simT0(i_body)%T0(i_T0),&
-                          &(obsData%obsT0(i_body)%T0(i_T0)-simT0(i_body)%T0(i_T0)),&
-                          &simT0(i_body)%T0_stat(i_T0),&
-                          &obsData%obsT0(i_body)%dur(i_T0), obsData%obsT0(i_body)%edur(i_T0),&
-                          &simT0(i_body)%dur(i_T0), obsData%obsT0(i_body)%dur(i_T0)-simT0(i_body)%dur(i_T0),&
-                          &simT0(i_body)%dur_stat(i_T0)
+                        write (*, "("//trim(fmt)//")")&
+                            &obsData%obsT0(i_body)%epo(i_T0),&
+                            &obsData%obsT0(i_body)%T0(i_T0), obsData%obsT0(i_body)%eT0(i_T0),&
+                            &simT0(i_body)%T0(i_T0),&
+                            &(obsData%obsT0(i_body)%T0(i_T0)-simT0(i_body)%T0(i_T0)),&
+                            &simT0(i_body)%T0_stat(i_T0),&
+                            &obsData%obsT0(i_body)%dur(i_T0), obsData%obsT0(i_body)%edur(i_T0),&
+                            &simT0(i_body)%dur(i_T0), obsData%obsT0(i_body)%dur(i_T0)-simT0(i_body)%dur(i_T0),&
+                            &simT0(i_body)%dur_stat(i_T0),&
+                            &obsData%obsT0(i_body)%source_id(i_T0)
                     end do
 
                 end if
@@ -591,9 +614,11 @@ contains
         integer::uT0, i_body, i_T0, nT0o, nT0s, nT0
         character(128)::fmt, hea
 
-        ! fmt = adjustl("(i6,2(4("//trim(sprec)//",1x),i3))")
-        fmt = adjustl("i6,1x,4("//trim(sprec)//",1x),i3,1x,8("//trim(sprec)//",1x)")
-        hea = adjustl("a,5(1x,a),8(1x,a)")
+        
+        ! fmt = adjustl("i6,1x,4("//trim(sprec)//",1x),i3,1x,8("//trim(sprec)//",1x),i3")
+        ! hea = adjustl("a,5(1x,a),9(1x,a)")
+        fmt = adjustl("i6,1x,4("//trim(sprec)//",1x),i3,1x,")
+        hea = adjustl("a,5(1x,a),")
         do i_body = 1, NB-1
             nT0s = simT0(i_body)%nT0
             nT0o = obsData%obsT0(i_body)%nT0
@@ -615,32 +640,40 @@ contains
                 open (uT0, file=trim(flT0))
 
                 if (durcheck .eq. 0) then ! do not check duration
+                    fmt = adjustl(trim(fmt))//"8("//trim(sprec)//",1x),i3"
+                    hea = adjustl(trim(hea))//"9(1x,a)"
                     write (uT0, "("//trim(hea)//")")&
-                        &"# epoT0obs", "T0obs", "eT0obs", "T0_sim",&
-                        &"T0obs-T0_sim", "T0_stat",&
+                        &"# epoT0obs",&
+                        &"T0obs", "eT0obs", "T0_sim", "T0obs-T0_sim",&
+                        &"T0_stat",&
                         &"period_d", "sma_au", "ecc", "inc_deg",&
-                        &"meana_deg", "argp_deg", "truea_deg", "longn_deg"
+                        &"meana_deg", "argp_deg", "truea_deg", "longn_deg",&
+                        &"source_id"
                     do i_T0 = 1, nT0
                         write (uT0, "("//trim(fmt)//")")&
-                          &obsData%obsT0(i_body)%epo(i_T0),&
-                          &obsData%obsT0(i_body)%T0(i_T0), obsData%obsT0(i_body)%eT0(i_T0),&
-                          &simT0(i_body)%T0(i_T0),&
-                          &(obsData%obsT0(i_body)%T0(i_T0)-simT0(i_body)%T0(i_T0)),&
-                          &simT0(i_body)%T0_stat(i_T0),&
-                          &simT0(i_body)%period(i_T0), simT0(i_body)%sma(i_T0), simT0(i_body)%ecc(i_T0),&
-                          &simT0(i_body)%inc(i_T0), simT0(i_body)%meana(i_T0), simT0(i_body)%argp(i_T0),&
-                          &simT0(i_body)%truea(i_T0), simT0(i_body)%longn(i_T0)
+                            &obsData%obsT0(i_body)%epo(i_T0),&
+                            &obsData%obsT0(i_body)%T0(i_T0), obsData%obsT0(i_body)%eT0(i_T0),&
+                            &simT0(i_body)%T0(i_T0),&
+                            &(obsData%obsT0(i_body)%T0(i_T0)-simT0(i_body)%T0(i_T0)),&
+                            &simT0(i_body)%T0_stat(i_T0),&
+                            &simT0(i_body)%period(i_T0), simT0(i_body)%sma(i_T0), simT0(i_body)%ecc(i_T0),&
+                            &simT0(i_body)%inc(i_T0), simT0(i_body)%meana(i_T0), simT0(i_body)%argp(i_T0),&
+                            &simT0(i_body)%truea(i_T0), simT0(i_body)%longn(i_T0),&
+                            &obsData%obsT0(i_body)%source_id(i_T0)
                     end do
 
                 else ! do check duration
-
-                    write (uT0, "("//trim(hea)//",5(1x,a))")&
-                       &"# epoT0obs", "T0obs", "eT0obs", "T0_sim",&
-                       &" T0obs-T0_sim", "T0_stat",&
+                    fmt = adjustl(trim(fmt))//"12("//trim(sprec)//",1x),2(i3,1x)"
+                    hea = adjustl(trim(hea))//"14(1x,a)"
+                    write (uT0, "("//trim(hea)//")")&
+                       &"# epoT0obs",&
+                       &"T0obs", "eT0obs", "T0_sim", "T0obs-T0_sim",&
+                       &"T0_stat",&
                        &"period_d", "sma_au", "ecc", "inc_deg",&
                        &"meana_deg", "argp_deg", "truea_deg", "longn_deg",&
                        &"Dur_obs", "eDur_obs", "Dur_sim", "Dur_obs-Dur_sim",&
-                       &"Dur_stat "
+                       &"Dur_stat ",&
+                       &"source_id"
                     do i_T0 = 1, nT0
                         write (uT0, "("//trim(fmt)//",4("//trim(sprec)//",1x),i3)")&
                           &obsData%obsT0(i_body)%epo(i_T0),&
@@ -653,7 +686,8 @@ contains
                           &simT0(i_body)%truea(i_T0), simT0(i_body)%longn(i_T0),&
                           &obsData%obsT0(i_body)%dur(i_T0), obsData%obsT0(i_body)%edur(i_T0),&
                           &simT0(i_body)%dur(i_T0), obsData%obsT0(i_body)%dur(i_T0)-simT0(i_body)%dur(i_T0),&
-                          &simT0(i_body)%dur_stat(i_T0)
+                          &simT0(i_body)%dur_stat(i_T0),&
+                          &obsData%obsT0(i_body)%source_id(i_T0)
                     end do
 
                 end if

@@ -8,6 +8,7 @@ CC = gfortran
 # CC = ifort
 
 F77 = gfortran
+F90 = gfortran
 # F77 = ifort
 
 # f2py
@@ -27,9 +28,11 @@ CFLAGS=-cpp -ffree-line-length-none -Wfatal-errors -Wall -fcheck=all -Wsurprisin
 
 COPT=-cpp -ffree-line-length-none
 COPT+=-Ofast
+# COPT+=-O3
 
 # with openmp
 GOMP=-lgomp
+# GOMP=
 COMP=-fopenmp
 # for MPI
 CMPI= -DMPI
@@ -72,6 +75,30 @@ FOBJS = $(FSRCS:.f90=.o)
 # 	$(CC) $(COPT) $(F2PYCF) $(FOBJS) -I. trades_integrates.f90 -o $(TARGET_0)
 # 	$(CC) $(COPT) $(F2PYCF) $(FOBJS) -I. trades_int_lm_bootstrap.f90 -o $(TARGET_SER_2)
 # -------
+
+# serial debug
+FSERDBG='$(CC) $(CFLAGS)'
+PSERDBG='$(F2PYCF) $(CFLAGS) $(F2PYCC) --verbose -c'
+# serial release
+FSERREL='$(CC) $(COPT)'
+PSERREL='$(F2PYCF) $(COPT) $(F2PYCC) --quiet -c'
+# parallel debug
+FPARDBG='$(CC) $(CFLAGS) $(COMP)'
+PPARDBG='$(F2PYCF) $(CFLAGS) $(COMP) $(F2PYCC) --verbose $(GOMP) -c'
+# parallel release
+FPARREL='$(CC) $(COPT) $(COMP)'
+PPARREL='$(F2PYCF) $(COPT) $(COMP) $(F2PYCC) --quiet $(GOMP) -c'
+
+echoflag:
+	@echo "F90  SERIAL DEBUG: " $(FSERDBG)
+	@echo "F2PY SERIAL DEBUG: " $(PSERDBG)
+	@echo "F90  SERIAL RELEASE: " $(FSERREL)
+	@echo "F2PY SERIAL RELEASE: " $(PSERREL)
+	@echo "F90  PARALLEL DEBUG: " $(FPARDBG)
+	@echo "F2PY PARALLEL DEBUG: " $(PPARDBG)
+	@echo "F90  PARALLEL RELEASE: " $(FPARREL)
+	@echo "F2PY PARALLEL RELEASE: " $(PPARREL)
+
 
 # compile the sources to objects
 obj_compile_test:
@@ -168,7 +195,7 @@ pylib_serial_release:
 pytrades_serial_release: obj_serial_release pylib_serial_release
 
 pylib_parallel_debug:
-	FFLAGS='$(F2PYCF) $(CFLAGS) $(COMP)' $(F2PYCC) --verbose $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+	FFLAGS='$(F2PYCF) $(CFLAGS) $(COMP)' $(F2PYCC) --verbose $(GOMP) -c $(F2PYCC) --verbose $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
 #	$(F2PYCC) --verbose --f90flags='$(F2PYCF) $(CFLAGS) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
 
 pytrades_parallel_debug: obj_parallel_debug pylib_parallel_debug copy_pytrades

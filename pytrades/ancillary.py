@@ -41,6 +41,16 @@ kel_fmt = ["%.3f", "%.4f", "%.3f", "%.1f", "%.1f", "%.1f", "%.3f", "%.3f"]
 
 letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "l", "m", "n", "o", "p"]
 
+filled_markers = plt.Line2D.filled_markers[1:] # avoid '.'
+n_markers = len(filled_markers)
+size_default = 3.0
+size_markers = [size_default] * n_markers
+size_markers[3] += 0.2
+size_markers[4] += 2.0
+size_markers[5] += 0.2
+size_markers[6] += 0.2
+size_markers[7] += 0.2
+
 # deg2rad = np.pi / 180.0
 # rad2deg = 180.0 / np.pi
 deg2rad = cst.deg2rad
@@ -66,6 +76,18 @@ parameters_folders = [
     "0668_sim_map_hdi",
     "0669_sim_map_hdi_to_physical",
 ]
+
+# ==============================================================================
+def set_colors(ncolors, vmin=0.05, vmax=0.95, colormap='nipy_spectral'):
+
+    try:
+        cmp = plt.cm.get_cmap(colormap)
+    except:
+        cmp = plt.cm.get_cmap('nipy_spectral')
+    x = np.linspace(vmin, vmax, endpoint=True, num=ncolors)
+    colors = cmp(x)
+
+    return colors
 
 # ==============================================================================
 def set_rcParams():
@@ -559,6 +581,8 @@ class CLI_OC:
         samples_file=None,
         limits="obs",
         kep_ele=False,
+        idsource_name=None,
+        color_map="nipy_spectral"
     ):
         self.full_path = os.path.abspath(full_path)
         self.idsim = int(idsim)
@@ -569,6 +593,8 @@ class CLI_OC:
         self.samples_file = samples_file
         self.limits = limits
         self.kep_ele = kep_ele
+        self.idsource_name = idsource_name
+        self.color_map = color_map
 
         return
 
@@ -583,7 +609,7 @@ class CLI_RV:
         labels="None",
         samples_file=None,
         limits="obs",
-        color_map="viridis",
+        color_map="nipy_spectral",
     ):
         self.full_path = os.path.abspath(full_path)
         self.sim_type = os.path.basename(full_path)
@@ -850,19 +876,21 @@ class ConfigurationAnalysis:
             "samples_file": None,
             "limits": "obs",
             "kep_ele": False,
+            "idsource_name": None,
+            "color_map": "nipy_spectral",
         }
-        # print("conf_oc[sim_name]    = {}".format(conf_oc["sim_name"]))
+        print("conf_oc[idsource_name]    = {}".format(conf_oc["idsource_name"]))
 
         conf_keys = conf_oc.keys()
         if "OC" in conf_all.keys():
             conf_input = conf_all["OC"]
             for k, v in conf_input.items():
                 if k in conf_keys:
-                    conf_oc[k] = v
-
-        # print("conf_input[sim_name] = {}".format(conf_input["sim_name"]))
-        # print("conf_oc[sim_name]    = {}".format(conf_oc["sim_name"]))
-        # print("conf_oc[samples_file]    = {} is {}".format(conf_oc["samples_file"], type(conf_oc["samples_file"])))
+                    if str(v).lower() == "none":
+                        conf_oc[k] = None
+                    else:
+                        conf_oc[k] = v
+        print("conf_oc[idsource_name]    = {}".format(conf_oc["idsource_name"]))
 
         self.plot_oc = conf_oc["plot_oc"]
         self.idplanet_name = conf_oc["idplanet_name"]
@@ -897,6 +925,8 @@ class ConfigurationAnalysis:
                             samples_file = samples_file,
                             limits=conf_oc["limits"],
                             kep_ele=conf_oc["kep_ele"],
+                            idsource_name=conf_oc["idsource_name"],
+                            color_map=conf_oc["color_map"],
                         )
                     )
         # print("OC OBJ")
@@ -959,10 +989,6 @@ class ConfigurationAnalysis:
                             )
                         )
             
-            # print("RV OBJ")
-            # for rvo in self.rvs:
-            #     print(rvo.idsim, rvo.full_path)
-
         return
 
 
@@ -975,7 +1001,6 @@ def period_to_semimajoraxis(Ms_Msun, Mp_Msun, P_days):
     sma = ((mu * P2) / twopi2) ** cst.onethird
 
     return sma
-
 
 # ==============================================================================
 
@@ -1027,7 +1052,6 @@ def mass_radius_type_factor(mtype="earth"):
         radius_unit = "R_Jup"
 
     return mass_conv_factor, mass_unit, radius_conv_factor, radius_unit
-
 
 # ==============================================================================
 
@@ -1169,7 +1193,6 @@ def keplerian_legend(parameter_names, m_type):
 
 # ==============================================================================
 
-
 def derived_labels(derived_names, m_type):
     # _, m_unit = mass_type_factor(1.0, m_type, mscale=False)
     _, m_unit, _, _ = mass_radius_type_factor(mtype=m_type)
@@ -1260,9 +1283,7 @@ def check_good_parameters(good_id, good_parameters_in, m_factor, nfit):
 
     return good_parameters_out
 
-
 # ==============================================================================
-
 
 def read_check_good_parameters(full_path, good_status, m_factor, nfit):
 
@@ -1279,7 +1300,6 @@ def read_check_good_parameters(full_path, good_status, m_factor, nfit):
 
     return good_parameters_0, good_parameters_1
 
-
 # ==============================================================================
 
 # sometimes the angle distribution are bimodal because they are centered in the wrong position
@@ -1292,7 +1312,6 @@ def rescale_angle(angle):
     new_angle = np.arctan2(sina, cosa) * 180.0 / np.pi
 
     return new_angle
-
 
 # ==============================================================================
 
@@ -1308,7 +1327,6 @@ def renormalize_parameters(parameters, parameter_names):
 
     return new_parameters
 
-
 # ==============================================================================
 
 # get indices of max of an array
@@ -1319,7 +1337,6 @@ def get_max_indices(array_values):
     idx = [xx[0][0], xx[1][0]]
 
     return idx[0], idx[1]
-
 
 # ==============================================================================
 
@@ -1339,9 +1356,7 @@ def get_emcee_file_and_best(emcee_folder, temp_status):
 
     return emcee_file, emcee_best, folder_best
 
-
 # ==============================================================================
-
 
 def get_devol_file(emcee_folder):
 
@@ -1349,9 +1364,7 @@ def get_devol_file(emcee_folder):
 
     return devol_file
 
-
 # ==============================================================================
-
 
 def get_percentile_angle(angle_posterior):
 
@@ -1365,9 +1378,7 @@ def get_percentile_angle(angle_posterior):
 
     return median_angle, lower_angle, upper_angle
 
-
 # ==============================================================================
-
 
 def get_data(emcee_file, temp_status):
 
@@ -1429,9 +1440,7 @@ def get_data(emcee_file, temp_status):
         completed_steps,
     )
 
-
 # ==============================================================================
-
 
 def get_last_emcee_iteration(emcee_file, nwalkers):
 
@@ -1457,9 +1466,7 @@ def get_last_emcee_iteration(emcee_file, nwalkers):
 
     return last_p0, nw_c, done
 
-
 # ==============================================================================
-
 
 def compute_autocor_time(chains, walkers_transposed=True):
 
@@ -1502,7 +1509,6 @@ def compute_autocor_time(chains, walkers_transposed=True):
 
     return autocor_time
 
-
 # ==============================================================================
 def compute_acor_time(sampler, steps_done=None):
 
@@ -1522,9 +1528,7 @@ def compute_acor_time(sampler, steps_done=None):
 
     return acor_time
 
-
 # ==============================================================================
-
 
 def get_emcee_parameters(chains, temp_status, nburnin_in, completed_steps):
 
@@ -1547,9 +1551,7 @@ def get_emcee_parameters(chains, temp_status, nburnin_in, completed_steps):
 
     return nfit, nwalkers, nruns, nburnin, nruns_sel
 
-
 # ==============================================================================
-
 
 def print_memory_usage(array_values, output=None):
 
@@ -1564,9 +1566,7 @@ def print_memory_usage(array_values, output=None):
 
     return
 
-
 # ==============================================================================
-
 
 def select_transpose_convert_chains(
     nfit,
@@ -1598,9 +1598,7 @@ def select_transpose_convert_chains(
 
     return chains_T, parameter_boundaries
 
-
 # ==============================================================================
-
 
 def posterior_back_to_msun(m_factor, parameter_names_emcee, flatchain_posterior_in):
 
@@ -1617,9 +1615,7 @@ def posterior_back_to_msun(m_factor, parameter_names_emcee, flatchain_posterior_
 
     return flatchain_posterior_out
 
-
 # ==============================================================================
-
 
 def prepare_plot_folder(full_path):
 
@@ -1627,9 +1623,7 @@ def prepare_plot_folder(full_path):
 
     return plot_folder
 
-
 # ==============================================================================
-
 
 def prepare_emcee_plot_folder(full_path):
 
@@ -1638,9 +1632,7 @@ def prepare_emcee_plot_folder(full_path):
 
     return emcee_plots
 
-
 # ==============================================================================
-
 
 def computation_time(elapsed):
 
@@ -1651,9 +1643,7 @@ def computation_time(elapsed):
 
     return int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s
 
-
 # ==============================================================================
-
 
 def get_pso_data(pso_file):
 
@@ -1691,7 +1681,6 @@ def get_pso_data(pso_file):
         pop_shape,
     )
 
-
 def pso_to_emcee(nfit, nwalkers, pso_population, names_par, sqrt_par=True):
 
     # _, npop, niter = np.shape(pso_population)
@@ -1706,9 +1695,7 @@ def pso_to_emcee(nfit, nwalkers, pso_population, names_par, sqrt_par=True):
 
     return p0
 
-
 # ==============================================================================
-
 
 def compute_limits(vec_a, delta=0.05):
 
@@ -1720,9 +1707,7 @@ def compute_limits(vec_a, delta=0.05):
 
     return lim_min, lim_max
 
-
 # ==============================================================================
-
 
 def thin_the_chains(
     use_thin,
@@ -1803,9 +1788,7 @@ def thin_the_chains(
         lnprobability_full_thinned,
     )
 
-
 # ==============================================================================
-
 
 def get_sigmas(best_parameters, flatchain_posterior):
 
@@ -1826,9 +1809,7 @@ def get_sigmas(best_parameters, flatchain_posterior):
 
     return sigma_perc68, sigma_confint
 
-
 # ==============================================================================
-
 
 def get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior):
 
@@ -1846,9 +1827,7 @@ def get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior):
 
     return maxlnprob, maxlnprob_parameters, maxlnprob_perc68, maxlnprob_confint
 
-
 # ==============================================================================
-
 
 def get_median_parameters(flatchain_posterior):
 
@@ -1859,9 +1838,7 @@ def get_median_parameters(flatchain_posterior):
 
     return median_parameters, median_perc68, median_confint
 
-
 # ==============================================================================
-
 
 def get_parameters_median_fitness(
     nwalkers, npost, nruns, lnprobability, flatchain_posterior, ln_err_const
@@ -1880,7 +1857,6 @@ def get_parameters_median_fitness(
     medfit_perc68, medfit_confint = get_sigmas(medfit_parameters, flatchain_posterior)
 
     return median_fitness, medfit_parameters, medfit_perc68, medfit_confint
-
 
 # ==============================================================================
 
