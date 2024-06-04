@@ -334,45 +334,6 @@ contains
         if (nRV .gt. 0) call set_RV_resw(oDataIn%obsRV, simRV, val(1:nRV))
         ! write(*,*)" DEBUG: || c2rv = ",sum(val(1:nRV)*val(1:nRV))
 
-        ! if (ocfit .eq. 1) then
-        !     ! fit only O-C
-
-        !     allocate (val_oc(nTTs))
-        !     val_oc = zero
-        !     call set_oc_resw(oDataIn%obsT0, simT0, val_oc)
-        !     val(nRV+1:nRV+nTTs) = val_oc
-        !     deallocate (val_oc)
-
-        !     if (durcheck .eq. 1) then
-        !         allocate (val_dur(nDurs))
-        !         val_dur = zero
-        !         call set_dur_resw(oDataIn%obsT0, simT0, val_dur)
-        !         val(nRV+nTTs+1:nRV+nTTs+nDurs) = val_dur
-        !         deallocate (val_dur)
-        !     end if
-
-        ! else if (ocfit .eq. 2) then
-        !     ! fit T0 and O-C and weight it half
-
-        !     allocate (val_T0(nTTs), val_oc(nTTs))
-        !     val_T0 = zero
-        !     call set_T0_resw(oDataIn%obsT0, simT0, val_T0)
-        !     val_oc = zero
-        !     call set_oc_resw(oDataIn%obsT0, simT0, val_oc)
-        !     val(nRV+1:nRV+nTTs) = sqrt_half*sqrt(val_T0*val_T0+val_oc*val_oc)
-        !     deallocate (val_T0, val_oc)
-
-        !     if (durcheck .eq. 1) then
-        !         allocate (val_dur(nDurs))
-        !         val_dur = zero
-        !         call set_dur_resw(oDataIn%obsT0, simT0, val_dur)
-        !         val(nRV+nTTs+1:nRV+nTTs+nDurs) = val_dur
-        !         deallocate (val_dur)
-        !     end if
-
-        ! else
-            ! fit only T0, default way
-
         allocate (val_T0(nTTs))
         val_T0 = zero
         ! write(*,*)" DEBUG: || set_T0_resw"
@@ -390,8 +351,6 @@ contains
             deallocate (val_dur)
         end if
 
-        ! end if
-        ! call set_fitness(obsData,val,resw)
         resw = val
         ! write(*,*)" DEBUG: || sum(resw*resw) = ",sum(resw*resw)
         deallocate (val)

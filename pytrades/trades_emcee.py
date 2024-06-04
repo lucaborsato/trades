@@ -305,7 +305,7 @@ if cli.nruns > 0:
         anc.print_both("new run of emcee analysis ...", output=of_run)
         if cli.pre_optimise:
             anc.print_both(
-                "Optimise fitting parameters with Minimize(Nelder-Mead) ...",
+                "\n-- Optimise fitting parameters with Minimize(Nelder-Mead) ...",
                 output=of_run,
             )
 
@@ -319,6 +319,22 @@ if cli.nruns > 0:
             anc.print_both("Opt Success: {}".format(opt_res.success), output=of_run)
             if opt_res.success:
                 fitting_parameters = opt_res.x
+                anc.print_both("\nStats for the fitting set of parameters:", output=of_run)
+                anc.print_both("chi_square = {}".format(chi_square), output=of_run)
+                anc.print_both("reduced_chi_square = {}".format(reduced_chi_square), output=of_run)
+                anc.print_both("lgllhd = {}".format(lgllhd), output=of_run)
+                anc.print_both("lnprior = {}".format(lnprior), output=of_run)
+                anc.print_both("ln_const = {}".format(ln_const), output=of_run)
+                anc.print_both("bic = {}".format(bic), output=of_run)
+                anc.print_both("check = {}".format(check), output=of_run)
+                anc.print_both("", output=of_run)
+                anc.print_both(
+                    "{:>20s} {:>13s} {:>13s} {:>13s}".format("name", "parameter", "min", "max")
+                )
+                for n, p, bd in zip(sim.fitting_names, fitting_parameters, sim.fitting_minmax):
+                    anc.print_both("{:20s} {:13.6f} {:13.6f} {:13.6f}".format(n, p, bd[0], bd[1]))
+                anc.print_both("")
+                sys.stdout.flush()
             else:
                 anc.print_both("Not changing fitting parameters")
         p0 = compute_initial_walkers(

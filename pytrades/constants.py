@@ -69,6 +69,8 @@ Rsjup = Rsun / Rjup  # Rsun to Rjup
 Rjups = Rjup / Rsun  # Rjup to Rsun
 Rsear = Rsun / Rear  # Rsun to Rear
 Rears = Rear / Rsun  # Rear to Rsun
+Rsmar = Rsun / Rmar  # Rsun to Rnep
+Rmars = Rmar / Rsun  # Rnep to Rsun
 Rsnep = Rsun / Rnep  # Rsun to Rnep
 Rneps = Rnep / Rsun  # Rnep to Rsun
 #

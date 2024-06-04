@@ -668,12 +668,12 @@ contains
         real(dp), dimension(:), allocatable::mass, radius, period, sma, ecc, argp, meanA, inc, longN
         real(dp), dimension(:), allocatable::ra0, ra1
         ! real(dp)::dt1,dt2
-        logical::Hc
+        logical::stable
 
         type(dataRV)::simRV
         type(dataT0), dimension(:), allocatable::simT0
 
-        logical::checkpar, gls_check
+        logical::checkpar
 
         integer::ndata
         integer::nRV
@@ -681,12 +681,18 @@ contains
         integer::ibd
         integer::ns, ne
 
+        ! ! DEBUG
+        ! logical::debugging
+        ! character(512)::debug
+
+        ! debugging=.true.
+
         ndata = obsData%ndata
         nRV = obsData%obsRV%nRV
         nTTs = obsData%nTTs
         nDurs = obsData%nDurs
 
-        Hc = .true.
+        stable = .true.
         ! resw = zero
         checkpar = .true.
 
@@ -695,17 +701,25 @@ contains
 
         call convert_parameters(allpar, par, mass, radius, period, sma, ecc, argp, meanA, inc, longN, checkpar)
 
+        ! write(debug, '(a,l)')"----------- ode_lm: checkpar: ",checkpar
+
         if (.not. checkpar) then
             resw = set_max_residuals(ndata)
+            ! write(debug, '(a,a,es25.15E3)')trim(debug)," sum(resw*resw) = ",sum(resw*resw)
+            ! if (debugging)then
+            !     write(*, *)trim(debug)
+            !     flush(6)
+            ! end if
             return
         end if
 
         ! +++ FROM HERE CALL NEW (2021-11-18) SUBROUTINE ode_elements_to_data
         call ode_keplerian_elements_to_data(mass, radius, period, ecc, argp, meanA, inc, longN,&
-            &obsData, simRV, simT0, Hc)
+            &obsData, simRV, simT0, stable)
 
-        gls_check = .true.
-        if (.not. Hc) then
+        ! write(debug, '(a,a,l)')trim(debug)," stable:",stable
+
+        if (.not. stable) then
             resw = set_max_residuals(ndata)
         else
 
@@ -728,6 +742,7 @@ contains
             end if
 
             ! call set_weighted_residuals(obsData, simRV, simT0, resw, oc_fit)
+            ! write(debug, '(a,a,4(i4,1x))')trim(debug)," obsData%obsT0(:)nT0 = ",obsData%obsT0(:)%nT0
             call set_weighted_residuals(obsData, simRV, simT0, resw)
 
         end if
@@ -742,6 +757,12 @@ contains
         if (allocated(mass)) deallocate (mass, radius, period, sma, ecc, argp, meanA, inc, longN)
         if (allocated(ra0)) deallocate (ra0, ra1)
 
+        ! write(debug, '(a,a,es25.15E3)')trim(debug)," sum(resw*resw) = ",sum(resw*resw)
+        ! if (debugging)then
+        !     write(*, *)trim(debug)
+        !     flush(6)
+        ! end if
+            
         return
     end subroutine ode_lm
     ! ================================================================================

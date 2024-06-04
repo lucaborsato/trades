@@ -48,7 +48,7 @@ module parameters
     real(dp), dimension(:), allocatable::system_parameters ! needed by ode_lm -> dimension == npar
 
     ! single maximum values for the weighted residuals
-    real(dp), parameter::resmax = 1.0e30_dp
+    real(dp), parameter::resmax = 1.0e300_dp
 
     ! save initial parameters of the star
     real(dp), dimension(2, 2)::MR_star

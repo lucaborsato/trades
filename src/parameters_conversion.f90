@@ -669,9 +669,10 @@ contains
         return
     end function checkbounds_angle
 
-!   check the physical bounds of the fitted parameters
-    function checkbounds_fit(fit_parameters) result(check)
-        real(dp), dimension(:), intent(in)::fit_parameters
+    function checkbounds_fit_input_bounds(fit_parameters, min_bound, max_bound) result(check)
+        ! Input
+        real(dp), dimension(:), intent(in)::fit_parameters, min_bound, max_bound
+        ! Output    
         logical::check
 
         ! real(dp)::temp
@@ -687,28 +688,10 @@ contains
                 !      body=int((idall(j)-3)/8)+2
 
                 ! check if fit_parameters are within boundaries
-                if ((fit_parameters(ifit) .lt. minpar(ifit)) .or.& ! fit < min
-                    &(fit_parameters(ifit) .gt. maxpar(ifit))) then ! fit > max
+                if ((fit_parameters(ifit) .lt. min_bound(ifit)) .or.& ! fit < min
+                    &(fit_parameters(ifit) .gt. max_bound(ifit))) then ! fit > max
 
                     check = .false.
-
-                    ! USED TO ALLOW ANGLES WITH NEGATIVE VALUES ... BUT IT WOULD INCREASE THE HYPER-SPACE ...
-                    ! if (.not. check) then
-                    !     p1 = parid(ifit) (1:1)
-                    !     p2 = parid(ifit) (1:2)
-
-                    !     if ((p1 .eq. 'w') .or.&
-                    !         &(p2 .eq. 'mA') .or.&
-                    !         &(p2 .eq. 'la'))&
-                    !         &then
-                    !         temp = mod(mod(fit_parameters(ifit), circ)+circ, circ)
-                    !         ! write(*,*)parid(ifit), temp, minpar(ifit), maxpar(ifit)
-                    !         if ((temp .ge. minpar(ifit)) .and.&
-                    !             &(temp .le. maxpar(ifit))) then
-                    !             check = .true.
-                    !         end if ! temp
-                    !     end if ! p1 & p2
-                    ! end if ! .not. check
 
                 end if !fit_parameteres vs minpar/maxpar
 
@@ -717,7 +700,21 @@ contains
         end if
 
         return
+    end function checkbounds_fit_input_bounds
+
+!   check the bounds of the fitted parameters
+    function checkbounds_fit(fit_parameters) result(check)
+        real(dp), dimension(:), intent(in)::fit_parameters
+        logical::check
+
+        check = .true.
+
+        check = checkbounds_fit_input_bounds(fit_parameters, minpar, maxpar)
+
+        return
     end function checkbounds_fit
+
+    
 
     function checkbounds_kel(mass, radius, period, ecc, argp, meanA, inc, longN) result(check)
         logical::check
@@ -870,25 +867,39 @@ contains
         real(dp), dimension(:), intent(in)::all_parameters, fit_parameters
         real(dp), dimension(:), allocatable::mass, radius,&
             &period, sma, ecc, argp, meanA, inc, longN
+        
+        ! !! DEBUG
+        !     logical::debugging
+        ! character(512)::debug
+
+        ! debugging = .true.
 
         check = .true.
         check = checkbounds_fit(fit_parameters)
-        ! write(*,'(1x,a,l2)')' DEBUG: checkbounds_fit = ',check
+
+        ! write(debug, '(a,l)') "----------- check_only_boundaries:: checkbounds_fit = ",check
         if (check) then
+
             allocate (mass(NB), radius(NB),&
                 &period(NB), sma(NB), ecc(NB), argp(NB), meanA(NB), inc(NB), longN(NB))
             call par2kel_fit(all_parameters, fit_parameters,&
                 &mass, radius,&
                 &period, sma, ecc, argp, meanA, inc, longN,&
                 &check)
-            ! write(*,'(1x,a,l2)')' DEBUG: par2kel_fit = ',check
+
+                ! write(debug, '(a, a, l)')trim(debug)," par2kel_fit = ",check
+
             if (check) then
                 check = checkbounds_kel(mass, radius,&
                     &period, ecc, argp, meanA, inc, longN)
-                ! write(*,'(1x,a,l2)')' DEBUG: checkbounds_kel = ',check
+                    ! write(debug, '(a, a, l)')trim(debug)," checkbounds_kel = ",check
             end if
             deallocate (mass, radius, period, sma, ecc, argp, meanA, inc, longN)
         end if
+        ! if (debugging) then
+        !     write(*,*)trim(debug)
+        !     flush(6)
+        ! end if
 
         return
     end function check_only_boundaries

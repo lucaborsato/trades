@@ -879,7 +879,7 @@ class ConfigurationAnalysis:
             "idsource_name": None,
             "color_map": "nipy_spectral",
         }
-        print("conf_oc[idsource_name]    = {}".format(conf_oc["idsource_name"]))
+        # print("conf_oc[idsource_name]    = {}".format(conf_oc["idsource_name"]))
 
         conf_keys = conf_oc.keys()
         if "OC" in conf_all.keys():
@@ -890,7 +890,7 @@ class ConfigurationAnalysis:
                         conf_oc[k] = None
                     else:
                         conf_oc[k] = v
-        print("conf_oc[idsource_name]    = {}".format(conf_oc["idsource_name"]))
+        # print("conf_oc[idsource_name]    = {}".format(conf_oc["idsource_name"]))
 
         self.plot_oc = conf_oc["plot_oc"]
         self.idplanet_name = conf_oc["idplanet_name"]

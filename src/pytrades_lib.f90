@@ -21,7 +21,8 @@ module f90trades
     use grid_search
 
     implicit none
-    ! exposing variables in parameters to trades_lib
+
+    ! exposing variables in parameters module to trades_lib
     !f2py integer,parameter::dp=selected_real_kind(8)
     !f2py character(512)::path
 
@@ -30,21 +31,16 @@ module f90trades
     !f2py integer::nRVset
     !f2py integer::rv_trend_order
 
-    !f2py real(dp),parameter::resmax=1.e10_dp
+    !f2py real(dp),parameter::resmax
     !f2py real(dp)::tepoch,tstart,tint
     !f2py integer::idpert
     !f2py real(dp)::wrttime
     !f2py logical::do_hill_check
 
     !f2py real(dp),dimension(2,2)::MR_star
-    !f2py real(dp),dimension(:),allocatable::system_parameters
-    !f2py real(dp),dimension(:),allocatable::par_min,par_max ! dimension: system_parameters
-
+    
     !f2py integer::n_priors
 
-    !f2py real(dp),dimension(:,:,:),allocatable::population
-    !f2py real(dp),dimension(:,:),allocatable::population_fitness
-    !f2py real(dp),dimension(:,:),allocatable::pso_best_evolution
     !f2py integer::seed_pso,np_pso,nit_pso,wrt_pso
 
     !f2py integer::ncpu_in
@@ -52,8 +48,7 @@ module f90trades
     ! needed because TRADES now uses these variables in data type
     integer::ndata, nfree, dof
     integer::nRV=0 !,nRVset it is global now
-    integer, dimension(:), allocatable::nT0
-    real(dp), dimension(:), allocatable::Pephem, Tephem
+    ! nT0, Pephem, Tephem returned by a subroutine now
     integer::nTTs=0, nDurs=0
 
 !   real(dp)::ln_err_const,inv_dof
@@ -61,9 +56,7 @@ module f90trades
     !f2py real(dp)::ln_err_const
 
     ! variables:  parameters to fit
-    real(dp), dimension(:), allocatable::fitting_parameters
-    real(dp), dimension(:, :), allocatable::parameters_minmax
-!   character(10),dimension(:),allocatable::parameter_names
+    ! fitting_parameters and parameters_minmax returned by a subroutine now
     integer::str_len
     integer::n_global, n_bodies
 
@@ -139,6 +132,7 @@ contains
     ! ============================================================================
 
     ! ============================================================================
+    ! ============================================================================
     subroutine initialize_trades(path_in, sub_folder, n_threads_in)
         !f2py real(dp),dimension(:),allocatable::eRVobs
         !f2py real(dp),dimension(:,:),allocatable::eT0obs
@@ -150,7 +144,7 @@ contains
         real(dp), dimension(:), allocatable::mass, radius, period, sma, ecc, argp, meanA, inc, longN
         integer, dimension(:), allocatable::nset
 
-        integer::inb, ipar
+        integer:: ipar
 
         write (*, *) "INITIALISING TRADES ..."
 
@@ -183,8 +177,6 @@ contains
 
         ! IT READS T0 DATA
         if (.not. allocated(obsData%obsT0)) allocate (obsData%obsT0(NB-1))
-        if (.not. allocated(nT0)) allocate (nT0(NB-1))
-        nT0 = 0
         call read_T0obs(1)
         if (idtra .ne. 0) then
             write (*, '(a,1000(i5,1x))') " T0 DATA: nT0 = ",&
@@ -194,22 +186,10 @@ contains
             write (*, '(a,1000(l2,1x))') ' DO TRANSIT FLAG: ', do_transit
         end if
 
-        nT0 = obsData%obsT0(:)%nT0
-
         ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
         if (obsData%nTTs .gt. 0) then
             call set_ephem()
             call compute_oc(obsData%obsT0)
-            if (allocated(Pephem)) deallocate (Pephem, Tephem)
-            allocate (Pephem(NB), Tephem(NB))
-            Pephem = zero
-            Tephem = zero
-            do inb = 2, NB
-                if (obsData%obsT0(inb-1)%nT0 .gt. 0) then
-                    Pephem(inb) = obsData%obsT0(inb-1)%Pephem
-                    Tephem(inb) = obsData%obsT0(inb-1)%Tephem
-                end if
-            end do
         end if
 
         ! IT DETERMINES THE NDATA
@@ -285,12 +265,7 @@ contains
         end if
         deallocate (nset)
 
-        ! ---
-        ! IT SETS THE VARIABLES system_parameters and par with fitting parameters
-        if (allocated(parameters_minmax)) deallocate (parameters_minmax)
-        allocate (parameters_minmax(nfit, 2))
-
-        call init_param(system_parameters, fitting_parameters)
+        
 
         write (*, '(a)') ''
         write (*, '(a)') 'Initial-input Keplerian orbital elements: val'
@@ -313,9 +288,7 @@ contains
 
         ! read priors within fortran!
         call read_priors(1)
-
-        parameters_minmax(:, 1) = minpar
-        parameters_minmax(:, 2) = maxpar
+        
         str_len = len(parid(1))
 
         ! check if there are derived parameters to compute and to check
@@ -328,6 +301,93 @@ contains
 
         return
     end subroutine initialize_trades
+    ! ============================================================================
+
+    subroutine get_system_parameters_and_minmax(npar, sys_params, sys_par_min, sys_par_max)
+        ! Input
+        integer,intent(in)::npar
+        ! Output
+        real(dp),dimension(npar),intent(out)::sys_params, sys_par_min, sys_par_max
+
+        sys_params = system_parameters
+        sys_par_min = par_min
+        sys_par_max = par_max
+    
+        return
+    end subroutine get_system_parameters_and_minmax
+
+    ! ============================================================================
+
+    subroutine get_default_fitting_parameters_and_minmax(fit_params, fit_par_minmax, n_fit)
+        ! Input
+        integer,intent(in)::n_fit
+        ! Output
+        real(dp),dimension(n_fit),intent(out)::fit_params
+        real(dp),dimension(n_fit, 2),intent(out)::fit_par_minmax
+        ! ! Hide
+        ! integer intent(hide),depend(fit_params) :: n_fit=len(fit_params)
+        ! Local
+        real(dp),dimension(:),allocatable::fitting_parameters
+
+        call init_param(system_parameters, fitting_parameters)
+        fit_params = fitting_parameters
+        deallocate(fitting_parameters)
+        fit_par_minmax(:, 1) = minpar
+        fit_par_minmax(:, 2) = maxpar
+    
+        return
+    end subroutine get_default_fitting_parameters_and_minmax
+
+    ! ============================================================================
+    subroutine get_do_transit_flag(n_bodies, transit_flag)
+        ! Input
+        integer,intent(in)::n_bodies
+        ! Output
+        logical,dimension(n_bodies),intent(out)::transit_flag
+
+        transit_flag = do_transit
+
+        return
+    end subroutine get_do_transit_flag
+
+    subroutine get_observed_transits_info(n_planets, n_tra_per_body, Peph, Teph)
+        ! Input
+        integer,intent(in)::n_planets
+        ! Output
+        integer,dimension(n_planets),intent(out)::n_tra_per_body
+        real(dp),dimension(n_planets),intent(out):: Peph, Teph
+
+        n_tra_per_body = obsData%obsT0(:)%nT0
+        Peph = obsData%obsT0(:)%Pephem
+        Teph = obsData%obsT0(:)%Tephem
+
+        return
+    end subroutine get_observed_transits_info
+
+    ! ============================================================================
+
+    subroutine print_obsdata()
+        ! Local
+        integer::n_rv
+        integer::n_obj, i_obj
+
+        write(*, '(a)') "OBSERVATIONS DATA"
+        ! print RV
+        n_rv = obsData%obsRV%nRV
+        write(*, '(a, i5)') "Number of RV observations: ", n_rv
+        write(*, '(a, i5)') "Number of RV datasets: ", nRVset
+        ! print T0
+        if(allocated(obsData%obsT0))then
+            n_obj = size(obsData%obsT0)
+            do i_obj=1,n_obj
+                write(*,'(a, i2, a, i4)')"Number of T0 observations for object ", i_obj, ": ", obsData%obsT0(i_obj)%nT0
+            end do
+        else
+            write(*,'(a)')"No T0 data"
+        end if
+
+        return
+    end subroutine print_obsdata
 
     ! ============================================================================
 
@@ -356,6 +416,7 @@ contains
         return
     end subroutine compute_ln_priors
     
+
     ! ============================================================================
 
     ! subroutine that returns the args stored in constants
@@ -399,25 +460,31 @@ contains
 
     ! ============================================================================
 
-    subroutine set_one_fit_par_boundaries(ifit, min_val, max_val)
-        integer,intent(in)::ifit
+    subroutine set_one_fit_par_boundaries(ifit, min_val, max_val, n_fit, fit_par_minmax)
+        ! Input
+        integer,intent(in)::ifit, n_fit
         real(dp),intent(in)::min_val, max_val
+        ! Input/Output
+        real(dp),dimension(n_fit, 2),intent(inout)::fit_par_minmax
 
         minpar(ifit) = min_val
-        parameters_minmax(ifit, 1) = minpar(ifit)
+        fit_par_minmax(ifit, 1) = minpar(ifit)
         maxpar(ifit) = max_val
-        parameters_minmax(ifit, 2) = maxpar(ifit)
+        fit_par_minmax(ifit, 2) = maxpar(ifit)
 
         return
     end subroutine set_one_fit_par_boundaries
 
-    subroutine reset_all_fit_boundaries()
+    subroutine reset_all_fit_boundaries(n_fit, fit_par_minmax)
+        ! Input
+        integer,intent(in)::n_fit
+        ! Output
+        real(dp),dimension(n_fit, 2),intent(out)::fit_par_minmax
 
         minpar = minpar_bck
-        parameters_minmax(:, 1) = minpar
+        fit_par_minmax(:, 1) = minpar
         maxpar = maxpar_bck
-        parameters_minmax(:, 2) = maxpar
-
+        fit_par_minmax(:, 2) = maxpar
 
         return
     end subroutine reset_all_fit_boundaries

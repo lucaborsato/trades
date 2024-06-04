@@ -213,6 +213,8 @@ class AnalysisTRADES:
             )
 
         sys.stdout.flush()
+
+        self.fitting_type = [None]*len(self.fitting_names)
         # # fix angles posterior
         for ifit, fitn in enumerate(self.fitting_names):
             if (
@@ -229,6 +231,7 @@ class AnalysisTRADES:
                 # self.chains_posterior[:, :, ifit] = anc.recenter_angle_distribution(
                 #     self.chains_posterior[:, :, ifit] % 360.0, debug=True, type_out=False
                 # )
+                self.fitting_type[ifit] = i_type
                 if "mod" in i_type:
                     self.chains[:, :, ifit] %= 360.0
                     self.chains_full_thinned[:, :, ifit] %= 360.0
@@ -237,6 +240,10 @@ class AnalysisTRADES:
                     self.chains[:, :, ifit] = anc.get_arctan_angle(self.chains[:, :, ifit])
                     self.chains_full_thinned[:, :, ifit] = anc.get_arctan_angle(self.chains_full_thinned[:, :, ifit])
                     self.chains_posterior[:, :, ifit] = anc.get_arctan_angle(self.chains_posterior[:, :, ifit])
+        anc.print_both("####################################################################")
+        for fitn, fitt in zip(self.fitting_names, self.fitting_type):
+            print(fitn, fitt)
+        anc.print_both("####################################################################")
 
         sys.stdout.flush()
         anc.print_both("Determine conversion factors ...")
@@ -444,12 +451,29 @@ class AnalysisTRADES:
 
         full_sim_name = "{:04d}_sim_{:s}".format(id_sim, sim_name)
         out_folder = os.path.join(self.cli.full_path, full_sim_name, "")
-        print(out_folder)
+        anc.print_both(out_folder)
         os.makedirs(out_folder, exist_ok=True)
 
         # compute sigma fit/phy!!
-        sigma_hdi_fit = anc.hdi_to_sigma(fit_par, ci_fit)
-        mad_fit, rms_fit = anc.posterior_to_rms_mad(self.fitting_posterior, fit_par)
+        anc.print_both("#############################")
+        anc.print_both("CHECK SCALE/MOD FITTING ANGULAR PARAMETER")
+        fit_temp = np.copy(fit_par)
+        for ifit, itype in enumerate(self.fitting_type):
+            if itype is not None:
+                if itype == "mod":
+                    fit_temp[ifit] = fit_temp[ifit]%360.0
+                else:
+                    # cc = np.cos(fit_temp[ifit] * cst.deg2rad)
+                    # ss = np.sin(fit_temp[ifit] * cst.deg2rad)
+                    # fit_temp[ifit] = np.arctan2(ss, cc) * cst.rad2deg
+                    fit_temp[ifit] = anc.get_arctan_angle(fit_par[ifit])
+                anc.print_both("{0:s} = {1:.4f} ==> {2:.4f}".format(
+                    self.fitting_names[ifit], fit_par[ifit], fit_temp[ifit]
+                ))
+        anc.print_both("#############################")
+
+        sigma_hdi_fit = anc.hdi_to_sigma(fit_temp, ci_fit)
+        mad_fit, rms_fit = anc.posterior_to_rms_mad(self.fitting_posterior, fit_temp)
         sigma_fit = np.column_stack((rms_fit, mad_fit, sigma_hdi_fit.T)).T
 
         sigma_hdi_phy = anc.hdi_to_sigma(phy_par, ci_phy)
@@ -682,7 +706,6 @@ class AnalysisTRADES:
             self.ci_fitted,
             self.ci_physical,
         )
-
 
         return
 

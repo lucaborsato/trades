@@ -40,9 +40,14 @@ set_hill_check = f90trades.set_hill_check
 period_to_sma = f90trades.f90_period_to_sma
 sma_to_period = f90trades.f90_sma_to_period
 astrocentric_to_barycentric_orbits = f90trades.astrocentric_to_barycentric_orbits
+convert_trades_par_to_kepelem = f90trades.convert_trades_par_to_kepelem
+print_obsdata = f90trades.print_obsdata
 # =============================================================================
 
-def args_init(n_body, duration_check, t_epoch=None, t_start=None, t_int=None, do_hill_check=False):
+
+def args_init(
+    n_body, duration_check, t_epoch=None, t_start=None, t_int=None, do_hill_check=False
+):
     """
     Initialize the arguments for the function.
 
@@ -74,6 +79,7 @@ def args_init(n_body, duration_check, t_epoch=None, t_start=None, t_int=None, do
 
     return
 
+
 # =============================================================================
 # get_priors = f90trades.get_priors
 def get_priors():
@@ -93,6 +99,7 @@ def get_priors():
     names = [n.decode("utf-8") for n in names]
 
     return names, values
+
 
 # =============================================================================
 def deallocate_rv_dataset():
@@ -214,30 +221,24 @@ def kelements_to_observed_rv_and_t0s(
     n_kep = 8  # number of keplerian elements in output for each T0s
     n_rv = f90trades.nrv
     n_T0s = f90trades.ntts
-    (
-        rv_sim,
-        body_T0_sim,
-        epo_sim,
-        t0_sim,
-        t14_sim,
-        kel_sim,
-        stable
-    ) = f90trades.kelements_to_rv_and_t0s(
-        t_start,
-        t_epoch,
-        t_int,
-        M_msun,
-        R_rsun,
-        P_day,
-        ecc,
-        argp_deg,
-        mA_deg,
-        inc_deg,
-        lN_deg,
-        transit_flag,
-        n_rv,
-        n_T0s,
-        n_kep,
+    (rv_sim, body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable) = (
+        f90trades.kelements_to_rv_and_t0s(
+            t_start,
+            t_epoch,
+            t_int,
+            M_msun,
+            R_rsun,
+            P_day,
+            ecc,
+            argp_deg,
+            mA_deg,
+            inc_deg,
+            lN_deg,
+            transit_flag,
+            n_rv,
+            n_T0s,
+            n_kep,
+        )
     )
 
     return rv_sim, body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable
@@ -401,6 +402,7 @@ def kelements_to_orbits(
 
 # =============================================================================
 
+
 def kelements_to_orbits_full(
     t_epoch,
     t_start,
@@ -490,7 +492,6 @@ def kelements_to_orbits_full(
         orbits_backward = np.empty((0, nb_dim))
         check_backward = True
 
-
     if np.abs(dt_end_epoch) > 0.0:
         # forward integration
         steps_forward = np.arange(t_epoch, t_end, step_size * np.sign(dt_end_epoch))
@@ -511,7 +512,7 @@ def kelements_to_orbits_full(
 
     time_steps = np.concatenate((steps_backward, steps_forward))
     orbits = np.concatenate((orbits_backward, orbits_forward))
-    check = (check_backward & check_forward)
+    check = check_backward & check_forward
 
     return time_steps, orbits, check
 
@@ -542,7 +543,7 @@ def orbits_to_transits(
 ):
     """
     Convert orbital state vectors to transit times and durations.
-    
+
     Args:
         n_all_transits (int): Total number of transits
         time_steps (ndarray): Array of time steps
@@ -550,7 +551,7 @@ def orbits_to_transits(
         R_rsun (float): radii in solar radii
         orbits (ndarray): Array of orbital state vectors
         transiting_body (str): Name of the transiting body, 1 means all bodies
-    
+
     Returns:
         tuple: A tuple containing the transit times, durations, Keplerian elements, and body flags
     """
@@ -610,7 +611,7 @@ def orbital_parameters_to_transits(
     t_start, t_epoch, t_int, mass, radius, period, ecc, w, ma, inc, long, t_rv_obs
 ):
     """
-    From orbital parameters compute orbits of the planets and return 
+    From orbital parameters compute orbits of the planets and return
     the transits (times, durations, kep. elements. and body flags) and radial velocity at specific times.
     Similar to kelements_to_orbits_full + orbits_to_transits + orbits_to_rvs
 
@@ -704,13 +705,19 @@ def set_transit_parameters(radius, transits, body_flag, kep_elem):
 # TODO: generate lcids for pytransit model in order to automatically take into account multiple transits
 # in the same photometry, lcids should be based on epoch/transit number ...
 def get_simulate_flux(
-    tm, 
-    photometry, 
-    transits, 
-    durations, 
-    rp_rs, ld_quad, per, aRs, inc, ecc, w,
+    tm,
+    photometry,
+    transits,
+    durations,
+    rp_rs,
+    ld_quad,
+    per,
+    aRs,
+    inc,
+    ecc,
+    w,
     #  body_flag,
-    time_key="time"
+    time_key="time",
 ):
     """
     Generate simulated flux for given parameters and photometry data.
@@ -804,11 +811,7 @@ def get_simulate_flux(
                 sel_t = np.logical_and(
                     t >= tra - 0.5 * per[itra],
                 )
-                tm.set_data(
-                    t[sel_t],
-                    nsamples=vis[n_over_key],
-                    exptimes=vis[t_exp_key]
-                )
+                tm.set_data(t[sel_t], nsamples=vis[n_over_key], exptimes=vis[t_exp_key])
                 ff = tm.evaluate(
                     k=rp_rs_sel[itra],
                     ldc=ld_quad,
@@ -821,7 +824,7 @@ def get_simulate_flux(
                 )
                 flux.append(ff)
             f2d = np.atleast_2d(flux)
-            flux_ = np.sum(f2d-1.0, axis=0) + 1.0
+            flux_ = np.sum(f2d - 1.0, axis=0) + 1.0
         else:
             flux_ = np.ones((len(t)))
         sim_photometry[k] = flux_
@@ -830,11 +833,11 @@ def get_simulate_flux(
 
 
 def add_photometry_trend(
-    obs_photometry, 
-    sim_photometry, 
-    photometry_coeff_trend, 
-    ancillary_coeff, 
-    time_key="time"
+    obs_photometry,
+    sim_photometry,
+    photometry_coeff_trend,
+    ancillary_coeff,
+    time_key="time",
 ):
     """
     Generate photometry trend for observed and simulated photometry data.
@@ -896,7 +899,7 @@ def plot_photometry(
 ):
     """
     A function to plot photometry data along with simulated, model, and trend photometry.
-    
+
     Parameters:
     - photometry: dictionary containing photometry data
     - sim_photometry: dictionary containing simulated photometry data
@@ -906,7 +909,7 @@ def plot_photometry(
     - show_plot: boolean indicating whether to display the plot (default is True)
     - output_folder: string specifying the output folder for saving plots
     - return_rms: boolean indicating whether to return the root mean square values
-    
+
     Returns:
     - rms_photometry: dictionary containing root mean square values if return_rms is True, otherwise None
     """
@@ -1188,7 +1191,8 @@ def set_photometry_portion(
     portion["ancillary"] = ancillary
     if ancillary is not None:
         portion["ancillary_interp"] = {
-            k: interp1d(time, a, bounds_error=False, fill_value=(a[0],a[-1])) for k, a in ancillary.items()
+            k: interp1d(time, a, bounds_error=False, fill_value=(a[0], a[-1]))
+            for k, a in ancillary.items()
         }
     else:
         portion["ancillary_interp"] = ancillary
@@ -1200,9 +1204,11 @@ def set_photometry_portion(
     portion["time_min"] = time_min
     portion["time_max"] = time_max
     portion["time_med"] = np.median(time)
-    t_exp_d_full = min(t_exp_d, 60.0*cst.sec2day)
+    t_exp_d_full = min(t_exp_d, 60.0 * cst.sec2day)
     portion["t_exp_d_full"] = t_exp_d_full
-    portion["time_full"] = np.arange(time_min, time_max+(0.5*t_exp_d_full), t_exp_d_full)
+    portion["time_full"] = np.arange(
+        time_min, time_max + (0.5 * t_exp_d_full), t_exp_d_full
+    )
     portion["ndata_full"] = len(portion["time_full"])
     portion["n_oversample_full"] = 1
 
@@ -1550,7 +1556,14 @@ class PhotoTRADES:
         return time_steps, orbits, transits, durations, kep_elem, body_flag, rv_sim
 
     def get_simulate_flux(
-        self, radius, ld_quads, transits, durations, body_flag, kep_elem, time_key="time"
+        self,
+        radius,
+        ld_quads,
+        transits,
+        durations,
+        body_flag,
+        kep_elem,
+        time_key="time",
     ):
 
         rp_rs, per, aRs, inc, ecc, w = set_transit_parameters(
@@ -1572,7 +1585,7 @@ class PhotoTRADES:
                 ecc,
                 w,
                 # body_flag,
-                time_key=time_key
+                time_key=time_key,
             )
             sim_photometry[phot_name] = sim_phot
         return sim_photometry
@@ -1855,6 +1868,7 @@ class PhotoTRADES:
 # IT USES THE LOGLIKELIHOOD IN FORTRAN90 AND DEFAULT PARAMETERIZATION
 # =============================================================================
 
+
 class TRADESfolder:
     def __init__(self, input_path, sub_folder="", nthreads=1, seed=42, m_type="e"):
 
@@ -1891,28 +1905,30 @@ class TRADESfolder:
         self.n_planets = self.n_bodies - 1  # NUMBER OF PLANETS IN THE SYSTEM
         self.ndata = (f90trades.ndata).item()  # TOTAL NUMBER OF DATA AVAILABLE
         self.nkel = (f90trades.nkel).item()  # NUMBER OF FITTING KEPLERIAN ELEMENTS
+        self.npar = (f90trades.npar).item()  # NUMBER OF SYSTEM PARAMETERS
         self.nfit = (f90trades.nfit).item()  # NUMBER OF PARAMETERS TO FIT
         self.nfree = (f90trades.nfree).item()  # NUMBER OF FREE PARAMETERS (ie nrvset)
         self.dof = (f90trades.dof).item()  # NUMBER OF DEGREES OF FREEDOM = NDATA - NFIT
         self.inv_dof = (f90trades.inv_dof).item()
 
+        self.transit_flag = f90trades.get_do_transit_flag(self.n_bodies)
+
         self.tstart = (f90trades.tstart).item()
         self.tepoch = (f90trades.tepoch).item()
-        self.tint   = (f90trades.tint).item()
+        self.tint = (f90trades.tint).item()
 
         # fitting parameters
         str_len = f90trades.str_len
         temp_names = f90trades.get_parameter_names(self.nfit, str_len)
         # names
         self.fitting_names = anc.convert_fortran_charray2python_strararray(temp_names)
-        # fitting values
-        self.fitting_parameters = f90trades.fitting_parameters.copy()
-        # boundaries
-        self.fitting_minmax = f90trades.parameters_minmax.copy()
-
-        # all system_parameters
-        self.system_parameters = f90trades.system_parameters.copy()
-
+        self.fitting_parameters, self.fitting_minmax = f90trades.get_default_fitting_parameters_and_minmax(self.nfit)
+        (
+            self.system_parameters, 
+            self.system_parameters_min, 
+            self.system_parameters_max
+        ) = f90trades.get_system_parameters_and_minmax(self.npar)
+    
         # priors
         self.n_priors = (f90trades.n_priors).item()
 
@@ -2024,15 +2040,14 @@ class TRADESfolder:
         self.n_set_rv = f90trades.nrvset  # number of jitter parameters
 
         # TRANSITS SET
-        self.n_t0 = f90trades.nt0
+        self.n_t0, self.pephem, self.tephem = f90trades.get_observed_transits_info(self.n_planets)
+
         self.n_t0_sum = f90trades.ntts
         self.n_set_t0 = 0
         for i in range(0, self.n_planets):
             if self.n_t0[i] > 0:
                 self.n_set_t0 += 1
 
-        self.pephem = f90trades.pephem
-        self.tephem = f90trades.tephem
         self.wrttime = f90trades.wrttime
 
         return
@@ -2045,16 +2060,17 @@ class TRADESfolder:
 
     def set_one_fit_par_boundaries(self, ifit, min_val, max_val):
 
-        self.fitting_minmax[ifit, 0] = min_val
-        self.fitting_minmax[ifit, 1] = max_val
-        set_one_fit_par_boundaries(ifit+1, min_val, max_val)
+        # self.fitting_minmax[ifit, 0] = min_val
+        # self.fitting_minmax[ifit, 1] = max_val
+        self.fitting_minmax = f90trades.set_one_fit_par_boundaries(ifit + 1, min_val, max_val, self.fitting_minmax)
 
         return
-    
+
     def reset_all_fit_boundaries(self):
 
-        reset_all_fit_boundaries()
-        self.fitting_minmax = f90trades.parameters_minmax.copy()
+        # reset_all_fit_boundaries()
+        # self.fitting_minmax = f90trades.parameters_minmax.copy()
+        self.fitting_minmax = f90trades.reset_all_fit_boundaries()
 
         return
 
@@ -2086,7 +2102,10 @@ class TRADESfolder:
         n_all_par = len(self.system_parameters)
         all_par = np.zeros((n_all_par))
         fit_par = np.zeros((self.nfit))
-        (all_par, fit_par,) = f90trades.update_parameters_from_keplerian(
+        (
+            all_par,
+            fit_par,
+        ) = f90trades.update_parameters_from_keplerian(
             mass,
             radius,
             period,
@@ -2241,13 +2260,14 @@ class TRADESfolder:
         f90trades.path_change(out_folder)
 
         for iname, name in enumerate(self.fitting_names):
-            if (name[0] == "w"
+            if (
+                name[0] == "w"
                 or name[0:2] == "mA"
                 or name[0:2] == "lN"
                 or "lambda" in name
             ):
                 fit_pars[iname] %= 360.0
-                
+
         (
             chi_square,
             reduced_chi_square,
@@ -2373,6 +2393,30 @@ class TRADESfolder:
 
         return
 
+    def computes_observables_from_keplerian_elements(
+        self, t_start, t_epoch, t_int, mass, radius, period, ecc, argp, meana, inc, longn,
+        transit_flag=self.transit_flag
+        ):
+
+        n_kep = 8
+        rv_sim, body_t0_sim,  epo_sim, t0_sim, t14_sim, kel_sim, stable = f90trades.kelements_to_rv_and_t0s(
+            t_start, t_epoch, t_int, mass, radius, period, ecc, argp, meana, inc, longn,
+            transit_flag, self.n_rv, self.n_t0_sum, n_kep
+        )
+
+        return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable 
+
+    def computes_observables_from_default_keplerian_elements(
+        self, t_start, t_epoch, t_int, transit_flag=self.transit_flag
+        ):
+
+        rv_sim, body_t0_sim,  epo_sim, t0_sim, t14_sim, kel_sim, stable = self.computes_observables_from_keplerian_elements(
+            t_start, t_epoch, t_int, self.mass, self.radius, self.period, self.ecc, self.argp, self.meana, self.inc, self.longn,
+            in_transit_flag=transit_flag
+        )
+
+        return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable
+
     def reset(self):
 
         f90trades.deallocate_variables()
@@ -2380,6 +2424,288 @@ class TRADESfolder:
         return
 
 
+# =============================================================================
+def base_plot_orbits(
+    time_steps,
+    orbits,
+    radius,
+    n_body,
+    body_names,
+    figsize=(4,4),
+    sky_scale="star",
+    side_scale="star",
+    title=None,
+    show_plot=False,
+):
+    n_steps = len(time_steps)
+    # base_colors = plt.get_cmap("nipy_spectral")(
+    #     np.linspace(0.1, 0.9, endpoint=True, num=n_body - 1)
+    # )
+    base_colors = anc.set_colors(n_body-1, vmin=0.05, vmax=0.95, colormap='nipy_spectral')
+
+    # colors with alpha based on increasing time (alpha(t_start) = 0.2, alpha(t_end) = 1.0)
+    alphas = np.linspace(0.05, 0.95, endpoint=True, num=n_steps)
+    colors = []
+    for c in base_colors:
+        colors.append([[c[0], c[1], c[2], a] for a in alphas])
+
+    idx_X = [i * 6 for i in range(1, n_body)]
+    idx_Y = [i + 1 for i in idx_X]
+    idx_Z = [i + 1 for i in idx_Y]
+
+    X = orbits[:, idx_X]
+    Y = orbits[:, idx_Y]
+    Z = orbits[:, idx_Z]
+
+    rstar = radius[0] * cst.RsunAU
+    scale = 1.50
+    alpha_star = 1.0
+    # sky_scale = "star" # "X"
+    # side_scale = "star"
+    leg_size = 4
+    lab_size = 12
+    tic_size = 7
+
+    zo_s = 3
+    zo_z = zo_s + n_body
+
+    ms_scatter = 5
+    ms_z = np.sqrt(ms_scatter) + 0.1
+    # ---------------------------
+    # X vs Y == sky plane
+    fig = plt.figure(figsize=figsize)
+    axs = []
+    nrows, ncols = 2, 2
+    if title is not None:
+        irow, icol = 0, 1
+        ax = plt.subplot2grid((nrows, ncols), (irow, icol))
+        ax.set_axis_off()
+        ax.text(0.5, 0.5, title, ha="center", va="center", fontsize=lab_size)
+
+    irow, icol = 0, 0
+    ax = plt.subplot2grid((nrows, ncols), (irow, icol))
+    ax.tick_params(axis="both", labelsize=tic_size)
+    ax.tick_params(axis="x", labelrotation=45)
+    ax.axhline(0.0, color="black", ls="-", lw=0.7, zorder=1)
+    ax.axvline(0.0, color="black", ls="-", lw=0.7, zorder=1)
+    star = plt.Circle(
+        (0, 0),
+        radius=rstar,
+        facecolor="C1",
+        zorder=zo_s,
+        edgecolor="None",
+        alpha=alpha_star,
+    )
+    ax.add_artist(star)
+
+    leg_elem = []
+    for i_pl in range(0, n_body - 1):
+
+        ax.scatter(
+            X[:, i_pl],
+            Y[:, i_pl],
+            c=colors[i_pl],
+            marker="o",
+            s=ms_scatter,
+            edgecolors="None",
+            # label="body {}".format(i_pl+2),
+            zorder=zo_z + i_pl + 1,
+        )
+        Zpos = Z[:, i_pl] > 0.0
+        ax.plot(
+            X[Zpos, i_pl],
+            Y[Zpos, i_pl],
+            marker="o",
+            ms=ms_z,
+            mfc="None",
+            mec="black",
+            mew=0.3,
+            ls="",
+            zorder=zo_z + i_pl + 0,
+        )
+        lp = plt.Line2D(
+            [0],
+            [0],
+            color=base_colors[i_pl],
+            ls="",
+            marker="o",
+            ms=ms_z,
+            mec="black",
+            mew=0.3,
+            label="planet {} Z > 0".format(body_names[i_pl + 1]),
+        )
+        leg_elem.append(lp)
+        Zneg = Zpos == False
+        ax.plot(
+            X[Zneg, i_pl],
+            Y[Zneg, i_pl],
+            marker="o",
+            ms=ms_z,
+            mfc="None",
+            mec="white",
+            mew=0.3,
+            ls="",
+            zorder=zo_z + i_pl + 0,
+        )
+        ln = plt.Line2D(
+            [0],
+            [0],
+            color=base_colors[i_pl],
+            ls="",
+            marker="o",
+            ms=ms_z,
+            mec="white",
+            mew=0.3,
+            label="planet {} Z < 0".format(body_names[i_pl + 1]),
+        )
+        leg_elem.append(ln)
+
+    ax.legend(
+        handles=leg_elem,
+        # loc='best',
+        bbox_to_anchor=(1.05, 1),
+        loc="upper left",
+        borderaxespad=0.0,
+        fontsize=leg_size,
+        facecolor=[0.8] * 3 + [1.0],  #'lightgray',
+        edgecolor="None",
+    )
+    ax.set_title("sky plane", fontsize=tic_size)
+    ax.set_xlabel("X (au)")
+    ax.set_ylabel("Y (au)")
+    if sky_scale.lower() == "star":
+        lims = [-scale * rstar, +scale * rstar]
+        xlims = lims
+        ylims = lims
+    else:
+        xlims = ax.get_xlim()
+        ylims = xlims
+
+    ax.set_xlim(xlims)
+    ax.set_ylim(ylims)
+
+    axs.append(ax)
+    # ---------------------------
+    # X vs Z == orbit plane
+    irow, icol = 1, 0
+
+    ax = plt.subplot2grid((nrows, ncols), (irow, icol))
+    ax.tick_params(axis="both", labelsize=tic_size)
+    ax.tick_params(axis="x", labelrotation=45)
+    ax.axhline(0.0, color="black", ls="-", lw=0.7, zorder=1)
+    ax.axvline(0.0, color="black", ls="-", lw=0.7, zorder=1)
+    zo_s = 3
+    star = plt.Circle(
+        (0, 0),
+        radius=rstar,
+        facecolor="C1",
+        zorder=zo_s,
+        edgecolor="None",
+        alpha=alpha_star,
+    )
+    ax.add_artist(star)
+
+    for i_pl in range(0, n_body - 1):
+        ax.scatter(
+            X[:, i_pl],
+            Z[:, i_pl],
+            c=colors[i_pl],
+            marker="o",
+            s=ms_scatter,
+            edgecolors="None",
+            zorder=zo_z + i_pl + 1,
+        )
+    ax.set_title("orbits plane - observer at top", fontsize=tic_size)
+    ax.set_xlabel("X (au)")
+    ax.set_ylabel("Z (au)")
+
+    axs.append(ax)
+
+    # ---------------------------
+    # Z vs X == side plane
+    irow, icol = 1, 1
+
+    ax = plt.subplot2grid((nrows, ncols), (irow, icol))
+    ax.tick_params(axis="both", labelsize=tic_size)
+    ax.tick_params(axis="x", labelrotation=45)
+    ax.axhline(0.0, color="black", ls="-", lw=0.7, zorder=1)
+    ax.axvline(0.0, color="black", ls="-", lw=0.7, zorder=1)
+    zo_s = 3
+    star = plt.Circle(
+        (0, 0),
+        radius=rstar,
+        facecolor="C1",
+        zorder=zo_s,
+        edgecolor="None",
+        alpha=alpha_star,
+    )
+    ax.add_artist(star)
+
+    for i_pl in range(0, n_body - 1):
+        ax.scatter(
+            Z[:, i_pl],
+            Y[:, i_pl],
+            c=colors[i_pl],
+            marker="o",
+            s=ms_scatter,
+            edgecolors="None",
+            # label="body {}".format(i_pl+2),
+            zorder=zo_z + i_pl + 1,
+        )
+        Zpos = Z[:, i_pl] > 0.0
+        ax.plot(
+            Z[Zpos, i_pl],
+            Y[Zpos, i_pl],
+            marker="o",
+            ms=ms_z,
+            mfc="None",
+            mec="black",
+            mew=0.3,
+            ls="",
+            zorder=zo_z + i_pl + 0,
+        )
+        Zneg = Zpos == False
+        ax.plot(
+            Z[Zneg, i_pl],
+            Y[Zneg, i_pl],
+            marker="o",
+            ms=ms_z,
+            mfc="None",
+            mec="white",
+            mew=0.3,
+            ls="",
+            zorder=zo_z + i_pl + 0,
+        )
+    # ax.legend(loc='best', fontsize=leg_size)
+    ax.set_title("side plane - observer at right", fontsize=tic_size)
+    ax.set_xlabel("Z (au)")
+    ax.set_ylabel("Y (au)")
+    if side_scale.lower() == "star":
+        lims = [-scale * rstar, +scale * rstar]
+        xlims = lims
+        ylims = lims
+    else:
+        xlims = ax.get_xlim()
+        # ylims = ax.get_ylim()
+        ylims = xlims
+
+    ax.set_xlim(xlims)
+    ax.set_ylim(ylims)
+
+    axs.append(ax)
+    fig.align_ylabels(axs)
+    plt.tight_layout()
+
+    if show_plot:
+        plt.show()
+    # plt.close(fig)
+    return fig
+
+
+# =============================================================================
+# =============================================================================
+
+# =============================================================================
 # =============================================================================
 # rename some functions for backward compatibility
 kelements_to_rv_and_t0s = kelements_to_observed_rv_and_t0s
