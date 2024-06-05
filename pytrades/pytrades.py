@@ -2395,8 +2395,11 @@ class TRADESfolder:
 
     def computes_observables_from_keplerian_elements(
         self, t_start, t_epoch, t_int, mass, radius, period, ecc, argp, meana, inc, longn,
-        transit_flag=self.transit_flag
+        transit_flag=None
         ):
+
+        if transit_flag is None:
+            transit_flag = self.transit_flag
 
         n_kep = 8
         rv_sim, body_t0_sim,  epo_sim, t0_sim, t14_sim, kel_sim, stable = f90trades.kelements_to_rv_and_t0s(
@@ -2407,8 +2410,11 @@ class TRADESfolder:
         return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable 
 
     def computes_observables_from_default_keplerian_elements(
-        self, t_start, t_epoch, t_int, transit_flag=self.transit_flag
+        self, t_start, t_epoch, t_int, transit_flag=None
         ):
+
+        if transit_flag is None:
+            transit_flag = self.transit_flag
 
         rv_sim, body_t0_sim,  epo_sim, t0_sim, t14_sim, kel_sim, stable = self.computes_observables_from_keplerian_elements(
             t_start, t_epoch, t_int, self.mass, self.radius, self.period, self.ecc, self.argp, self.meana, self.inc, self.longn,
