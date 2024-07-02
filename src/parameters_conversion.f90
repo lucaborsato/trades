@@ -741,62 +741,59 @@ contains
         do j = 2, NB
             j1 = (j-2)*8
 
-            ! write(*,*)'Mp',j,': ',mass(j),par_min(j1+3),par_max(j1+3)
             ! mass
             if ((mass(j) .lt. par_min(j1+3)) .or.&
                 &(mass(j) .gt. par_max(j1+3))) then
                 check = .false.
+                ! write(*,*)j, "mass", check, mass(j), par_min(j1+3), par_max(j1+3)
                 return
             end if
 
-            ! write(*,*)'R',j,': ',radius(j),par_min(j1+4),par_max(j1+4)
             ! radius
             if ((radius(j) .lt. par_min(j1+4)) .or.&
                 &(radius(j) .gt. par_max(j1+4))) then
                 check = .false.
+                ! write(*,*)j, "radius", check, radius(j), par_min(j1+4), par_max(j1+4)
                 return
             end if
 
-            ! write(*,*)'P',j,': ',period(j),par_min(j1+5),par_max(j1+5)
             ! period
             if ((period(j) .lt. par_min(j1+5)) .or.&
                 &(period(j) .gt. par_max(j1+5))) then
                 check = .false.
+                ! write(*,*)j, "period", check, period(j), par_min(j1+5), par_max(j1+5)
                 return
             end if
 
-            ! write(*,*)'e',j,': ',ecc(j),par_min(j1+6),par_max(j1+6)
             ! eccentricity
             if ((ecc(j) .lt. par_min(j1+6)) .or.&
                 &(ecc(j) .gt. par_max(j1+6))) then
                 check = .false.
+                ! write(*,*)j, "ecc", check, ecc(j), par_min(j1+6), par_max(j1+6)
                 return
             end if
 
             ! argument of pericentre
-            ! write(*,*)'argp',j,': ',argp(j),par_min(j1+7),par_max(j1+7)
             check = checkbounds_angle(argp(j), par_min(j1+7), par_max(j1+7))
-            ! write(*,*)"argp", check
+            ! write(*,*)j, "argp", check, argp(j), par_min(j1+7), par_max(j1+7)
             if (.not. check) return
 
             ! mean anomaly
-            ! write(*,*)'meanA',j,': ',meanA(j),par_min(j1+8),par_max(j1+8)
             check = checkbounds_angle(meanA(j), par_min(j1+8), par_max(j1+8))
-            ! write(*,*)"meanA", check
+            ! write(*,*)j, "meanA", check, meanA(j), par_min(j1+8), par_max(j1+8)
             if (.not. check) return
 
-            ! write(*,*)'inc',j,': ',inc(j),par_min(j1+9),par_max(j1+9)
             ! inclination
             if ((inc(j) .lt. par_min(j1+9)) .or.&
                 &(inc(j) .gt. par_max(j1+9))) then
                 check = .false.
+                ! write(*,*)j, "inc", check, inc(j), par_min(j1+9), par_max(j1+9)
                 return
             end if
 
             ! longitude of node
-            ! write(*,*)'longN',j,': ',longN(j),par_min(j1+10),par_max(j1+10)
             check = checkbounds_angle(longN(j), par_min(j1+10), par_max(j1+10))
-            ! write(*,*)"longN", check
+            ! write(*,*)j, "longN", check, longN(j), par_min(j1+10), par_max(j1+10)
             if (.not. check) return
 
         end do
@@ -869,9 +866,8 @@ contains
             &period, sma, ecc, argp, meanA, inc, longN
         
         ! !! DEBUG
-        !     logical::debugging
+        ! logical::debugging
         ! character(512)::debug
-
         ! debugging = .true.
 
         check = .true.
@@ -892,7 +888,8 @@ contains
             if (check) then
                 check = checkbounds_kel(mass, radius,&
                     &period, ecc, argp, meanA, inc, longN)
-                    ! write(debug, '(a, a, l)')trim(debug)," checkbounds_kel = ",check
+                
+                ! write(debug, '(a, a, l)')trim(debug)," checkbounds_kel = ",check
             end if
             deallocate (mass, radius, period, sma, ecc, argp, meanA, inc, longN)
         end if

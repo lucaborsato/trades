@@ -42,7 +42,6 @@ anc.set_rcParams()
 # ==============================================================================
 
 
-
 def get_emcee_run(cli):
 
     # read emcee data
@@ -162,7 +161,7 @@ class AnalysisTRADES:
 
         # # init trades
         anc.print_both("Init trades ... ")
-        
+
         sim = pytrades.TRADESfolder(cli.full_path, seed=cli.seed, m_type=cli.m_type)
         sim.init_trades()
         sys.stdout.flush()
@@ -199,22 +198,31 @@ class AnalysisTRADES:
                 self.fitting_names_original,
                 self.fitting_posterior,
             )
-            (_, self.chains_posterior,) = anc.update_parameterisation_chains(
+            (
+                _,
+                self.chains_posterior,
+            ) = anc.update_parameterisation_chains(
                 self.fitting_names_original,
                 self.chains_posterior,
             )
-            (_, self.chains,) = anc.update_parameterisation_chains(
+            (
+                _,
+                self.chains,
+            ) = anc.update_parameterisation_chains(
                 self.fitting_names_original,
                 self.chains,
             )
-            (_, self.chains_full_thinned,) = anc.update_parameterisation_chains(
+            (
+                _,
+                self.chains_full_thinned,
+            ) = anc.update_parameterisation_chains(
                 self.fitting_names_original,
                 self.chains_full_thinned,
             )
 
         sys.stdout.flush()
 
-        self.fitting_type = [None]*len(self.fitting_names)
+        self.fitting_type = [None] * len(self.fitting_names)
         # # fix angles posterior
         for ifit, fitn in enumerate(self.fitting_names):
             if (
@@ -225,8 +233,12 @@ class AnalysisTRADES:
             ):
                 anc.print_both("Fixing parameter {} with idx {}".format(fitn, ifit))
                 # print("shape of chains_posterior = {}".format(np.shape(self.chains_posterior)))
-                self.fitting_posterior[:, ifit], i_type = anc.recenter_angle_distribution(
-                    self.fitting_posterior[:, ifit] % 360.0, debug=True, type_out=True
+                self.fitting_posterior[:, ifit], i_type = (
+                    anc.recenter_angle_distribution(
+                        self.fitting_posterior[:, ifit] % 360.0,
+                        debug=True,
+                        type_out=True,
+                    )
                 )
                 # self.chains_posterior[:, :, ifit] = anc.recenter_angle_distribution(
                 #     self.chains_posterior[:, :, ifit] % 360.0, debug=True, type_out=False
@@ -237,13 +249,23 @@ class AnalysisTRADES:
                     self.chains_full_thinned[:, :, ifit] %= 360.0
                     self.chains_posterior[:, :, ifit] %= 360.0
                 else:
-                    self.chains[:, :, ifit] = anc.get_arctan_angle(self.chains[:, :, ifit])
-                    self.chains_full_thinned[:, :, ifit] = anc.get_arctan_angle(self.chains_full_thinned[:, :, ifit])
-                    self.chains_posterior[:, :, ifit] = anc.get_arctan_angle(self.chains_posterior[:, :, ifit])
-        anc.print_both("####################################################################")
+                    self.chains[:, :, ifit] = anc.get_arctan_angle(
+                        self.chains[:, :, ifit]
+                    )
+                    self.chains_full_thinned[:, :, ifit] = anc.get_arctan_angle(
+                        self.chains_full_thinned[:, :, ifit]
+                    )
+                    self.chains_posterior[:, :, ifit] = anc.get_arctan_angle(
+                        self.chains_posterior[:, :, ifit]
+                    )
+        anc.print_both(
+            "####################################################################"
+        )
         for fitn, fitt in zip(self.fitting_names, self.fitting_type):
             print(fitn, fitt)
-        anc.print_both("####################################################################")
+        anc.print_both(
+            "####################################################################"
+        )
 
         sys.stdout.flush()
         anc.print_both("Determine conversion factors ...")
@@ -266,39 +288,43 @@ class AnalysisTRADES:
         nrt, nw, _ = np.shape(self.chains_full_thinned)
         sys.stdout.flush()
         # STELLAR MASS
-        self.mass_conv_factor_post = [1.0]*3
+        self.mass_conv_factor_post = [1.0] * 3
         if "m1" in sim.fitting_names:
             idx_m1 = list(sim.fitting_names).index("m1")
             # full chains
-            self.stellar_mass_normal_chains = self.chains_full_thinned[:,:,idx_m1]
-            
+            self.stellar_mass_normal_chains = self.chains_full_thinned[:, :, idx_m1]
+
         else:
             # full chains
             self.stellar_mass_normal_chains = np.random.normal(
                 loc=self.star[0, 0], scale=self.star[0, 1], size=(nrt, nw)
             )
-        
+
         # posterior chains
-        self.stellar_mass_normal_post_chains = self.stellar_mass_normal_chains[cli.nburnin:, :]
+        self.stellar_mass_normal_post_chains = self.stellar_mass_normal_chains[
+            cli.nburnin :, :
+        ]
         # posterior flat
-        self.stellar_mass_posterior = self.stellar_mass_normal_post_chains.reshape(self.npost)
-        
+        self.stellar_mass_posterior = self.stellar_mass_normal_post_chains.reshape(
+            self.npost
+        )
+
         self.mass_conv_factor_post[0] = (
             self.mass_conv_factor / self.star[0, 0]
-            ) * self.stellar_mass_normal_chains
+        ) * self.stellar_mass_normal_chains
         self.mass_conv_factor_post[1] = (
             self.mass_conv_factor / self.star[0, 0]
-            ) * self.stellar_mass_normal_post_chains
+        ) * self.stellar_mass_normal_post_chains
         self.mass_conv_factor_post[2] = (
             self.mass_conv_factor / self.star[0, 0]
-            ) * self.stellar_mass_posterior
+        ) * self.stellar_mass_posterior
 
         # STELLAR RADIUS
-        self.radius_conv_factor_post = [1.0]*3
+        self.radius_conv_factor_post = [1.0] * 3
         if "R1" in sim.fitting_names:
             idx_R1 = list(sim.fitting_names).index("R1")
             # full chains
-            self.stellar_radius_normal_chains = self.chains_full_thinned[:,:,idx_R1]
+            self.stellar_radius_normal_chains = self.chains_full_thinned[:, :, idx_R1]
         else:
             # full chains
             self.stellar_radius_normal_chains = np.random.normal(
@@ -306,9 +332,13 @@ class AnalysisTRADES:
             )
 
         # posterior chains
-        self.stellar_radius_normal_post_chains = self.stellar_radius_normal_chains[cli.nburnin:, :]
-        # posterior 
-        self.stellar_radius_posterior = self.stellar_radius_normal_post_chains.reshape(self.npost)
+        self.stellar_radius_normal_post_chains = self.stellar_radius_normal_chains[
+            cli.nburnin :, :
+        ]
+        # posterior
+        self.stellar_radius_posterior = self.stellar_radius_normal_post_chains.reshape(
+            self.npost
+        )
 
         self.radius_conv_factor_post[0] = (
             self.radius_conv_factor / self.star[1, 0]
@@ -461,15 +491,17 @@ class AnalysisTRADES:
         for ifit, itype in enumerate(self.fitting_type):
             if itype is not None:
                 if itype == "mod":
-                    fit_temp[ifit] = fit_temp[ifit]%360.0
+                    fit_temp[ifit] = fit_temp[ifit] % 360.0
                 else:
                     # cc = np.cos(fit_temp[ifit] * cst.deg2rad)
                     # ss = np.sin(fit_temp[ifit] * cst.deg2rad)
                     # fit_temp[ifit] = np.arctan2(ss, cc) * cst.rad2deg
                     fit_temp[ifit] = anc.get_arctan_angle(fit_par[ifit])
-                anc.print_both("{0:s} = {1:.4f} ==> {2:.4f}".format(
-                    self.fitting_names[ifit], fit_par[ifit], fit_temp[ifit]
-                ))
+                anc.print_both(
+                    "{0:s} = {1:.4f} ==> {2:.4f}".format(
+                        self.fitting_names[ifit], fit_par[ifit], fit_temp[ifit]
+                    )
+                )
         anc.print_both("#############################")
 
         sigma_hdi_fit = anc.hdi_to_sigma(fit_temp, ci_fit)
@@ -498,6 +530,13 @@ class AnalysisTRADES:
             par_description=par_description,
             return_stats=True,
         )
+
+        summary_file = os.path.join(
+            self.sim.full_path,
+            full_sim_name,
+            "parameters_summary.txt"
+        )
+        anc.save_latex_table(summary_file, add_digit=1)
 
         s_h5f = self.summary_h5f
         if s_h5f is not None:
@@ -934,16 +973,20 @@ class AnalysisTRADES:
         except:
             par_desc += " !! MAP WITHIN HDI NOT FOUND --> USING MAP"
             full_sim_name = "{:04d}_sim_{:s}".format(id_sim, sim_name)
-            out_folder = os.path.join(os.path.join(self.cli.full_path, full_sim_name), "")
+            out_folder = os.path.join(
+                os.path.join(self.cli.full_path, full_sim_name), ""
+            )
             os.makedirs(out_folder, exist_ok=True)
             warn_file = os.path.join(out_folder, "WARNING.txt")
-            anc.print_both("WRITING WARNING FILE: {:s}".format(warn_file))
+            anc.print_both("# WRITING WARNING FILE: {:s}".format(warn_file))
             with open(os.path.join(out_folder, "WARNING.txt"), "w") as warn_o:
-                anc.print_both("*******\nWARNING: {}\n*******".format(par_desc), output=warn_o)
+                anc.print_both(
+                    "*******\nWARNING: {}\n*******".format(par_desc), output=warn_o
+                )
             anc.print_both("")
             anc.print_both("# " + "=" * 40)
             anc.print_both("")
-        
+
         return
 
     # ---------------------------------
@@ -1086,13 +1129,13 @@ def run_analysis(cli):
 
     # ===== LOG-PROB TRACE plot ===== #
     log_probability_trace(
-        analysis.lnprobability_full_thinned, 
-        analysis.lnprob_posterior, 
-        plots_folder, 
+        analysis.lnprobability_full_thinned,
+        analysis.lnprob_posterior,
+        plots_folder,
         n_burn=cli.nburnin,
         n_thin=conf_run.thin_by,
-        show_plot=False, 
-        figsize=(6, 6)
+        show_plot=False,
+        figsize=(6, 6),
     )
 
     # ===== CONVERGENCE ===== #
@@ -1101,16 +1144,18 @@ def run_analysis(cli):
         par_file = os.path.join(cli.full_path, "summary_parameters.hdf5")
         stats_file = os.path.join(logs_folder, "convergence_stats.logs")
         overplot = anc.set_overplot(cli.overplot)
-        with open(stats_file, 'w') as olog:
+        with open(stats_file, "w") as olog:
             with h5py.File(par_file, "r") as s_h5f:
                 l = "fitted"
                 if overplot is not None:
                     sim_id_str = "{}".format(overplot)
-                    overp_par = s_h5f["parameters/{:s}/{:s}/parameters".format(sim_id_str, l)][
-                        ...
-                    ]
+                    overp_par = s_h5f[
+                        "parameters/{:s}/{:s}/parameters".format(sim_id_str, l)
+                    ][...]
                 else:
-                    overp_par = analysis.fitting_posterior[np.argmax(analysis.lnprob_posterior), :]
+                    overp_par = analysis.fitting_posterior[
+                        np.argmax(analysis.lnprob_posterior), :
+                    ]
                 exp_acf_fit, exp_steps_fit = full_statistics(
                     analysis.chains_full_thinned,
                     analysis.fitting_posterior,
@@ -1125,15 +1170,17 @@ def run_analysis(cli):
                     show_plot=False,
                     figsize=(6, 6),
                 )
-                
+
                 l = "physical"
                 if overplot is not None:
                     sim_id_str = "{}".format(overplot)
-                    overp_par = s_h5f["parameters/{:s}/{:s}/parameters".format(sim_id_str, l)][
-                        ...
-                    ]
+                    overp_par = s_h5f[
+                        "parameters/{:s}/{:s}/parameters".format(sim_id_str, l)
+                    ][...]
                 else:
-                    overp_par = analysis.physical_posterior[np.argmax(analysis.lnprob_posterior), :]
+                    overp_par = analysis.physical_posterior[
+                        np.argmax(analysis.lnprob_posterior), :
+                    ]
                 exp_acf_phy, exp_steps_phy = full_statistics(
                     analysis.physical_chains,
                     analysis.physical_posterior,

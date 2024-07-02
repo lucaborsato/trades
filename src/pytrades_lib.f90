@@ -160,6 +160,10 @@ contains
         ! IT READS THE ARGUMENTS OF INTEGRATION AND STORE IN COMMON MODULE PARAMETERS.
         ! THE VARIBLES WILL NOT BE MODIFIED FURTHERMORE.
         call read_arg(1)
+        write(*,'(a, f16.5)')"t_epoch = ",tepoch
+        write(*,'(a, f16.5)')"t_start = ",tstart
+        write(*,'(a, f16.5)')"t_int   = ",tint
+        flush(6)
 
         n_bodies = NB ! needed to be used by python wrapper ... to check if I can avoid it
         if (allocated(e_bounds)) deallocate (e_bounds)
@@ -169,10 +173,12 @@ contains
 
         ! IT READS THE FILES AND THE NAMES OF THE BODIES AND DETERMINES THE PARAMETERS TO BE FITTED
         call read_list(1)
+        flush(6)
 
         ! IT READS RV DATA
         nRV = 0
         call read_RVobs(1)
+        flush(6)
         nRV = obsData%obsRV%nRV
 
         ! IT READS T0 DATA
@@ -185,12 +191,14 @@ contains
                 &obsData%obsT0(:)%nT0
             write (*, '(a,1000(l2,1x))') ' DO TRANSIT FLAG: ', do_transit
         end if
+        flush(6)
 
         ! IT SETS THE LINEAR EPHEMERIS FROM T0 DATA
         if (obsData%nTTs .gt. 0) then
             call set_ephem()
             call compute_oc(obsData%obsT0)
         end if
+        flush(6)
 
         ! IT DETERMINES THE NDATA
         nTTs = obsData%nTTs
@@ -213,6 +221,7 @@ contains
         write (*, '(a,a)') " NUMBER OF PARAMETERS TO FIT: nfit = ", trim(adjustl(string(nfit)))
         obsData%dof = (obsData%ndata-nfit-obsData%nfree)
         dof = obsData%dof
+        flush(6)
 
         if (dof .le. 0) then
             write (*, '(a,a)') ' FOUND dof <= 0 SO IT IS FORCED TO 1 IN CASE',&
@@ -220,15 +229,18 @@ contains
             obsData%dof = 1
             dof = obsData%dof
         end if
+        flush(6)
 
         obsData%inv_dof = one/real(obsData%dof, dp)
         inv_dof = obsData%inv_dof
 
         ! IT DEFINES THE ID OF THE PARAMETERS TO BE FITTED
         call idpar()
+        flush(6)
 
         ! IT READS BOUNDARIES OF THE KEPLERIAN ELEMENTS
         call read_fullpar(1, mass, radius, period, sma, ecc, argp, meanA, inc, longN, system_parameters)
+        flush(6)
 
         ! IT DETERMINES THE LN_ERR_CONST TO COMPUTE LOGLIKELIHOOD
         ln_err_const = get_lnec(obsData)
@@ -264,7 +276,7 @@ contains
             nset(1) = 1
         end if
         deallocate (nset)
-
+        flush(6)
         
 
         write (*, '(a)') ''
@@ -279,12 +291,14 @@ contains
         write (*, '(a, 1000(1x,es23.16))') "inc      [deg]  = ", inc
         write (*, '(a, 1000(1x,es23.16))') "longn    [deg]  = ", longn
         write (*, '(a)') ''
+        flush(6)
 
         write (*, '(a23,3(1x,a23))') 'Full System Parameters', "value", '( par_min ,', 'par_max )'
         do ipar = 1, npar
             write (*, '(a23,1x,es23.16,2(a,es23.16),a)') all_names_list(ipar), system_parameters(ipar),&
                 &' ( ', par_min(ipar), ' , ', par_max(ipar), ' )'
         end do
+        flush(6)
 
         ! read priors within fortran!
         call read_priors(1)
@@ -1086,13 +1100,17 @@ contains
             &t0_temp, t14_temp, kel_temp,&
             &stable)
 
-        rv_sim = rv_temp
+        if (allocated(rv_temp))then
+            rv_sim = rv_temp
+        end if
 
-        body_t0_sim = body_t0_temp
-        epo_sim = epo_temp
-        t0_sim = t0_temp
-        t14_sim = t14_temp
-        kel_sim = kel_temp
+        if (allocated(body_t0_temp)) then
+            body_t0_sim = body_t0_temp
+            epo_sim = epo_temp
+            t0_sim = t0_temp
+            t14_sim = t14_temp
+            kel_sim = kel_temp
+        end if
 
         if (allocated(rv_temp)) deallocate (rv_temp)
         if (allocated(body_T0_temp)) deallocate (body_T0_temp, epo_temp)

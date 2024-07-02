@@ -2371,7 +2371,7 @@ class TRADESfolder:
             )
             if not bool(check):
                 anc.print_both(
-                    "WRITING WARNING FILE: {:s}".format(
+                    "# WRITING WARNING FILE: {:s}".format(
                         os.path.join(out_folder, "WARNING.txt")
                     ),
                     out,

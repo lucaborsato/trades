@@ -41,7 +41,7 @@ kel_fmt = ["%.3f", "%.4f", "%.3f", "%.1f", "%.1f", "%.1f", "%.3f", "%.3f"]
 
 letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "l", "m", "n", "o", "p"]
 
-filled_markers = plt.Line2D.filled_markers[1:] # avoid '.'
+filled_markers = plt.Line2D.filled_markers[1:]  # avoid '.'
 n_markers = len(filled_markers)
 size_default = 3.0
 size_markers = [size_default] * n_markers
@@ -77,17 +77,19 @@ parameters_folders = [
     "0669_sim_map_hdi_to_physical",
 ]
 
+
 # ==============================================================================
-def set_colors(ncolors, vmin=0.05, vmax=0.95, colormap='nipy_spectral'):
+def set_colors(ncolors, vmin=0.05, vmax=0.95, colormap="nipy_spectral"):
 
     try:
         cmp = plt.cm.get_cmap(colormap)
     except:
-        cmp = plt.cm.get_cmap('nipy_spectral')
+        cmp = plt.cm.get_cmap("nipy_spectral")
     x = np.linspace(vmin, vmax, endpoint=True, num=ncolors)
     colors = cmp(x)
 
     return colors
+
 
 # ==============================================================================
 def set_rcParams():
@@ -274,6 +276,7 @@ def set_int_or_none(arg_in):
 
 
 # ==============================================================================
+
 
 # read command line (cli) arguments
 def get_args():
@@ -582,7 +585,7 @@ class CLI_OC:
         limits="obs",
         kep_ele=False,
         idsource_name=None,
-        color_map="nipy_spectral"
+        color_map="nipy_spectral",
     ):
         self.full_path = os.path.abspath(full_path)
         self.idsim = int(idsim)
@@ -658,7 +661,7 @@ class ConfigurationRun:
             "emcee_progress": True,
             "pre_optimise": True,
             "pre_optimize": True,
-            "move": {"type": ["ai"], "fraction": [1.0]}
+            "move": {"type": ["ai"], "fraction": [1.0]},
         }
         emcee_keys = cemcee.keys()
 
@@ -731,7 +734,9 @@ class ConfigurationRun:
         self.thin_by = set_int_argument(cemcee["thin_by"], default=1)
         self.emcee_restart = set_bool_argument(cemcee["emcee_restart"])
         self.emcee_progress = set_bool_argument(cemcee["emcee_progress"])
-        self.pre_optimise = set_bool_argument(cemcee["pre_optimise"]) or set_bool_argument(cemcee["pre_optimize"])
+        self.pre_optimise = set_bool_argument(
+            cemcee["pre_optimise"]
+        ) or set_bool_argument(cemcee["pre_optimize"])
 
         # print()
         # print("====================")
@@ -756,7 +761,6 @@ class ConfigurationRun:
             self.emcee_move = emoves
         # print("====================")
         # print()
-
 
         # ultranest
         self.ultranest_live_points = set_int_argument(
@@ -922,7 +926,7 @@ class ConfigurationAnalysis:
                             lmflag=conf_oc["lmflag"],
                             tscale=conf_oc["tscale"],
                             ocunit=conf_oc["unit"],
-                            samples_file = samples_file,
+                            samples_file=samples_file,
                             limits=conf_oc["limits"],
                             kep_ele=conf_oc["kep_ele"],
                             idsource_name=conf_oc["idsource_name"],
@@ -966,7 +970,7 @@ class ConfigurationAnalysis:
                     conf_rv["sim_name"].append(keyp)
 
             if str(conf_rv["samples_file"]).lower() != "none":
-                samples_file=os.path.join(fpath, conf_rv["samples_file"])
+                samples_file = os.path.join(fpath, conf_rv["samples_file"])
             else:
                 samples_file = None
             for sname in conf_rv["sim_name"]:
@@ -988,7 +992,7 @@ class ConfigurationAnalysis:
                                 color_map=conf_rv["color_map"],
                             )
                         )
-            
+
         return
 
 
@@ -1002,7 +1006,9 @@ def period_to_semimajoraxis(Ms_Msun, Mp_Msun, P_days):
 
     return sma
 
+
 # ==============================================================================
+
 
 # given the mass flag letter it computes the proper mass conversion factor
 def mass_type_factor(Ms=1.0, mtype="earth", mscale=True):
@@ -1053,7 +1059,9 @@ def mass_radius_type_factor(mtype="earth"):
 
     return mass_conv_factor, mass_unit, radius_conv_factor, radius_unit
 
+
 # ==============================================================================
+
 
 # prepare the labels of the Keplerian orbital elements for the legend
 def keplerian_legend(parameter_names, m_type):
@@ -1193,6 +1201,7 @@ def keplerian_legend(parameter_names, m_type):
 
 # ==============================================================================
 
+
 def derived_labels(derived_names, m_type):
     # _, m_unit = mass_type_factor(1.0, m_type, mscale=False)
     _, m_unit, _, _ = mass_radius_type_factor(mtype=m_type)
@@ -1273,6 +1282,7 @@ def derived_labels(derived_names, m_type):
 
 # ==============================================================================
 
+
 # only needed by check_good_parameters to convert Mjup to flagged mass
 def check_good_parameters(good_id, good_parameters_in, m_factor, nfit):
 
@@ -1283,7 +1293,9 @@ def check_good_parameters(good_id, good_parameters_in, m_factor, nfit):
 
     return good_parameters_out
 
+
 # ==============================================================================
+
 
 def read_check_good_parameters(full_path, good_status, m_factor, nfit):
 
@@ -1300,7 +1312,9 @@ def read_check_good_parameters(full_path, good_status, m_factor, nfit):
 
     return good_parameters_0, good_parameters_1
 
+
 # ==============================================================================
+
 
 # sometimes the angle distribution are bimodal because they are centered in the wrong position
 # e.g.: -1° = 359° etc...
@@ -1313,7 +1327,9 @@ def rescale_angle(angle):
 
     return new_angle
 
+
 # ==============================================================================
+
 
 # renormalize the angular parameter mean Anomaly mA
 def renormalize_parameters(parameters, parameter_names):
@@ -1327,7 +1343,9 @@ def renormalize_parameters(parameters, parameter_names):
 
     return new_parameters
 
+
 # ==============================================================================
+
 
 # get indices of max of an array
 def get_max_indices(array_values):
@@ -1338,7 +1356,9 @@ def get_max_indices(array_values):
 
     return idx[0], idx[1]
 
+
 # ==============================================================================
+
 
 # prepare file and best folder emcee
 def get_emcee_file_and_best(emcee_folder, temp_status):
@@ -1356,7 +1376,9 @@ def get_emcee_file_and_best(emcee_folder, temp_status):
 
     return emcee_file, emcee_best, folder_best
 
+
 # ==============================================================================
+
 
 def get_devol_file(emcee_folder):
 
@@ -1364,7 +1386,9 @@ def get_devol_file(emcee_folder):
 
     return devol_file
 
+
 # ==============================================================================
+
 
 def get_percentile_angle(angle_posterior):
 
@@ -1378,7 +1402,9 @@ def get_percentile_angle(angle_posterior):
 
     return median_angle, lower_angle, upper_angle
 
+
 # ==============================================================================
+
 
 def get_data(emcee_file, temp_status):
 
@@ -1440,7 +1466,9 @@ def get_data(emcee_file, temp_status):
         completed_steps,
     )
 
+
 # ==============================================================================
+
 
 def get_last_emcee_iteration(emcee_file, nwalkers):
 
@@ -1466,7 +1494,9 @@ def get_last_emcee_iteration(emcee_file, nwalkers):
 
     return last_p0, nw_c, done
 
+
 # ==============================================================================
+
 
 def compute_autocor_time(chains, walkers_transposed=True):
 
@@ -1509,6 +1539,7 @@ def compute_autocor_time(chains, walkers_transposed=True):
 
     return autocor_time
 
+
 # ==============================================================================
 def compute_acor_time(sampler, steps_done=None):
 
@@ -1528,7 +1559,9 @@ def compute_acor_time(sampler, steps_done=None):
 
     return acor_time
 
+
 # ==============================================================================
+
 
 def get_emcee_parameters(chains, temp_status, nburnin_in, completed_steps):
 
@@ -1551,7 +1584,9 @@ def get_emcee_parameters(chains, temp_status, nburnin_in, completed_steps):
 
     return nfit, nwalkers, nruns, nburnin, nruns_sel
 
+
 # ==============================================================================
+
 
 def print_memory_usage(array_values, output=None):
 
@@ -1566,7 +1601,9 @@ def print_memory_usage(array_values, output=None):
 
     return
 
+
 # ==============================================================================
+
 
 def select_transpose_convert_chains(
     nfit,
@@ -1598,7 +1635,9 @@ def select_transpose_convert_chains(
 
     return chains_T, parameter_boundaries
 
+
 # ==============================================================================
+
 
 def posterior_back_to_msun(m_factor, parameter_names_emcee, flatchain_posterior_in):
 
@@ -1615,7 +1654,9 @@ def posterior_back_to_msun(m_factor, parameter_names_emcee, flatchain_posterior_
 
     return flatchain_posterior_out
 
+
 # ==============================================================================
+
 
 def prepare_plot_folder(full_path):
 
@@ -1623,7 +1664,9 @@ def prepare_plot_folder(full_path):
 
     return plot_folder
 
+
 # ==============================================================================
+
 
 def prepare_emcee_plot_folder(full_path):
 
@@ -1632,7 +1675,9 @@ def prepare_emcee_plot_folder(full_path):
 
     return emcee_plots
 
+
 # ==============================================================================
+
 
 def computation_time(elapsed):
 
@@ -1643,7 +1688,9 @@ def computation_time(elapsed):
 
     return int(elapsed_d), int(elapsed_h), int(elapsed_m), elapsed_s
 
+
 # ==============================================================================
+
 
 def get_pso_data(pso_file):
 
@@ -1681,6 +1728,7 @@ def get_pso_data(pso_file):
         pop_shape,
     )
 
+
 def pso_to_emcee(nfit, nwalkers, pso_population, names_par, sqrt_par=True):
 
     # _, npop, niter = np.shape(pso_population)
@@ -1695,7 +1743,9 @@ def pso_to_emcee(nfit, nwalkers, pso_population, names_par, sqrt_par=True):
 
     return p0
 
+
 # ==============================================================================
+
 
 def compute_limits(vec_a, delta=0.05):
 
@@ -1707,7 +1757,9 @@ def compute_limits(vec_a, delta=0.05):
 
     return lim_min, lim_max
 
+
 # ==============================================================================
+
 
 def thin_the_chains(
     use_thin,
@@ -1788,7 +1840,9 @@ def thin_the_chains(
         lnprobability_full_thinned,
     )
 
+
 # ==============================================================================
+
 
 def get_sigmas(best_parameters, flatchain_posterior):
 
@@ -1809,7 +1863,9 @@ def get_sigmas(best_parameters, flatchain_posterior):
 
     return sigma_perc68, sigma_confint
 
+
 # ==============================================================================
+
 
 def get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior):
 
@@ -1827,7 +1883,9 @@ def get_maxlnprob_parameters(lnprob_burnin, chains_T, flatchain_posterior):
 
     return maxlnprob, maxlnprob_parameters, maxlnprob_perc68, maxlnprob_confint
 
+
 # ==============================================================================
+
 
 def get_median_parameters(flatchain_posterior):
 
@@ -1838,7 +1896,9 @@ def get_median_parameters(flatchain_posterior):
 
     return median_parameters, median_perc68, median_confint
 
+
 # ==============================================================================
+
 
 def get_parameters_median_fitness(
     nwalkers, npost, nruns, lnprobability, flatchain_posterior, ln_err_const
@@ -1857,6 +1917,7 @@ def get_parameters_median_fitness(
     medfit_perc68, medfit_confint = get_sigmas(medfit_parameters, flatchain_posterior)
 
     return median_fitness, medfit_parameters, medfit_perc68, medfit_confint
+
 
 # ==============================================================================
 
@@ -2050,6 +2111,7 @@ def pick_sample_parameters(
 
 # =============================================================================
 
+
 # 1) select parameters and lgllhd within ci
 def select_within_all_ci(posterior, post_ci, lnprobability):
 
@@ -2093,6 +2155,7 @@ def select_maxlglhd_with_hdi(posterior, post_ci, lnprobability, return_idmax=Fal
 
 
 # ==============================================================================
+
 
 # 2) determine the median lgllhd lgllhd_med of the selected pars
 # 3) sort by lgllhd-lgllhd_med and take the first set of pars
@@ -2405,7 +2468,9 @@ def GelmanRubin_PyORBIT(sampler_chain):
     Rhat = np.sqrt(var_theta / W)
     return Rhat
 
+
 # ==============================================================================
+
 
 # Geweke 1992 test 1
 def geweke_test(chains_T, start_frac=0.05, n_sel_steps=5):
@@ -2804,6 +2869,7 @@ def get_arctan_angle(alpha_deg):
 
     return beta_deg
 
+
 # ==============================================================================
 # ==============================================================================
 # fix lambda only in flatchain posterior
@@ -2826,7 +2892,9 @@ def recenter_angle_distribution(alpha_deg, debug=False, type_out=False):
 
     beta_deg = get_arctan_angle(alpha_deg)
 
-    _, recentered, rec_type = get_good_distribution(beta_deg, alpha_deg, type_out=True, debug=debug)
+    _, recentered, rec_type = get_good_distribution(
+        beta_deg, alpha_deg, type_out=True, debug=debug
+    )
     if type_out:
         return recentered, rec_type
     else:
@@ -3644,6 +3712,7 @@ def update_parameterisation_chains(fitting_names, fitting_chains):
 
     return new_fitting_names, new_fitting_chains
 
+
 def scale_angle(val_deg):
 
     val_rad = val_deg * cst.deg2rad
@@ -3654,16 +3723,18 @@ def scale_angle(val_deg):
 
     return scale_deg
 
+
 def search_scale_parameter(par, par_type):
 
     scale_par = par.copy()
     for i_p, p in enumerate(par):
         if "mod" in par_type[i_p]:
-            scale_par[i_p] = p%360.0
+            scale_par[i_p] = p % 360.0
         elif "scale" in par_type[i_p]:
             scale_par[i_p] = scale_angle(p)
 
     return scale_par
+
 
 def compute_physical_parameters(
     n_bodies,
@@ -3723,10 +3794,12 @@ def compute_physical_parameters(
                 mass_post = posterior_fit[:, idx_p] * mass_post_conv_factor[2]
                 posterior_phys.append(mass_post)
             if chains_full_fit is not None:
-                mass_f_post = chains_full_fit[:,:, idx_p] * mass_post_conv_factor[0]
+                mass_f_post = chains_full_fit[:, :, idx_p] * mass_post_conv_factor[0]
                 chains_full_phys.append(mass_f_post)
             if chains_posterior_fit is not None:
-                mass_p_post = chains_posterior_fit[:,:, idx_p] * mass_post_conv_factor[1]
+                mass_p_post = (
+                    chains_posterior_fit[:, :, idx_p] * mass_post_conv_factor[1]
+                )
                 chains_posterior_phys.append(mass_p_post)
 
         idx_p = 0
@@ -3742,10 +3815,14 @@ def compute_physical_parameters(
                 radius_post = posterior_fit[:, idx_p] * radius_post_conv_factor[2]
                 posterior_phys.append(radius_post)
             if chains_full_fit is not None:
-                radius_f_post = chains_full_fit[:,:, idx_p] * radius_post_conv_factor[0]
+                radius_f_post = (
+                    chains_full_fit[:, :, idx_p] * radius_post_conv_factor[0]
+                )
                 chains_full_phys.append(radius_f_post)
             if chains_posterior_fit is not None:
-                radius_p_post = chains_posterior_fit[:,:, idx_p] * radius_post_conv_factor[1]
+                radius_p_post = (
+                    chains_posterior_fit[:, :, idx_p] * radius_post_conv_factor[1]
+                )
                 chains_posterior_phys.append(radius_p_post)
 
         idx_p, idx_q = 0, 0
@@ -3793,11 +3870,11 @@ def compute_physical_parameters(
                     argp = argp_scale
                 par_phys[-1] = argp
                 phys_type[-1] = argp_type
-                
+
             if chains_full_fit is not None:
-                cc = chains_full_fit[:,:, idx_p]
-                ss = chains_full_fit[:,:, idx_q]
-                f_post = cc*cc + ss*ss
+                cc = chains_full_fit[:, :, idx_p]
+                ss = chains_full_fit[:, :, idx_q]
+                f_post = cc * cc + ss * ss
                 sel_ecc = f_post <= 1.0e-9
                 f_post[sel_ecc] = 0.0
                 chains_full_phys.append(f_post)
@@ -3809,9 +3886,9 @@ def compute_physical_parameters(
                 argp_f_post = f_post
 
             if chains_posterior_fit is not None:
-                cc = chains_posterior_fit[:,:, idx_p]
-                ss = chains_posterior_fit[:,:, idx_q]
-                p_post = cc*cc + ss*ss
+                cc = chains_posterior_fit[:, :, idx_p]
+                ss = chains_posterior_fit[:, :, idx_q]
+                p_post = cc * cc + ss * ss
                 sel_ecc = p_post <= 1.0e-9
                 p_post[sel_ecc] = 0.0
                 chains_posterior_phys.append(p_post)
@@ -3868,9 +3945,9 @@ def compute_physical_parameters(
                 phys_type[-1] = argp_type
 
             if chains_full_fit is not None:
-                cc = chains_full_fit[:,:, idx_p]
-                ss = chains_full_fit[:,:, idx_q]
-                f_post = np.sqrt(cc*cc + ss*ss)
+                cc = chains_full_fit[:, :, idx_p]
+                ss = chains_full_fit[:, :, idx_q]
+                f_post = np.sqrt(cc * cc + ss * ss)
                 sel_ecc = f_post <= 1.0e-9
                 f_post[sel_ecc] = 0.0
                 chains_full_phys.append(f_post)
@@ -3882,9 +3959,9 @@ def compute_physical_parameters(
                 argp_f_post = f_post
 
             if chains_posterior_fit is not None:
-                cc = chains_posterior_fit[:,:, idx_p]
-                cc = chains_posterior_fit[:,:, idx_q]
-                p_post = np.sqrt(cc*cc + ss*ss)
+                cc = chains_posterior_fit[:, :, idx_p]
+                cc = chains_posterior_fit[:, :, idx_q]
+                p_post = np.sqrt(cc * cc + ss * ss)
                 sel_ecc = p_post <= 1.0e-9
                 p_post[sel_ecc] = 0.0
                 chains_posterior_phys.append(p_post)
@@ -3928,14 +4005,14 @@ def compute_physical_parameters(
                 if "mod" in argp_type:
                     longn %= 360.0
                 else:
-                    longn =longn_scale
+                    longn = longn_scale
                 par_phys[-1] = longn
                 phys_type[-1] = longn_type
-            
+
             if chains_full_fit is not None:
-                cc = chains_full_fit[:,:, idx_p]
-                ss = chains_full_fit[:,:, idx_q]
-                f_post = np.sqrt(cc*cc + ss*ss)
+                cc = chains_full_fit[:, :, idx_p]
+                ss = chains_full_fit[:, :, idx_q]
+                f_post = np.sqrt(cc * cc + ss * ss)
                 chains_full_phys.append(f_post)
                 f_post = np.arctan2(ss, cc) * cst.rad2deg
                 if "mod" in phys_type[-1]:
@@ -3944,9 +4021,9 @@ def compute_physical_parameters(
                 longn_f_post = f_post
 
             if chains_posterior_fit is not None:
-                cc = chains_posterior_fit[:,:, idx_p]
-                ss = chains_posterior_fit[:,:, idx_q]
-                p_post = np.sqrt(cc*cc + ss*ss)
+                cc = chains_posterior_fit[:, :, idx_p]
+                ss = chains_posterior_fit[:, :, idx_q]
+                p_post = np.sqrt(cc * cc + ss * ss)
                 chains_posterior_phys.append(p_post)
                 sel_ecc = p_post <= 1.0e-9
                 p_post[sel_ecc] = 0.0
@@ -4091,17 +4168,25 @@ def compute_physical_parameters(
     par_phys = np.array(par_phys)
     phys_type = np.array(phys_type)
 
-
     if posterior_fit is not None:
         posterior_phys = np.column_stack(posterior_phys)
-    
+
     if chains_full_fit is not None:
-        chains_full_phys = np.array(chains_full_phys).swapaxes(0,1).swapaxes(1,2)
+        chains_full_phys = np.array(chains_full_phys).swapaxes(0, 1).swapaxes(1, 2)
 
     if chains_posterior_fit is not None:
-        chains_posterior_phys = np.array(chains_posterior_phys).swapaxes(0,1).swapaxes(1,2)
+        chains_posterior_phys = (
+            np.array(chains_posterior_phys).swapaxes(0, 1).swapaxes(1, 2)
+        )
 
-    return names_phys, par_phys, posterior_phys, phys_type, chains_full_phys, chains_posterior_phys
+    return (
+        names_phys,
+        par_phys,
+        posterior_phys,
+        phys_type,
+        chains_full_phys,
+        chains_posterior_phys,
+    )
 
 
 # ==============================================================================
@@ -4800,6 +4885,7 @@ def check_wrapped_parameters(names_par):
 
 # ==============================================================================
 
+
 # RV semi-amplitude K in m/s
 def compute_Kms(Ms_sun, Mp_jup, inc_deg, P_day, ecc):
 
@@ -4821,6 +4907,7 @@ def compute_Kms(Ms_sun, Mp_jup, inc_deg, P_day, ecc):
 
 # ==============================================================================
 
+
 # epoch or transit number for each T0 given a T0ref and a Pref
 def calculate_epoch(T0, Tref, Pref):
 
@@ -4830,6 +4917,7 @@ def calculate_epoch(T0, Tref, Pref):
 
 
 # ==============================================================================
+
 
 # 2) linear fit function with errors on y-axis.
 # It returns also the errors.
@@ -5339,41 +5427,47 @@ def compute_epoch(Tref, Pref, TTs):
 
     return epo
 
+
 # =============================================================================
 def u1u2_to_q1q2(u1, u2):
 
-    u1u2 = u1+u2
-    q1 = u1u2*u1u2
-    q2 = u1/(2.0*u1u2)
+    u1u2 = u1 + u2
+    q1 = u1u2 * u1u2
+    q2 = u1 / (2.0 * u1u2)
 
     return q1, q2
+
 
 def q1q2_to_u1u2(q1, q2):
 
     sq1 = np.sqrt(q1)
-    u1 = 2.0*sq1*q2
-    u2 = sq1*(1.0-(2.0*q2))
+    u1 = 2.0 * sq1 * q2
+    u2 = sq1 * (1.0 - (2.0 * q2))
 
     return u1, u2
+
 
 # =============================================================================
 def normalization_standard(x):
 
-    xs = (x - np.mean(x))/np.std(x, ddof=1)
+    xs = (x - np.mean(x)) / np.std(x, ddof=1)
 
     return xs
+
 
 def normalization_range(x):
 
-    xs = (2.0*x - (np.amin(x)+np.amax(x))) / np.ptp(x)
+    xs = (2.0 * x - (np.amin(x) + np.amax(x))) / np.ptp(x)
 
     return xs
+
 
 def normalization_max(x):
 
-    xs = (x - np.amin(x))/np.ptp(x)
+    xs = (x - np.amin(x)) / np.ptp(x)
 
     return xs
+
 
 def normalization_constant(x, xc=1.0):
 
@@ -5381,14 +5475,180 @@ def normalization_constant(x, xc=1.0):
 
     return xs
 
+
 # =============================================================================
 def angle_to_harmonics(phi, n_harmonics=3):
 
-    phir = phi*cst.deg2rad
+    phir = phi * cst.deg2rad
 
     harmonics = {}
-    for nh in range(1,n_harmonics+1):
-        harmonics["cos{:02d}phi".format(nh)] = np.cos(nh*phir)
-        harmonics["sin{:02d}phi".format(nh)] = np.sin(nh*phir)
+    for nh in range(1, n_harmonics + 1):
+        harmonics["cos{:02d}phi".format(nh)] = np.cos(nh * phir)
+        harmonics["sin{:02d}phi".format(nh)] = np.sin(nh * phir)
 
     return harmonics
+
+
+# =============================================================================
+def read_parameters_summary(par_file):
+
+    with open(par_file, "r") as of:
+        lines = of.readlines()
+
+    names, units, param = [], [], []
+    rms, mad = [], []
+    n1err, p1err = [], []
+    n2err, p2err = [], []
+    n3err, p3err = [], []
+
+    for line in lines:
+        ll = line.strip()
+        if (len(ll) > 0) and (ll[0] != "#"):
+            lspl = ll.split()
+            names.append(lspl[0])
+            units.append(lspl[1])
+            param.append(float(lspl[2]))
+
+            rms.append(float(lspl[3]))
+            mad.append(float(lspl[4]))
+
+            n1err.append(float(lspl[5]))
+            p1err.append(float(lspl[6]))
+
+            n2err.append(float(lspl[7]))
+            p2err.append(float(lspl[8]))
+
+            n3err.append(float(lspl[9]))
+            p3err.append(float(lspl[10]))
+
+    # return np.array(names), np.array(units), np.array(param), np.array(rms), np.array(mad), np.array(n1err), np.array(p1err), np.array(n2err), np.array(p2err), np.array(n3err), np.array(p3err)
+    return names, units, param, rms, mad, n1err, p1err, n2err, p2err, n3err, p3err
+
+
+def auto_digits(par, lowerr, upperr, add_digit=0, end="\\\\"):
+    ll = "{:.2E}".format(lowerr)
+    uu = "{:.2E}".format(upperr)
+    # print(ll, uu)
+    le = int(ll.split("E")[1])
+    ue = int(uu.split("E")[1])
+    # print(le, ue)
+    mine = min(le, ue)
+    if mine < 0:
+        dg = abs(mine) + add_digit
+    else:
+        dg = 0
+    # print(mine, dg)
+    fmt = "{:." + "{:d}".format(dg) + "f}"
+    fmte = "{:+." + "{:d}".format(dg) + "f}"
+    # print(fmt)
+
+    pstr = fmt.format(par)
+    lstr = fmte.format(lowerr)
+    ustr = fmte.format(upperr)
+
+    ltex = "${:s}".format(pstr) + "_{"
+    ltex += "{:s}".format(lstr) + "}"
+    ltex += "^{" + "{:s}".format(ustr) + "}$"
+    ltex += " " + end
+
+    return ltex
+
+
+def auto_digits_symmetric(par, err, add_digit=0, end="\\\\"):
+
+    ee = "{:.2E}".format(err)
+    ie = int(ee.split("E")[1])
+    if ie < 0:
+        dg = abs(ie) + add_digit
+    else:
+        dg = 0
+
+    fmt = "{:." + "{:d}".format(dg) + "f}"
+    fmte = "{:." + "{:d}".format(dg) + "f}"
+    pstr = fmt.format(par)
+    estr = fmte.format(err)
+    ltex = "${:s} \pm {:s}$".format(pstr, estr) + end
+
+    return ltex
+
+
+def set_proper_latex(
+    names,
+    units,
+    param,
+    n1err,
+    p1err,
+    n2err,
+    p2err,
+    n3err,
+    p3err,
+    add_digit=0,
+    to_print=True,
+):
+    ltexs, full_ltexs = [], []
+
+    warn_all = ["\\\\", "$(2\sigma)$ \\\\", "$(3\sigma)$ \\\\"]
+
+    nlen = max([len(x) for x in names])
+    ulen = max([len(x) for x in units])
+    # fmt = "{:16s} {:16s} = {:s}"
+    fmt = "{:" + str(nlen + 1) + "s} {:" + str(ulen + 1) + "s} = {:s}"
+
+    for n, u, p, n1, p1, n2, p2, n3, p3 in zip(
+        names, units, param, n1err, p1err, n2err, p2err, n3err, p3err
+    ):
+        w = warn_all[0] + " % BAD"
+        neg = [n1, n2, n3]
+        pos = [p1, p2, p3]
+        for i, (ne, po) in enumerate(zip(neg, pos)):
+            if ne < 0 and po > 0:
+                w = warn_all[i]
+                break
+
+        ltex = auto_digits(p, ne, po, add_digit=add_digit, end=w)
+        if to_print:
+            print(fmt.format(n, u, ltex))
+        ltexs.append(ltex)
+        full_ltexs.append(fmt.format(n, u, ltex))
+
+    return ltexs, full_ltexs
+
+
+def save_latex_table(parameters_file, scale_mpMs=True, to_print=False, add_digit=0):
+
+    (
+        names, units, param, rms, mad, n1err, p1err, n2err, p2err, n3err, p3err
+    ) = (
+        read_parameters_summary(parameters_file)
+    )
+
+    if scale_mpMs:
+        conv = [10.0**6, "x10^-6"]
+        for i, n in enumerate(names):
+            if n[0] == "m" and "Ms" in n:
+                param[i] = param[i] * conv[0]
+                units[i] = "{}{}".format(units[i], conv[1])
+                n1err[i], p1err[i] = n1err[i] * conv[0], p1err[i] * conv[0]
+                n2err[i], p2err[i] = n2err[i] * conv[0], p2err[i] * conv[0]
+                n3err[i], p3err[i] = n3err[i] * conv[0], p3err[i] * conv[0]
+
+    ltexs, full_ltexs = set_proper_latex(
+        names,
+        units,
+        param,
+        n1err,
+        p1err,
+        n2err,
+        p2err,
+        n3err,
+        p3err,
+        add_digit=add_digit,
+        to_print=to_print,
+    )
+
+    latex_file = "{}.tex".format(os.path.splitext(parameters_file)[0])
+    with open(latex_file, "w") as f:
+        for ltex in full_ltexs:
+            f.write(ltex + "\n")
+
+    return None
