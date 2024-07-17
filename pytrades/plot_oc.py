@@ -37,7 +37,8 @@ def set_observation_sources(sources_id, idsource_name=None):
         idname = {1: "observations"}
     else:
         idname = {i: "obs.{:d}".format(i) for i in u_id}
-    # print("idname = {}".format(idname))
+        colors = ["C1"]*len(idname)
+    
     if idsource_name is not None:
         for kin, vin in idsource_name.items():
             if kin in u_id:
@@ -418,8 +419,11 @@ def plot_oc_T41(
 ):
     sim = get_sim_data(file_in, idsource_name=cli.idsource_name, kep_ele=cli.kep_ele)
     u_src = np.unique(sim.sources)
-    n_src = len(u_src)
-    ocolors = anc.set_colors(n_src, colormap=cli.color_map)
+    # n_src = len(u_src)
+    # ocolors = anc.set_colors(n_src, colormap=cli.color_map)
+    n_idsrc = np.max(list(cli.idsource_name.keys()))
+    full_colors = anc.set_colors(n_idsrc, colormap=cli.color_map)
+    ocolors = [full_colors[k-1] for k in cli.idsource_name.keys()]
 
     if cli.tscale is None:
         tscale = 2440000.5
@@ -432,7 +436,8 @@ def plot_oc_T41(
     ocu = set_unit(cli, Aoc_d)
     sim.oc_unit = ocu
 
-    letters = "a b c d e f g h i j k l m n o p q r s t u v w x y z".split()
+    # letters = "a b c d e f g h i j k l m n o p q r s t u v w x y z".split()
+    letters = anc.letters
     ibd = sim.body_id - 1
     if planet_name is None:
         planet = letters[ibd]
@@ -468,7 +473,7 @@ def plot_oc_T41(
 
     lfont = plt.rcParams["font.size"]
     tfont = plt.rcParams["xtick.labelsize"]
-    dlfont = 4
+    dlfont = 2
 
     if tscale > 0.0:
         xlabel = "BJD$_\mathrm{{TDB}} - {0:.3f}$".format(tscale)
@@ -540,27 +545,30 @@ def plot_oc_T41(
 
     # data
     lobs = []
-    for isrc, src in enumerate(u_src):
+    # for isrc, src in enumerate(u_src):
+    for ksrc, src in cli.idsource_name.items():
+        isrc = ksrc - 1
         sel = src == sim.sources
-        eco = ocolors[isrc]
-        lobs.append(ax.errorbar(
-            x[sel],
-            sim.oc_o[sel] * ocu[0],
-            yerr=sim.eTTo[sel] * ocu[0],
-            color=ocolors[isrc],
-            ecolor=eco,
-            fmt=filled_markers[isrc],
-            ms=size_markers[isrc],
-            mfc=ocolors[isrc],
-            mec=ceo,
-            mew=mewo,
-            ls="",
-            elinewidth=ewo,
-            capsize=0,
-            alpha=1.0,
-            zorder=5,
-            label=src,
-        ))
+        if np.sum(sel) > 0:
+            eco = ocolors[isrc]
+            lobs.append(ax.errorbar(
+                x[sel],
+                sim.oc_o[sel] * ocu[0],
+                yerr=sim.eTTo[sel] * ocu[0],
+                color=ocolors[isrc],
+                ecolor=eco,
+                fmt=filled_markers[isrc],
+                ms=size_markers[isrc],
+                mfc=ocolors[isrc],
+                mec=ceo,
+                mew=mewo,
+                ls="",
+                elinewidth=ewo,
+                capsize=0,
+                alpha=1.0,
+                zorder=5,
+                label=src,
+            ))
     # trades
     (lsim,) = ax.plot(
         x,
@@ -614,7 +622,8 @@ def plot_oc_T41(
             lsmp.append(ll)
 
         ax.legend(
-            handles= lobs + [lsim, lmod, lsmp[0]], loc="best", fontsize=lfont - dlfont
+            handles= lobs + [lsim], #, lmod, lsmp[0]],
+            loc="best", fontsize=lfont - dlfont
         )
     else:
         ax.legend(loc="best", fontsize=lfont - dlfont)
@@ -648,31 +657,34 @@ def plot_oc_T41(
     ax.axhline(0.0, color="black", ls="-", lw=0.7)
 
     # data - trades
-    for isrc, src in enumerate(u_src):
+    # for isrc, src in enumerate(u_src):
+    for ksrc, src in cli.idsource_name.items():
+        isrc = ksrc - 1
         sel = src == sim.sources
-        eco = ocolors[isrc]
-        ax.errorbar(
-            x[sel],
-            sim.dTTos[sel] * ocu[0],
-            yerr=sim.eTTo[sel] * ocu[0],
-            color=ocolors[isrc],
-            ecolor=eco,
-            fmt=filled_markers[isrc],
-            ms=size_markers[isrc],
-            mfc=ocolors[isrc],
-            mec=ceo,
-            mew=mewo,
-            ls="",
-            elinewidth=ewo,
-            capsize=0,
-            zorder=6,
-        )
-        rms_res = np.percentile(np.abs(sim.dTTos[sel] * ocu[0]), 68.27)
-        print(
-            "rms Obs-Sim {} = 68.27th percentile of |residuals| = {} {}".format(
-                src, rms_res, ocu[1]
+        if np.sum(sel) > 0:
+            eco = ocolors[isrc]
+            ax.errorbar(
+                x[sel],
+                sim.dTTos[sel] * ocu[0],
+                yerr=sim.eTTo[sel] * ocu[0],
+                color=ocolors[isrc],
+                ecolor=eco,
+                fmt=filled_markers[isrc],
+                ms=size_markers[isrc],
+                mfc=ocolors[isrc],
+                mec=ceo,
+                mew=mewo,
+                ls="",
+                elinewidth=ewo,
+                capsize=0,
+                zorder=6,
             )
-        )
+            rms_res = np.percentile(np.abs(sim.dTTos[sel] * ocu[0]), 68.27)
+            print(
+                "rms Obs-Sim {} = 68.27th percentile of |residuals| = {} {}".format(
+                    src, rms_res, ocu[1]
+                )
+            )
     rms_res = np.percentile(np.abs(sim.dTTos * ocu[0]), 68.27)
     print(
         "rms Obs-Sim FULL = 68.27th percentile of |residuals| = {} {}".format(

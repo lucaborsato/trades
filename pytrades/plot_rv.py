@@ -24,45 +24,8 @@ anc.set_rcParams()
 
 # ==============================================================================
 
-# filled_markers = (
-#     "o",
-#     "s",
-#     "D",
-#     "^",
-#     "*",
-#     "v",
-#     "<",
-#     ">",
-#     "8",
-#     "p",
-#     "h",
-#     "H",
-#     "d",
-#     "P",
-#     "X",
-# )
 filled_markers = anc.filled_markers
-
-# size_default = 3.0
-# size_markers = (
-#     size_default,
-#     size_default,
-#     size_default,
-#     size_default + 0.2,
-#     size_default + 2.0,
-#     size_default + 0.2,
-#     size_default + 0.2,
-#     size_default + 0.2,
-#     size_default,
-#     size_default,
-#     size_default,
-#     size_default,
-#     size_default,
-#     size_default,
-#     size_default,
-# )
 size_markers = anc.size_markers
-
 
 CLI_RV = anc.CLI_RV
 # ==============================================================================
@@ -289,7 +252,7 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
 
     lfont = plt.rcParams["font.size"]
     tfont = plt.rcParams["xtick.labelsize"]
-    dlfont = 4
+    dlfont = 2
 
     print("Plotting ...")
 
@@ -437,22 +400,31 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
     ax.set_xlim(minx, maxx)
     ax.set_ylim(miny, maxy)
 
-    if samples is None and tmod is None:
-        lhand = lobs_a #+ [lsim_a[0]]
-    elif samples is None and tmod is not None:
-        lhand = lobs_a + [lmod] # [lsim_a[0], lmod]
-    elif samples is not None and tmod is None:
-        lhand = lobs_a + [lsmp_a[0]]#[lsim_a[0], lsmp_a[0]]
-    else:
-        lhand = lobs_a + [lmod, lsmp_a[0]] #[lsim_a[0], lmod, lsmp_a[0]]
+    # if samples is None and tmod is None:
+    #     lhand = lobs_a #+ [lsim_a[0]]
+    # elif samples is None and tmod is not None:
+    #     lhand = lobs_a + [lmod] # [lsim_a[0], lmod]
+    # elif samples is not None and tmod is None:
+    #     lhand = lobs_a + [lsmp_a[0]]#[lsim_a[0], lsmp_a[0]]
+    # else:
+    #     lhand = lobs_a + [lmod, lsmp_a[0]] #[lsim_a[0], lmod, lsmp_a[0]]
+    lhand = lobs_a
 
     # legend in a column right of the boxes
-    ax.legend(handles=lhand,
-        loc="center left",
-        bbox_to_anchor=(1., 0.5),
-        ncol=1,
-        fontsize=tfont-dlfont
-    )
+    if "out" in cli.legend:
+        ax.legend(handles=lhand,
+            loc="center left",
+            bbox_to_anchor=(1., 0.5),
+            ncol=1,
+            fontsize=tfont-dlfont
+        )
+    else:
+        ax.legend(handles=lhand,
+            loc="best",
+            # bbox_to_anchor=(1., 0.5),
+            # ncol=1,
+            fontsize=tfont-dlfont
+        )
 
     axs.append(ax)
     

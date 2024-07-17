@@ -39,7 +39,8 @@ import shutil
 # common variables needed to create labels and parameter names
 kel_fmt = ["%.3f", "%.4f", "%.3f", "%.1f", "%.1f", "%.1f", "%.3f", "%.3f"]
 
-letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "l", "m", "n", "o", "p"]
+# letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "l", "m", "n", "o", "p"]
+letters = "a b c d e f g h i j k l m n o p q r s t u v w x y z".split()
 
 filled_markers = plt.Line2D.filled_markers[1:]  # avoid '.'
 n_markers = len(filled_markers)
@@ -90,6 +91,16 @@ def set_colors(ncolors, vmin=0.05, vmax=0.95, colormap="nipy_spectral"):
 
     return colors
 
+def get_color(pos, colormap="nipy_spectral"):
+
+    try:
+        cmp = plt.cm.get_cmap(colormap)
+    except:
+        cmp = plt.cm.get_cmap("nipy_spectral")
+    x = pos
+    color = cmp(x)
+
+    return color
 
 # ==============================================================================
 def set_rcParams():
@@ -104,9 +115,9 @@ def set_rcParams():
     plt.rcParams["savefig.facecolor"] = "white"
     plt.rcParams["figure.dpi"] = my_dpi
     plt.rcParams["savefig.dpi"] = 300
-    plt.rcParams["font.size"] = 10
-    plt.rcParams["xtick.labelsize"] = 9
-    plt.rcParams["ytick.labelsize"] = 9
+    plt.rcParams["font.size"] = 12
+    plt.rcParams["xtick.labelsize"] = 10
+    plt.rcParams["ytick.labelsize"] = 10
     plt.rcParams["animation.html"] = "jshtml"
     plt.rcParams["axes.formatter.useoffset"] = False
 
@@ -612,6 +623,7 @@ class CLI_RV:
         labels="None",
         samples_file=None,
         limits="obs",
+        legend="in",
         color_map="nipy_spectral",
     ):
         self.full_path = os.path.abspath(full_path)
@@ -628,6 +640,7 @@ class CLI_RV:
             self.labels = None
         self.samples_file = samples_file
         self.limits = limits
+        self.legend = legend
         self.color_map = color_map
 
         return
@@ -947,6 +960,7 @@ class ConfigurationAnalysis:
             "samples_file": None,
             "limits": "obs",
             "labels": None,
+            "legend": "in",
             "color_map": "nipy_spectral",
         }
         conf_keys = conf_rv.keys()
@@ -989,6 +1003,7 @@ class ConfigurationAnalysis:
                                 samples_file=samples_file,
                                 limits=conf_rv["limits"],
                                 labels=conf_rv["labels"],
+                                legend=conf_rv["legend"],
                                 color_map=conf_rv["color_map"],
                             )
                         )
