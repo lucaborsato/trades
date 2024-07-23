@@ -2,7 +2,7 @@ module transits
     use constants
     use custom_type
     use parameters
-    use celestial_mechanics, only: rsky, barycenter, fgfunctions, elements_one_body, eleMD => elem_mer
+    use celestial_mechanics, only: rsky, barycenter, fgfunctions, elements_one_body
     use linear_ephem
     use convert_type, only: string
     use numerical_integrator, only: one_forward_step_no_check, one_forward_step
@@ -11,6 +11,10 @@ module transits
     interface check_T0
         module procedure check_T0_1, check_T0_2
     end interface check_T0
+
+    interface assign_T0_byNumber
+        module procedure assign_T0_byNumber_1, assign_T0_byNumber_2
+    end interface assign_T0_byNumber
 
 contains
 
@@ -517,9 +521,9 @@ contains
     ! call find_transit to compute the transit time (TT) and it assigns the right place
     ! of the TT comparing with the observations
     ! Computes duration of the transit (does not assign it now) as T4 - T1
-    subroutine check_T0_1(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, simT0, Hc)
+    subroutine check_T0_1(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1, integration_step, simT0, Hc)
         ! Input
-        real(dp), intent(in)::t_epoch
+        real(dp), intent(in)::t_epoch, Tref, Pref
         integer, intent(in)::id_body
         real(dp), dimension(:), intent(in)::mass, radii, r1, r2
         real(dp), intent(in)::time_r1, integration_step
@@ -527,7 +531,7 @@ contains
         type(dataT0), dimension(:), intent(inout)::simT0
         logical, intent(inout)::Hc
 
-        call check_T0_2(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit, durcheck, obsData, simT0, Hc)
+        call check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit, durcheck, obsData, simT0, Hc)
 
         return
     end subroutine check_T0_1
@@ -535,9 +539,9 @@ contains
     ! same as check_T0_1, but the epochs of the transit have to be provided
     ! as the array T0_num
 !   subroutine check_T0_2(id_body,mass,radii,r1,r2,time_r1,integration_step,transit_flag,dur_check,n_T0,T0_num,T0_stat,T0_sim,Hc)
-subroutine check_T0_2(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, transit_flag, dur_check, oDataIn, simT0, Hc)
+subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1, integration_step, transit_flag, dur_check, oDataIn, simT0, Hc)
         ! Input
-        real(dp), intent(in)::t_epoch
+        real(dp), intent(in)::t_epoch, Tref, Pref
         integer, intent(in)::id_body
         real(dp), dimension(:), intent(in)::mass, radii, r1, r2
         real(dp), intent(in)::time_r1, integration_step
@@ -577,7 +581,7 @@ subroutine check_T0_2(t_epoch, id_body, mass, radii, r1, r2, time_r1, integratio
                         duration = (tcont(4)-tcont(1))*1440.0_dp
                     end if
                     if (oDataIn%obsT0(id_body-1)%nT0 .gt. 0) then
-                        call assign_T0_byNumber(id_body, mass, rtra, oDataIn, tmidtra, duration, simT0)
+                        call assign_T0_byNumber(id_body, Tref, Pref, mass, rtra, oDataIn, tmidtra, duration, simT0)
                     end if
                 else ! ... but it should not!
 
@@ -596,33 +600,40 @@ subroutine check_T0_2(t_epoch, id_body, mass, radii, r1, r2, time_r1, integratio
 
     ! IT DETERMINES WHICH IS THE RIGHT T_0,obs TO BE ASSOCIATED WITH
     ! THE SIMULATED T_0,sim = tmidtra
-    ! v2
-    subroutine assign_T0_byNumber(id_body, mass, rtra, oDataIn, tmidtra, duration, simT0)
+    
+    subroutine assign_T0_byNumber_1(id_body, Tref, Pref, mass, rtra, oDataIn, tmidtra, duration, simT0)
         ! Input
         integer, intent(in)::id_body
+        real(dp), intent(in)::Tref, Pref
         real(dp), dimension(:), intent(in)::mass, rtra
         type(dataObs), intent(in)::oDataIn
         real(dp), intent(in)::tmidtra, duration
         ! Input/Output
         type(dataT0), dimension(:), intent(inout)::simT0
         ! Local
-        real(dp)::dT, dTP, Tref, Pref
-        integer::ntmid, i_n, nTs, ibd, epo
+        real(dp)::dT, dTP
+        integer::epo_tra, i_n, nTs, ibd, epo
+        integer, dimension(:),allocatable::epo_obs
 
         ibd = id_body-1
         nTs = oDataIn%obsT0(ibd)%nT0
 
-        Tref = oDataIn%obsT0(ibd)%Tephem
-        Pref = oDataIn%obsT0(ibd)%Pephem
+        allocate(epo_obs(nTs))
+
+        ! Tref = oDataIn%obsT0(ibd)%Tephem
+        ! Pref = oDataIn%obsT0(ibd)%Pephem
 
         dT = tmidtra-Tref
         dTP = dT/Pref
-        ntmid = nint(dTP)
+        epo_tra = nint(dTP)
+
+        epo_obs = nint( (oDataIn%obsT0(ibd)%T0 - Tref ) / Pref )
 
         do i_n = 1, nTs
-            epo = oDataIn%obsT0(ibd)%epo(i_n)
-            if (ntmid .eq. epo) then
-                simT0(ibd)%epo(i_n) = ntmid
+            ! epo = oDataIn%obsT0(ibd)%epo(i_n)
+            epo = epo_obs(i_n)
+            if (epo_tra .eq. epo) then
+                simT0(ibd)%epo(i_n) = epo_tra
                 simT0(ibd)%T0(i_n) = tmidtra
                 simT0(ibd)%T0_stat(i_n) = 1
                 simT0(ibd)%nT0 = simT0(ibd)%nT0+1
@@ -640,8 +651,60 @@ subroutine check_T0_2(t_epoch, id_body, mass, radii, r1, r2, time_r1, integratio
             end if
         end do
 
+        deallocate(epo_obs)
+
         return
-    end subroutine assign_T0_byNumber
+    end subroutine assign_T0_byNumber_1
+
+    subroutine assign_T0_byNumber_2(id_body, mass, rtra, oDataIn, tmidtra, duration, simT0)
+        ! Input
+        integer, intent(in)::id_body
+        real(dp), dimension(:), intent(in)::mass, rtra
+        type(dataObs), intent(in)::oDataIn
+        real(dp), intent(in)::tmidtra, duration
+        ! Input/Output
+        type(dataT0), dimension(:), intent(inout)::simT0
+        ! Local
+        real(dp)::Tref, Pref
+        integer::ibd
+        ! real(dp)::dT, dTP, Tref, Pref
+        ! integer::ntmid, i_n, nTs, ibd, epo
+
+        ibd = id_body-1
+        ! nTs = oDataIn%obsT0(ibd)%nT0
+
+        Tref = oDataIn%obsT0(ibd)%Tephem
+        Pref = oDataIn%obsT0(ibd)%Pephem
+
+        call assign_T0_byNumber_1(id_body, Tref, Pref, mass, rtra, oDataIn, tmidtra, duration, simT0)
+
+        ! dT = tmidtra-Tref
+        ! dTP = dT/Pref
+        ! ntmid = nint(dTP)
+
+        ! do i_n = 1, nTs
+        !     epo = oDataIn%obsT0(ibd)%epo(i_n)
+        !     if (ntmid .eq. epo) then
+        !         simT0(ibd)%epo(i_n) = ntmid
+        !         simT0(ibd)%T0(i_n) = tmidtra
+        !         simT0(ibd)%T0_stat(i_n) = 1
+        !         simT0(ibd)%nT0 = simT0(ibd)%nT0+1
+
+        !         simT0(ibd)%dur(i_n) = duration
+        !         simT0(ibd)%dur_stat(i_n) = 1
+        !         simT0(ibd)%nDur = simT0(ibd)%nDur+1
+        !         ! compute orbital elements of selected T0 and body
+        !         call elements_one_body(id_body, mass, rtra,&
+        !             &simT0(ibd)%period(i_n), simT0(ibd)%sma(i_n),&
+        !             &simT0(ibd)%ecc(i_n), simT0(ibd)%inc(i_n), simT0(ibd)%meanA(i_n),&
+        !             &simT0(ibd)%argp(i_n), simT0(ibd)%trueA(i_n),&
+        !             &simT0(ibd)%longN(i_n), simT0(ibd)%dttau(i_n))
+
+        !     end if
+        ! end do
+
+        return
+    end subroutine assign_T0_byNumber_2
 
     ! it finds all transits of the selected planet (id_body) and store them
     ! in storetra variable, ready to be written into file
@@ -773,12 +836,12 @@ subroutine check_T0_2(t_epoch, id_body, mass, radii, r1, r2, time_r1, integratio
         real(dp), intent(out)::ttra, dur_tra
         logical, intent(out)::check_ttra
         ! Local
-        real(dp)::ttra_temp, lte
-        real(dp), dimension(4)::tcont
+        ! real(dp)::ttra_temp, lte
+        ! real(dp), dimension(4)::tcont
         real(dp), dimension(:), allocatable::rtra
 
-        real(dp)::Rs, Rp, Rmin, Rmax, r_sky
-        integer::sel_r
+        ! real(dp)::Rs, Rp, Rmin, Rmax, r_sky
+        ! integer::sel_r
 
         ! check_ttra = .true.
         ! ttra = -9.e10_dp

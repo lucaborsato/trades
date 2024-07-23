@@ -2,6 +2,7 @@ module celestial_mechanics
     use constants
     use parameters
     use rotations
+    use sorting, only: indexx
     implicit none
 
     interface dist
@@ -324,11 +325,11 @@ contains
 ! ------------------------------------------------------------------------------
 
 ! ------------------------------------------------------------------------------
-    subroutine close_encounters_collision(mass, radius, svin, do_hill_check, not_colliding)
+    subroutine close_encounters_collision(mass, radius, svin, hill_check, not_colliding)
         ! Input
         real(dp), dimension(:), intent(in)::mass, radius
         real(dp), dimension(:), intent(in)::svin
-        logical, intent(in)::do_hill_check
+        logical, intent(in)::hill_check
         ! Output
         logical, intent(out)::not_colliding
 
@@ -355,7 +356,7 @@ contains
                 exit body1
             end if
 
-            if (do_hill_check) then
+            if (hill_check) then
                 call statevector_to_sma_ecc(mass(1), mass(i_body), svin(nc1+1:nc1+6), sma1, ecc1)
             end if
 
@@ -369,7 +370,7 @@ contains
                     not_colliding = .false.
                     exit body1
                 end if
-                if (do_hill_check) then
+                if (hill_check) then
                     call statevector_to_sma_ecc(mass(1), mass(j_body), svin(nc2+1:nc2+6), sma2, ecc2)
                     Hill_radius_ij = mutual_Hill_radius(mass(1), mass(i_body), sma1, mass(j_body), sma2)
                     delta_ij = abs(sma2-sma1)
@@ -494,96 +495,21 @@ contains
         logical, intent(inout)::Hc
 
         real(dp), dimension(3)::rtemp, vtemp
-!     real(dp)::r0,v0,reca,sma,n,sinE,cosE,ecc
-!     real(dp)::Ek1,MAk1,MAk2,Ek2,dE
-!     real(dp)::n,sinE,cosE
-!     real(dp)::h2,x,y,z,vx,vy,vz,hx,hy,hz
-!     real(dp)::e2
         real(dp)::r0, v0
         real(dp)::pxx, sma, ecc, ixx, mA0, wxx, tA0, lnxx, dtxx
         real(dp)::n, EA0, mA1, EA1, dEA
         real(dp)::ar0, art
         real(dp)::Ffunc, dFfunc, Gfunc, dGfunc
 
-        !==============
-        ! OLD
-!     r0=dist(rout(1:3))
-!     v0=dist(rout(4:6))
-!     reca=(two/r0)-((v0**2)/mu)
-!     if(reca.lt.zero)then
-! !       write(*,*)" In fgfunctions reca < 0"
-!       Hc=.false.
-!       return
-!     end if
-!     sma=one/reca
-!     if((sma.le.amin).or.(sma.ge.amax))then
-! !       write(*,*)" In fgfunctions sma < amin or sma > amax"
-!       Hc=.false.
-!       return
-!     end if
-!     n=sqrt(mu/(sma**3))
-!     sinE=(sum(rout(1:3)*rout(4:6)))/(n*sma**2)
-!     cosE=((r0*v0**2)/mu)-one
-!
-!     x=rout(1)
-!     y=rout(2)
-!     z=rout(3)
-!     vx=rout(4)
-!     vy=rout(5)
-!     vz=rout(6)
-!     hx = y*vz-z*vy
-!     hy = z*vx-x*vz
-!     hz = x*vy-y*vx
-!     h2=hx*hx+hy*hy+hz*hz
-!
-!     e2=one-h2/(sma*mu)
-!     if((abs(e2).le.TOLERANCE).or.(e2.lt.zero)) e2=zero
-!     ecc=sqrt(e2)
-!
-!     Ek1=mod(atan2(sinE,cosE)+dpi,dpi)
-!
-!     MAk1=Ek1-sinE
-!     MAk1=mod(MAk1+dpi,dpi)
-!     MAk2=(MAk1+n*dt)*rad2deg
-!     MAk2=mod(MAk2+circ,circ)
-! !     if(MAk2.lt.zero) MAk2=MAk2+circ
-!
-!     Ek2=EAnom(MAk2,ecc)*deg2rad
-!     dE=Ek2-Ek1
-!     if(dE.ge.pi)then
-!       dE=dE-dpi
-!     else if(dE.le.-pi)then
-!       dE=dE+dpi
-!     end if
-
-!     ar0=sma/r0
-!     Ffunc=ar0*(cos(dE)-one)+one
-!     Gfunc=dt+(sin(dE)-dE)/n
-!     rtemp=Ffunc*rout(1:3)+Gfunc*rout(4:6)
-!     art=sma/dist(rtemp)
-!     dFfunc=-ar0*art*n*sin(dE)
-!     dGfunc=art*(cos(dE)-one)+one
-!     vtemp=dFfunc*rout(1:3)+dGfunc*rout(4:6)
-!
-!     rout(1:3)=rtemp
-!     rout(4:6)=vtemp
-        !==============
 
         call elem_mer(mu, rout, pxx, sma, ecc, ixx, mA0, wxx, lnxx, tA0, dtxx) ! in rad!
         if (sma .le. TOL_dp .or. ecc .gt. one) then
-!       write(*,*)" mu = ",mu
-!       write(*,*)" rout = ",rout
-!       write(*,*)" sma = ",sma
-!       write(*,*)" pxx = ",pxx
-!       write(*,*)" ecc = ",ecc
             Hc = .false.
-!       stop('ERRORRRRR')
             return
         end if
         if (ecc .le. TOLERANCE) then
             EA0 = tA0
         else
-!       EA0=mod(EAnom(mA0*rad2deg,ecc)+circ,circ)*deg2rad
             EA0 = trueAnom_ecc_to_eccAnom(tA0*rad2deg, ecc)
         end if
         n = dpi/pxx
@@ -698,153 +624,6 @@ contains
 ! ------------------------------------------------------------------------------
 
 ! ------------------------------------------------------------------------------
-! OLD, NOT USED
-    ! from state vector (astrocentri cartesian coordinates)
-    ! to keplerian orbital elements
-    ! for one body
-    subroutine eleMD(mu, svec, P, sma, ecc, inc, mA, w, lN, f, dt)
-        real(dp), intent(in)::mu
-        real(dp), intent(in), dimension(:)::svec
-        real(dp), intent(out)::P, sma, ecc, inc, mA, w, lN, f, dt
-
-        real(dp)::x, y, z, vx, vy, vz, R, R2, V, V2, rrd, rd2, rd
-        real(dp)::hx, hy, hz, h2, h, signx, signy
-
-        real(dp)::inv_sma, musma, ecc2
-        real(dp)::cosi, sini
-
-        real(dp)::coslN, sinlN
-        real(dp)::wf, sinwf, coswf
-        real(dp)::p_slr, ecosf, esinf
-
-        real(dp)::Ea !,mmotion
-
-        ! init kep elem: P,sma,ecc,inc,mA,w,lN,f,dt
-        P = zero
-        sma = zero
-        ecc = one
-        inc = zero
-        mA = zero
-        w = half*pi
-        lN = pi
-        f = zero
-        dt = zero
-
-        x = svec(1)
-        y = svec(2)
-        z = svec(3)
-        R2 = x*x+y*y+z*z
-        R = sqrt(R2)
-
-        vx = svec(4)
-        vy = svec(5)
-        vz = svec(6)
-        V2 = vx*vx+vy*vy+vz*vz
-        V = sqrt(V2)
-
-        hx = y*vz-z*vy
-        hy = z*vx-x*vz
-        hz = x*vy-y*vx
-        h2 = hx*hx+hy*hy+hz*hz
-        h = sqrt(h2)
-        ! Murray & Dermott 1999
-        ! if hz > 0 ==> +hx, -hy
-        if (hz .gt. zero) then
-            signx = one
-            signy = -one
-            ! if hz < 0 ==> -hx, +hy
-        else
-            signx = -one
-            signy = one
-        end if
-
-        ! semi-major axis = sma
-        ! 1/sma
-!     inv_sma=(two*mu-R*V2)/(R*mu)
-        inv_sma = (two/R)-(V2/mu)
-        if (inv_sma .le. zero) then ! 1/sma <= 0
-            write (*, *) '1/a < 0: ', inv_sma
-            return
-        else
-            sma = one/inv_sma
-        end if
-        ! period = P
-        P = dpi*sqrt((sma**3)/mu)
-
-        ! eccentricity = ecc
-        ! ecc2 = 1 - h^2/(mu*sma)
-        musma = mu*sma
-        ecc2 = one-(h2/musma)
-        if (ecc2 .gt. TOLERANCE) then
-            ecc = sqrt(ecc2)
-        else
-            ecc = zero
-        end if
-
-        ! inclination = inc
-        cosi = hz/h
-        inc = acos(cosi) ! rad
-        sini = sin(inc)
-
-        ! longitude of node = lN
-        if (abs(sini) .le. TOLERANCE) then
-            coslN = cos(pi)
-            sinlN = sin(pi)
-        else
-            coslN = signy*hy/(h*sini)
-            sinlN = signx*hx/(h*sini)
-        end if
-        lN = mod(atan2(sinlN, coslN)+dpi, dpi)
-
-        ! argument of pericentre = w
-        ! and
-        ! true anomaly = f
-        ! w+f
-        if (abs(sini) .gt. TOLERANCE) then ! sini != 0 ==> cosi cold be 0
-            sinwf = z/(R*sini)
-        else ! sin == 0 ==> cosi != 0
-            sinwf = (y*coslN-x*sinlN)/(R*cosi)
-        end if
-        coswf = ((x/R)+(sinlN*sinwf*cosi))/coslN
-        wf = mod(atan2(sinwf, coswf)+dpi, dpi)
-        ! semi-latus rectum = p_slr
-        p_slr = sma*(one-ecc2)
-        ! RRdot
-        rrd = x*vx+y*vy+z*vz ! R Rdot
-        rd2 = V2-(h2/R2)
-        if (rd2 .lt. zero) then
-            rd = zero
-        else
-            rd = sqrt(rd2) ! |Rdot|
-        end if
-        rd = sign(rd, rrd)
-        ! f
-        esinf = p_slr*rd/h
-        ecosf = (p_slr-R)/R ! or p_slr/R - 1 ? what is the best way to code it?
-        f = mod(atan2(esinf, ecosf)+dpi, dpi)
-        ! w and mean anomaly = mA
-        if (ecc .le. TOLERANCE) then
-            mA = f
-            w = half*pi
-        else
-            if (ecc .eq. one) then ! e == 1
-                mA = tan(half*f)+(tan(half*f)**3)/three
-            else if (ecc .gt. one) then ! e > 1
-                Ea = two*atanh(sqrt((ecc+one)/(ecc-one))*tan(half*f))
-                mA = ecc*sinh(Ea)-Ea
-            else ! e > 0 & e < 1
-                Ea = two*atan(sqrt((one-ecc)/(one+ecc))*tan(half*f))
-                mA = Ea-ecc*sin(Ea)
-            end if
-            w = mod(mod(wf-f+dpi, dpi)+dpi, dpi)
-        end if
-        ! t - tau
-        dt = mA*P/dpi
-
-        return
-    end subroutine eleMD
-! ------------------------------------------------------------------------------
-
     subroutine statevector_to_rvh(mu, svin, r, v2, rv, hx, hy, hz, h2, h, s)
         real(dp), intent(in)::mu
         real(dp), dimension(6), intent(in)::svin
@@ -900,28 +679,12 @@ contains
             sma = s/(one-(ecc*ecc))
         end if
 
-        ! if(sma .le. zero)then
-
-        !     write(*,*)" == statevector_to_sma_ecc =="
-        !     write(*,*)"                   s = ",s
-        !     write(*,*)"                  v2 = ",v2
-        !     write(*,*)"                  mu = ",mu
-        !     write(*,*)"                   r = ",r
-        !     write(*,*)"       (v2/mu-two/r) = ",(v2/mu-two/r)
-        !     write(*,*)" (v2_to_mu-two_to_r) = ",(v2_to_mu-two_to_r)
-        !     write(*,*)"                 ecc = ",ecc
-        !     write(*,*)"                ecc2 = ",ecc*ecc
-        !     write(*,*)"                 sma = ",sma
-        !     write(*,*)" == == == == == == == == == =="
-        !     flush(6)
-
-        ! end if
-
         if (ecc .gt. one) sma = -sma ! hyperbola added by Luca
 
         return
     end subroutine statevector_to_sma_ecc
 ! ------------------------------------------------------------------------------
+
 ! ADAPTED FROM MERCURY
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !
@@ -969,20 +732,7 @@ contains
 
         x = svec(1)
         y = svec(2)
-        ! z = svec(3)
-        ! u = svec(4)
-        ! v = svec(5)
-        ! w = svec(6)
 
-        ! hx = y*w - z*v
-        ! hy = z*u - x*w
-        ! hz = x*v - y*u
-        ! h2 = hx*hx + hy*hy + hz*hz
-        ! v2 = u*u + v*v + w*w
-        ! rv = x*u + y*v + z*w
-        ! r = sqrt(x*x + y*y + z*z)
-        ! h = sqrt(h2)
-        ! s = h2/mu
         call statevector_to_rvh(mu, svec, r, v2, rv, hx, hy, hz, h2, h, s)
 
         ! Inclination and node
@@ -1184,6 +934,191 @@ contains
 
         return
     end subroutine elements
+! ------------------------------------------------------------------------------
+
+    ! stability criterion based on dis/eq. 26 of Petit et al. 2018
+    subroutine amd_hill(alpha, gamma, epsilon, c_hill)
+        ! Input
+        ! alpha = sma1 / sma2
+        ! gamma = mass1 / mass2
+        ! epsilon = (mass1 + mass2) / mass_star
+        ! planet 1 inner, 2 outer
+        real(dp), intent(in)::alpha, gamma, epsilon
+        ! Output
+        real(dp), intent(out)::c_hill
+        ! Local
+        real(dp)::term1,term2,term3,term4,term5
+
+
+        term1 = gamma * sqrt(alpha) + one
+        term2 = (one+gamma)**(three/two)
+        term3 = alpha / (gamma + alpha)
+        term4 = (three**(4.0_dp/three)) * (epsilon**(two/three)) * gamma
+        term5 = (one + gamma)**two
+        c_hill = term1 - term2*sqrt(term3*(one + (term4/term5)))
+
+        return
+    end subroutine amd_hill
+
+    ! Relative AMD from eq. 23 of Petit et al. 2018
+    subroutine relative_amd(alpha, gamma, ecc_in, inc_in, ecc_out, inc_out, amd_rel)
+        ! Input
+        ! alpha = sma_in / sma_out
+        ! gamma = mass_in / mass_out
+        real(dp), intent(in)::alpha, gamma, ecc_in, inc_in, ecc_out, inc_out
+        ! Output
+        real(dp), intent(out)::amd_rel
+        ! Local
+        real(dp)::cosin,cosout,term1,term2,term3
+
+        cosin  = cos((inc_in -90.0_dp)*deg2rad)
+        cosout = cos((inc_out-90.0_dp)*deg2rad)
+        term1  = gamma*sqrt(alpha)
+        term2  = sqrt(one-(ecc_in*ecc_in))*cosin
+        term3  = sqrt(one-(ecc_out*ecc_out))*cosout
+
+        amd_rel = term1*(one-term2) + one - term3
+
+        return
+    end subroutine relative_amd
+
+    subroutine amd_hill_pair(mstar, mpl_inn, sma_in, ecc_in, inc_in, mpl_out, sma_out, ecc_out, inc_out, amd_h, amd_r)
+        ! Input
+        real(dp), intent(in)::mstar, mpl_inn, sma_in, ecc_in, inc_in, mpl_out, sma_out, ecc_out, inc_out
+        ! Output
+        real(dp), intent(out)::amd_h, amd_r
+        ! Local
+        real(dp)::gamma,alpha,epsilon
+
+        gamma = mpl_inn / mpl_out
+        alpha = sma_in / sma_out
+        epsilon = (mpl_inn + mpl_out) / mstar
+        call relative_amd(alpha, gamma, ecc_in, inc_in, ecc_out, inc_out, amd_r)
+        call amd_hill(alpha, gamma, epsilon, amd_h)
+
+        return
+    end subroutine amd_hill_pair
+
+    subroutine amd_hill_stability(mass, ecc, inc, periods, amd_r_pairs, amd_h_pairs, stable)
+        ! Input
+        real(dp), dimension(:), intent(in)::mass, ecc, inc, periods
+        ! Output
+        real(dp), dimension(:), intent(out)::amd_r_pairs, amd_h_pairs
+        logical, intent(out)::stable
+        ! Local
+        real(dp)::amd_h, amd_r
+        integer::n_body, i_sort, i_in, i_out, i_pairs
+        integer, dimension(:), allocatable::sort_periods
+        logical, dimension(:), allocatable::check
+
+        n_body = size(mass)
+        allocate(sort_periods(n_body), check(size(amd_r_pairs)))
+        call indexx(periods, sort_periods)
+
+        i_pairs = 1
+        do i_sort = 2,n_body-1
+            i_in = sort_periods(i_sort)
+            i_out = sort_periods(i_sort+1)
+            call amd_hill_pair(mass(1),&
+                &mass(i_in), periods(i_in),ecc(i_in), inc(i_in),&
+                &mass(i_out), periods(i_out),ecc(i_out), inc(i_out),&
+                &amd_h, amd_r)
+            amd_r_pairs(i_pairs) = amd_r
+            amd_h_pairs(i_pairs) = amd_h
+            check(i_pairs) = amd_r < amd_h
+            i_pairs = i_pairs + 1
+        end do
+
+        stable = all(check)
+
+        deallocate(sort_periods, check)
+
+        return
+    end subroutine amd_hill_stability
+
+    subroutine statevector_amd_hill_stability(mass, sv, stable)
+        ! Input
+        real(dp), dimension(:), intent(in)::mass
+        real(dp), dimension(:), intent(in)::sv
+        ! Output
+        logical, intent(out)::stable
+        ! Local
+        integer::n_body, n_pairs
+        real(dp), dimension(:), allocatable::period, sma, ecc, inc, meanA, argp, trueA, longN, dttau
+        real(dp), dimension(:), allocatable::ar, ah
+
+        n_body = size(mass)
+        n_pairs = n_body - 2
+        allocate(period(n_body), sma(n_body), ecc(n_body), inc(n_body), meanA(n_body), argp(n_body), trueA(n_body), longN(n_body), dttau(n_body))
+        call elements(mass, sv, period, sma, ecc, inc, meanA, argp, trueA, longN, dttau)
+        allocate(ar(n_pairs), ah(n_pairs))
+        call amd_hill_stability(mass, ecc, inc, period, ar, ah, stable)
+
+        return
+    end subroutine statevector_amd_hill_stability
+
+    subroutine amd_one_planet(mstar, mplanet, ecc, inc, sma, lambda, amd_planet)
+        ! Input
+        real(dp), intent(in)::mstar, mplanet, ecc, inc, sma
+        ! Output
+        real(dp), intent(out)::lambda, amd_planet
+        ! Local
+        real(dp):: mratio, msum, cosi, oneecc2
+        real(dp),parameter::d2yr = 365.25_dp
+        real(dp),parameter::factor = one !10.0e10_dp ! Laskar 1997 Caption Fig.1
+
+        msum = mstar + mplanet
+        mratio = (mplanet*mstar)/msum
+
+        oneecc2 = one - (ecc*ecc)
+        cosi = cos((inc-90.0_dp)*deg2rad) ! Definition of inc on the reference plane
+
+        lambda = mratio * sqrt(Giau * msum * sma) * d2yr * factor
+
+        amd_planet = lambda * (one - (sqrt(oneecc2) * cosi))
+
+        return 
+    end subroutine amd_one_planet
+
+    subroutine amd_system(masses, eccs, incs, periods, lambdas, amd_bodies, amd)
+        ! Input
+        real(dp), dimension(:), intent(in)::masses, eccs, incs, periods
+        ! Output
+        real(dp), dimension(:), intent(out):: lambdas, amd_bodies
+        real(dp), intent(out)::amd
+        ! Local
+        integer::n_body, i_planet, i_sort
+        real(dp)::amd_i, sma
+        integer, dimension(:), allocatable::sort_periods
+
+        !! WARNING !!
+        ! to change with:
+        ! Laskar & Petit 2017 eq. 29 with/without cos(inc)
+        ! Compute Amd Hill stability
+        ! Petit 2018 eq. 26 or 30
+        ! AMD - AMD Hill stable if AMD < AMD Hill for each pairs!
+        ! DO IT FOR PAIRS AND SORT IN PERIOD OR SMA
+
+        n_body = size(masses)
+
+        allocate(sort_periods(n_body))
+        call indexx(periods, sort_periods)
+        amd = zero
+        lambdas(1) = zero
+        amd_bodies(1) = zero
+        do i_sort = 2,n_body
+            i_planet = sort_periods(i_sort)
+            call period_to_sma(masses(1), masses(i_planet), periods(i_planet), sma)
+            call amd_one_planet(masses(1), masses(i_planet), eccs(i_planet),&
+                &incs(i_planet), sma,&
+                &lambdas(i_planet), amd_i)
+            amd = amd + amd_i
+            amd_bodies(i_planet) = amd_i
+        end do
+        deallocate(sort_periods)
+
+        return
+    end subroutine amd_system
 ! ------------------------------------------------------------------------------
 
 end module celestial_mechanics

@@ -209,7 +209,7 @@ contains
         character(512)::line
         integer::idx, idh, istat, it
         character(1)::hill_temp
-        character(1), dimension(4)::list_true = (/'y', 'Y', 't', 'T'/)
+        character(1), dimension(5)::list_true = (/'y', 'Y', 't', 'T', '1'/)
 
         inquire (file=trim(path)//"arg.in", exist=fstat)
         if (fstat) then
@@ -268,14 +268,20 @@ contains
                                 read (line(idx+1:idh), *) secondary_parameters
                             else if (line(1:idx-1) .eq. 'do_hill_check') then
                                 read (line(idx+1:idh), *) hill_temp
-                                do it = 1, 4
+                                do it = 1, size(list_true)
                                     if (hill_temp .eq. list_true(it)) then
                                         do_hill_check = .true.
                                         exit
                                     end if
                                 end do
-                            ! else if (line(1:idx-1) .eq. 'oc_fit') then
-                            !     read (line(idx+1:idh), *) oc_fit
+                            else if (line(1:idx-1) .eq. 'amd_hill_check') then
+                                read (line(idx+1:idh), *) hill_temp
+                                do it = 1, size(list_true)
+                                    if (hill_temp .eq. list_true(it)) then
+                                        amd_hill_check = .true.
+                                        exit
+                                    end if
+                                end do
                             else if (line(1:idx-1) .eq. 'ncpu') then
                                 read (line(idx+1:idh), *) ncpu_in
                             end if

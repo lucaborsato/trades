@@ -171,6 +171,9 @@ class AnalysisTRADES:
         self.fitting_names = sim.fitting_names
         anc.print_both("Fitting parameters: {}".format(sim.fitting_names))
 
+        self.fixed_names = sim.fixed_names
+        self.fixed_parameters = sim.fixed_parameters
+
         self.thin_steps = cli.use_thin
         # get data from the hdf5 file
         anc.print_both("\nGet data from hdf5 file ...")
@@ -378,7 +381,14 @@ class AnalysisTRADES:
         self.fitting_units = anc.get_units(self.fitting_names, self.mass_unit)
         self.physical_units = anc.get_units(self.physical_names, self.mass_unit)
 
+        # compute AMD
+        anc.print_both("Compute angular momentum deficit (AMD) ...")
+        self.amd_names, self.amd, self.amd_stable = pytrades.angular_momentum_deficit_posterior(
+            self.sim.n_bodies, self.fitting_posterior, self.sim.system_parameters
+        )
         anc.print_both("Preparation of the analysis of TRADES simulation done.")
+
+        return
 
     # ---------------------------------
     def save_posterior(self):
@@ -411,6 +421,21 @@ class AnalysisTRADES:
             p_h5f.create_dataset(
                 "stellar_radius", data=self.stellar_radius_posterior, dtype=np.float64
             )
+
+            p_h5f.create_dataset(
+                "fixed_parameters", data=self.fixed_parameters, dtype=np.float64
+            )
+            p_h5f["fixed_parameters"].attrs["names"] = self.fixed_names
+
+            if hasattr(self, 'amd_names'):
+                p_h5f.create_dataset(
+                    "AMD", data=self.amd, dtype=np.float64
+                )
+                p_h5f["AMD"].attrs["names"] = self.amd_names
+                p_h5f.create_dataset(
+                    "AMD_stable", data=self.amd_stable, dtype=bool
+                )
+                p_h5f["AMD_stable"].attrs["n_stable"] = np.sum(self.amd_stable)
 
         anc.print_both(" Saved posterior file: {}".format(self.posterior_file))
 

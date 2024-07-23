@@ -13,7 +13,7 @@ These T0s and RVs are computed during the integration of the planetary orbits.
 
 ## Install
 
-To **install `TRADES`** you need a `fortran90` compiler, I tested `gfortran`.
+To **install `TRADES`** you need a `fortran90` compiler, I tested it with `gfortran`.
 
 I suggest to create an `anaconda environment`.  
 **WARNING**: not working with `python>=3.11` and `numpy>=1.26` due to deprecated `distutils` for `f2py`, now using `meson`.  
@@ -21,7 +21,7 @@ I suggest to create an `anaconda environment`.
 `conda create --name trades_env python=3.10 numpy=1.23.5 matplotlib`  
 and other packages should be installed properly.  
 
-Install all dependencies:  
+Install all dependencies (please check installation instructions for each package):  
 
 activate env  
 `conda activate trades_env`  
@@ -49,7 +49,7 @@ it is also needed to install `pytransit` (check latest doc for installation inst
 `conda install -c conda-forge arviz`  
 `git clone https://github.com/hpparvi/PyTransit.git`  
 `cd PyTransit`  
-`python setup.py install`  
+`pip install .`  
 
 Still not fully tested and in development, `dynesty` and `ultranest`:  
 `pip install dynesty` 

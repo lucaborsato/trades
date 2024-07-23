@@ -708,4 +708,58 @@ contains
 
 ! ===============================================================================================
 
+    subroutine set_transit_refence(t_epoch, obs_T0s, Tref)
+        ! Input
+        real(dp), intent(in)::t_epoch
+        real(dp), dimension(:), intent(in)::obs_T0s
+        ! Output
+        real(dp), intent(out)::Tref
+        ! Local
+        real(dp), dimension(size(obs_T0s))::dT
+        integer::i_min
+
+        dT = abs(obs_T0s-t_epoch)
+        i_min = minloc(dT,dim=1)
+        Tref = obs_T0s(i_min)
+        
+        return
+    end subroutine set_transit_refence
+
+    subroutine set_transit_reference_dataT0(t_epoch, oT0, Tref)
+        ! Input
+        real(dp), intent(in)::t_epoch
+        type(dataT0), intent(in)::oT0
+        ! Output
+        real(dp), intent(out)::Tref
+        
+        call set_transit_refence(t_epoch, oT0%T0, Tref)
+
+        return
+    end subroutine set_transit_reference_dataT0
+
+    subroutine set_transit_references_all_bodies(t_epoch, observed_data, Tref)
+        ! Input
+        real(dp), intent(in)::t_epoch
+        type(dataObs), intent(in)::observed_data
+        ! Output
+        real(dp), dimension(:),allocatable, intent(out)::Tref
+        ! Local
+        integer::n_obj,i_obj, n
+        
+        n_obj = size(observed_data%obsT0)
+        if (.not.allocated(Tref)) allocate(Tref(n_obj))
+
+        do i_obj = 1, n_obj
+            n = observed_data%obsT0(i_obj)%nT0
+            if (n .gt. 0) then
+                call set_transit_reference_dataT0(t_epoch, observed_data%obsT0(i_obj), Tref(i_obj))
+            end if
+        end do
+
+        return
+    end subroutine set_transit_references_all_bodies
+
+
+! ===============================================================================================
+
 end module utils

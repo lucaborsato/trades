@@ -121,8 +121,11 @@ contains
         integer::n_all
         real(dp)::trun1, trun2
 
+        real(dp),dimension(:),allocatable::period, sma, ecc, inc, meanA, argp, trueA, longN, dttau
+        real(dp),dimension(:),allocatable::Tref,Pref
+        integer,dimension(:),allocatable::epo_obs
         real(dp)::Tr, Pr, Tx
-        integer::epox
+        integer::epox,ntx
 
         integer::i_body, iteration, body_transiting_start, body_transiting_end
         logical::do_transit_check
@@ -133,6 +136,7 @@ contains
         nTTs = obsDataIn%nTTs
 
         Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
+        if (amd_hill_check) call statevector_amd_hill_stability(mass, rin, Hc)
         if (.not. Hc) then
             return
         end if
@@ -149,6 +153,12 @@ contains
         working_step = step_0
 
         call set_transiting_bodies(id_transit_body, do_transit_check, body_transiting_start, body_transiting_end)
+        ! Define the reference transit time for each body
+        call set_transit_references_all_bodies(t_epoch, obsDataIn, Tref)
+        allocate(period(n_body), sma(n_body), ecc(n_body), inc(n_body), meanA(n_body), argp(n_body), trueA(n_body), longN(n_body), dttau(n_body))
+        call elements(mass, rin, period, sma, ecc, inc, meanA, argp, trueA, longN, dttau)
+        allocate(Pref(n_body-1))
+        Pref = period(2:n_body)
 
         trun1 = t_all_steps(1)
         integration: do iteration = 1, n_all
@@ -174,17 +184,25 @@ contains
                         &A, B, AB, ABflag, Zflag)
 
                     if (ABflag .and. Zflag) then
-                        if ((nTTs .gt. 0) .and. allocated(obsDataIn%obsT0)) then
-                            Tr = obsDataIn%obsT0(i_body-1)%Tephem
-                            Pr = obsDataIn%obsT0(i_body-1)%Pephem
-                            if (Pr .gt. zero) then ! only if we have Pephem > 0
-                                epox = nint(((Tx-Tr)/Pr))
-                                if (any(epox .eq. obsDataIn%obsT0(i_body-1)%epo)) then ! check if the epoch of the mean time of two consecutive steps is within the observed epochs
-                                    call check_T0(t_epoch, i_body, mass, radius, r1, r2,&
-                                        &trun1, integration_step,&
-                                        &transit_flag, dur_check, obsDataIn, simT0, Hc)
-                                end if
-                            end if ! Pr
+                        if(allocated(obsDataIn%obsT0))then
+                            ntx = obsDataIn%obsT0(i_body-1)%nT0
+                            if (ntx .gt. 0) then
+                                ! Tr = obsDataIn%obsT0(i_body-1)%Tephem
+                                ! Pr = obsDataIn%obsT0(i_body-1)%Pephem
+                                Tr = Tref(i_body-1)
+                                Pr = Pref(i_body-1)
+                                if (Pr .gt. zero) then ! only if we have Pephem > 0
+                                    epox = nint(((Tx-Tr)/Pr))
+                                    allocate(epo_obs(ntx))
+                                    epo_obs = nint(((obsDataIn%obsT0(i_body-1)%T0-Tr)/Pr))
+                                    if (any(epox .eq. epo_obs)) then ! check if the epoch of the mean time of two consecutive steps is within the observed epochs
+                                        call check_T0(t_epoch, Tr, Pr, i_body, mass, radius, r1, r2,&
+                                            &trun1, integration_step,&
+                                            &transit_flag, dur_check, obsDataIn, simT0, Hc)
+                                    end if
+                                    if(allocated(epo_obs)) deallocate(epo_obs)
+                                end if ! Pr
+                            end if ! ntx
                         end if !  allocated(obsDataIn%obsT0)
                     end if ! ABflag, Zflag
                 end do ! i_body
@@ -202,6 +220,8 @@ contains
         deallocate (r1, r2)
         deallocate (X, Y, Z)
         deallocate (VX, VY, VZ)
+        deallocate (period, sma, ecc, inc, meanA, argp, trueA, longN, dttau)
+        deallocate (Tref, Pref)
         deallocate (t_all_steps)
         deallocate (all_idx)
 
@@ -240,7 +260,7 @@ contains
 
         Hc = .true.
         call ode_full_args(mass, radius, rin, tepoch, time_to_int, step, obsDataIn, simRV,&
-        &idtra, do_transit, durcheck, simT0, Hc)
+            &idtra, do_transit, durcheck, simT0, Hc)
 
         return
     end subroutine ode_forward_data
@@ -289,7 +309,7 @@ contains
         real(dp)::A, B, AB
         logical::ABflag, Zflag
 
-        integer::i_body, body_transiting_start, body_transiting_end
+        integer::n_body, i_body, body_transiting_start, body_transiting_end
         integer::nRV, nTTs, nDurs
 
         real(dp)::integration_step, working_step !, ok_step, next_step, itime
@@ -308,8 +328,11 @@ contains
         integer::n_all
         real(dp)::trun1, trun2
 
+        real(dp),dimension(:),allocatable::period, sma, ecc, inc, meanA, argp, trueA, longN, dttau
+        real(dp),dimension(:),allocatable::Tref,Pref
+        integer,dimension(:),allocatable::epo_obs
         real(dp)::Tr, Pr, Tx
-        integer::epox
+        integer::epox,ntx
 
         ! if you see a variable non listed here, probably it is a global variable
         ! defined in constants.f90 or parameters.f90
@@ -321,6 +344,7 @@ contains
         nDurs = obsDataIn%nDurs
 
         Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
+        if (amd_hill_check) call statevector_amd_hill_stability(mass, rin, Hc)
         if (.not. Hc) then
             return
         end if
@@ -328,13 +352,15 @@ contains
         call set_checking_coordinates(NB, X, Y, Z, VX, VY, VZ)
 
         step_write = sign(wrttime, time_to_int)
-        call set_check_steps(tepoch, time_to_int, step_write, obsData, n_all, t_all_steps, all_idx)
+        call set_check_steps(tepoch, time_to_int, step_write, obsDataIn, n_all, t_all_steps, all_idx)
 
         Norb = NBDIM+3
 
         allocate (r1(NBDIM), r2(NBDIM))
         r1 = rin
         working_step = step_0
+
+        
 
         ! ==================
         ! PREPARE VARIABLE TO STORE ORBIT/ENERGY/MOMENTUM/TRANSITS TO WRITE
@@ -368,6 +394,12 @@ contains
         ! ==================
 
         call set_transiting_bodies(idtra, do_transit_check, body_transiting_start, body_transiting_end)
+        n_body = size(mass)
+        call set_transit_references_all_bodies(tepoch, obsDataIn, Tref)
+        allocate(period(n_body), sma(n_body), ecc(n_body), inc(n_body), meanA(n_body), argp(n_body), trueA(n_body), longN(n_body), dttau(n_body))
+        call elements(mass, rin, period, sma, ecc, inc, meanA, argp, trueA, longN, dttau)
+        allocate(Pref(n_body-1))
+        Pref = period(2:n_body)
 
         trun1 = t_all_steps(1)
         integration: do iteration = 1, n_all
@@ -408,21 +440,26 @@ contains
                             storetra = zero
                         end if
 
-                        if ((nTTs .gt. 0) .and. allocated(obsDataIn%obsT0)) then
-                            Tr = obsDataIn%obsT0(i_body-1)%Tephem
-                            Pr = obsDataIn%obsT0(i_body-1)%Pephem
-                            if (Pr .gt. zero) then ! only if we have Pephem > 0
+                        if (allocated(obsDataIn%obsT0)) then
+                            ntx = obsDataIn%obsT0(i_body-1)%nT0
+                            if (ntx .gt. 0) then
+                                ! Tr = obsDataIn%obsT0(i_body-1)%Tephem
+                                ! Pr = obsDataIn%obsT0(i_body-1)%Pephem
+                                Tr = Tref(i_body-1)
+                                Pr = Pref(i_body-1)
+                                if (Pr .gt. zero) then ! only if we have Pephem > 0
 
-                                epox = nint(((Tx-Tr)/Pr))
-
-                                if (obsDataIn%nTTs .gt. 0) then
+                                    epox = nint(((Tx-Tr)/Pr))
+                                    allocate(epo_obs(ntx))
+                                    epo_obs = nint(((obsDataIn%obsT0(i_body-1)%T0-Tr)/Pr))
                                     ! check if the epoch of the mean time of two consecutive steps is within the observed epochs
-                                    if (any(epox .eq. obsDataIn%obsT0(i_body-1)%epo)) then
-                                        call check_T0(tepoch, i_body, mass, radius, r1, r2,&
+                                    if (any(epox .eq. epo_obs)) then
+                                        call check_T0(tepoch, Tr, Pr, i_body, mass, radius, r1, r2,&
                                             &trun1, integration_step, simT0, Hc)
                                     end if
-                                end if
-                            end if ! Pr
+                                    if(allocated(epo_obs)) deallocate(epo_obs)
+                                end if ! Pr
+                            end if ! ntx
                         end if ! allocated(obsDataIn%obsT0)
 
                     end if ! ABflag, Zflag
@@ -488,6 +525,8 @@ contains
         deallocate (r1, r2)
         deallocate (X, Y, Z)
         deallocate (VX, VY, VZ)
+        deallocate(period, sma, ecc, inc, meanA, argp, trueA, longN, dttau)
+        deallocate (Tref, Pref)
         deallocate (t_all_steps)
         deallocate (all_idx)
         flush (6)
@@ -1632,6 +1671,7 @@ contains
 
         Hc = .true.
         Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
+        if (amd_hill_check) call statevector_amd_hill_stability(mass, rin, Hc)
         if (.not. Hc) then
             return
         end if
@@ -1681,7 +1721,7 @@ contains
                 &A, B, AB, ABflag, Zflag)
 
                 if (ABflag .and. Zflag) then
-               call transit_time(tepoch, i_body, mass, radius, r1, r2, trun1, integration_step, ttra_temp, dur_tra_temp, check_ttra)
+                    call transit_time(tepoch, i_body, mass, radius, r1, r2, trun1, integration_step, ttra_temp, dur_tra_temp, check_ttra)
                     if (check_ttra) then
                         last_tra = last_tra+1
                         if (last_tra .gt. ntra_full) then

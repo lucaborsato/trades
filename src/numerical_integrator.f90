@@ -2,7 +2,7 @@ module numerical_integrator
     use constants, only: dp, zero, one, two, three, TOLERANCE, TOL_dp
     use parameters
     use eq_motion
-    use celestial_mechanics, only: separation_mutual_Hill_check
+    use celestial_mechanics, only: separation_mutual_Hill_check, statevector_amd_hill_stability
     implicit none
 
 contains
@@ -266,11 +266,6 @@ contains
 
         n_body = size(mass)
         nb_dim = n_body*6
-        ! Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
-        ! if (.not. Hc) return
-
-        ! working_step = stepsize
-        ! if (time .lt. zero) working_step = -working_step
         working_step = sign(stepsize, time)
 
         itime = zero
@@ -284,6 +279,9 @@ contains
                 call eqmastro(mass, r1, dr)
                 call int_rk_a(mass, r1, dr, working_step, ok_step, next_step, r2, err)
                 Hc = separation_mutual_Hill_check(mass, radius, r2, do_hill_check)
+                if (amd_hill_check) then
+                    call statevector_amd_hill_stability(mass, r1, Hc)
+                end if
                 itime = itime+ok_step
 
                 if (.not. Hc) then

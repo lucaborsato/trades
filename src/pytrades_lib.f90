@@ -35,7 +35,7 @@ module f90trades
     !f2py real(dp)::tepoch,tstart,tint
     !f2py integer::idpert
     !f2py real(dp)::wrttime
-    !f2py logical::do_hill_check
+    !f2py logical::do_hill_check,amd_hill_check
 
     !f2py real(dp),dimension(2,2)::MR_star
     
@@ -453,6 +453,35 @@ contains
 
         return
     end subroutine get_parameter_names
+
+    subroutine get_tofit(n_par, to_fit)
+        ! Input
+        integer,intent(in)::n_par
+        ! Output
+        integer,dimension(n_par),intent(out)::to_fit
+        ! Local
+
+        to_fit = tofit
+
+        return
+    end subroutine get_tofit
+
+    subroutine get_all_keplerian_names(all_names, n_par, str_length)
+        ! Input
+        integer, intent(in)::n_par, str_length
+        ! Output
+        character(1), dimension(n_par, str_length), intent(out)::all_names
+        ! Local
+        integer::in, ic
+
+        do in = 1, n_par
+            do ic = 1, str_length
+                all_names(in, ic) = all_names_list(in) (ic:ic)
+            end do
+        end do
+
+        return
+    end subroutine get_all_keplerian_names
 
     ! ============================================================================
 
@@ -906,6 +935,16 @@ contains
 
         return
     end subroutine set_hill_check
+
+    subroutine set_amd_hill_check(ah_check)
+        ! Input
+        logical, intent(in)::ah_check
+        ! Output
+        ! NONE
+        amd_hill_check = ah_check
+
+        return
+    end subroutine set_amd_hill_check
 
     ! SUBROUTINE TO INITIALISE TRADES WITHOUT READING FILES
     subroutine args_init(n_body, duration_check)
@@ -1787,6 +1826,22 @@ contains
         return
     end subroutine f90_period_to_sma
 
+    subroutine f90_period_to_sma_vec(n, mass_star, mass_planet, period, sma)
+        ! Input
+        integer, intent(in)::n
+        real(dp), dimension(n), intent(in)::mass_star, mass_planet, period
+        ! Output
+        real(dp), dimension(n), intent(out)::sma
+        ! Local
+        integer::i
+
+        do i = 1, n
+            call period_to_sma(mass_star(i), mass_planet(i), period(i), sma(i))
+        end do
+
+        return
+    end subroutine f90_period_to_sma_vec
+
     subroutine f90_sma_to_period(mass_star, mass_planet, sma, period)
         ! Input
         real(dp), intent(in)::mass_star, mass_planet, sma
@@ -1797,6 +1852,92 @@ contains
 
         return
     end subroutine f90_sma_to_period
+
+    subroutine f90_sma_to_period_vec(n, mass_star, mass_planet, sma, period)
+        ! Input
+        integer, intent(in)::n
+        real(dp), dimension(n), intent(in)::mass_star, mass_planet, sma
+        ! Output
+        real(dp), dimension(n), intent(out)::period
+        ! Local
+        integer::i
+
+        do i=1,n
+            call sma_to_period(mass_star(i), mass_planet(i), sma(i), period(i))
+        end do
+
+        return
+    end subroutine f90_sma_to_period_vec
+
+    ! ============================================================================
+
+    subroutine angular_momentum_deficit(n_body, masses, eccs, incs, periods, lambda_bodies, amd_bodies, amd)
+        ! Input
+        integer,intent(in)::n_body
+        real(dp), dimension(n_body), intent(in)::masses, eccs, incs, periods
+        ! Output
+        real(dp), dimension(n_body), intent(out)::lambda_bodies, amd_bodies
+        real(dp), intent(out)::amd
+
+        call amd_system(masses, eccs, incs, periods, lambda_bodies, amd_bodies, amd)
+
+        return
+    end subroutine angular_momentum_deficit
+
+    subroutine angular_momentum_deficit_fit_parameters(n_bodies, n_fit, fit_pars, n_all, all_pars, lambda_bodies, amd_bodies, amd, n_pairs, amd_r_pairs, amd_h_pairs, stable)
+        ! Input
+        integer,intent(in)::n_bodies, n_fit, n_all, n_pairs
+        real(dp), dimension(n_fit), intent(in)::fit_pars
+        real(dp), dimension(n_all), intent(in)::all_pars
+        ! Output
+        real(dp), dimension(n_bodies), intent(out)::lambda_bodies, amd_bodies
+        real(dp), intent(out)::amd
+        real(dp), dimension(n_pairs), intent(out)::amd_r_pairs, amd_h_pairs
+        logical, intent(out)::stable
+        ! Local
+        real(dp), dimension(n_bodies)::mass, radius, period, sma, ecc, argp, meana, inc, longn
+        logical::checkpar
+
+        call convert_trades_par_to_kepelem(all_pars, n_all, fit_pars, n_fit,&
+            &n_bodies, mass, radius, period, sma, ecc, argp, meana, inc, longn,&
+            &checkpar)
+
+        call amd_system(mass, ecc, inc, period, lambda_bodies, amd_bodies, amd)
+        call amd_hill_stability(mass, ecc, inc, period, amd_r_pairs, amd_h_pairs, stable)
+
+        return
+    end subroutine angular_momentum_deficit_fit_parameters
+
+    subroutine angular_momentum_deficit_posterior(n_bodies, n_post, n_fit, post_fit, n_all, all_pars, lambda_bodies, amd_bodies, amd, n_pairs, amd_r_pairs, amd_h_pairs, stable)
+        ! Input
+        integer,intent(in)::n_bodies, n_post, n_fit, n_all, n_pairs
+        real(dp), dimension(n_post, n_fit), intent(in)::post_fit
+        real(dp), dimension(n_all), intent(in)::all_pars
+        ! Output
+        real(dp), dimension(n_post, n_bodies), intent(out)::lambda_bodies, amd_bodies
+        real(dp), dimension(n_post), intent(out)::amd
+        real(dp), dimension(n_post, n_pairs), intent(out)::amd_r_pairs, amd_h_pairs
+        logical, dimension(n_post), intent(out)::stable
+        ! Local
+        real(dp), dimension(n_fit)::fit_pars
+        real(dp), dimension(n_bodies)::lbd, amd_bd
+        real(dp), dimension(n_pairs)::amd_r, amd_h
+        integer::i_post
+
+        do i_post=1,n_post
+            fit_pars = post_fit(i_post, :)
+            call angular_momentum_deficit_fit_parameters(n_bodies, n_fit, fit_pars, n_all, all_pars,&
+                &lbd, amd_bd, amd(i_post),&
+                &n_pairs, amd_r, amd_h, stable(i_post))
+            
+            lbd = lambda_bodies(i_post, :)
+            amd_bd =  amd_bodies(i_post, :)
+            amd_r_pairs(i_post, :) = amd_r
+            amd_h_pairs(i_post, :) = amd_h
+        end do
+
+        return
+    end subroutine angular_momentum_deficit_posterior
 
     ! ============================================================================
 

@@ -41,5 +41,7 @@ lmon = 0
 secondary_parameters = 0
 # Hill check
 do_hill_check = T
+# AMD Hill check
+amd_hill_check = F
 # number of cpu to use with opemMP. Default is 1.
 ncpu = 1

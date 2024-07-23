@@ -37,16 +37,23 @@ set_one_fit_par_boundaries = f90trades.set_one_fit_par_boundaries
 reset_all_fit_boundaries = f90trades.reset_all_fit_boundaries
 orbits_to_elements = f90trades.orbits_to_elements
 set_hill_check = f90trades.set_hill_check
+set_amd_hill_check = f90trades.set_amd_hill_check
 period_to_sma = f90trades.f90_period_to_sma
+period_to_sma_vec = f90trades.f90_period_to_sma_vec
 sma_to_period = f90trades.f90_sma_to_period
 astrocentric_to_barycentric_orbits = f90trades.astrocentric_to_barycentric_orbits
 convert_trades_par_to_kepelem = f90trades.convert_trades_par_to_kepelem
 print_obsdata = f90trades.print_obsdata
+angular_momentum_deficit = f90trades.angular_momentum_deficit
+angular_momentum_deficit_fit_parameters = (
+    f90trades.angular_momentum_deficit_fit_parameters
+)
+# angular_momentum_deficit_posterior = f90trades.angular_momentum_deficit_posterior
 # =============================================================================
 
 
 def args_init(
-    n_body, duration_check, t_epoch=None, t_start=None, t_int=None, do_hill_check=False
+    n_body, duration_check, t_epoch=None, t_start=None, t_int=None, do_hill_check=False, amd_hill_check=False
 ):
     """
     Initialize the arguments for the function.
@@ -57,7 +64,8 @@ def args_init(
         t_epoch (int, optional): Optional epoch time value.
         t_start (int, optional): Optional start time value.
         t_int (int, optional): Optional interval time value.
-        do_hill_check (bool, optional): Optional flag for hill check.
+        do_hill_check (bool, optional): Optional flag for Hill check.
+        amd_hill_check (bool, optional): Optional flag for AMD Hill check.
 
     Returns:
         None
@@ -76,6 +84,8 @@ def args_init(
         f90trades.set_time_int(t_int)
     if do_hill_check is not None:
         set_hill_check(do_hill_check)
+    if amd_hill_check is not None:
+        set_amd_hill_check(amd_hill_check)
 
     return
 
@@ -1922,13 +1932,23 @@ class TRADESfolder:
         temp_names = f90trades.get_parameter_names(self.nfit, str_len)
         # names
         self.fitting_names = anc.convert_fortran_charray2python_strararray(temp_names)
-        self.fitting_parameters, self.fitting_minmax = f90trades.get_default_fitting_parameters_and_minmax(self.nfit)
+        self.fitting_parameters, self.fitting_minmax = (
+            f90trades.get_default_fitting_parameters_and_minmax(self.nfit)
+        )
         (
-            self.system_parameters, 
-            self.system_parameters_min, 
-            self.system_parameters_max
+            self.system_parameters,
+            self.system_parameters_min,
+            self.system_parameters_max,
         ) = f90trades.get_system_parameters_and_minmax(self.npar)
-    
+        
+        self.all_names = anc.convert_fortran_charray2python_strararray(
+            f90trades.get_all_keplerian_names(self.npar, str_len)
+        )
+        self.to_fit = f90trades.get_tofit(self.npar)
+        sel_fixed = self.to_fit == 0
+        self.fixed_names = anc.encode_list(np.array(self.all_names)[sel_fixed])
+        self.fixed_parameters = self.system_parameters[sel_fixed]
+
         # priors
         self.n_priors = (f90trades.n_priors).item()
 
@@ -2040,7 +2060,9 @@ class TRADESfolder:
         self.n_set_rv = f90trades.nrvset  # number of jitter parameters
 
         # TRANSITS SET
-        self.n_t0, self.pephem, self.tephem = f90trades.get_observed_transits_info(self.n_planets)
+        self.n_t0, self.pephem, self.tephem = f90trades.get_observed_transits_info(
+            self.n_planets
+        )
 
         self.n_t0_sum = f90trades.ntts
         self.n_set_t0 = 0
@@ -2062,7 +2084,9 @@ class TRADESfolder:
 
         # self.fitting_minmax[ifit, 0] = min_val
         # self.fitting_minmax[ifit, 1] = max_val
-        self.fitting_minmax = f90trades.set_one_fit_par_boundaries(ifit + 1, min_val, max_val, self.fitting_minmax)
+        self.fitting_minmax = f90trades.set_one_fit_par_boundaries(
+            ifit + 1, min_val, max_val, self.fitting_minmax
+        )
 
         return
 
@@ -2394,31 +2418,69 @@ class TRADESfolder:
         return
 
     def computes_observables_from_keplerian_elements(
-        self, t_start, t_epoch, t_int, mass, radius, period, ecc, argp, meana, inc, longn,
-        transit_flag=None
-        ):
+        self,
+        t_start,
+        t_epoch,
+        t_int,
+        mass,
+        radius,
+        period,
+        ecc,
+        argp,
+        meana,
+        inc,
+        longn,
+        transit_flag=None,
+    ):
 
         if transit_flag is None:
             transit_flag = self.transit_flag
 
         n_kep = 8
-        rv_sim, body_t0_sim,  epo_sim, t0_sim, t14_sim, kel_sim, stable = f90trades.kelements_to_rv_and_t0s(
-            t_start, t_epoch, t_int, mass, radius, period, ecc, argp, meana, inc, longn,
-            transit_flag, self.n_rv, self.n_t0_sum, n_kep
+        rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable = (
+            f90trades.kelements_to_rv_and_t0s(
+                t_start,
+                t_epoch,
+                t_int,
+                mass,
+                radius,
+                period,
+                ecc,
+                argp,
+                meana,
+                inc,
+                longn,
+                transit_flag,
+                self.n_rv,
+                self.n_t0_sum,
+                n_kep,
+            )
         )
 
-        return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable 
+        return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable
 
     def computes_observables_from_default_keplerian_elements(
         self, t_start, t_epoch, t_int, transit_flag=None
-        ):
+    ):
 
         if transit_flag is None:
             transit_flag = self.transit_flag
 
-        rv_sim, body_t0_sim,  epo_sim, t0_sim, t14_sim, kel_sim, stable = self.computes_observables_from_keplerian_elements(
-            t_start, t_epoch, t_int, self.mass, self.radius, self.period, self.ecc, self.argp, self.meana, self.inc, self.longn,
-            in_transit_flag=transit_flag
+        rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable = (
+            self.computes_observables_from_keplerian_elements(
+                t_start,
+                t_epoch,
+                t_int,
+                self.mass,
+                self.radius,
+                self.period,
+                self.ecc,
+                self.argp,
+                self.meana,
+                self.inc,
+                self.longn,
+                in_transit_flag=transit_flag,
+            )
         )
 
         return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable
@@ -2437,7 +2499,7 @@ def base_plot_orbits(
     radius,
     n_body,
     body_names,
-    figsize=(4,4),
+    figsize=(4, 4),
     sky_scale="star",
     side_scale="star",
     title=None,
@@ -2447,7 +2509,9 @@ def base_plot_orbits(
     # base_colors = plt.get_cmap("nipy_spectral")(
     #     np.linspace(0.1, 0.9, endpoint=True, num=n_body - 1)
     # )
-    base_colors = anc.set_colors(n_body-1, vmin=0.05, vmax=0.95, colormap='nipy_spectral')
+    base_colors = anc.set_colors(
+        n_body - 1, vmin=0.05, vmax=0.95, colormap="nipy_spectral"
+    )
 
     # colors with alpha based on increasing time (alpha(t_start) = 0.2, alpha(t_end) = 1.0)
     alphas = np.linspace(0.05, 0.95, endpoint=True, num=n_steps)
@@ -2710,6 +2774,34 @@ def base_plot_orbits(
 
 # =============================================================================
 # =============================================================================
+def angular_momentum_deficit_posterior(n_bodies, post_fit, all_pars):
+
+    n_post, n_fit = np.shape(post_fit)
+    n_all = len(all_pars)
+    n_pairs = n_bodies - 2
+
+    lambdas_bodies, amd_bodies, amd, amd_r_pairs, amd_h_pairs, amd_stable = f90trades.angular_momentum_deficit_posterior(
+        n_bodies,
+        # n_post, n_fit,
+        post_fit,
+        # n_all,
+        all_pars,
+        n_pairs,
+    )
+    namd = amd / np.sum(lambdas_bodies[:, 1:], axis=1)
+
+    amd_names = (
+        ["Lambda{}".format(i + 1) for i in range(1, n_bodies)]
+        + ["AMD{}".format(i + 1) for i in range(1, n_bodies)]
+        + ["AMD", "NAMD"]
+        + ["rAMD_pair{}".format(i + 1) for i in range(0, n_pairs)]
+        + ["hAMD_pair{}".format(i + 1) for i in range(0, n_pairs)]
+    )
+
+    amd_full = np.column_stack((lambdas_bodies[:, 1:], amd_bodies[:, 1:], amd, namd, amd_r_pairs, amd_h_pairs))
+
+    return amd_names, amd_full, amd_stable
+
 
 # =============================================================================
 # =============================================================================
