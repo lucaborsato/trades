@@ -425,7 +425,7 @@ class AnalysisTRADES:
             p_h5f.create_dataset(
                 "fixed_parameters", data=self.fixed_parameters, dtype=np.float64
             )
-            p_h5f["fixed_parameters"].attrs["names"] = self.fixed_names
+            p_h5f["fixed_parameters"].attrs["names"] = anc.encode_list(self.fixed_names)
 
             if hasattr(self, 'amd_names'):
                 p_h5f.create_dataset(

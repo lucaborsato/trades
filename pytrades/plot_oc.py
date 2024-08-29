@@ -422,8 +422,19 @@ def plot_oc_T41(
     # n_src = len(u_src)
     # ocolors = anc.set_colors(n_src, colormap=cli.color_map)
     n_idsrc = np.max(list(cli.idsource_name.keys()))
-    full_colors = anc.set_colors(n_idsrc, colormap=cli.color_map)
-    ocolors = [full_colors[k-1] for k in cli.idsource_name.keys()]
+    
+    if isinstance(cli.color_map, dict):
+        # full_colors = cli.color_map
+        ocolors = [""]*len(cli.color_map)
+        for k, v in cli.color_map.items():
+            ocolors[k-1] = v
+    elif isinstance(cli.color_map, str):
+        if cli.color_map in anc.all_color_maps:
+            colormap = cli.color_map
+        else:
+            colormap = "nipy_spectral"
+        full_colors = anc.set_colors(n_idsrc, colormap=colormap)
+        ocolors = [full_colors[k-1] for k in cli.idsource_name.keys()]
 
     if cli.tscale is None:
         tscale = 2440000.5
@@ -447,8 +458,8 @@ def plot_oc_T41(
 
     print("\nPlanet {}".format(sim.planet))
     print("Read {}".format(file_in))
-    print("sim.sources_id = {}".format(sim.sources_id))
-    print("sim.sources    = {}".format(sim.sources))
+    # print("sim.sources_id = {}".format(sim.sources_id))
+    # print("sim.sources    = {}".format(sim.sources))
     print("idsource_name = {}".format(cli.idsource_name))
     print("OBS id -> name = {}".format(sim.idname))
     print(
@@ -496,23 +507,33 @@ def plot_oc_T41(
         ncols = 2
 
     malpha = 0.88
+    
     # obs marker
-    mso = 3
+    # mso = 10
     mewo = 0.6
-    ewo = 0.9
+    ewo = 1.1
     # cfo = "white"
     # ceo = "C1"
+    zobs = 9
     ceo = "black"
+
     # sim marker
     # mss = 2.5
-    mss = mso * 0.70
-    mews = 0.3
-    cfs = "gray"
-    ces = "white"
+    # mss = mso * 0.35
+    
+    mss = anc.size_default * 0.5
+    mews = 0.7
+    cfs = "None"
+    ces = "black"
+    zsim = 8
+    
     # model line
-    cfm = "black"
+    cfm = "dimgray"
+    zmod = 7
+    
     # samples line
-    cfsm = "gray"
+    cfsm = "silver"
+    zsmp = 6
 
     px = 0.05
     py = 0.05
@@ -566,7 +587,7 @@ def plot_oc_T41(
                 elinewidth=ewo,
                 capsize=0,
                 alpha=1.0,
-                zorder=5,
+                zorder=zobs,
                 label=src,
             ))
     # trades
@@ -579,7 +600,7 @@ def plot_oc_T41(
         mec=ces,
         mew=mews,
         ls="",
-        zorder=6,
+        zorder=zsim,
         alpha=malpha,
         label="simulations",
     )
@@ -594,7 +615,7 @@ def plot_oc_T41(
         marker="None",
         ls="-",
         lw=0.6,
-        zorder=4,
+        zorder=zmod,
         alpha=1.0,
         label="model",
     )
@@ -615,7 +636,7 @@ def plot_oc_T41(
                 marker="None",
                 ls="-",
                 lw=0.4,
-                zorder=3,
+                zorder=zsmp,
                 alpha=0.4,
                 label="samples",
             )
@@ -677,7 +698,7 @@ def plot_oc_T41(
                 ls="",
                 elinewidth=ewo,
                 capsize=0,
-                zorder=6,
+                zorder=zobs,
             )
             rms_res = np.percentile(np.abs(sim.dTTos[sel] * ocu[0]), 68.27)
             print(
@@ -727,23 +748,30 @@ def plot_oc_T41(
         # ax.axhline(np.median(data[:,6]), color='black', ls='-',lw=0.7)
 
         # data
-        ax.errorbar(
-            x,
-            sim.T41o,
-            yerr=sim.eT41o,
-            color=ceo,
-            ecolor=ceo,
-            fmt="o",
-            ms=mso,
-            mfc=cfo,
-            mec=ceo,
-            mew=mewo,
-            ls="",
-            elinewidth=ewo,
-            capsize=0,
-            zorder=5,
-            label="observations",
-        )
+        for ksrc, src in cli.idsource_name.items():
+            isrc = ksrc - 1
+            sel = src == sim.sources
+            if np.sum(sel) > 0:
+                eco = ocolors[isrc]
+                ax.errorbar(
+                    x[sel],
+                    sim.T41o[sel],
+                    yerr=sim.eT41o[sel],
+                    color=eco,
+                    ecolor=eco,
+                    fmt="o",
+                    ms=size_markers[isrc],
+                    mfc=cfo,
+                    mec=ceo,
+                    mew=mewo,
+                    ls="",
+                    elinewidth=ewo,
+                    capsize=0,
+                    alpha=1.0,
+                    zorder=zobs,
+                    label=src,
+                )
+
         # trades
         ax.plot(
             x,
@@ -754,7 +782,7 @@ def plot_oc_T41(
             mec=ces,
             mew=mews,
             ls="",
-            zorder=6,
+            zorder=zsim,
             alpha=malpha,
             label="simulations",
         )
@@ -767,7 +795,7 @@ def plot_oc_T41(
             marker="None",
             ls="-",
             lw=0.6,
-            zorder=5,
+            zorder=zmod,
             alpha=1.0,
             label="model",
         )
@@ -786,7 +814,7 @@ def plot_oc_T41(
                     marker="None",
                     ls="-",
                     lw=0.4,
-                    zorder=4,
+                    zorder=zsmp,
                     alpha=0.4,
                     label="samples",
                 )
@@ -820,22 +848,27 @@ def plot_oc_T41(
         ax.axhline(0.0, color="black", ls="-", lw=0.7)
 
         # data - trades
-        ax.errorbar(
-            x,
-            sim.dT41os,
-            yerr=sim.eT41o,
-            color=ceo,
-            ecolor=ceo,
-            fmt="o",
-            ms=mso,
-            mfc=cfo,
-            mec=ceo,
-            mew=mewo,
-            ls="",
-            elinewidth=ewo,
-            capsize=0,
-            zorder=6,
-        )
+        for ksrc, src in cli.idsource_name.items():
+            isrc = ksrc - 1
+            sel = src == sim.sources
+            if np.sum(sel) > 0:
+                eco = ocolors[isrc]
+                ax.errorbar(
+                    x[sel],
+                    sim.dT41os[sel],
+                    yerr=sim.eT41o[sel],
+                    color=eco,
+                    ecolor=eco,
+                    fmt="o",
+                    ms=size_markers[isrc],
+                    mfc=cfo,
+                    mec=ceo,
+                    mew=mewo,
+                    ls="",
+                    elinewidth=ewo,
+                    capsize=0,
+                    zorder=zobs,
+                )
 
         ax.set_xlim(minx, maxx)
         # ax.set_xlim(xlims)

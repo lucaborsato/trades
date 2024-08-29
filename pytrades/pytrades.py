@@ -818,7 +818,8 @@ def get_simulate_flux(
 
             flux = []
             for itra, tra in enumerate(tra_sel):
-                sel_t = np.logical_and(
+                # sel_t = np.logical_and(
+                sel_t = (
                     t >= tra - 0.5 * per[itra],
                 )
                 tm.set_data(t[sel_t], nsamples=vis[n_over_key], exptimes=vis[t_exp_key])
@@ -1308,7 +1309,7 @@ def get_radial_velocities_residuals(
 
 
 class PhotoTRADES:
-    def __init__(self, n_body, t_epoch, t_start, t_int, duration_check=1):
+    def __init__(self, n_body, t_epoch, t_start, t_int, duration_check=1, do_hill_check=False, amd_hill_check=False):
 
         self.n_body = n_body
         self.t_epoch = t_epoch
@@ -1322,6 +1323,8 @@ class PhotoTRADES:
             t_epoch=t_epoch,
             t_start=t_start,
             t_int=t_int,
+            do_hill_check=do_hill_check, 
+            amd_hill_check=amd_hill_check
         )
 
         self.Tref = {}
@@ -1549,6 +1552,7 @@ class PhotoTRADES:
             kep_elem,
             body_flag,
             rv_sim,
+            stable
         ) = orbital_parameters_to_transits(
             self.t_start,
             self.t_epoch,
@@ -1563,7 +1567,7 @@ class PhotoTRADES:
             long,
             self.t_rv_obs,
         )
-        return time_steps, orbits, transits, durations, kep_elem, body_flag, rv_sim
+        return time_steps, orbits, transits, durations, kep_elem, body_flag, rv_sim, stable
 
     def get_simulate_flux(
         self,
@@ -1610,6 +1614,7 @@ class PhotoTRADES:
             kep_elem,
             body_flag,
             rv_sim,
+            stable
         ) = self.orbital_parameters_to_transits(
             mass, radius, period, ecc, w, ma, inc, long
         )
@@ -1946,7 +1951,7 @@ class TRADESfolder:
         )
         self.to_fit = f90trades.get_tofit(self.npar)
         sel_fixed = self.to_fit == 0
-        self.fixed_names = anc.encode_list(np.array(self.all_names)[sel_fixed])
+        self.fixed_names = anc.decode_list(np.array(self.all_names)[sel_fixed])
         self.fixed_parameters = self.system_parameters[sel_fixed]
 
         # priors
@@ -2108,6 +2113,36 @@ class TRADESfolder:
 
         f90trades.wrttime = new_wrttime
         self.wrttime = f90trades.wrttime
+
+        return
+
+    def print_summary_boundaries(self, par_print="all"):
+        """
+        Print summary boundaries based on the specified parameter print options.
+        
+        Parameters:
+            par_print (str): Specifies which boundaries to print. Default is "all".
+        
+        Returns:
+            None
+        """
+
+        sys.stdout.flush()
+        if ("fix" in par_print) or ("all" in par_print):
+            print("# fixed value", flush=True)
+            for n, p in zip(self.fixed_names, self.fixed_parameters):
+                print("{:12s} = {:16.8f}".format(n, p), flush=True)
+        if ("fit" in par_print) or ("all" in par_print):
+            print("# fitted min -- max", flush=True)
+            for n, p in zip(self.fitting_names, self.fitting_minmax):
+                print("{:12s} = {:16.8f} -- {:12.6f}".format(n, p[0], p[1]), flush=True)
+        
+        if ("sys" in par_print) or ("all" in par_print):
+            print("# system min -- max", flush=True)
+            for n, pl, pu in zip(self.all_names, self.system_parameters_min, self.system_parameters_max):
+                print("{:12s} = {:16.8f} -- {:12.6f}".format(n, pl, pu), flush=True)
+
+        print("", flush=True)
 
         return
 

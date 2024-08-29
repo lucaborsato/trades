@@ -44,13 +44,15 @@ letters = "a b c d e f g h i j k l m n o p q r s t u v w x y z".split()
 
 filled_markers = plt.Line2D.filled_markers[1:]  # avoid '.'
 n_markers = len(filled_markers)
-size_default = 3.0
+size_default = 4.5
 size_markers = [size_default] * n_markers
 size_markers[3] += 0.2
 size_markers[4] += 2.0
 size_markers[5] += 0.2
 size_markers[6] += 0.2
 size_markers[7] += 0.2
+
+all_color_maps = plt.colormaps()
 
 # deg2rad = np.pi / 180.0
 # rad2deg = 180.0 / np.pi

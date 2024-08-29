@@ -94,4 +94,4 @@ RV:
     samples_file: None # hdf5 file name with samples created by analysis/n_samples > 0: i.e. samples_ttra_rv.hdf5
     limits: "obs" # x-y limits based on observations (obs) or samples (sam)
     labels: ["RVdataset#1", "RVdataset#2"] # list or string of labels of different RV dataset, order has to match the numbering of obsRV.dat file
-    color_map: "nipy_spectral"
+    color_map: "nipy_spectral" # {"label1": color1, "label2" color2, etc}

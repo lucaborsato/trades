@@ -267,23 +267,68 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
 
     lobs_a = []
     lsim_a = []
-    nset = len(rv_os)
-    label_data = ["RV dataset \#{:d}".format(i + 1) for i in range(0, nset)]
-    if cli.labels is not None:
-        nlabels = len(list(cli.labels))
-        label_data[0:nlabels] = [ll for ll in list(cli.labels)]
+
 
     x = []
     y = []
     px = 0.05
     py = 0.05
+    
+    nset = len(rv_os)
+    label_data = ["RV dataset \#{:d}".format(i + 1) for i in range(0, nset)]
+    if cli.labels is not None:
+        nlabels = len(list(cli.labels))
+        label_data[0:nlabels] = [ll for ll in list(cli.labels)]
+    n_idsrc = len(label_data)
+    ocolors = [""]*n_idsrc
 
-    ocolors = set_colors(nset, colormap=cli.color_map)
+    ## ocolors = set_colors(nset, colormap=cli.color_map)
+    # set default colors:
+    ocolors = set_colors(n_idsrc, colormap="nipy_spectral")
+    # check color_map option
+    if isinstance(cli.color_map, str):
+        print("color_map is a string")
+        if cli.color_map in anc.all_color_maps:
+            colormap = cli.color_map
+        else:
+            print("color_map not found in all_color_maps")
+            colormap = "nipy_spectral"
+        full_colors = anc.set_colors(n_idsrc, colormap=colormap)
+        # print("full_colors = ", full_colors)
+        ocolors = full_colors
+    elif isinstance(cli.color_map, dict):
+        print("color_map is a dictionary")
+        for ilab, lab in enumerate(label_data):
+            if lab in cli.color_map.keys():
+                ocolors[ilab] = cli.color_map[lab]
+
+    # if isinstance(cli.color_map, dict):
+    #     # full_colors = cli.color_map
+    #     print("color_map is a dictionary")
+    #     ocolors = [""]*len(cli.color_map)
+    #     for k, v in cli.color_map.items():
+    #         ocolors[k-1] = v
+    # elif isinstance(cli.color_map, str):
+    #     print("color_map is a string")
+    #     if cli.color_map in anc.all_color_maps:
+    #         colormap = cli.color_map
+    #     else:
+    #         print("color_map not found in all_color_maps")
+    #         colormap = "nipy_spectral"
+    #     full_colors = anc.set_colors(n_idsrc, colormap=colormap)
+    #     print("full_colors = ", full_colors)
+    #     ocolors = [full_colors[k-1] for k in cli.idsource_name.keys()]
+
+    # print("ocolors = ", ocolors)
 
     for i in range(0, nset):
         mso = size_markers[i]
         mss = mso - 0.5
+        # print(len(rv_os), type(rv_os))
+        # print(rv_os)
         rv = rv_os[i]
+        # print(type(rv))
+        # print(rv)
         chi2 = np.sum(rv.wres*rv.wres)
         print("RVs(set {}) contribution to the chi_square = {:.3f}".format(i, chi2))
 
