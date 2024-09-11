@@ -39,10 +39,12 @@ def set_observation_sources(sources_id, idsource_name=None):
         idname = {i: "obs.{:d}".format(i) for i in u_id}
         colors = ["C1"]*len(idname)
     
+    # print("idname = {}".format(idname))
     if idsource_name is not None:
         for kin, vin in idsource_name.items():
             if kin in u_id:
                 idname[kin] = vin
+    # print("idname = {}".format(idname))
 
     # sources = np.array([""] * len(sources_id))
     sources = [""] * len(sources_id)
@@ -52,6 +54,7 @@ def set_observation_sources(sources_id, idsource_name=None):
         sources[i_id] = idname[s_id]
     sources = np.array(sources)
 
+    # print("sources = {}".format(sources))
     return sources, idname
 
 # ==============================================================================
@@ -514,7 +517,7 @@ def plot_oc_T41(
     ewo = 1.1
     # cfo = "white"
     # ceo = "C1"
-    zobs = 9
+    zobs = 8
     ceo = "black"
 
     # sim marker
@@ -523,20 +526,33 @@ def plot_oc_T41(
     
     mss = anc.size_default * 0.5
     mews = 0.7
-    cfs = "None"
+    cfs = "black"
     ces = "black"
-    zsim = 8
+    zsim = 9
     
     # model line
-    cfm = "dimgray"
+    cfm = "black" #"dimgray"
     zmod = 7
     
     # samples line
-    cfsm = "silver"
+    # cfsm = "silver"
+    cfsm = plt.get_cmap("gray")
+    gval = 0.6
+    dg = 0.1
     zsmp = 6
+
+    zleg = zsim + 1
 
     px = 0.05
     py = 0.05
+
+    leg_ncol = 1
+    if "out" in cli.legend:
+        leg_loc = "center left"
+        leg_bbox = (1.0, 0.5)
+    else:
+        leg_loc = "best"
+        leg_bbox = (0.025, 0.025, 0.925, 0.925)
 
     # =========================================
     # O-C
@@ -606,6 +622,7 @@ def plot_oc_T41(
     )
     # model
     xx = oc_model.TTlin - tscale
+    # xx = oc_model.TTs - tscale
     xxx = np.concatenate((xxx, xx))
     yy = np.concatenate((y, oc_model.oc * ocu[0]))
     (lmod,) = ax.plot(
@@ -622,32 +639,110 @@ def plot_oc_T41(
 
     # samples
     if nsmp > 0:
-        lsmp = []
-        # yy = y
+        print("samples plot ... ")
+        # # ==== plot all the samples o-c
+        # lsmp = []
+        # for ss in samples_plt:
+        #     ss.update(sim.Teph, sim.Peph)
+        #     xx = ss.TTlin - tscale
+        #     xxx = np.concatenate((xxx, xx))
+        #     yy = np.concatenate((yy, ss.oc * ocu[0]))
+        #     (ll,) = ax.plot(
+        #         xx,
+        #         ss.oc * ocu[0],
+        #         color=cfsm(gval),
+        #         marker="None",
+        #         ls="-",
+        #         lw=0.4,
+        #         zorder=zsmp,
+        #         alpha=0.4,
+        #         label="samples",
+        #     )
+        #     lsmp.append(ll)
+
+        # # ==== plot 1/2/3 CI        
+        n_sim = len(xx)
+        print("n_sim (TTs) = {:d}".format(n_sim))
+        oc_smp = []
+        print("creating oc_smp list ...")
         for ss in samples_plt:
             ss.update(sim.Teph, sim.Peph)
-            xx = ss.TTlin - tscale
-            xxx = np.concatenate((xxx, xx))
-            yy = np.concatenate((yy, ss.oc * ocu[0]))
-            (ll,) = ax.plot(
-                xx,
-                ss.oc * ocu[0],
-                color=cfsm,
-                marker="None",
-                ls="-",
-                lw=0.4,
-                zorder=zsmp,
-                alpha=0.4,
-                label="samples",
-            )
-            lsmp.append(ll)
+            oc_smp.append(ss.oc)
+        print("oc_smp list to array ... ")
+        oc_smp = np.array(oc_smp).T *ocu[0]
+        print("shape(oc_smp) = ", np.shape(oc_smp))
+        c1, c2, c3 = 0.6827, 0.9544, 0.9974
+        hc1, hc2, hc3 = c1*0.5, c2*0.5, c3*0.5
 
-        ax.legend(
-            handles= lobs + [lsim], #, lmod, lsmp[0]],
-            loc="best", fontsize=lfont - dlfont
+        # TESTING HDI
+        # print("computing HDI @ 68.27-95.44-99.73 % ... ")
+        # # hdi1, hdi2, hdi3 = [], [], []
+        # hdi1, hdi2, hdi3 = np.zeros((n_sim, 2)), np.zeros((n_sim, 2)), np.zeros((n_sim, 2))
+        # for i in range(n_sim):
+        #     ocy = oc_smp[i, :]
+        #     hhh = anc.hpd(ocy, cred=0.6827)
+        #     hdi1[i, :] = hhh
+        #     hhh = anc.hpd(ocy, cred=0.9544)
+        #     hdi2[i, :] = hhh
+        #     hhh = anc.hpd(ocy, cred=0.9974)
+        #     hdi3[i, :] = hhh
+        # TODO: TEST PERCENTILE
+        # print("computing CI @ 68.27-95.44-99.73 % ... ")
+        hdi1 = np.percentile(oc_smp, [50 - (100*hc1), 50 + (100*hc1)], axis=1).T
+        hdi2 = np.percentile(oc_smp, [50 - (100*hc2), 50 + (100*hc2)], axis=1).T
+        hdi3 = np.percentile(oc_smp, [50 - (100*hc3), 50 + (100*hc3)], axis=1).T
+
+        print("shape(hdi1) = ", np.shape(hdi1))
+        print("shape(hdi2) = ", np.shape(hdi2))
+        print("shape(hdi3) = ", np.shape(hdi3))
+        
+        print("plot HDI ... ")
+        yy = np.concatenate((yy, hdi3[:, 0], hdi3[:, 1]))
+        xxx = np.concatenate((xxx, xx, xx))
+
+        ax.fill_between(
+            xx,
+            hdi1[:, 0],
+            hdi1[:, 1],
+            color=cfsm(gval),
+            alpha=1.0,
+            lw=0.0,
+            zorder=zsmp,
         )
-    else:
-        ax.legend(loc="best", fontsize=lfont - dlfont)
+        ax.fill_between(
+            xx,
+            hdi2[:, 0],
+            hdi2[:, 1],
+            color=cfsm(gval+dg),
+            alpha=1.0,
+            lw=0.0,
+            zorder=zsmp-1,
+        )
+        ax.fill_between(
+            xx,
+            hdi3[:, 0],
+            hdi3[:, 1],
+            color=cfsm(gval+(dg*2)),
+            alpha=1.0,
+            lw=0.0,
+            zorder=zsmp-2,
+        )
+    
+    # =================================================================
+    ax.legend(
+        handles= lobs + [lsim], #, lmod, lsmp[0]],
+        loc=leg_loc, 
+        bbox_to_anchor=leg_bbox,
+        ncols=leg_ncol,
+        fontsize=lfont - dlfont,
+    ).set_zorder(zleg)
+    # else:
+    #     ax.legend(
+    #         loc=leg_loc, 
+    #         bbox_to_anchor=leg_bbox,
+    #         ncols=leg_ncol,
+    #         fontsize=lfont - dlfont
+    #     )
 
     if cli.limits == "sam":
         dx = np.max(xxx) - np.min(xxx)

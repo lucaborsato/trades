@@ -83,6 +83,7 @@ OC:
     samples_file: None # hdf5 file name with samples created by analysis/n_samples > 0: i.e. samples_ttra_rv.hdf5
     limits: "obs" # x-y limits based on observations (obs) or samples (sam)
     kep_ele: False # NOT IMPLEMENTED plot of Keplerian Elements of each transiting body during transits
+    legend: "in" # in or out, Default in
     idsource_name: None # e.g {1: TESS, 2: CHEOPS}
     color_map: "nipy_spectral"
 RV:
@@ -93,5 +94,6 @@ RV:
     tscale: None # time scale to remove from x-axis plot, Default None means removing tepoch of the simulation.
     samples_file: None # hdf5 file name with samples created by analysis/n_samples > 0: i.e. samples_ttra_rv.hdf5
     limits: "obs" # x-y limits based on observations (obs) or samples (sam)
+    legend: "in" # in or out, Default in
     labels: ["RVdataset#1", "RVdataset#2"] # list or string of labels of different RV dataset, order has to match the numbering of obsRV.dat file
     color_map: "nipy_spectral" # {"label1": color1, "label2" color2, etc}

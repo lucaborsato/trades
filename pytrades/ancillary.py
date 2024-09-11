@@ -597,6 +597,7 @@ class CLI_OC:
         samples_file=None,
         limits="obs",
         kep_ele=False,
+        legend="in",
         idsource_name=None,
         color_map="nipy_spectral",
     ):
@@ -609,6 +610,7 @@ class CLI_OC:
         self.samples_file = samples_file
         self.limits = limits
         self.kep_ele = kep_ele
+        self.legend = legend
         self.idsource_name = idsource_name
         self.color_map = color_map
 
@@ -895,6 +897,7 @@ class ConfigurationAnalysis:
             "samples_file": None,
             "limits": "obs",
             "kep_ele": False,
+            "legend": "in",
             "idsource_name": None,
             "color_map": "nipy_spectral",
         }
@@ -944,6 +947,7 @@ class ConfigurationAnalysis:
                             samples_file=samples_file,
                             limits=conf_oc["limits"],
                             kep_ele=conf_oc["kep_ele"],
+                            legend=conf_oc["legend"],
                             idsource_name=conf_oc["idsource_name"],
                             color_map=conf_oc["color_map"],
                         )

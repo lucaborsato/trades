@@ -268,7 +268,6 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
     lobs_a = []
     lsim_a = []
 
-
     x = []
     y = []
     px = 0.05
@@ -302,24 +301,16 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
             if lab in cli.color_map.keys():
                 ocolors[ilab] = cli.color_map[lab]
 
-    # if isinstance(cli.color_map, dict):
-    #     # full_colors = cli.color_map
-    #     print("color_map is a dictionary")
-    #     ocolors = [""]*len(cli.color_map)
-    #     for k, v in cli.color_map.items():
-    #         ocolors[k-1] = v
-    # elif isinstance(cli.color_map, str):
-    #     print("color_map is a string")
-    #     if cli.color_map in anc.all_color_maps:
-    #         colormap = cli.color_map
-    #     else:
-    #         print("color_map not found in all_color_maps")
-    #         colormap = "nipy_spectral"
-    #     full_colors = anc.set_colors(n_idsrc, colormap=colormap)
-    #     print("full_colors = ", full_colors)
-    #     ocolors = [full_colors[k-1] for k in cli.idsource_name.keys()]
+    zsim = 9
+    zobs = 8
+    zmod = 7
+    zsmp = 6
+    zleg = zsim + 1
 
-    # print("ocolors = ", ocolors)
+    cfsm = plt.get_cmap("gray")
+    gval = 0.6
+    dg = 0.1
+
 
     for i in range(0, nset):
         mso = size_markers[i]
@@ -352,12 +343,12 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
             ecolor=ocolors[i],
             fmt=filled_markers[i],
             ms=mso,
-            mec="white",
+            mec="black",
             mew=0.3,
             ls="",
             elinewidth=0.6,
             capsize=0,
-            zorder=7,
+            zorder=zobs,
             label=label_data[i],
         )
         lobs_a.append(lobs)
@@ -368,13 +359,13 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
             # marker=filled_markers[i], ms=mss, mfc='None',
             color="C0",
             marker=filled_markers[i],
-            ms=mss,
-            mfc="None",
+            ms=anc.size_default * 0.5,
+            mfc="black",
             # mec=ocolors[i],
             mec="black",
             mew=0.4,
             ls="",
-            zorder=5,
+            zorder=zsim,
             # label="simulations",
         )
         lsim_a.append(lsim)
@@ -401,7 +392,7 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
             ls="-",
             lw=0.3,
             alpha=1,
-            zorder=3,
+            zorder=zmod,
             label="RV model",
         )
     
@@ -409,24 +400,84 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
     yy = y
     
     if samples is not None:
-        lsmp_a = []
-        # nsmp = len(samples)
-        for smp in samples:
-            sort_smp = np.argsort(smp.time_plot)
-            xx = np.concatenate((xx, smp.time_plot[sort_smp]))
-            yy = np.concatenate((yy, smp.rv_mod[sort_smp]))
-            (lsmp,) = ax.plot(
-                smp.time_plot[sort_smp],
-                smp.rv_mod[sort_smp],
-                color="gray",
-                marker="None",
-                ls="-",
-                lw=0.3,
-                alpha=0.8,
-                zorder=1,
-                label="RV samples",
-            )
-            lsmp_a.append(lsmp)
+        print("samples plot ... ")
+        # # ==== plot all the samples o-c
+        # lsmp_a = []
+        # # nsmp = len(samples)
+        # for smp in samples:
+        #     sort_smp = np.argsort(smp.time_plot)
+        #     xx = np.concatenate((xx, smp.time_plot[sort_smp]))
+        #     yy = np.concatenate((yy, smp.rv_mod[sort_smp]))
+        #     (lsmp,) = ax.plot(
+        #         smp.time_plot[sort_smp],
+        #         smp.rv_mod[sort_smp],
+        #         color="gray",
+        #         marker="None",
+        #         ls="-",
+        #         lw=0.3,
+        #         alpha=0.8,
+        #         zorder=1,
+        #         label="RV samples",
+        #     )
+        #     lsmp_a.append(lsmp)
+
+        # # ==== plot 1/2/3 CI
+        if tmod is not None:
+            tsort = np.sort(tmod)
+        else:
+            tsort == np.sort(ss[0].time_plot)
+        n_sim = len(tsort)
+        print("n_sim (RVs) = {:d}".format(n_sim))
+        rv_smp = []
+        print("creating rv_smp list ...")
+        for ss in samples:
+            sort_smp = np.argsort(ss.time_plot)
+            rv_smp.append(ss.rv_mod[sort_smp])
+        print("rv_smp list to array ... ")
+        rv_smp = np.array(rv_smp).T
+        print("shape(rv_smp) = ", np.shape(rv_smp))
+        c1, c2, c3 = 0.6827, 0.9544, 0.9974
+        hc1, hc2, hc3 = c1*0.5, c2*0.5, c3*0.5
+
+        hdi1 = np.percentile(rv_smp, [50 - (100*hc1), 50 + (100*hc1)], axis=1).T
+        hdi2 = np.percentile(rv_smp, [50 - (100*hc2), 50 + (100*hc2)], axis=1).T
+        hdi3 = np.percentile(rv_smp, [50 - (100*hc3), 50 + (100*hc3)], axis=1).T
+
+        print("shape(hdi1) = ", np.shape(hdi1))
+        print("shape(hdi2) = ", np.shape(hdi2))
+        print("shape(hdi3) = ", np.shape(hdi3))
+        
+        print("plot HDI ... ")
+        yy = np.concatenate((yy, hdi3[:, 0], hdi3[:, 1]))
+        xx = np.concatenate((xx, tsort, tsort))
+
+        ax.fill_between(
+            tsort,
+            hdi1[:, 0],
+            hdi1[:, 1],
+            color=cfsm(gval),
+            alpha=1.0,
+            lw=0.0,
+            zorder=zsmp,
+        )
+        ax.fill_between(
+            tsort,
+            hdi2[:, 0],
+            hdi2[:, 1],
+            color=cfsm(gval+dg),
+            alpha=1.0,
+            lw=0.0,
+            zorder=zsmp-1,
+        )
+        ax.fill_between(
+            tsort,
+            hdi3[:, 0],
+            hdi3[:, 1],
+            color=cfsm(gval+(dg*2)),
+            alpha=1.0,
+            lw=0.0,
+            zorder=zsmp-2,
+        )
 
     if cli.limits == "sam":
         dx = np.max(xx) - np.min(xx)
@@ -461,15 +512,15 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
             loc="center left",
             bbox_to_anchor=(1., 0.5),
             ncol=1,
-            fontsize=tfont-dlfont
-        )
+            fontsize=tfont-dlfont,
+        ).set_zorder(zleg)
     else:
         ax.legend(handles=lhand,
             loc="best",
             # bbox_to_anchor=(1., 0.5),
             # ncol=1,
-            fontsize=tfont-dlfont
-        )
+            fontsize=tfont-dlfont,
+        ).set_zorder(zleg)
 
     axs.append(ax)
     
@@ -495,13 +546,13 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
             color=ocolors[i],
             fmt=filled_markers[i],
             ms=mso,
-            mec="white",
+            mec="black",
             mew=0.3,
             ls="",
             ecolor=ocolors[i],
             elinewidth=0.6,
             capsize=0,
-            zorder=7,
+            zorder=zobs,
         )
         # error only, with jitter
         cjb = 'black'
@@ -510,13 +561,13 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
             rv.dRVos[sort_obs],
             yerr=rv.eRV_j[sort_obs],
             color=cjb,
-            fmt="None",
-            mew=0.4,
+            marker="None",
+            # mew=0.4,
             ls="",
             ecolor=cjb,
-            elinewidth=0.75,
+            elinewidth=0.8,
             capsize=0,
-            zorder=6,
+            zorder=zobs-1,
         )
 
     ax.set_xlim(minx, maxx)

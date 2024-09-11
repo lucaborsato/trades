@@ -476,7 +476,8 @@ class AnalysisTRADES:
             samples_fit_par = anc.take_n_samples(
                 self.fitting_posterior,
                 lnprob=self.lnprob_posterior,
-                post_ci=self.ci_fitted[0:2, :],
+                # post_ci=self.ci_fitted[0:2, :],
+                post_ci=None,
                 n_samples=self.cli.n_samples,
             )
             anc.print_both(" Running TRADES and computing the T0s and RVs ...")
@@ -1174,6 +1175,7 @@ def run_analysis(cli):
                 l = "fitted"
                 if overplot is not None:
                     sim_id_str = "{}".format(overplot)
+                    print("overplot -> sim_id_str = {}".format(sim_id_str))
                     overp_par = s_h5f[
                         "parameters/{:s}/{:s}/parameters".format(sim_id_str, l)
                     ][...]
@@ -1199,6 +1201,7 @@ def run_analysis(cli):
                 l = "physical"
                 if overplot is not None:
                     sim_id_str = "{}".format(overplot)
+                    print("overplot -> sim_id_str = {}".format(sim_id_str))
                     overp_par = s_h5f[
                         "parameters/{:s}/{:s}/parameters".format(sim_id_str, l)
                     ][...]
