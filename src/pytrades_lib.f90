@@ -17,7 +17,7 @@ module f90trades
     use utils
     use ode_run, only: integration_info_to_data, ode_all_ttra_rv,&
         &ode_keplerian_elements_to_orbits, set_checking_coordinates, transit_conditions
-    use transits, only: compute_transit_time
+    use transits, only: compute_transit_time, spin_orbit_misalignment
     use grid_search
 
     implicit none
@@ -1078,7 +1078,7 @@ contains
         &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
         &transit_flag,& ! input
         &rv_sim,&
-        &body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable,& ! output
+        &body_t0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable,& ! output
         &n_body, n_rv, n_tt, n_kep) ! dimensions to be not provided
 
         ! INPUT
@@ -1103,6 +1103,7 @@ contains
         ! epo_sim      == epoch of each all T0s based on the linear ephemeris of the body
         ! t0_sim       == t0 simulated in days, same dimension of body_t0_sim
         ! t14_sim      == Total Duration = T4 - T1 simulated in minutes, same dimension of body_T0_sim
+        ! lambda_rm_sim ==  lambda of the Rossiter-Mclaughing effect computed at each t0_sim
         ! kel_sim      == period, sma, ecc, inc, meana, argp, truea, longn computed at each t0_sim
 
         ! DIMENSIONS
@@ -1118,14 +1119,14 @@ contains
         ! Output
         real(dp), dimension(n_rv), intent(out)::rv_sim
         integer, dimension(n_tt), intent(out)::body_t0_sim, epo_sim
-        real(dp), dimension(n_tt), intent(out)::t0_sim, t14_sim
+        real(dp), dimension(n_tt), intent(out)::t0_sim, t14_sim, lambda_rm_sim
         real(dp), dimension(n_tt, n_kep), intent(out)::kel_sim
         logical, intent(out)::stable
         ! Local
         integer::id_transit_body = 1 ! needed to be == 1
         real(dp), dimension(:), allocatable::rv_temp
         integer, dimension(:), allocatable::body_t0_temp, epo_temp
-        real(dp), dimension(:), allocatable::t0_temp, t14_temp
+        real(dp), dimension(:), allocatable::t0_temp, t14_temp, lbd_rm_temp
         real(dp), dimension(:, :), allocatable::kel_temp
         real(dp)::step
 
@@ -1136,7 +1137,7 @@ contains
             &id_transit_body, transit_flag, durcheck,&
             &rv_temp,&
             &body_t0_temp, epo_temp,&
-            &t0_temp, t14_temp, kel_temp,&
+            &t0_temp, t14_temp, lbd_rm_temp, kel_temp,&
             &stable)
 
         if (allocated(rv_temp))then
@@ -1148,12 +1149,13 @@ contains
             epo_sim = epo_temp
             t0_sim = t0_temp
             t14_sim = t14_temp
+            lambda_rm_sim = lbd_rm_temp
             kel_sim = kel_temp
         end if
 
         if (allocated(rv_temp)) deallocate (rv_temp)
         if (allocated(body_T0_temp)) deallocate (body_T0_temp, epo_temp)
-        if (allocated(t0_temp)) deallocate (t0_temp, t14_temp, kel_temp)
+        if (allocated(t0_temp)) deallocate (t0_temp, t14_temp, lbd_rm_temp, kel_temp)
 
         return
     end subroutine kelements_to_rv_and_t0s
@@ -1197,7 +1199,7 @@ contains
         real(dp), dimension(:), allocatable::rv_temp
         logical, dimension(n_body)::transit_flag
         integer, dimension(:), allocatable::body_t0_temp, epo_temp
-        real(dp), dimension(:), allocatable::t0_temp, t14_temp
+        real(dp), dimension(:), allocatable::t0_temp, t14_temp, lbd_rm_temp
         real(dp), dimension(:, :), allocatable::kel_temp
         real(dp)::step
 
@@ -1211,13 +1213,13 @@ contains
             &id_transit_body, transit_flag, durcheck,&
             &rv_temp,&
             &body_t0_temp, epo_temp,&
-            &t0_temp, t14_temp, kel_temp, stable)
+            &t0_temp, t14_temp, lbd_rm_temp, kel_temp, stable)
 
         rv_sim = rv_temp
 
         if (allocated(rv_temp)) deallocate (rv_temp)
         if (allocated(body_T0_temp)) deallocate (body_T0_temp, epo_temp)
-        if (allocated(t0_temp)) deallocate (t0_temp, t14_temp, kel_temp)
+        if (allocated(t0_temp)) deallocate (t0_temp, t14_temp, lbd_rm_temp, kel_temp)
 
         return
     end subroutine kelements_to_rv
@@ -1225,7 +1227,7 @@ contains
     subroutine kelements_to_t0s(t_start, t_epoch, t_int,&
         &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
         &transit_flag,& ! input
-        &body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable,& ! output
+        &body_t0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable,& ! output
         &n_body, n_tt, n_kep) ! dimensions to be not provided
 
         ! INPUT
@@ -1249,6 +1251,7 @@ contains
         ! epo_sim      == epoch of each all T0s based on the linear ephemeris of the body
         ! t0_sim       == t0 simulated in days, same dimension of body_t0_sim
         ! t14_sim      == Total Duration = T4 - T1 simulated in minutes, same dimension of body_T0_sim
+        ! lambda_rm_sim == lambda of the Rossiter-Mclaughin effect computed at each t0_sim
         ! kel_sim      == period, sma, ecc, inc, meana, argp, truea, longn computed at each t0_sim
 
         ! DIMENSIONS
@@ -1263,14 +1266,14 @@ contains
         logical, dimension(n_body), intent(in)::transit_flag
         ! Output
         integer, dimension(n_tt), intent(out)::body_t0_sim, epo_sim
-        real(dp), dimension(n_tt), intent(out)::t0_sim, t14_sim
+        real(dp), dimension(n_tt), intent(out)::t0_sim, t14_sim, lambda_rm_sim
         real(dp), dimension(n_tt, n_kep), intent(out)::kel_sim
         logical, intent(out)::stable
         ! Local
         integer::id_transit_body = 1 ! needed to be == 1
         real(dp), dimension(:), allocatable::rv_temp
         integer, dimension(:), allocatable::body_t0_temp, epo_temp
-        real(dp), dimension(:), allocatable::t0_temp, t14_temp
+        real(dp), dimension(:), allocatable::t0_temp, t14_temp, lbd_rm_temp
         real(dp), dimension(:, :), allocatable::kel_temp
         real(dp)::step
 
@@ -1281,7 +1284,7 @@ contains
             &id_transit_body, transit_flag, durcheck,&
             &rv_temp,&
             &body_t0_temp, epo_temp,&
-            &t0_temp, t14_temp, kel_temp,stable)
+            &t0_temp, t14_temp, lbd_rm_temp, kel_temp,stable)
 
         ! rv_sim      = rv_temp
 
@@ -1289,11 +1292,12 @@ contains
         epo_sim = epo_temp
         t0_sim = t0_temp
         t14_sim = t14_temp
+        lambda_rm_sim = lbd_rm_temp
         kel_sim = kel_temp
 
         if (allocated(rv_temp)) deallocate (rv_temp)
         if (allocated(body_T0_temp)) deallocate (body_T0_temp, epo_temp)
-        if (allocated(t0_temp)) deallocate (t0_temp, t14_temp, kel_temp)
+        if (allocated(t0_temp)) deallocate (t0_temp, t14_temp, lbd_rm_temp, kel_temp)
 
         return
     end subroutine kelements_to_t0s
@@ -1333,7 +1337,7 @@ contains
 
     subroutine orbits_to_transits(n_steps, n_body, nb_dim, n_all_transits,&
         &time_steps, mass, radius, orbits,&
-        &transiting_body, transits, durations, kep_elem, body_flag)
+        &transiting_body, transits, durations, lambda_rm, kep_elem, body_flag)
         ! Input
         integer, intent(in)::n_steps, n_body, nb_dim, n_all_transits
         real(dp), dimension(n_steps), intent(in)::time_steps
@@ -1341,7 +1345,7 @@ contains
         real(dp), dimension(n_steps, nb_dim), intent(in)::orbits
         integer, intent(in)::transiting_body
         ! Output
-        real(dp), dimension(n_all_transits), intent(out)::transits, durations
+        real(dp), dimension(n_all_transits), intent(out)::transits, durations, lambda_rm
         real(dp), dimension(n_all_transits, 8), intent(out)::kep_elem
         integer, dimension(n_all_transits), intent(out)::body_flag
         ! Local
@@ -1356,7 +1360,7 @@ contains
         real(dp), dimension(:), allocatable::r1, r2, rtra
         logical, dimension(:), allocatable::do_transit_flag
         logical::check_tra
-        real(dp)::tra, dur, dummy
+        real(dp)::tra, dur, lbd_rm, dummy
 
         call set_checking_coordinates(n_body, X, Y, Z, VX, VY, VZ)
         call set_transiting_bodies(transiting_body, do_transit_check, body_transiting_start, body_transiting_end)
@@ -1384,17 +1388,19 @@ contains
                     do_transit_flag(i_body) = .true.
                     if (ABflag .and. Zflag) then
                         call compute_transit_time(zero, i_body, mass, radius, r1, r2, trun1, integration_step, do_transit_flag,&
-                        &tra, dur, rtra, check_tra)
+                            &tra, dur, lbd_rm, rtra, check_tra)
                         if (check_tra) then
                             i_tra = i_tra+1
                             transits(i_tra) = tra
                             durations(i_tra) = dur
+                            lambda_rm(i_tra) = lbd_rm
                             body_flag(i_tra) = i_body
                             call elements_one_body(i_body, mass, rtra,&
                                 &kep_elem(i_tra, 1), kep_elem(i_tra, 2), kep_elem(i_tra, 3),& ! period, sma, ecc,
                                 &kep_elem(i_tra, 4), kep_elem(i_tra, 5), kep_elem(i_tra, 6),& ! inc, meanA, argp,
                                 &kep_elem(i_tra, 7), kep_elem(i_tra, 8),& ! longN, trueA
                                 &dummy) ! dttau not used
+                            ! call spin_orbit_misalignment(i_body, mass, radius, rtra, tra, lambda_rm(i_tra))
                         end if
                     end if
 
@@ -1482,10 +1488,12 @@ contains
     ! ============================================================================
 
     subroutine get_max_nt0_nrv(P, n_bds, nt0_full, nrv_nmax)
+        ! Input
         integer, intent(in)::n_bds
         real(dp), dimension(n_bds), intent(in)::P
+        ! Output
         integer, intent(out)::nt0_full, nrv_nmax
-
+        ! Local
         integer, dimension(:), allocatable::nT0_perbody
 
         ! compute number maximum of all transit times of all the planets from the
@@ -1505,10 +1513,12 @@ contains
     ! ============================================================================
 
     subroutine get_ntt_nrv(par_fit, n_fit, ntt, nrv_max)
+        ! Input
         integer, intent(in)::n_fit
         real(dp), dimension(n_fit), intent(in)::par_fit
+        ! Output
         integer, intent(out)::ntt, nrv_max
-
+        ! Local
         real(dp), dimension(NB)::mass, radius
         real(dp), dimension(NB)::period, sma, ecc, argp, meanA, inc, longN
         logical::tempcheck
@@ -1630,13 +1640,13 @@ contains
     ! ============================================================================
 
     subroutine wrapper_run_grid_combination(m, R, P, sma, ecc, w, mA, inc, lN, n_bds,&
-      &ttra_full, id_ttra_full, stats_ttra, nt0_full,&
+      &ttra_full, lambda_rm_full, id_ttra_full, stats_ttra, nt0_full,&
       &time_rv_nmax, rv_nmax, stats_rv, nrv_nmax)
         integer, intent(in)::n_bds
         real(dp), dimension(n_bds), intent(in)::m, R, P, sma, ecc, w, mA, inc, lN
         integer, intent(in)::nt0_full
 
-        real(dp), dimension(nt0_full), intent(out)::ttra_full
+        real(dp), dimension(nt0_full), intent(out)::ttra_full, lambda_rm_full
         integer, dimension(nt0_full), intent(out)::id_ttra_full
         logical, dimension(nt0_full), intent(out)::stats_ttra
         integer, intent(in)::nrv_nmax
@@ -1646,7 +1656,7 @@ contains
         real(dp), dimension(nt0_full)::dur_full
 
         call ode_all_ttra_rv(wrttime, m, R, P, sma, ecc, w, mA, inc, lN,&
-          &ttra_full, dur_full, id_ttra_full, stats_ttra,&
+          &ttra_full, dur_full, lambda_rm_full, id_ttra_full, stats_ttra,&
           &time_rv_nmax, rv_nmax, stats_rv)
 
         return
@@ -1655,20 +1665,20 @@ contains
     ! ============================================================================
 
     subroutine fit_par_to_ttra_rv(fit_parameters, n_fit,&
-      &ttra_full, dur_full, id_ttra_full, stats_ttra, nt0_full,&
+      &ttra_full, dur_full, lambda_rm_full, id_ttra_full, stats_ttra, nt0_full,&
       &time_rv_nmax, rv_nmax, stats_rv, nrv_nmax)
+        ! Input
         integer, intent(in)::n_fit
         real(dp), dimension(n_fit), intent(in)::fit_parameters
         integer, intent(in)::nt0_full
-
-        real(dp), dimension(nt0_full), intent(out)::ttra_full, dur_full
+        integer, intent(in)::nrv_nmax
+        ! Output
+        real(dp), dimension(nt0_full), intent(out)::ttra_full, dur_full, lambda_rm_full
         integer, dimension(nt0_full), intent(out)::id_ttra_full
         logical, dimension(nt0_full), intent(out)::stats_ttra
-
-        integer, intent(in)::nrv_nmax
         real(dp), dimension(nrv_nmax), intent(out)::time_rv_nmax, rv_nmax
         logical, dimension(nrv_nmax), intent(out)::stats_rv
-
+        ! Local
         real(dp), dimension(:), allocatable::mass, radius, period, sma, ecc, argp, meanA, inc, longN
         logical::checkpar = .true.
 
@@ -1676,15 +1686,15 @@ contains
         real(dp), dimension(:), allocatable::rv_trend
 
         allocate (mass(NB), radius(NB), period(NB), sma(NB),&
-          &ecc(NB), argp(NB), meanA(NB), inc(NB), longN(NB))
+            &ecc(NB), argp(NB), meanA(NB), inc(NB), longN(NB))
         call only_convert_parameters(system_parameters, fit_parameters,&
-          &mass, radius, period, sma, ecc, argp, meanA, inc, longN, checkpar)
+            &mass, radius, period, sma, ecc, argp, meanA, inc, longN, checkpar)
 
         ! write(*,*)" === DEBUG fit_par_to_ttra_rv: max nRV = ",nrv_nmax," nT0s = ",nt0_full
         ! flush(6)
         call ode_all_ttra_rv(wrttime, mass, radius, period, sma, ecc, argp, meanA, inc, longN,&
-          &ttra_full, dur_full, id_ttra_full, stats_ttra,&
-          &time_rv_nmax, rv_nmax, stats_rv)
+            &ttra_full, dur_full, lambda_rm_full, id_ttra_full, stats_ttra,&
+            &time_rv_nmax, rv_nmax, stats_rv)
 
         deallocate (mass, radius, period, sma, ecc, argp, meanA, inc, longN)
 
@@ -1939,6 +1949,7 @@ contains
         return
     end subroutine angular_momentum_deficit_posterior
 
+    ! ============================================================================
     ! ============================================================================
 
 end module f90trades

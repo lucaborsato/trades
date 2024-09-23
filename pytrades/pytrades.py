@@ -231,7 +231,7 @@ def kelements_to_observed_rv_and_t0s(
     n_kep = 8  # number of keplerian elements in output for each T0s
     n_rv = f90trades.nrv
     n_T0s = f90trades.ntts
-    (rv_sim, body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable) = (
+    (rv_sim, body_T0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable) = (
         f90trades.kelements_to_rv_and_t0s(
             t_start,
             t_epoch,
@@ -251,7 +251,7 @@ def kelements_to_observed_rv_and_t0s(
         )
     )
 
-    return rv_sim, body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable
+    return rv_sim, body_T0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable
 
 
 # =============================================================================
@@ -323,33 +323,29 @@ def kelements_to_observed_t0s(
     transit_flag,
 ):
     """
-    From keplerian elements compute orbits and return transit times (T0s) already set as global parameters/set.
+    Computes orbits from a given set of Keplerian elements and generates RVs and T0s.
 
-    Args:
-        t_start: The start time.
-        t_epoch: The epoch time.
-        t_int: The interval time.
-        M_msun: The mass of the bodies in Msun.
-        R_rsun: The radius of the bodies in Rsun.
-        P_day: The period in days.
-        ecc: The eccentricity.
-        argp_deg: The argument of periapsis in degrees.
-        mA_deg: The mean anomaly in degrees.
-        inc_deg: The inclination in degrees.
-        lN_deg: The longitude of the ascending node in degrees.
-        transit_flag: Flag indicating transit.
+    Parameters:
+        t_start (float): start time
+        t_epoch (float): epoch time
+        t_int (float): integration time step
+        M_msun (float): mass of the sun
+        R_rsun (float): radius of the sun
+        P_day (float): period in days
+        ecc (float): eccentricity
+        argp_deg (float): argument of periapsis in degrees
+        mA_deg (float): mean anomaly in degrees
+        inc_deg (float): inclination in degrees
+        lN_deg (float): longitude of the ascending node in degrees
+        transit_flag (int): flag for transit
 
     Returns:
-        body_T0_sim: The body ID of each siimulated T0.
-        epo_sim: The epoch of the simulated T0s.
-        t0_sim: The simulated transit times (T0s).
-        t14_sim: The simulated total duration (T14) in minutes.
-        kel_sim: The keplerian elements at each simulated T0.
+        tuple: Contains rv_sim (RVs), body_T0_sim (T0s), epo_sim (epochs), t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable
     """
 
     n_kep = 8  # number of keplerian elements in output for each T0s
     n_T0s = f90trades.ntts
-    body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable = f90trades.kelements_to_t0s(
+    body_T0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable = f90trades.kelements_to_t0s(
         t_start,
         t_epoch,
         t_int,
@@ -366,7 +362,7 @@ def kelements_to_observed_t0s(
         n_kep,
     )
 
-    return body_T0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable
+    return body_T0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim,kel_sim, stable
 
 
 # =============================================================================
@@ -392,8 +388,10 @@ def kelements_to_orbits(
         check (int): Check value (stable or not).
     """
 
+    # Calculate the number of bodies
     nb_dim = len(M_msun) * 6
 
+    # Call the fortran routine to calculate the orbits
     orbits, check = f90trades.kelements_to_orbits(
         nb_dim,
         steps,
@@ -407,6 +405,7 @@ def kelements_to_orbits(
         lN_deg,
     )
 
+    # Return the calculated orbits and the check value
     return orbits, check
 
 
@@ -554,31 +553,37 @@ def orbits_to_transits(
     """
     Convert orbital state vectors to transit times and durations.
 
-    Args:
+    Parameters:
         n_all_transits (int): Total number of transits
         time_steps (ndarray): Array of time steps
-        M_msun (float): masses in solar masses
-        R_rsun (float): radii in solar radii
+        M_msun (float): Masses in solar masses
+        R_rsun (float): Radii in solar radii
         orbits (ndarray): Array of orbital state vectors
         transiting_body (str): Name of the transiting body, 1 means all bodies
 
     Returns:
-        tuple: A tuple containing the transit times, durations, Keplerian elements, and body flags
+        tuple: A tuple containing the transit times, durations, spin-orbit misalignment, Keplerian elements, and body flags
     """
 
-    transits, durations, kep_elem, body_flag = f90trades.orbits_to_transits(
+    # Pass the input arguments to the fortran function
+    transits, durations, lambda_rm, kep_elem, body_flag = f90trades.orbits_to_transits(
         n_all_transits, time_steps, M_msun, R_rsun, orbits, transiting_body
     )
-    # remove elements with body_flag < 2
+
+    # Remove elements with body_flag < 2
+    # This is because body_flag is set to 1 for bodies that do not transit
+    # and set to 2 for bodies that do transit
     sel = body_flag > 1
-    transits, durations, kep_elem, body_flag = (
+    transits, durations, lambda_rm, kep_elem, body_flag = (
         transits[sel],
         durations[sel],
+        lambda_rm[sel],
         kep_elem[sel, :],
         body_flag[sel],
     )
 
-    return transits, durations, kep_elem, body_flag
+    # Return the results
+    return transits, durations, lambda_rm, kep_elem, body_flag
 
 
 # =============================================================================
@@ -643,6 +648,7 @@ def orbital_parameters_to_transits(
     - time_steps: array-like, time steps
     - orbits: array-like, orbital parameters
     - transits: array-like, transit information
+    - lambda_rm: array-like, spin-orbit misalignment
     - durations: array-like, duration values
     - kep_elem: array-like, Kepler elements
     - body_flag: array-like, body flags
@@ -650,6 +656,7 @@ def orbital_parameters_to_transits(
     - check: boolean, check value
     """
 
+    # Compute the orbits from the orbital parameters
     time_steps, orbits, check = kelements_to_orbits_full(
         t_start,
         t_epoch,
@@ -665,22 +672,27 @@ def orbital_parameters_to_transits(
         specific_times=t_rv_obs,  # RV TIMES
     )
 
+    # Select the time steps that correspond to the observed RV times
     sel_t_rv = np.isin(time_steps, t_rv_obs)
+    # Compute the radial velocity at the selected times
     rv = orbits_to_rvs(mass, orbits[sel_t_rv, :])
+    # Create a dictionary with the simulated RV values
     rv_sim = {"time": time_steps[sel_t_rv], "rv": rv}
 
-    transiting_body = 1  # all planets
-    # determine the number of transits ... it has to be done in advance
+    # Set the transiting body to 1 (all planets)
+    transiting_body = 1
+    # Determine the number of transits ... it has to be done in advance
     n_transits = (t_int / period[1:]).astype(int)
     n_body = len(mass)
     n_all_transits = np.sum(n_transits) + (
         n_body - 1
     )  # star has no transits by definition
-    transits, durations, kep_elem, body_flag = orbits_to_transits(
+    # Compute the transits, durations, lambda_rm, Kepler elements, and body flags
+    transits, durations, lambda_rm, kep_elem, body_flag = orbits_to_transits(
         n_all_transits, time_steps, mass, radius, orbits, transiting_body
     )
     # kep_elem == period 0, sma 1, ecc 2, inc 3, meana 4, argp 5, truea 6, longn 7
-    return time_steps, orbits, transits, durations, kep_elem, body_flag, rv_sim, check
+    return time_steps, orbits, transits, durations, lambda_rm, kep_elem, body_flag, rv_sim, check
 
 
 def set_transit_parameters(radius, transits, body_flag, kep_elem):
@@ -1543,12 +1555,37 @@ class PhotoTRADES:
     def orbital_parameters_to_transits(
         self, mass, radius, period, ecc, w, ma, inc, long
     ):
+        """
+        Calculate transits based on the orbital parameters.
+
+        Parameters:
+            - mass (float): Mass of the celestial body.
+            - radius (float): Radius of the celestial body.
+            - period (float): Orbital period of the celestial body.
+            - ecc (float): Eccentricity of the orbit.
+            - w (float): Argument of periastron.
+            - ma (float): Mean anomaly.
+            - inc (float): Inclination of the orbit.
+            - long (float): Longitude of the ascending node.
+
+        Returns:
+            - time_steps (list): List of time steps.
+            - orbits (list): List of orbits.
+            - transits (list): List of transits.
+            - durations (list): List of durations.
+            - lambda_rm (list): List of lambda_rm values.
+            - kep_elem (list): List of keplerian elements.
+            - body_flag (list): List of body flags.
+            - rv_sim (list): List of simulated radial velocities.
+            - stable (list): List indicating stability.
+        """
 
         (
             time_steps,
             orbits,
             transits,
             durations,
+            lambda_rm,
             kep_elem,
             body_flag,
             rv_sim,
@@ -1567,7 +1604,7 @@ class PhotoTRADES:
             long,
             self.t_rv_obs,
         )
-        return time_steps, orbits, transits, durations, kep_elem, body_flag, rv_sim, stable
+        return time_steps, orbits, transits, durations, lambda_rm, kep_elem, body_flag, rv_sim, stable
 
     def get_simulate_flux(
         self,
@@ -2230,6 +2267,7 @@ class TRADESfolder:
         (
             ttra_full,
             dur_full,
+            lambda_rm_full,
             id_ttra_full,
             stats_ttra,
             time_rv_nmax,
@@ -2240,6 +2278,7 @@ class TRADESfolder:
         return (
             ttra_full,
             dur_full,
+            lambda_rm_full,
             id_ttra_full,
             stats_ttra,
             time_rv_nmax,
@@ -2252,6 +2291,7 @@ class TRADESfolder:
         (
             ttra_full,
             dur_full,
+            lambda_rm_full,
             id_ttra_full,
             stats_ttra,
             time_rv_nmax,
@@ -2284,14 +2324,19 @@ class TRADESfolder:
             )
             ttra = np.array(ttra_full)[sel_tra]
             dur = np.array(dur_full)[sel_tra]
+            lambda_rm = lambda_rm_full[sel_tra]
             idx_tra = np.argsort(ttra)
             ttra = ttra[idx_tra]
             dur = dur[idx_tra]
+            lambda_rm = lambda_rm[idx_tra]
             gr.create_dataset(
                 "TTs_{:d}".format(ipl), data=ttra, dtype=np.float64, compression="gzip"
             )
             gr.create_dataset(
                 "T41s_{:d}".format(ipl), data=dur, dtype=np.float64, compression="gzip"
+            )
+            gr.create_dataset(
+                "lambda_rm_{:d}".format(ipl), data=lambda_rm, dtype=np.float64, compression="gzip"
             )
             # if np.sum(sel_tra) > 0:
             #     anc.print_both("T0_{:02d} min = {:.5f} max = {:.5f}".format(ipl, np.min(ttra), np.max(ttra)))
@@ -2472,7 +2517,7 @@ class TRADESfolder:
             transit_flag = self.transit_flag
 
         n_kep = 8
-        rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable = (
+        rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable = (
             f90trades.kelements_to_rv_and_t0s(
                 t_start,
                 t_epoch,
@@ -2492,7 +2537,7 @@ class TRADESfolder:
             )
         )
 
-        return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable
+        return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable
 
     def computes_observables_from_default_keplerian_elements(
         self, t_start, t_epoch, t_int, transit_flag=None
@@ -2501,7 +2546,7 @@ class TRADESfolder:
         if transit_flag is None:
             transit_flag = self.transit_flag
 
-        rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable = (
+        rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable = (
             self.computes_observables_from_keplerian_elements(
                 t_start,
                 t_epoch,
@@ -2518,7 +2563,7 @@ class TRADESfolder:
             )
         )
 
-        return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, kel_sim, stable
+        return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable
 
     def reset(self):
 
@@ -2571,7 +2616,8 @@ def base_plot_orbits(
     lab_size = 12
     tic_size = 7
 
-    zo_s = 3
+    zo_s = 2
+    zo_0 = 3
     zo_z = zo_s + n_body
 
     ms_scatter = 5
@@ -2591,8 +2637,8 @@ def base_plot_orbits(
     ax = plt.subplot2grid((nrows, ncols), (irow, icol))
     ax.tick_params(axis="both", labelsize=tic_size)
     ax.tick_params(axis="x", labelrotation=45)
-    ax.axhline(0.0, color="black", ls="-", lw=0.7, zorder=1)
-    ax.axvline(0.0, color="black", ls="-", lw=0.7, zorder=1)
+    ax.axhline(0.0, color="black", ls="-", lw=0.6, zorder=zo_0)
+    ax.axvline(0.0, color="black", ls="-", lw=0.6, zorder=zo_0)
     star = plt.Circle(
         (0, 0),
         radius=rstar,
@@ -2606,17 +2652,26 @@ def base_plot_orbits(
     leg_elem = []
     for i_pl in range(0, n_body - 1):
 
+        # ax.scatter(
+        #     X[:, i_pl],
+        #     Y[:, i_pl],
+        #     c=colors[i_pl],
+        #     marker="o",
+        #     s=ms_scatter,
+        #     edgecolors="None",
+        #     zorder=zo_z + i_pl + 1,
+        # )
+
+        Zpos = Z[:, i_pl] > 0.0
         ax.scatter(
-            X[:, i_pl],
-            Y[:, i_pl],
-            c=colors[i_pl],
+            X[Zpos, i_pl],
+            Y[Zpos, i_pl],
+            c=np.array(colors[i_pl])[Zpos],
             marker="o",
             s=ms_scatter,
             edgecolors="None",
-            # label="body {}".format(i_pl+2),
             zorder=zo_z + i_pl + 1,
         )
-        Zpos = Z[:, i_pl] > 0.0
         ax.plot(
             X[Zpos, i_pl],
             Y[Zpos, i_pl],
@@ -2624,9 +2679,9 @@ def base_plot_orbits(
             ms=ms_z,
             mfc="None",
             mec="black",
-            mew=0.3,
+            mew=0.4,
             ls="",
-            zorder=zo_z + i_pl + 0,
+            zorder=zo_z + i_pl + 1,
         )
         lp = plt.Line2D(
             [0],
@@ -2640,7 +2695,17 @@ def base_plot_orbits(
             label="planet {} Z > 0".format(body_names[i_pl + 1]),
         )
         leg_elem.append(lp)
+
         Zneg = Zpos == False
+        ax.scatter(
+            X[Zneg, i_pl],
+            Y[Zneg, i_pl],
+            c=np.array(colors[i_pl])[Zpos],
+            marker="o",
+            s=ms_scatter,
+            edgecolors="None",
+            zorder=zo_s - 1,
+        )
         ax.plot(
             X[Zneg, i_pl],
             Y[Zneg, i_pl],
@@ -2650,7 +2715,8 @@ def base_plot_orbits(
             mec="white",
             mew=0.3,
             ls="",
-            zorder=zo_z + i_pl + 0,
+            # zorder=zo_z + i_pl + 0,
+            zorder=zo_s - 1,
         )
         ln = plt.Line2D(
             [0],
@@ -2765,9 +2831,9 @@ def base_plot_orbits(
             ms=ms_z,
             mfc="None",
             mec="black",
-            mew=0.3,
+            mew=0.4,
             ls="",
-            zorder=zo_z + i_pl + 0,
+            zorder=zo_z + i_pl + 1,
         )
         Zneg = Zpos == False
         ax.plot(
@@ -2779,7 +2845,8 @@ def base_plot_orbits(
             mec="white",
             mew=0.3,
             ls="",
-            zorder=zo_z + i_pl + 0,
+            # zorder=zo_z + i_pl + 0,
+            zorder=zo_s - 1
         )
     # ax.legend(loc='best', fontsize=leg_size)
     ax.set_title("side plane - observer at right", fontsize=tic_size)

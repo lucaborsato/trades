@@ -326,11 +326,12 @@ contains
     end subroutine find_transit
 
     ! IT CALCULATES A CONTACT TIME
-    subroutine one_contact(icon, itra, mass, radii, rtra, ttra, tcont)
+    subroutine one_contact(icon, itra, mass, radii, rtra, ttra, tcont, rcont)
         integer, intent(in)::icon, itra
         real(dp), dimension(:), intent(in)::mass, radii, rtra
         real(dp), intent(in)::ttra
         real(dp), intent(out)::tcont
+        real(dp), dimension(:), intent(out)::rcont
 
         real(dp)::stepsize
         real(dp), dimension(:), allocatable::ro, rw, rwbar
@@ -415,6 +416,7 @@ contains
 
         call barycenter(mass, rw, bar, rwbar)
         lte = -rwbar(3)/speedaud
+        rcont = ro
         deallocate (rw, ro, rwbar)
         tcont = tmid+tt+lte
 
@@ -423,12 +425,18 @@ contains
 
     ! IT DETERMINES ALL CONTACT TIMES (IF THEY EXIST) OF TRANSIT
     subroutine find_contacts(itra, mass, radii, rtra, ttra, tcont)
+        ! Input
         integer, intent(in)::itra
         real(dp), dimension(:), intent(in)::mass, radii, rtra
         real(dp), intent(in)::ttra
+        ! Output
         real(dp), dimension(4), intent(out)::tcont
+        ! Local
         real(dp)::r_sky, Rs, Rp, Rmin, Rmax
         integer::jcont, jtra, ix, iy, step
+        real(dp), dimension(:), allocatable::rcont
+
+        allocate(rcont(size(rtra)))
 
         jtra = (itra-1)*6
         ix = 1+jtra
@@ -440,13 +448,14 @@ contains
             step = 3
             if (r_sky .lt. Rmin) step = 1
             do jcont = 1, 4, step
-                call one_contact(jcont, itra, mass, radii, rtra, ttra, tcont(jcont))
+                call one_contact(jcont, itra, mass, radii, rtra, ttra, tcont(jcont), rcont)
             end do
             if (r_sky .ge. Rmin) then
                 tcont(2) = tcont(1)
                 tcont(3) = tcont(4)
             end if
         end if
+        deallocate(rcont)
 
         return
     end subroutine find_contacts
@@ -459,14 +468,17 @@ contains
     ! when project distance of the centre of the planet is on the edge of the star:
     ! rsky == Rstar (ingress <-> t_1.5, egress <-> t_3.5)
     subroutine compute_transit_duration_c2c(id_body, mass, radii, rtra, ttra, duration)
+        ! Intput
         integer, intent(in)::id_body
         real(dp), dimension(:), intent(in)::mass, radii, rtra
         real(dp), intent(in)::ttra
+        ! Output
         real(dp), intent(out)::duration
-
+        ! Local
         integer::sel_r
         real(dp)::r_sky, Rs, Rp, Rmin, Rmax
         real(dp)::t_hing, t_hegr
+        real(dp), dimension(:), allocatable::rcont
 
         t_hing = zero
         t_hegr = zero
@@ -474,14 +486,14 @@ contains
         call Rbounds(id_body, radii, Rs, Rp, Rmin, Rmax)
         sel_r = (id_body-1)*6
         r_sky = rsky(rtra(1+sel_r:2+sel_r))
-
         if (r_sky .le. Rmax) then
+            allocate(rcont(size(rtra)))
             ! computes the t_1.5 == t_hing = planet on the edge of the star
-            call one_contact(0, id_body, mass, radii, rtra, ttra, t_hing)
-            call one_contact(5, id_body, mass, radii, rtra, ttra, t_hegr)
-
+            call one_contact(0, id_body, mass, radii, rtra, ttra, t_hing, rcont)
+            ! computes the t_3.5 == t_hegr = planet on the edge of the star
+            call one_contact(5, id_body, mass, radii, rtra, ttra, t_hegr, rcont)
+            deallocate(rcont)
             duration = t_hegr-t_hing
-
         end if
 
         return
@@ -518,6 +530,56 @@ contains
         return
     end subroutine compute_transit_duration_K10_15
 
+
+    ! ==============================================================================
+    subroutine spin_orbit_misalignment(id_body, mass, radii, rtra, ttra, alpha)
+        ! Input
+        integer, intent(in)::id_body
+        real(dp), dimension(:), intent(in)::mass, radii, rtra
+        real(dp), intent(in):: ttra
+        ! Output
+        real(dp), intent(out)::alpha
+        ! Local
+        integer::sel_r, n_bodies
+        real(dp), dimension(:), allocatable::regr
+        real(dp)::t_hegr
+        real(dp)::xtra
+        real(dp)::ytra
+        real(dp)::xegr
+        real(dp)::yegr
+        real(dp)::dx, dy
+        real(dp)::l
+
+        t_hegr = zero
+        n_bodies = size(mass)
+
+        allocate(regr(size(rtra)))
+        ! ---------------------------
+        ! Version 1: using only x-y of transit and egress (3rd contact, because it is always present even for grazing transit)
+        ! ---------------------------
+        ! computes the t_3.5 == t_hegr = planet on the edge of the star
+        ! if grazing? maybe better to use t_3?
+        ! call one_contact(5, id_body, mass, radii, rtra, ttra, t_hegr, regr)
+        call one_contact(3, id_body, mass, radii, rtra, ttra, t_hegr, regr)
+        sel_r = (id_body-1)*6
+        xtra = rtra(1+sel_r)
+        ytra = rtra(2+sel_r)
+        xegr = regr(1+sel_r)
+        yegr = regr(2+sel_r)
+        dx = xegr - xtra
+        dy = yegr - ytra
+        ! l = sqrt(dx*dx + dy*dy)
+        ! dx = dx/l
+        ! dy = dy/l
+        alpha = atan2(dy, dx)*rad2deg
+        ! alpha = mod(alpha + 360.0_dp, 360.0_dp)
+        deallocate(regr)
+
+        return
+    end subroutine spin_orbit_misalignment
+
+    ! ==============================================================================
+
     ! call find_transit to compute the transit time (TT) and it assigns the right place
     ! of the TT comparing with the observations
     ! Computes duration of the transit (does not assign it now) as T4 - T1
@@ -552,7 +614,7 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
         type(dataT0), dimension(:), intent(inout)::simT0
         logical, intent(inout)::Hc
         ! Local
-        real(dp)::tmidtra, ttra_temp, lte, duration, r_sky, Rs, Rp, Rmin, Rmax
+        real(dp)::tmidtra, ttra_temp, lte, duration, r_sky, Rs, Rp, Rmin, Rmax, alpha
         real(dp), dimension(:), allocatable::rtra
         real(dp), dimension(4)::tcont
         integer::sel_r
@@ -560,6 +622,7 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
         tmidtra = zero
         duration = zero
         tcont = zero
+        alpha = zero
         allocate (rtra(NBDIM))
         rtra = r1
 
@@ -581,7 +644,8 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
                         duration = (tcont(4)-tcont(1))*1440.0_dp
                     end if
                     if (oDataIn%obsT0(id_body-1)%nT0 .gt. 0) then
-                        call assign_T0_byNumber(id_body, Tref, Pref, mass, rtra, oDataIn, tmidtra, duration, simT0)
+                        call spin_orbit_misalignment(id_body, mass, radii, rtra, tmidtra, alpha)
+                        call assign_T0_byNumber(id_body, Tref, Pref, mass, rtra, oDataIn, tmidtra, duration, alpha, simT0)
                     end if
                 else ! ... but it should not!
 
@@ -601,13 +665,13 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
     ! IT DETERMINES WHICH IS THE RIGHT T_0,obs TO BE ASSOCIATED WITH
     ! THE SIMULATED T_0,sim = tmidtra
     
-    subroutine assign_T0_byNumber_1(id_body, Tref, Pref, mass, rtra, oDataIn, tmidtra, duration, simT0)
+    subroutine assign_T0_byNumber_1(id_body, Tref, Pref, mass, rtra, oDataIn, tmidtra, duration, alpha, simT0)
         ! Input
         integer, intent(in)::id_body
         real(dp), intent(in)::Tref, Pref
         real(dp), dimension(:), intent(in)::mass, rtra
         type(dataObs), intent(in)::oDataIn
-        real(dp), intent(in)::tmidtra, duration
+        real(dp), intent(in)::tmidtra, duration, alpha
         ! Input/Output
         type(dataT0), dimension(:), intent(inout)::simT0
         ! Local
@@ -641,6 +705,9 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
                 simT0(ibd)%dur(i_n) = duration
                 simT0(ibd)%dur_stat(i_n) = 1
                 simT0(ibd)%nDur = simT0(ibd)%nDur+1
+
+                simT0(ibd)%lambda_rm(i_n) = alpha
+
                 ! compute orbital elements of selected T0 and body
                 call elements_one_body(id_body, mass, rtra,&
                     &simT0(ibd)%period(i_n), simT0(ibd)%sma(i_n),&
@@ -656,12 +723,12 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
         return
     end subroutine assign_T0_byNumber_1
 
-    subroutine assign_T0_byNumber_2(id_body, mass, rtra, oDataIn, tmidtra, duration, simT0)
+    subroutine assign_T0_byNumber_2(id_body, mass, rtra, oDataIn, tmidtra, duration, alpha, simT0)
         ! Input
         integer, intent(in)::id_body
         real(dp), dimension(:), intent(in)::mass, rtra
         type(dataObs), intent(in)::oDataIn
-        real(dp), intent(in)::tmidtra, duration
+        real(dp), intent(in)::tmidtra, duration, alpha
         ! Input/Output
         type(dataT0), dimension(:), intent(inout)::simT0
         ! Local
@@ -676,32 +743,7 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
         Tref = oDataIn%obsT0(ibd)%Tephem
         Pref = oDataIn%obsT0(ibd)%Pephem
 
-        call assign_T0_byNumber_1(id_body, Tref, Pref, mass, rtra, oDataIn, tmidtra, duration, simT0)
-
-        ! dT = tmidtra-Tref
-        ! dTP = dT/Pref
-        ! ntmid = nint(dTP)
-
-        ! do i_n = 1, nTs
-        !     epo = oDataIn%obsT0(ibd)%epo(i_n)
-        !     if (ntmid .eq. epo) then
-        !         simT0(ibd)%epo(i_n) = ntmid
-        !         simT0(ibd)%T0(i_n) = tmidtra
-        !         simT0(ibd)%T0_stat(i_n) = 1
-        !         simT0(ibd)%nT0 = simT0(ibd)%nT0+1
-
-        !         simT0(ibd)%dur(i_n) = duration
-        !         simT0(ibd)%dur_stat(i_n) = 1
-        !         simT0(ibd)%nDur = simT0(ibd)%nDur+1
-        !         ! compute orbital elements of selected T0 and body
-        !         call elements_one_body(id_body, mass, rtra,&
-        !             &simT0(ibd)%period(i_n), simT0(ibd)%sma(i_n),&
-        !             &simT0(ibd)%ecc(i_n), simT0(ibd)%inc(i_n), simT0(ibd)%meanA(i_n),&
-        !             &simT0(ibd)%argp(i_n), simT0(ibd)%trueA(i_n),&
-        !             &simT0(ibd)%longN(i_n), simT0(ibd)%dttau(i_n))
-
-        !     end if
-        ! end do
+        call assign_T0_byNumber_1(id_body, Tref, Pref, mass, rtra, oDataIn, tmidtra, duration, alpha, simT0)
 
         return
     end subroutine assign_T0_byNumber_2
@@ -767,7 +809,7 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
 
 ! ==============================================================================
 ! compute the transit time and proper duration from K10 eq. 15
-    subroutine compute_transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit_flag, ttra, dur_tra, rtra, check_ttra)
+    subroutine compute_transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit_flag, ttra, dur_tra, alpha, rtra, check_ttra)
         ! Input
         real(dp), intent(in)::t_epoch
         integer, intent(in)::id_body ! value: 2 to NB
@@ -775,7 +817,7 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
         real(dp), intent(in)::time_r1, integration_step
         logical, dimension(:), intent(in)::do_transit_flag
         ! Output
-        real(dp), intent(out)::ttra, dur_tra
+        real(dp), intent(out)::ttra, dur_tra, alpha
         real(dp), dimension(:), allocatable, intent(out)::rtra
         logical, intent(out)::check_ttra
         ! Local
@@ -806,6 +848,7 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
                     ttra = ttra_temp !+ lte
                     call find_contacts(id_body, mass, radii, rtra, ttra_temp, tcont) !tcont take into account LTE
                     dur_tra = (tcont(4)-tcont(1))*1440.0_dp
+                    call spin_orbit_misalignment(id_body, mass, radii, rtra, ttra, alpha)
 
                 else ! ... but it should not!
 
@@ -826,14 +869,14 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
     end subroutine compute_transit_time
 
 ! ==============================================================================
-    subroutine transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, ttra, dur_tra, check_ttra)
+    subroutine transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, ttra, dur_tra, alpha, check_ttra)
         ! Input
         real(dp), intent(in)::t_epoch
         integer, intent(in)::id_body ! value: 2 to NB
         real(dp), dimension(:), intent(in)::mass, radii, r1, r2
         real(dp), intent(in)::time_r1, integration_step
         ! Output
-        real(dp), intent(out)::ttra, dur_tra
+        real(dp), intent(out)::ttra, dur_tra, alpha
         logical, intent(out)::check_ttra
         ! Local
         ! real(dp)::ttra_temp, lte
@@ -849,11 +892,13 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
 
         allocate (rtra(NBDIM))
 
-        call compute_transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit, ttra, dur_tra, rtra, check_ttra)
+        call compute_transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit, ttra, dur_tra, alpha, rtra, check_ttra)
 
         deallocate (rtra)
 
         return
     end subroutine transit_time
+! ==============================================================================
+
 
 end module transits

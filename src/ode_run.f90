@@ -300,7 +300,7 @@ contains
         type(dataRV), intent(inout)::simRV
         type(dataT0), dimension(:), intent(inout)::simT0
         logical, intent(inout)::Hc
-        ! local variables
+        ! Local variables
         real(dp), dimension(:), allocatable::r1, r2
 
         integer, dimension(:), allocatable::X, Y, Z
@@ -1209,7 +1209,7 @@ contains
         &id_transit_body, transit_flag, dur_check,&
         &RV_sim,&
         &body_T0_sim, epo_sim,&
-        &T0_sim, T14_sim, kep_elem_sim,&
+        &T0_sim, T14_sim, lambda_rm_sim, kep_elem_sim,&
         &stable)
         ! Input
         real(dp), intent(in)::t_start, t_epoch, step_in, t_int
@@ -1220,7 +1220,7 @@ contains
         ! Output
         real(dp), dimension(:), allocatable, intent(out)::RV_sim
         integer, dimension(:), allocatable, intent(out)::body_T0_sim, epo_sim
-        real(dp), dimension(:), allocatable, intent(out)::T0_sim, T14_sim
+        real(dp), dimension(:), allocatable, intent(out)::T0_sim, T14_sim, lambda_rm_sim
         real(dp), dimension(:, :), allocatable, intent(out)::kep_elem_sim
         logical, intent(out)::stable
         ! Local
@@ -1265,6 +1265,7 @@ contains
                     epo_sim(nstart:nend) = obsData%obsT0(ibd)%epo
                     T0_sim(nstart:nend) = simT0(ibd)%T0
                     T14_sim(nstart:nend) = simT0(ibd)%dur
+                    lambda_rm_sim(nstart:nend) = simT0(ibd)%lambda_rm
                     body_T0_sim(nstart:nend) = ibd+1
                     kep_elem_sim(nstart:nend, 1) = simT0(ibd)%period
                     kep_elem_sim(nstart:nend, 2) = simT0(ibd)%sma
@@ -1622,7 +1623,7 @@ contains
     ! ================================================================================
     ! subroutine ode_b_orbit(mass, radius, rin, time_to_int, wrt_time,&
     subroutine ode_orbit_to_full_observables(mass, radius, rin, time_to_int, wrt_time,&
-        &last_tra, ttra_full, dur_full, id_ttra_full, stats_ttra,&
+        &last_tra, ttra_full, dur_full, lambda_rm_full, id_ttra_full, stats_ttra,&
         &last_rv, time_rv_nmax, rv_nmax, stats_rv,&
         &Hc)
         ! Input
@@ -1631,7 +1632,7 @@ contains
         ! Input/Output
         ! transit times variables to be updated!!
         integer, intent(inout)::last_tra ! if first call it is zero, otherwise it is the last transit position
-        real(dp), dimension(:), intent(inout)::ttra_full, dur_full
+        real(dp), dimension(:), intent(inout)::ttra_full, dur_full, lambda_rm_full
         integer, dimension(:), intent(inout)::id_ttra_full
         logical, dimension(:), intent(inout)::stats_ttra
         ! radial velocities variables to be updated!!
@@ -1644,7 +1645,7 @@ contains
         type(dataObs)::empty_data
         integer::ntra_full
 
-        real(dp)::rv_temp, ttra_temp, dur_tra_temp
+        real(dp)::rv_temp, ttra_temp, dur_tra_temp, alpha_temp
         logical::check_ttra
         integer::nrv_max
 
@@ -1721,7 +1722,7 @@ contains
                 &A, B, AB, ABflag, Zflag)
 
                 if (ABflag .and. Zflag) then
-                    call transit_time(tepoch, i_body, mass, radius, r1, r2, trun1, integration_step, ttra_temp, dur_tra_temp, check_ttra)
+                    call transit_time(tepoch, i_body, mass, radius, r1, r2, trun1, integration_step, ttra_temp, dur_tra_temp, alpha_temp, check_ttra)
                     if (check_ttra) then
                         last_tra = last_tra+1
                         if (last_tra .gt. ntra_full) then
@@ -1730,6 +1731,7 @@ contains
                         end if
                         ttra_full(last_tra) = ttra_temp
                         dur_full(last_tra) = dur_tra_temp
+                        lambda_rm_full(last_tra) = alpha_temp
                         id_ttra_full(last_tra) = i_body
                         stats_ttra(last_tra) = .true.
                     end if ! check_ttra
@@ -1756,13 +1758,13 @@ contains
 
     ! ================================================================================
     subroutine ode_all_ttra_rv(wrt_time, mass, radius, period, sma, ecc, argp, meana, inc, longn,&
-      &ttra_full, dur_full, id_ttra_full, stats_ttra,&
+      &ttra_full, dur_full, lambda_rm_full, id_ttra_full, stats_ttra,&
       &time_rv_nmax, rv_nmax, stats_rv)
         ! Input
         real(dp), intent(in)::wrt_time
         real(dp), dimension(:), intent(in)::mass, radius, period, sma, ecc, argp, meana, inc, longn
         ! Output
-        real(dp), dimension(:), intent(out)::ttra_full, dur_full
+        real(dp), dimension(:), intent(out)::ttra_full, dur_full, lambda_rm_full
         integer, dimension(:), intent(out)::id_ttra_full
         logical, dimension(:), intent(out)::stats_ttra
         real(dp), dimension(:), intent(out)::time_rv_nmax, rv_nmax
@@ -1804,7 +1806,7 @@ contains
 
             ! backward integration
             call ode_orbit_to_full_observables(mass, radius, ra1, dt1, -wrt_time,&
-              &last_tra, ttra_full, dur_full, id_ttra_full, stats_ttra,&
+              &last_tra, ttra_full, dur_full, lambda_rm_full, id_ttra_full, stats_ttra,&
               &last_rv, time_rv_nmax, rv_nmax, stats_rv, Hc)
             if (.not. Hc) then
                 if (allocated(ra0)) deallocate (ra0, ra1)
@@ -1814,7 +1816,7 @@ contains
             if (abs(dt1) .le. tint) then
                 ! forward integration
                 call ode_orbit_to_full_observables(mass, radius, ra1, dt2, wrt_time,&
-                  &last_tra, ttra_full, dur_full, id_ttra_full, stats_ttra,&
+                  &last_tra, ttra_full, dur_full, lambda_rm_full, id_ttra_full, stats_ttra,&
                   &last_rv, time_rv_nmax, rv_nmax, stats_rv, Hc)
                 if (.not. Hc) then
                     if (allocated(ra0)) deallocate (ra0, ra1)
@@ -1826,7 +1828,7 @@ contains
 
             ! only forward integration
             call ode_orbit_to_full_observables(mass, radius, ra1, dt2, wrt_time,&
-              &last_tra, ttra_full, dur_full, id_ttra_full, stats_ttra,&
+              &last_tra, ttra_full, dur_full, lambda_rm_full, id_ttra_full, stats_ttra,&
               &last_rv, time_rv_nmax, rv_nmax, stats_rv, Hc)
 
         end if

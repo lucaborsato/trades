@@ -665,29 +665,29 @@ def plot_oc_T41(
         print("n_sim (TTs) = {:d}".format(n_sim))
         oc_smp = []
         print("creating oc_smp list ...")
-        for ss in samples_plt:
+        print("n_sim (oc_smp) = ", end="", flush=True)
+        for iss, ss in enumerate(samples_plt):
             ss.update(sim.Teph, sim.Peph)
-            oc_smp.append(ss.oc)
+            n_oc_smp = len(ss.oc)
+            if n_oc_smp < n_sim:
+                pass
+            else:
+                if n_oc_smp == n_sim:
+                    sel = np.ones(n_oc_smp, dtype=bool)
+                elif n_oc_smp > n_sim:
+                    sel = np.isin(
+                        ss.epo, oc_model.epo
+                    )
+                print("{:d} [{:d}] ({:d}) || ".format(n_oc_smp, np.sum(sel),iss), end="", flush=True)
+                oc_smp.append(ss.oc[sel])
+        print()
         print("oc_smp list to array ... ")
         oc_smp = np.array(oc_smp).T *ocu[0]
         print("shape(oc_smp) = ", np.shape(oc_smp))
         c1, c2, c3 = 0.6827, 0.9544, 0.9974
         hc1, hc2, hc3 = c1*0.5, c2*0.5, c3*0.5
 
-        # TESTING HDI
-        # print("computing HDI @ 68.27-95.44-99.73 % ... ")
-        # # hdi1, hdi2, hdi3 = [], [], []
-        # hdi1, hdi2, hdi3 = np.zeros((n_sim, 2)), np.zeros((n_sim, 2)), np.zeros((n_sim, 2))
-        # for i in range(n_sim):
-        #     ocy = oc_smp[i, :]
-        #     hhh = anc.hpd(ocy, cred=0.6827)
-        #     hdi1[i, :] = hhh
-        #     hhh = anc.hpd(ocy, cred=0.9544)
-        #     hdi2[i, :] = hhh
-        #     hhh = anc.hpd(ocy, cred=0.9974)
-        #     hdi3[i, :] = hhh
-        # TODO: TEST PERCENTILE
-        # print("computing CI @ 68.27-95.44-99.73 % ... ")
+        print("computing CI @ 68.27-95.44-99.73 % ... ")
         hdi1 = np.percentile(oc_smp, [50 - (100*hc1), 50 + (100*hc1)], axis=1).T
         hdi2 = np.percentile(oc_smp, [50 - (100*hc2), 50 + (100*hc2)], axis=1).T
         hdi3 = np.percentile(oc_smp, [50 - (100*hc3), 50 + (100*hc3)], axis=1).T
