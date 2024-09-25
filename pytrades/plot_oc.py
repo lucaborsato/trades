@@ -757,10 +757,16 @@ def plot_oc_T41(
         miny = np.min(yyy) - py * dy
         maxy = np.max(yyy) + py * dy
 
-    if np.all(np.isinf([minx, maxx]) == False) or np.all(np.isnan([minx, maxx]) == False):
+    # print("X limits: {} -- {}".format(minx, maxx))
+    if np.all(np.isinf([minx, maxx]) == False) and np.all(np.isnan([minx, maxx]) == False):
         ax.set_xlim(minx, maxx)
     # xlims = ax.get_xlim()
-    if np.all(np.isinf([miny, maxy]) == False) or np.all(np.isnan([miny, maxy]) == False):
+    
+    # print("Y limits: {} -- {}".format(miny, maxy))
+    # print(np.all(np.isinf([miny, maxy])  == False))
+    # print(np.all(np.isnan([miny, maxy]) == False))
+
+    if np.all(np.isinf([miny, maxy]) == False) and np.all(np.isnan([miny, maxy]) == False):
         ax.set_ylim(miny, maxy)
 
     axs.append(ax)
