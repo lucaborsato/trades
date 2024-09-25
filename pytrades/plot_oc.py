@@ -757,9 +757,11 @@ def plot_oc_T41(
         miny = np.min(yyy) - py * dy
         maxy = np.max(yyy) + py * dy
 
-    ax.set_xlim(minx, maxx)
+    if np.all(np.isinf([minx, maxx]) == False) or np.all(np.isnan([minx, maxx]) == False):
+        ax.set_xlim(minx, maxx)
     # xlims = ax.get_xlim()
-    ax.set_ylim(miny, maxy)
+    if np.all(np.isinf([miny, maxy]) == False) or np.all(np.isnan([miny, maxy]) == False):
+        ax.set_ylim(miny, maxy)
 
     axs.append(ax)
 
