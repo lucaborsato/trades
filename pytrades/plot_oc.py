@@ -282,7 +282,7 @@ def get_sim_data(file_in, idsource_name=None, kep_ele=False):
     # epoT0obs 0 T0obs 1 eT0obs 2 T0_sim 3 T0obs-T0_sim 4 T0_stat 5 
     # period_d 6 sma_au 7 ecc 8 inc_deg 9 meana_deg 10 argp_deg 11 truea_deg 12 longn_deg 13 
     # Dur_obs 14 eDur_obs 15 Dur_sim 16 Dur_obs-Dur_sim 17 Dur_stat 18
-    sim_in = np.genfromtxt(file_in)
+    sim_in = np.atleast_2d(np.genfromtxt(file_in))
     body_id = int(file_in.split("NB")[1].split("_simT0")[0])
 
     sim = sim_data()

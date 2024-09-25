@@ -96,7 +96,7 @@ def get_sim_data(file_in, jitters, tscale=2440000.5):
     itime, iRVo, ieRVo = 0,1,2
     irvs, iRVs, igamma, itrend, ijitter, isetid = 3,4,5,6,7,8
 
-    sim_in = np.genfromtxt(file_in)
+    sim_in = np.atleast_2d(np.genfromtxt(file_in))
     rvsetid = np.unique(sim_in[:, isetid].astype(int))
     nset = np.shape(rvsetid)[0]
 
