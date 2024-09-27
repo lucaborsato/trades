@@ -360,20 +360,6 @@ contains
         periods_bounds(2, 2:NB) = periods(2:NB)+delta_per
         call calculates_power_max(periods_bounds, freq, power_GLS, power_max_within, power_max_outside, period_max, pl_max)
 
-        ! write file gls
-        n_freq = size(freq)
-        gls_file = trim(path)//trim(adjustl(string(id_sim)))//"_"//&
-          &trim(adjustl(string(wrt_id)))//'_gls_output.dat'
-        u_gls = get_unit(cpuid)
-        open (u_gls, file=trim(gls_file))
-        write (u_gls, '(a)') '# Period Frequency power_GLS sp_window power_LS'
-        do i_freq = 1, n_freq
-            write (u_gls, '(1000(es23.16,1x))') one/freq(i_freq), freq(i_freq), power_GLS(i_freq),&
-                &sp_window(i_freq), power_LS(i_freq)
-        end do
-        close (u_gls)
-        deallocate (freq, power_GLS, sp_window, power_LS)
-
         power_threshold = two*power_max_outside
         if (power_max_within .lt. power_threshold) then ! max peak with periods boudaries < 2*max peak outside --> GOOD
             gls_check = .true.
@@ -387,6 +373,35 @@ contains
             end if
         end if
         deallocate (periods_bounds)
+
+        ! write file gls
+        n_freq = size(freq)
+        gls_file = trim(path)//trim(adjustl(string(id_sim)))//"_"//&
+          &trim(adjustl(string(wrt_id)))//'_gls_output.dat'
+        u_gls = get_unit(cpuid)
+        open (u_gls, file=trim(gls_file))
+        write (u_gls, '(a,L)') '# GLS check: ', gls_check
+        write (u_gls, '(a)') '# Period Frequency power_GLS sp_window power_LS'
+        do i_freq = 1, n_freq
+            write (u_gls, '(1000(es23.16,1x))') one/freq(i_freq), freq(i_freq), power_GLS(i_freq),&
+                &sp_window(i_freq), power_LS(i_freq)
+        end do
+        close (u_gls)
+        deallocate (freq, power_GLS, sp_window, power_LS)
+
+        ! power_threshold = two*power_max_outside
+        ! if (power_max_within .lt. power_threshold) then ! max peak with periods boudaries < 2*max peak outside --> GOOD
+        !     gls_check = .true.
+        !     if (present(gls_scale)) gls_scale = one
+        ! else ! max peak with periods boudaries >= 2*max peak outside --> BAD
+        !     gls_check = .false.
+        !     if (present(gls_scale)) then
+        !         delta_max = max(abs(period_max-periods_bounds(1, pl_max)), abs(periods_bounds(2, pl_max)-period_max))
+        !         if (delta_max .lt. TOL_dp) delta_max = TOL_dp
+        !         gls_scale = one-log10(delta_max)
+        !     end if
+        ! end if
+        ! deallocate (periods_bounds)
 
         return
     end subroutine check_and_write_periodogram
