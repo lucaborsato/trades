@@ -30,6 +30,8 @@ wrtconst = 0
 wrtel = 0
 # check of Radial Velocities condition: 1[check, read from obsRV.dat], 0[do not check]
 rvcheck = 0
+# check of Radial Velocities residuals with GLS (look for added signals close to planetary periods): Set as F or T. Default is False: F.
+rv_res_gls = F
 # if you want to fit a trend to RV define the order (default = 0)
 rv_trend_order = 0
 # grid option: id of the perturber body [integer >1, <= tot bodies; else no perturber]

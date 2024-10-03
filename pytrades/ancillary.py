@@ -595,8 +595,10 @@ class CLI_OC:
         tscale=2440000.5,
         ocunit="d",
         samples_file=None,
+        plot_samples= "ci",
         limits="obs",
         kep_ele=False,
+        linear_ephemeris=None,
         legend="in",
         idsource_name=None,
         color_map="nipy_spectral",
@@ -608,8 +610,13 @@ class CLI_OC:
         self.tscale = tscale
         self.ocunit = ocunit
         self.samples_file = samples_file
+        if plot_samples.lower() != "all":
+            self.plot_samples = "ci"
+        else:
+            self.plot_samples = plot_samples.lower()
         self.limits = limits
         self.kep_ele = kep_ele
+        self.linear_ephemeris=linear_ephemeris
         self.legend = legend
         self.idsource_name = idsource_name
         self.color_map = color_map
@@ -895,8 +902,10 @@ class ConfigurationAnalysis:
             "tscale": None,
             "unit": "auto",
             "samples_file": None,
+            "plot_samples": "ci",
             "limits": "obs",
             "kep_ele": False,
+            "linear_ephmeris":None,
             "legend": "in",
             "idsource_name": None,
             "color_map": "nipy_spectral",
@@ -945,8 +954,10 @@ class ConfigurationAnalysis:
                             tscale=conf_oc["tscale"],
                             ocunit=conf_oc["unit"],
                             samples_file=samples_file,
+                            plot_samples=conf_oc["plot_samples"],
                             limits=conf_oc["limits"],
                             kep_ele=conf_oc["kep_ele"],
+                            linear_ephemeris=conf_oc["linear_ephemeris"],
                             legend=conf_oc["legend"],
                             idsource_name=conf_oc["idsource_name"],
                             color_map=conf_oc["color_map"],

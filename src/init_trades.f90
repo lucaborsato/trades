@@ -208,7 +208,7 @@ contains
         logical::fstat
         character(512)::line
         integer::idx, idh, istat, it
-        character(1)::hill_temp
+        character(1)::hill_temp, gls_temp
         character(1), dimension(5)::list_true = (/'y', 'Y', 't', 'T', '1'/)
 
         inquire (file=trim(path)//"arg.in", exist=fstat)
@@ -246,6 +246,14 @@ contains
                                 read (line(idx+1:idh), *) rvcheck
                             else if (line(1:idx-1) .eq. 'rv_trend_order') then
                                 read (line(idx+1:idh), *) rv_trend_order
+                            else if (line(1:idx-1) .eq. 'rv_res_gls') then
+                                read (line(idx+1:idh), *) gls_temp
+                                do it = 1, size(list_true)
+                                    if (gls_temp .eq. list_true(it)) then
+                                        rv_res_gls = .true.
+                                        exit
+                                    end if
+                                end do
                             else if (line(1:idx-1) .eq. 'idpert') then
                                 read (line(idx+1:idh), *) idpert
                             else if (line(1:idx-1) .eq. 'lmon') then
@@ -1130,6 +1138,9 @@ contains
         ! IT READS RV DATA
         call read_RVobs(cpuid)
         nRV = obsData%obsRV%nRV ! common value in the data type
+        if (nRV .eq. 0) then
+            rv_res_gls = .false.
+        end if
         ! nRVset = obsData%obsRV%nRVset ! it is global now
         fmt = adjustl("(a,i4,a,i4,a,100(i4,1x)))")
         if (rvcheck .eq. 1) write (*, trim(fmt)) " RV DATA: nRV = ", nRV,&

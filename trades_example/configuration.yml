@@ -81,9 +81,17 @@ OC:
     tscale: None # time scale to remove from x-axis plot, Default None means removing tepoch of the simulation.
     unit: "auto" # unit of the O-C, if "auto" it auto-detect best unit for each body, otherwise set to: "d", "h", "m", "s".
     samples_file: None # hdf5 file name with samples created by analysis/n_samples > 0: i.e. samples_ttra_rv.hdf5
+    plot_samples: "ci" # how to plot samples: "ci" == "sigma", or "all". "all" will plot each samples
     limits: "obs" # x-y limits based on observations (obs) or samples (sam)
     kep_ele: False # NOT IMPLEMENTED plot of Keplerian Elements of each transiting body during transits
     legend: "in" # in or out, Default in
+    linear_ephemeris: # default None
+        2:
+            Tref: [val, err]
+            Pref: [val, err]
+        3: 
+            Tref: [val, err]
+            Pref: [val, err]
     idsource_name: None # e.g {1: TESS, 2: CHEOPS}
     color_map: "nipy_spectral" # or as {1: "C0", 2: "C1"}
 RV:

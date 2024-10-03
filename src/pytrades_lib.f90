@@ -17,6 +17,7 @@ module f90trades
     use utils
     use ode_run, only: integration_info_to_data, ode_all_ttra_rv,&
         &ode_keplerian_elements_to_orbits, set_checking_coordinates, transit_conditions
+    use gls_module, only: check_periodogram
     use transits, only: compute_transit_time, spin_orbit_misalignment
     use grid_search
 
@@ -945,6 +946,17 @@ contains
 
         return
     end subroutine set_amd_hill_check
+
+    subroutine set_rv_res_gls(res_gls)
+        ! Input
+        logical, intent(in)::res_gls
+        ! Output
+        ! NONE
+        rv_res_gls = res_gls
+
+        return
+    end subroutine set_rv_res_gls
+
 
     ! SUBROUTINE TO INITIALISE TRADES WITHOUT READING FILES
     subroutine args_init(n_body, duration_check)
@@ -1948,6 +1960,21 @@ contains
 
         return
     end subroutine angular_momentum_deficit_posterior
+
+    ! ============================================================================
+    subroutine check_rv_res_periodogram(n, jd, rv, erv, nbody, periods, gls_check)
+        ! Input
+        integer, intent(in)::n, nbody
+        real(dp), dimension(n), intent(in)::jd, rv, erv
+        real(dp), dimension(nbody), intent(in)::periods
+        ! Output
+        logical, intent(out)::gls_check
+        ! Local
+
+        call check_periodogram(jd, rv, erv, periods, gls_check)
+
+        return
+    end subroutine check_rv_res_periodogram
 
     ! ============================================================================
     ! ============================================================================

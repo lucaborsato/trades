@@ -38,6 +38,7 @@ reset_all_fit_boundaries = f90trades.reset_all_fit_boundaries
 orbits_to_elements = f90trades.orbits_to_elements
 set_hill_check = f90trades.set_hill_check
 set_amd_hill_check = f90trades.set_amd_hill_check
+set_rv_res_gls = f90trades.set_rv_res_gls
 period_to_sma = f90trades.f90_period_to_sma
 period_to_sma_vec = f90trades.f90_period_to_sma_vec
 sma_to_period = f90trades.f90_sma_to_period
@@ -48,12 +49,20 @@ angular_momentum_deficit = f90trades.angular_momentum_deficit
 angular_momentum_deficit_fit_parameters = (
     f90trades.angular_momentum_deficit_fit_parameters
 )
+check_rv_res_periodogram = f90trades.check_rv_res_periodogram
 # angular_momentum_deficit_posterior = f90trades.angular_momentum_deficit_posterior
 # =============================================================================
 
 
 def args_init(
-    n_body, duration_check, t_epoch=None, t_start=None, t_int=None, do_hill_check=False, amd_hill_check=False
+    n_body,
+    duration_check,
+    t_epoch=None,
+    t_start=None,
+    t_int=None,
+    do_hill_check=False,
+    amd_hill_check=False,
+    rv_res_gls=False,
 ):
     """
     Initialize the arguments for the function.
@@ -86,6 +95,8 @@ def args_init(
         set_hill_check(do_hill_check)
     if amd_hill_check is not None:
         set_amd_hill_check(amd_hill_check)
+    if rv_res_gls is not None:
+        set_rv_res_gls(rv_res_gls)
 
     return
 
@@ -345,24 +356,26 @@ def kelements_to_observed_t0s(
 
     n_kep = 8  # number of keplerian elements in output for each T0s
     n_T0s = f90trades.ntts
-    body_T0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable = f90trades.kelements_to_t0s(
-        t_start,
-        t_epoch,
-        t_int,
-        M_msun,
-        R_rsun,
-        P_day,
-        ecc,
-        argp_deg,
-        mA_deg,
-        inc_deg,
-        lN_deg,
-        transit_flag,
-        n_T0s,
-        n_kep,
+    body_T0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable = (
+        f90trades.kelements_to_t0s(
+            t_start,
+            t_epoch,
+            t_int,
+            M_msun,
+            R_rsun,
+            P_day,
+            ecc,
+            argp_deg,
+            mA_deg,
+            inc_deg,
+            lN_deg,
+            transit_flag,
+            n_T0s,
+            n_kep,
+        )
     )
 
-    return body_T0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim,kel_sim, stable
+    return body_T0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable
 
 
 # =============================================================================
@@ -692,7 +705,17 @@ def orbital_parameters_to_transits(
         n_all_transits, time_steps, mass, radius, orbits, transiting_body
     )
     # kep_elem == period 0, sma 1, ecc 2, inc 3, meana 4, argp 5, truea 6, longn 7
-    return time_steps, orbits, transits, durations, lambda_rm, kep_elem, body_flag, rv_sim, check
+    return (
+        time_steps,
+        orbits,
+        transits,
+        durations,
+        lambda_rm,
+        kep_elem,
+        body_flag,
+        rv_sim,
+        check,
+    )
 
 
 def set_transit_parameters(radius, transits, body_flag, kep_elem):
@@ -831,9 +854,7 @@ def get_simulate_flux(
             flux = []
             for itra, tra in enumerate(tra_sel):
                 # sel_t = np.logical_and(
-                sel_t = (
-                    t >= tra - 0.5 * per[itra],
-                )
+                sel_t = (t >= tra - 0.5 * per[itra],)
                 tm.set_data(t[sel_t], nsamples=vis[n_over_key], exptimes=vis[t_exp_key])
                 ff = tm.evaluate(
                     k=rp_rs_sel[itra],
@@ -1321,7 +1342,16 @@ def get_radial_velocities_residuals(
 
 
 class PhotoTRADES:
-    def __init__(self, n_body, t_epoch, t_start, t_int, duration_check=1, do_hill_check=False, amd_hill_check=False):
+    def __init__(
+        self,
+        n_body,
+        t_epoch,
+        t_start,
+        t_int,
+        duration_check=1,
+        do_hill_check=False,
+        amd_hill_check=False,
+    ):
 
         self.n_body = n_body
         self.t_epoch = t_epoch
@@ -1335,8 +1365,8 @@ class PhotoTRADES:
             t_epoch=t_epoch,
             t_start=t_start,
             t_int=t_int,
-            do_hill_check=do_hill_check, 
-            amd_hill_check=amd_hill_check
+            do_hill_check=do_hill_check,
+            amd_hill_check=amd_hill_check,
         )
 
         self.Tref = {}
@@ -1589,7 +1619,7 @@ class PhotoTRADES:
             kep_elem,
             body_flag,
             rv_sim,
-            stable
+            stable,
         ) = orbital_parameters_to_transits(
             self.t_start,
             self.t_epoch,
@@ -1604,7 +1634,17 @@ class PhotoTRADES:
             long,
             self.t_rv_obs,
         )
-        return time_steps, orbits, transits, durations, lambda_rm, kep_elem, body_flag, rv_sim, stable
+        return (
+            time_steps,
+            orbits,
+            transits,
+            durations,
+            lambda_rm,
+            kep_elem,
+            body_flag,
+            rv_sim,
+            stable,
+        )
 
     def get_simulate_flux(
         self,
@@ -1651,7 +1691,7 @@ class PhotoTRADES:
             kep_elem,
             body_flag,
             rv_sim,
-            stable
+            stable,
         ) = self.orbital_parameters_to_transits(
             mass, radius, period, ecc, w, ma, inc, long
         )
@@ -1982,7 +2022,7 @@ class TRADESfolder:
             self.system_parameters_min,
             self.system_parameters_max,
         ) = f90trades.get_system_parameters_and_minmax(self.npar)
-        
+
         self.all_names = anc.convert_fortran_charray2python_strararray(
             f90trades.get_all_keplerian_names(self.npar, str_len)
         )
@@ -2156,10 +2196,10 @@ class TRADESfolder:
     def print_summary_boundaries(self, par_print="all"):
         """
         Print summary boundaries based on the specified parameter print options.
-        
+
         Parameters:
             par_print (str): Specifies which boundaries to print. Default is "all".
-        
+
         Returns:
             None
         """
@@ -2173,10 +2213,12 @@ class TRADESfolder:
             print("# fitted min -- max", flush=True)
             for n, p in zip(self.fitting_names, self.fitting_minmax):
                 print("{:12s} = {:16.8f} -- {:12.6f}".format(n, p[0], p[1]), flush=True)
-        
+
         if ("sys" in par_print) or ("all" in par_print):
             print("# system min -- max", flush=True)
-            for n, pl, pu in zip(self.all_names, self.system_parameters_min, self.system_parameters_max):
+            for n, pl, pu in zip(
+                self.all_names, self.system_parameters_min, self.system_parameters_max
+            ):
                 print("{:12s} = {:16.8f} -- {:12.6f}".format(n, pl, pu), flush=True)
 
         print("", flush=True)
@@ -2336,12 +2378,34 @@ class TRADESfolder:
                 "T41s_{:d}".format(ipl), data=dur, dtype=np.float64, compression="gzip"
             )
             gr.create_dataset(
-                "lambda_rm_{:d}".format(ipl), data=lambda_rm, dtype=np.float64, compression="gzip"
+                "lambda_rm_{:d}".format(ipl),
+                data=lambda_rm,
+                dtype=np.float64,
+                compression="gzip",
             )
             # if np.sum(sel_tra) > 0:
             #     anc.print_both("T0_{:02d} min = {:.5f} max = {:.5f}".format(ipl, np.min(ttra), np.max(ttra)))
 
         return
+
+    def fit_pars_to_keplerian_elements(self, fit_pars):
+
+        (
+            mass,
+            radius,
+            period,
+            sma,
+            ecc,
+            argp,
+            meanA,
+            inc,
+            longN,
+            checkpar,
+        ) = f90trades.convert_trades_par_to_kepelem(
+            self.system_parameters, fit_pars, self.n_bodies
+        )
+
+        return (mass, radius, period, sma, ecc, argp, meanA, inc, longN)
 
     def run_and_write_summary_files(
         self,
@@ -2517,27 +2581,43 @@ class TRADESfolder:
             transit_flag = self.transit_flag
 
         n_kep = 8
-        rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable = (
-            f90trades.kelements_to_rv_and_t0s(
-                t_start,
-                t_epoch,
-                t_int,
-                mass,
-                radius,
-                period,
-                ecc,
-                argp,
-                meana,
-                inc,
-                longn,
-                transit_flag,
-                self.n_rv,
-                self.n_t0_sum,
-                n_kep,
-            )
+        (
+            rv_sim,
+            body_t0_sim,
+            epo_sim,
+            t0_sim,
+            t14_sim,
+            lambda_rm_sim,
+            kel_sim,
+            stable,
+        ) = f90trades.kelements_to_rv_and_t0s(
+            t_start,
+            t_epoch,
+            t_int,
+            mass,
+            radius,
+            period,
+            ecc,
+            argp,
+            meana,
+            inc,
+            longn,
+            transit_flag,
+            self.n_rv,
+            self.n_t0_sum,
+            n_kep,
         )
 
-        return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable
+        return (
+            rv_sim,
+            body_t0_sim,
+            epo_sim,
+            t0_sim,
+            t14_sim,
+            lambda_rm_sim,
+            kel_sim,
+            stable,
+        )
 
     def computes_observables_from_default_keplerian_elements(
         self, t_start, t_epoch, t_int, transit_flag=None
@@ -2546,24 +2626,40 @@ class TRADESfolder:
         if transit_flag is None:
             transit_flag = self.transit_flag
 
-        rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable = (
-            self.computes_observables_from_keplerian_elements(
-                t_start,
-                t_epoch,
-                t_int,
-                self.mass,
-                self.radius,
-                self.period,
-                self.ecc,
-                self.argp,
-                self.meana,
-                self.inc,
-                self.longn,
-                in_transit_flag=transit_flag,
-            )
+        (
+            rv_sim,
+            body_t0_sim,
+            epo_sim,
+            t0_sim,
+            t14_sim,
+            lambda_rm_sim,
+            kel_sim,
+            stable,
+        ) = self.computes_observables_from_keplerian_elements(
+            t_start,
+            t_epoch,
+            t_int,
+            self.mass,
+            self.radius,
+            self.period,
+            self.ecc,
+            self.argp,
+            self.meana,
+            self.inc,
+            self.longn,
+            in_transit_flag=transit_flag,
         )
 
-        return rv_sim, body_t0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable
+        return (
+            rv_sim,
+            body_t0_sim,
+            epo_sim,
+            t0_sim,
+            t14_sim,
+            lambda_rm_sim,
+            kel_sim,
+            stable,
+        )
 
     def reset(self):
 
@@ -2846,7 +2942,7 @@ def base_plot_orbits(
             mew=0.3,
             ls="",
             # zorder=zo_z + i_pl + 0,
-            zorder=zo_s - 1
+            zorder=zo_s - 1,
         )
     # ax.legend(loc='best', fontsize=leg_size)
     ax.set_title("side plane - observer at right", fontsize=tic_size)
@@ -2882,13 +2978,15 @@ def angular_momentum_deficit_posterior(n_bodies, post_fit, all_pars):
     n_all = len(all_pars)
     n_pairs = n_bodies - 2
 
-    lambdas_bodies, amd_bodies, amd, amd_r_pairs, amd_h_pairs, amd_stable = f90trades.angular_momentum_deficit_posterior(
-        n_bodies,
-        # n_post, n_fit,
-        post_fit,
-        # n_all,
-        all_pars,
-        n_pairs,
+    lambdas_bodies, amd_bodies, amd, amd_r_pairs, amd_h_pairs, amd_stable = (
+        f90trades.angular_momentum_deficit_posterior(
+            n_bodies,
+            # n_post, n_fit,
+            post_fit,
+            # n_all,
+            all_pars,
+            n_pairs,
+        )
     )
     namd = amd / np.sum(lambdas_bodies[:, 1:], axis=1)
 
@@ -2900,7 +2998,9 @@ def angular_momentum_deficit_posterior(n_bodies, post_fit, all_pars):
         + ["hAMD_pair{}".format(i + 1) for i in range(0, n_pairs)]
     )
 
-    amd_full = np.column_stack((lambdas_bodies[:, 1:], amd_bodies[:, 1:], amd, namd, amd_r_pairs, amd_h_pairs))
+    amd_full = np.column_stack(
+        (lambdas_bodies[:, 1:], amd_bodies[:, 1:], amd, namd, amd_r_pairs, amd_h_pairs)
+    )
 
     return amd_names, amd_full, amd_stable
 

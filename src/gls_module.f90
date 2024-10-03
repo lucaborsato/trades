@@ -9,7 +9,10 @@ module gls_module
     implicit none
 
 !   real(dp),parameter::delta_per=0.5_dp
-    real(dp), parameter::delta_per = half
+    ! real(dp), parameter::delta_per = half
+    real(dp), parameter::delta_per = 0.05_dp
+    ! real(dp), parameter::pow_times=two
+    real(dp), parameter::pow_times=one+half
 
 contains
 
@@ -279,13 +282,15 @@ contains
 
         ! define boundaries of the periods to check, remember that the first 'element' is the star and it will not be taken into account
         allocate (periods_bounds(2, NB))
-        periods_bounds(1, 2:NB) = periods(2:NB)-delta_per
-        periods_bounds(2, 2:NB) = periods(2:NB)+delta_per
+        ! periods_bounds(1, 2:NB) = periods(2:NB)-delta_per
+        ! periods_bounds(2, 2:NB) = periods(2:NB)+delta_per
+        periods_bounds(1, 2:NB) = periods(2:NB)*(one-delta_per)
+        periods_bounds(2, 2:NB) = periods(2:NB)*(one+delta_per)
         call calculates_power_max(periods_bounds, freq, power_GLS, power_max_within, power_max_outside, period_max, pl_max)
         deallocate (periods_bounds)
         deallocate (freq, power_GLS, sp_window, power_LS)
 
-        power_threshold = two*power_max_outside
+        power_threshold = pow_times*power_max_outside
         if (power_max_within .lt. power_threshold) then ! max peak with periods boudaries < 2*max peak outside --> GOOD
             gls_check = .true.
         else ! max peak with periods boudaries >= 2*max peak outside --> BAD
@@ -314,16 +319,18 @@ contains
 
         ! define boundaries of the periods to check, remember that the first 'element' is the star and it will not be taken into account
         allocate (periods_bounds(2, NB))
-        periods_bounds(1, 2:NB) = periods(2:NB)-delta_per
-        periods_bounds(2, 2:NB) = periods(2:NB)+delta_per
+        ! periods_bounds(1, 2:NB) = periods(2:NB)-delta_per
+        ! periods_bounds(2, 2:NB) = periods(2:NB)+delta_per
+        periods_bounds(1, 2:NB) = periods(2:NB)*(one-delta_per)
+        periods_bounds(2, 2:NB) = periods(2:NB)*(one+delta_per)
         call calculates_power_max(periods_bounds, freq, power_GLS, power_max_within, power_max_outside, period_max, pl_max)
         deallocate (freq, power_GLS, sp_window, power_LS)
 
-        power_threshold = two*power_max_outside
+        power_threshold = pow_times*power_max_outside
         if (power_max_within .lt. power_threshold) then ! max peak with periods boudaries < 2*max peak outside --> GOOD
             gls_check = .true.
             gls_scale = one
-        else ! max peak with periods boudaries >= 2*max peak outside --> BAD
+        else ! max peak within periods boundaries >= 2*max peak outside --> BAD
             gls_check = .false.
             delta_max = max(abs(period_max-periods_bounds(1, pl_max)), abs(periods_bounds(2, pl_max)-period_max))
             if (delta_max .lt. TOL_dp) delta_max = TOL_dp
@@ -356,11 +363,13 @@ contains
 
         ! define boundaries of the periods to check, remember that the first 'element' is the star and it will not be taken into account
         allocate (periods_bounds(2, NB))
-        periods_bounds(1, 2:NB) = periods(2:NB)-delta_per
-        periods_bounds(2, 2:NB) = periods(2:NB)+delta_per
+        ! periods_bounds(1, 2:NB) = periods(2:NB)-delta_per
+        ! periods_bounds(2, 2:NB) = periods(2:NB)+delta_per
+        periods_bounds(1, 2:NB) = periods(2:NB)*(one-delta_per)
+        periods_bounds(2, 2:NB) = periods(2:NB)*(one+delta_per)
         call calculates_power_max(periods_bounds, freq, power_GLS, power_max_within, power_max_outside, period_max, pl_max)
 
-        power_threshold = two*power_max_outside
+        power_threshold = pow_times*power_max_outside
         if (power_max_within .lt. power_threshold) then ! max peak with periods boudaries < 2*max peak outside --> GOOD
             gls_check = .true.
             if (present(gls_scale)) gls_scale = one

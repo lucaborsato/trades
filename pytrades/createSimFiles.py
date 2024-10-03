@@ -148,6 +148,12 @@ def createARG(fpath):
     ofarg.write(line + "\n")
     print(line)
 
+    linel = "rv_res_gls = F"  # check RV residuals with gls during fit
+    liner = "# check of Radial Velocities residuals with GLS (look for added signals close to planetary periods): Set as F or T. Default is False: F."
+    line = liner + "\n" + linel
+    ofarg.write(line + "\n")
+    print(line)
+
     linel = "rv_trend_order = 0"  # RV trend order
     liner = "# Add a trend to the RV of a defined order"
     line = liner + "\n" + linel

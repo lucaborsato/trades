@@ -18,7 +18,9 @@ module parameters
     integer::nboot = 0
     logical::bootstrap_scaling = .false.
     ! stability-like
-    logical::do_hill_check = .false.,amd_hill_check = .false.
+    logical::do_hill_check = .false., amd_hill_check = .false.
+    ! check if it has been added a signal in rv close to planetary periods, if so, discard
+    logical::rv_res_gls = .false.
     ! FITNESS PARAMETERS
     ! integer::oc_fit = 0
 

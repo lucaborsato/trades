@@ -1031,6 +1031,13 @@ contains
 
         end if
 
+        if (rv_res_gls) then
+            call check_periodogram(simRV%jd,&
+                &oDataIn%obsRV%RV - (simRV%RV+simRV%gamma_rv+simRV%trend),&
+                &simRV%eRV, period, Hc)
+            if (.not. Hc) resw = set_max_residuals(ndata)
+        end if
+
         call deallocate_dataRV(simRV)
         if (nTTs .gt. 0) then
             do ibd = 1, NB-1

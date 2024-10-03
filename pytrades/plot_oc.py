@@ -177,6 +177,21 @@ class sim_data:
 
         return
 
+    def update_from_input_linear_ephem(self, Tref, Pref):
+
+        self.Teph = Tref[0]
+        self.Peph = Pref[0]
+        self.eTPeph = [Tref[1], Pref[1]]
+
+        self.epo = anc.calculate_epoch(self.TTo, self.Teph, self.Peph)
+        self.TTlin = self.Teph + self.epo * self.Peph
+        self.oc_o = self.TTo - self.TTlin
+        self.oc_s = self.TTs - self.TTlin
+        
+        self.chi2 = np.sum( self.oc_o**2 / self.eTTo**2 )
+
+        return
+
     def plot_kep_elem(self, cli, show_plot=False):
         nkep = 8
 
@@ -421,6 +436,25 @@ def plot_oc_T41(
     show_plot=False,
 ):
     sim = get_sim_data(file_in, idsource_name=cli.idsource_name, kep_ele=cli.kep_ele)
+    bd = sim.body_id
+    ibd = bd - 1
+    # letters = "a b c d e f g h i j k l m n o p q r s t u v w x y z".split()
+
+    letters = anc.letters
+    if planet_name is None:
+        planet = letters[ibd]
+    else:
+        planet = planet_name
+    sim.planet = planet
+
+    # check if there is input linear ephemeris for this body:
+    if cli.linear_ephemeris is not None:
+        if bd in cli.linear_ephemeris:
+            sim.update_from_input_linear_ephem(
+                cli.linear_ephemeris[bd]["Tref"],
+                cli.linear_ephemeris[bd]["Pref"],
+            )
+
     u_src = np.unique(sim.sources)
     # n_src = len(u_src)
     # ocolors = anc.set_colors(n_src, colormap=cli.color_map)
@@ -449,15 +483,6 @@ def plot_oc_T41(
     Aoc_d = 0.5 * (np.max(sim.oc_o) - np.min(sim.oc_o))
     ocu = set_unit(cli, Aoc_d)
     sim.oc_unit = ocu
-
-    # letters = "a b c d e f g h i j k l m n o p q r s t u v w x y z".split()
-    letters = anc.letters
-    ibd = sim.body_id - 1
-    if planet_name is None:
-        planet = letters[ibd]
-    else:
-        planet = planet_name
-    sim.planet = planet
 
     print("\nPlanet {}".format(sim.planet))
     print("Read {}".format(file_in))
@@ -640,93 +665,98 @@ def plot_oc_T41(
     # samples
     if nsmp > 0:
         print("samples plot ... ")
-        # # ==== plot all the samples o-c
-        # lsmp = []
-        # for ss in samples_plt:
-        #     ss.update(sim.Teph, sim.Peph)
-        #     xx = ss.TTlin - tscale
-        #     xxx = np.concatenate((xxx, xx))
-        #     yy = np.concatenate((yy, ss.oc * ocu[0]))
-        #     (ll,) = ax.plot(
-        #         xx,
-        #         ss.oc * ocu[0],
-        #         color=cfsm(gval),
-        #         marker="None",
-        #         ls="-",
-        #         lw=0.4,
-        #         zorder=zsmp,
-        #         alpha=0.4,
-        #         label="samples",
-        #     )
-        #     lsmp.append(ll)
+        if cli.plot_samples.lower() in ["ci", "sigma"]:
+            try:
+                # ==== plot 1/2/3 CI        
+                n_sim = len(xx)
+                print("n_sim (TTs) = {:d}".format(n_sim))
+                oc_smp = []
+                print("creating oc_smp list ...")
+                print("n_sim (oc_smp) = ", end="", flush=True)
+                for iss, ss in enumerate(samples_plt):
+                    ss.update(sim.Teph, sim.Peph)
+                    n_oc_smp = len(ss.oc)
+                    if n_oc_smp < n_sim:
+                        pass
+                    else:
+                        if n_oc_smp == n_sim:
+                            sel = np.ones(n_oc_smp, dtype=bool)
+                        elif n_oc_smp > n_sim:
+                            sel = np.isin(
+                                ss.epo, oc_model.epo
+                            )
+                        print("{:d} [{:d}] ({:d}) || ".format(n_oc_smp, np.sum(sel),iss), end="", flush=True)
+                        oc_smp.append(ss.oc[sel])
+                print()
+                print("oc_smp list to array ... ")
+                oc_smp = np.array(oc_smp).T *ocu[0]
+                print("shape(oc_smp) = ", np.shape(oc_smp))
+                c1, c2, c3 = 0.6827, 0.9544, 0.9974
+                hc1, hc2, hc3 = c1*0.5, c2*0.5, c3*0.5
 
-        # # ==== plot 1/2/3 CI        
-        n_sim = len(xx)
-        print("n_sim (TTs) = {:d}".format(n_sim))
-        oc_smp = []
-        print("creating oc_smp list ...")
-        print("n_sim (oc_smp) = ", end="", flush=True)
-        for iss, ss in enumerate(samples_plt):
-            ss.update(sim.Teph, sim.Peph)
-            n_oc_smp = len(ss.oc)
-            if n_oc_smp < n_sim:
-                pass
-            else:
-                if n_oc_smp == n_sim:
-                    sel = np.ones(n_oc_smp, dtype=bool)
-                elif n_oc_smp > n_sim:
-                    sel = np.isin(
-                        ss.epo, oc_model.epo
-                    )
-                print("{:d} [{:d}] ({:d}) || ".format(n_oc_smp, np.sum(sel),iss), end="", flush=True)
-                oc_smp.append(ss.oc[sel])
-        print()
-        print("oc_smp list to array ... ")
-        oc_smp = np.array(oc_smp).T *ocu[0]
-        print("shape(oc_smp) = ", np.shape(oc_smp))
-        c1, c2, c3 = 0.6827, 0.9544, 0.9974
-        hc1, hc2, hc3 = c1*0.5, c2*0.5, c3*0.5
+                print("computing CI @ 68.27-95.44-99.73 % ... ")
+                hdi1 = np.percentile(oc_smp, [50 - (100*hc1), 50 + (100*hc1)], axis=1).T
+                hdi2 = np.percentile(oc_smp, [50 - (100*hc2), 50 + (100*hc2)], axis=1).T
+                hdi3 = np.percentile(oc_smp, [50 - (100*hc3), 50 + (100*hc3)], axis=1).T
 
-        print("computing CI @ 68.27-95.44-99.73 % ... ")
-        hdi1 = np.percentile(oc_smp, [50 - (100*hc1), 50 + (100*hc1)], axis=1).T
-        hdi2 = np.percentile(oc_smp, [50 - (100*hc2), 50 + (100*hc2)], axis=1).T
-        hdi3 = np.percentile(oc_smp, [50 - (100*hc3), 50 + (100*hc3)], axis=1).T
+                print("shape(hdi1) = ", np.shape(hdi1))
+                print("shape(hdi2) = ", np.shape(hdi2))
+                print("shape(hdi3) = ", np.shape(hdi3))
+                
+                print("plot HDI ... ")
+                yy = np.concatenate((yy, hdi3[:, 0], hdi3[:, 1]))
+                xxx = np.concatenate((xxx, xx, xx))
 
-        print("shape(hdi1) = ", np.shape(hdi1))
-        print("shape(hdi2) = ", np.shape(hdi2))
-        print("shape(hdi3) = ", np.shape(hdi3))
-        
-        print("plot HDI ... ")
-        yy = np.concatenate((yy, hdi3[:, 0], hdi3[:, 1]))
-        xxx = np.concatenate((xxx, xx, xx))
-
-        ax.fill_between(
-            xx,
-            hdi1[:, 0],
-            hdi1[:, 1],
-            color=cfsm(gval),
-            alpha=1.0,
-            lw=0.0,
-            zorder=zsmp,
-        )
-        ax.fill_between(
-            xx,
-            hdi2[:, 0],
-            hdi2[:, 1],
-            color=cfsm(gval+dg),
-            alpha=1.0,
-            lw=0.0,
-            zorder=zsmp-1,
-        )
-        ax.fill_between(
-            xx,
-            hdi3[:, 0],
-            hdi3[:, 1],
-            color=cfsm(gval+(dg*2)),
-            alpha=1.0,
-            lw=0.0,
-            zorder=zsmp-2,
-        )
+                ax.fill_between(
+                    xx,
+                    hdi1[:, 0],
+                    hdi1[:, 1],
+                    color=cfsm(gval),
+                    alpha=1.0,
+                    lw=0.0,
+                    zorder=zsmp,
+                )
+                ax.fill_between(
+                    xx,
+                    hdi2[:, 0],
+                    hdi2[:, 1],
+                    color=cfsm(gval+dg),
+                    alpha=1.0,
+                    lw=0.0,
+                    zorder=zsmp-1,
+                )
+                ax.fill_between(
+                    xx,
+                    hdi3[:, 0],
+                    hdi3[:, 1],
+                    color=cfsm(gval+(dg*2)),
+                    alpha=1.0,
+                    lw=0.0,
+                    zorder=zsmp-2,
+                )
+            except:
+                print("Issue in computing/plotting CI, back to plot all single samples")
+                cli.plot_samples = "all"
+        if cli.plot_samples == "all":
+            # ==== plot all the samples o-c
+            # lsmp = []
+            for ss in samples_plt:
+                ss.update(sim.Teph, sim.Peph)
+                xx = ss.TTlin - tscale
+                xxx = np.concatenate((xxx, xx))
+                yy = np.concatenate((yy, ss.oc * ocu[0]))
+                (ll,) = ax.plot(
+                    xx,
+                    ss.oc * ocu[0],
+                    color=cfsm(gval),
+                    marker="None",
+                    ls="-",
+                    lw=0.4,
+                    zorder=zsmp,
+                    alpha=0.1,
+                    # label="samples",
+                )
+                # lsmp.append(ll)
     
     # =================================================================
     ax.legend(
@@ -761,7 +791,7 @@ def plot_oc_T41(
     if np.all(np.isinf([minx, maxx]) == False) and np.all(np.isnan([minx, maxx]) == False):
         ax.set_xlim(minx, maxx)
     # xlims = ax.get_xlim()
-    
+
     # print("Y limits: {} -- {}".format(miny, maxy))
     # print(np.all(np.isinf([miny, maxy])  == False))
     # print(np.all(np.isnan([miny, maxy]) == False))
