@@ -2796,7 +2796,7 @@ def base_plot_orbits(
         ax.scatter(
             X[Zneg, i_pl],
             Y[Zneg, i_pl],
-            c=np.array(colors[i_pl])[Zpos],
+            c=np.array(colors[i_pl])[Zneg],
             marker="o",
             s=ms_scatter,
             edgecolors="None",
