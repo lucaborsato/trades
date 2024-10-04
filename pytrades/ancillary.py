@@ -905,7 +905,7 @@ class ConfigurationAnalysis:
             "plot_samples": "ci",
             "limits": "obs",
             "kep_ele": False,
-            "linear_ephmeris":None,
+            "linear_ephemeris":None,
             "legend": "in",
             "idsource_name": None,
             "color_map": "nipy_spectral",
