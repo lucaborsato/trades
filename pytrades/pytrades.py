@@ -21,7 +21,7 @@ import numba
 # numba.config.DISABLE_JIT = 1
 
 
-from plot_oc import set_unit_base
+set_unit_base = anc.set_unit_base
 
 import matplotlib.pyplot as plt
 
@@ -2187,6 +2187,15 @@ class TRADESfolder:
         return
 
     def write_time_change(self, new_wrttime):
+        """
+        Updates the write time for TRADES and the local object.
+
+        Parameters:
+            new_wrttime: The new write time value.
+
+        Returns:
+            None
+        """
 
         f90trades.wrttime = new_wrttime
         self.wrttime = f90trades.wrttime
@@ -2212,14 +2221,14 @@ class TRADESfolder:
         if ("fit" in par_print) or ("all" in par_print):
             print("# fitted min -- max", flush=True)
             for n, p in zip(self.fitting_names, self.fitting_minmax):
-                print("{:12s} = {:16.8f} -- {:12.6f}".format(n, p[0], p[1]), flush=True)
+                print("{:12s} = {:16.8f} -- {:16.8f}".format(n, p[0], p[1]), flush=True)
 
         if ("sys" in par_print) or ("all" in par_print):
             print("# system min -- max", flush=True)
             for n, pl, pu in zip(
                 self.all_names, self.system_parameters_min, self.system_parameters_max
             ):
-                print("{:12s} = {:16.8f} -- {:12.6f}".format(n, pl, pu), flush=True)
+                print("{:12s} = {:16.8f} -- {:16.8f}".format(n, pl, pu), flush=True)
 
         print("", flush=True)
 

@@ -78,20 +78,37 @@ OC:
     # sim_id: 668 # the first number of the above parameter name
     idplanet_name: {} # e.g {2: "b", 3: "c"}
     lmflag: 0 # if LM has been run (1) or not (0). Default 0.0
-    tscale: None # time scale to remove from x-axis plot, Default None means removing tepoch of the simulation.
+    tscale: None # time scale to remove from x-axis plot, if float it will be written in xlabel as ".0f",
+                 # suggested: [value, ".Xf"] where X is the number of digits to display, Default None means removing nothing, like [0.0, ".0f"].
+    plot_title: True # True or False
     unit: "auto" # unit of the O-C, if "auto" it auto-detect best unit for each body, otherwise set to: "d", "h", "m", "s".
     samples_file: None # hdf5 file name with samples created by analysis/n_samples > 0: i.e. samples_ttra_rv.hdf5
+    plot_samples: "ci" # how to plot samples: "ci" == "sigma", or "all". "all" will plot each samples
     limits: "obs" # x-y limits based on observations (obs) or samples (sam)
-    kep_ele: False # NOT IMPLEMENTED plot of Keplerian Elements of each transiting body during transits
-    idsource_name: None # e.g {1: TESS, 2: CHEOPS}
-    color_map: "nipy_spectral"
+    kep_ele: False # plot of Keplerian Elements of each transiting body during transits
+    legend: "in" # in or out, everything else means no legend
+    linear_ephemeris: None # default None. It means it will compute the linear ephemeris from data for each body.
+                      # Otherwise provide linear ephemeris for one or more bodies (! 2 is the number that identifies the first planet !) as:
+        # 2:
+        #     Tref: [val, err]
+        #     Pref: [val, err]
+        # 3: 
+        #     Tref: [val, err]
+        #     Pref: [val, err]
+    idsource_name: None # e.g {1: TESS, 2: CHEOPS} to map sub-data set with telescope -> different color and marker for each data-set
+    color_map: "nipy_spectral" # or as {1: "C0", 2: "C1"} the 1, 2, etc match the 1, 2 in idsource_id in NBX_observations.dat
+
 RV:
     plot_rv: True
     full_path: ./test_emcee
     sim_name: ["de", "initial", "median", "map_hdi", "map"] # list of [initial, pso, de, median, map_hdi, map, mode, from_file]
     lmflag: 0 # if LM has been run (1) or not (0). Default 0.0
-    tscale: None # time scale to remove from x-axis plot, Default None means removing tepoch of the simulation.
+    tscale: None # time scale to remove from x-axis plot, if float it will be written in xlabel as ".0f",
+                 # suggested: [value, ".Xf"] where X is the number of digits to display, Default None means removing nothing, like [0.0, ".0f"].
+    plot_title: True # True or False
     samples_file: None # hdf5 file name with samples created by analysis/n_samples > 0: i.e. samples_ttra_rv.hdf5
     limits: "obs" # x-y limits based on observations (obs) or samples (sam)
-    labels: ["RVdataset#1", "RVdataset#2"] # list or string of labels of different RV dataset, order has to match the numbering of obsRV.dat file
-    color_map: "nipy_spectral"
+    legend: "in" # in or out, everything else means no legend
+    labels: ["RVdataset#1", "RVdataset#2"] # list or string of labels of different RV dataset (order has to match the numbering of obsRV.dat file)
+                                           # or dictionary: {1: "RVdataset#1", 2: "RVdataset#2"}
+    color_map: "nipy_spectral" # color map name, color name or {1: color1, 2: color2, etc} where 1, 2, etc match 1,2, in labels

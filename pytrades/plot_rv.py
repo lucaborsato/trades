@@ -137,7 +137,7 @@ def get_sim_model(cli):
     # tmod = data[:,0]+data[:,1]-cli.tscale
     # rvmod = data[:,2]
 
-    tscale = cli.tscale
+    tscale = cli.tscale[0]
 
     mod_file = h5py.File(
         os.path.join(cli.full_path, "{:s}_models.hdf5".format(cli.sim_type)), "r"
@@ -175,7 +175,7 @@ def read_samples(cli, samples_file=None):
             tepoch = sh5[igr].attrs["tepoch"]
             trv = sh5["%s/time_rv_mod" % (igr)][...]
             rv = sh5["%s/rv_mod" % (igr)][...]
-            samples.append(rv_sample(tepoch, trv, rv, cli.tscale))
+            samples.append(rv_sample(tepoch, trv, rv, cli.tscale[0]))
         sh5.close()
 
     else:
@@ -226,7 +226,8 @@ set_colors = anc.set_colors
 
 def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
 
-    tscale = cli.tscale
+    tscale = cli.tscale[0]
+    fmt = "{:" + cli.tscale[1] + "}"
     sim_file = get_sim_file(cli)
     jitters = get_jitter(cli)
     rv_os = get_sim_data(sim_file, jitters, tscale)
@@ -238,9 +239,9 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
         print("tmod and rvmod set to None")
 
     if tscale == 0.0:
-        xlabel = "BJD$_\mathrm{TDB}$"
+        xlabel = "Time (BJD$_\mathrm{TDB}$)"
     else:
-        xlabel = "BJD$_\mathrm{{TDB}} - {:.3f}$".format(tscale)
+        xlabel = "Time (BJD$_\mathrm{{TDB}} - {}$)".format(fmt.format(tscale))
 
     axs = []
 
@@ -261,7 +262,8 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
     ax = plt.subplot2grid((nrows, ncols), (0, 0), rowspan=2)
     set_axis_default(ax, ticklabel_size=tfont, aspect="auto", labeldown=False)
     ax.set_ylabel("RV (m/s)", fontsize=lfont)
-    axtitle(ax, labtitle="Radial Velocities", fontsize=lfont)
+    if cli.plot_title:
+        axtitle(ax, labtitle="Radial Velocities", fontsize=lfont)
 
     ax.axhline(0.0, color="black", ls="-", lw=0.7, zorder=2)
 
@@ -274,16 +276,30 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
     py = 0.05
     
     nset = len(rv_os)
-    label_data = ["RV dataset \#{:d}".format(i + 1) for i in range(0, nset)]
+    # label_data = ["RV dataset \#{:d}".format(i + 1) for i in range(0, nset)]
+    # if cli.labels is not None:
+    #     nlabels = len(list(cli.labels))
+    #     label_data[0:nlabels] = [ll for ll in list(cli.labels)]
+    label_data = {i+1: "RV dataset \#{:d}".format(i + 1) for i in range(0, nset)}
+    print("default label_data = ", label_data)
     if cli.labels is not None:
-        nlabels = len(list(cli.labels))
-        label_data[0:nlabels] = [ll for ll in list(cli.labels)]
+        if isinstance(cli.labels, dict):
+            for k, v in cli.labels.items():
+                if k in label_data.keys():
+                    label_data[k] = v
+        elif isinstance(cli.labels, list):
+            nlabin = len(cli.labels)
+            for i in range(0, nlabin):
+                label_data[i+1] = cli.labels[i]
+        elif isinstance(cli.labels, str):
+            label_data[1] = cli.labels
+    print("label_data = ", label_data)
     n_idsrc = len(label_data)
     ocolors = [""]*n_idsrc
 
     ## ocolors = set_colors(nset, colormap=cli.color_map)
     # set default colors:
-    ocolors = set_colors(n_idsrc, colormap="nipy_spectral")
+    ocolors = list(set_colors(n_idsrc, colormap="nipy_spectral"))
     # check color_map option
     if isinstance(cli.color_map, str):
         print("color_map is a string")
@@ -292,14 +308,21 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
         else:
             print("color_map not found in all_color_maps")
             colormap = "nipy_spectral"
-        full_colors = anc.set_colors(n_idsrc, colormap=colormap)
+        full_colors = list(set_colors(n_idsrc, colormap=colormap))
         # print("full_colors = ", full_colors)
         ocolors = full_colors
     elif isinstance(cli.color_map, dict):
         print("color_map is a dictionary")
-        for ilab, lab in enumerate(label_data):
-            if lab in cli.color_map.keys():
-                ocolors[ilab] = cli.color_map[lab]
+        for ilab in label_data.keys():
+            print("ilab = ", ilab)
+            print("color_map keys = ", cli.color_map.keys())
+            if ilab in cli.color_map.keys():
+                print(ilab, label_data[ilab], cli.color_map[ilab])
+                ocolors[ilab-1] = cli.color_map[ilab]
+        # for ilab, lab in enumerate(label_data):
+        #     if lab in cli.color_map.keys():
+        #         print(ilab, lab)
+        #         ocolors[ilab] = cli.color_map[lab]
 
     zsim = 9
     zobs = 8
@@ -349,7 +372,7 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
             elinewidth=0.6,
             capsize=0,
             zorder=zobs,
-            label=label_data[i],
+            label=label_data[i+1],
         )
         lobs_a.append(lobs)
         # trades
@@ -507,14 +530,15 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
     lhand = lobs_a
 
     # legend in a column right of the boxes
-    if "out" in cli.legend:
+
+    if "out" == str(cli.legend).lower():
         ax.legend(handles=lhand,
             loc="center left",
             bbox_to_anchor=(1., 0.5),
             ncol=1,
             fontsize=tfont-dlfont,
         ).set_zorder(zleg)
-    else:
+    elif "in" == str(cli.legend).lower():
         ax.legend(handles=lhand,
             loc="best",
             # bbox_to_anchor=(1., 0.5),

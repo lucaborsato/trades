@@ -198,11 +198,18 @@ class sim_data:
         lfont = plt.rcParams["font.size"]
         tfont = plt.rcParams["xtick.labelsize"]
 
-        x = self.TTo - cli.tscale
-        if cli.tscale > 0.0:
-            xlabel = "BJD$_\mathrm{{TDB}} - {0:.3f}$".format(cli.tscale)
+        tscale = cli.tscale[0]
+        fmt = "{:" + cli.tscale[1] + "}"
+
+        x = self.TTo - tscale
+        # if cli.tscale > 0.0:
+        #     xlabel = "BJD$_\mathrm{{TDB}} - {0:.3f}$".format(cli.tscale)
+        # else:
+        #     xlabel = "BJD$_\mathrm{TDB}$"
+        if tscale == 0.0:
+            xlabel = "Time (BJD$_\mathrm{TDB}$)"
         else:
-            xlabel = "BJD$_\mathrm{TDB}$"
+            xlabel = "Time (BJD$_\mathrm{{TDB}} - {}$)".format(fmt.format(tscale))
 
         kep = np.column_stack(
             (
@@ -358,35 +365,8 @@ def read_samples(samples_file=None):
 
     return samples
 
-
-# ==============================================================================
-
-
-def set_unit_base(u_in, Aoc_d):
-    try:
-        if u_in.lower() in "s sec second seconds".split():
-            ocu = [86400.0, "sec"]
-        elif u_in.lower() in "m min minute minutes".split():
-            ocu = [1440.0, "min"]
-        elif u_in.lower() in "h hour hours".split():
-            ocu = [24.0, "hours"]
-        elif u_in.lower() == "auto":
-            ocu = anc.set_automatic_unit_time(Aoc_d)
-        else:
-            ocu = [1.0, "days"]
-    except:
-        ocu = [1.0, "days"]
-
-    return ocu
-
-
-def set_unit(cli, Aoc_d):
-    u_in = cli.ocunit
-
-    ocu = set_unit_base(u_in, Aoc_d)
-
-    return ocu
-
+set_unit_base = anc.set_unit_base
+set_unit = anc.set_unit
 
 # ==============================================================================
 
@@ -470,15 +450,17 @@ def plot_oc_T41(
             colormap = cli.color_map
         else:
             colormap = "nipy_spectral"
-        full_colors = anc.set_colors(n_idsrc, colormap=colormap)
+        full_colors = list(anc.set_colors(n_idsrc, colormap=colormap))
         ocolors = [full_colors[k-1] for k in cli.idsource_name.keys()]
 
-    if cli.tscale is None:
-        tscale = 2440000.5
-    else:
-        tscale = float(cli.tscale)
+    # if cli.tscale is None:
+    #     tscale = 2440000.5
+    # else:
+    #     tscale = float(cli.tscale)
         # if tscale <= 0.0:
         #     tscale = 0.0
+    tscale = cli.tscale[0]
+    fmt = "{:" + cli.tscale[1] + "}"
 
     Aoc_d = 0.5 * (np.max(sim.oc_o) - np.min(sim.oc_o))
     ocu = set_unit(cli, Aoc_d)
@@ -514,10 +496,14 @@ def plot_oc_T41(
     tfont = plt.rcParams["xtick.labelsize"]
     dlfont = 2
 
-    if tscale > 0.0:
-        xlabel = "BJD$_\mathrm{{TDB}} - {0:.3f}$".format(tscale)
+    # if tscale > 0.0:
+    #     xlabel = "BJD$_\mathrm{{TDB}} - {0:.3f}$".format(tscale)
+    # else:
+    #     xlabel = "BJD$_\mathrm{TDB}$"
+    if tscale == 0.0:
+        xlabel = "Time (BJD$_\mathrm{TDB}$)"
     else:
-        xlabel = "BJD$_\mathrm{TDB}$"
+        xlabel = "Time (BJD$_\mathrm{{TDB}} - {}$)".format(fmt.format(tscale))
 
     fig = plt.figure(figsize=figsize)
     fig.subplots_adjust(hspace=0.05, wspace=0.25)
@@ -584,7 +570,9 @@ def plot_oc_T41(
     ax = plt.subplot2grid((nrows, ncols), (0, 0), rowspan=2)
     set_axis_default(ax, ticklabel_size=tfont, aspect="auto", labeldown=False)
     ax.set_ylabel("O-C ({:s})".format(ocu[1]), fontsize=lfont)
-    axtitle(ax, labtitle="planet {:s}: transit times".format(planet), fontsize=lfont)
+    if cli.plot_title:
+        # axtitle(ax, labtitle="planet {:s}: transit times".format(planet), fontsize=lfont)
+        axtitle(ax, labtitle="planet {:s}: TTV".format(planet), fontsize=lfont)
 
     ax.axhline(0.0, color="black", ls="-", lw=0.7)
 
@@ -759,13 +747,14 @@ def plot_oc_T41(
                 # lsmp.append(ll)
     
     # =================================================================
-    ax.legend(
-        handles= lobs + [lsim], #, lmod, lsmp[0]],
-        loc=leg_loc, 
-        bbox_to_anchor=leg_bbox,
-        ncols=leg_ncol,
-        fontsize=lfont - dlfont,
-    ).set_zorder(zleg)
+    if cli.legend.lower() == "in" or cli.legend.lower() == "out": 
+        ax.legend(
+            handles= lobs + [lsim], #, lmod, lsmp[0]],
+            loc=leg_loc, 
+            bbox_to_anchor=leg_bbox,
+            ncols=leg_ncol,
+            fontsize=lfont - dlfont,
+        ).set_zorder(zleg)
     # else:
     #     ax.legend(
     #         loc=leg_loc, 
@@ -872,11 +861,13 @@ def plot_oc_T41(
         ax = plt.subplot2grid((nrows, ncols), (0, 1), rowspan=2)
         set_axis_default(ax, ticklabel_size=tfont, aspect="auto", labeldown=False)
         ax.set_ylabel("T$_{{14}}$ (min)", fontsize=lfont)
-        axtitle(
-            ax,
-            labtitle="planet {:s}: durations as T$_4$-T$_1$".format(planet),
-            fontsize=lfont,
-        )
+        if cli.plot_title:
+            axtitle(
+                ax,
+                # labtitle="planet {:s}: durations as T$_4$-T$_1$".format(planet),
+                labtitle="planet {:s}: TDV".format(planet),
+                fontsize=lfont,
+            )
 
         # ax.axhline(np.median(data[:,6]), color='black', ls='-',lw=0.7)
 

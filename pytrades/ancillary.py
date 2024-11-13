@@ -592,7 +592,8 @@ class CLI_OC:
         full_path=os.path.abspath("."),
         idsim=1,
         lmflag=0,
-        tscale=2440000.5,
+        tscale=0.0,
+        plot_title=False,
         ocunit="d",
         samples_file=None,
         plot_samples= "ci",
@@ -607,7 +608,24 @@ class CLI_OC:
         self.idsim = int(idsim)
         self.sim_type = os.path.basename(full_path)
         self.lmflag = int(lmflag)
-        self.tscale = tscale
+        # self.tscale = tscale
+        self.tscale = [0.0, ".0f"]
+        if isinstance(tscale, (list, np.ndarray)):
+            try:
+                self.tscale[0] = float(tscale[0])
+                self.tscale[1] = tscale[1]
+            except:
+                self.tscale = [0.0, ".0f"]
+        elif isinstance(tscale, (int, float, str)):
+            try:
+                self.tscale[0] = float(tscale[0])
+                self.tscale[1] = ".0f"
+            except:
+                self.tscale = [0.0, ".0f"]
+        else:
+            self.tscale = [0.0, ".0f"]
+
+        self.plot_title = plot_title
         self.ocunit = ocunit
         self.samples_file = samples_file
         if plot_samples.lower() != "all":
@@ -630,7 +648,8 @@ class CLI_RV:
         full_path=os.path.abspath("."),
         idsim=1,
         lmflag=0,
-        tscale=2440000.5,
+        tscale=0.0,
+        plot_title=False,
         labels="None",
         samples_file=None,
         limits="obs",
@@ -641,7 +660,26 @@ class CLI_RV:
         self.sim_type = os.path.basename(full_path)
         self.idsim = int(idsim)
         self.lmflag = int(lmflag)
-        self.tscale = tscale
+        
+        # self.tscale = tscale
+        self.tscale = [0.0, ".0f"]
+        if isinstance(tscale, (list, np.ndarray)):
+            try:
+                self.tscale[0] = float(tscale[0])
+                self.tscale[1] = tscale[1]
+            except:
+                self.tscale = [0.0, ".0f"]
+        elif isinstance(tscale, (int, float, str)):
+            try:
+                self.tscale[0] = float(tscale[0])
+                self.tscale[1] = ".0f"
+            except:
+                self.tscale = [0.0, ".0f"]
+        else:
+            self.tscale = [0.0, ".0f"]
+
+        self.plot_title = plot_title
+
         if str(labels).lower() != "none":
             if isinstance(labels, str):
                 self.labels = labels.split()
@@ -5684,3 +5722,32 @@ def save_latex_table(parameters_file, scale_mpMs=True, to_print=False, add_digit
             f.write(ltex + "\n")
 
     return None
+
+
+# 
+# ==============================================================================
+
+def set_unit_base(u_in, Aoc_d):
+    try:
+        if u_in.lower() in "s sec second seconds".split():
+            ocu = [86400.0, "sec"]
+        elif u_in.lower() in "m min minute minutes".split():
+            ocu = [1440.0, "min"]
+        elif u_in.lower() in "h hour hours".split():
+            ocu = [24.0, "hours"]
+        elif u_in.lower() == "auto":
+            ocu = anc.set_automatic_unit_time(Aoc_d)
+        else:
+            ocu = [1.0, "days"]
+    except:
+        ocu = [1.0, "days"]
+
+    return ocu
+
+
+def set_unit(cli, Aoc_d):
+    u_in = cli.ocunit
+
+    ocu = set_unit_base(u_in, Aoc_d)
+
+    return ocu
