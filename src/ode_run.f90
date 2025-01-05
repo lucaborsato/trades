@@ -1263,7 +1263,7 @@ contains
         nend = 0
         if (nTTs .gt. 0) then
             allocate (body_T0_sim(nTTs), epo_sim(nTTs))
-            allocate (T0_sim(nTTs), T14_sim(nTTs))
+            allocate (T0_sim(nTTs), T14_sim(nTTs), lambda_rm_sim(nTTs))
             allocate (kep_elem_sim(nTTs, n_kepelem))
             do ibd = 1, n_body-1
                 nT0 = obsData%obsT0(ibd)%nT0

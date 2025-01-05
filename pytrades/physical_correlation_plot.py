@@ -7,7 +7,7 @@ import os
 import sys
 import numpy as np  # array
 import h5py
-import ancillary as anc
+from . import ancillary as anc
 # from scipy.stats import norm as scipy_norm
 import pygtc
 import matplotlib.pyplot as plt

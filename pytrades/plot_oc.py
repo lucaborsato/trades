@@ -18,9 +18,9 @@ import h5py
 import matplotlib.pyplot as plt
 
 # custom modules
-import constants as cst
-import ancillary as anc
-import pytrades
+from . import constants as cst
+from . import ancillary as anc
+from . import pytrades
 
 CLI_OC = anc.CLI_OC
 filled_markers = anc.filled_markers
@@ -660,7 +660,7 @@ def plot_oc_T41(
                 print("n_sim (TTs) = {:d}".format(n_sim))
                 oc_smp = []
                 print("creating oc_smp list ...")
-                print("n_sim (oc_smp) = ", end="", flush=True)
+                # print("n_sim (oc_smp) = ", end="", flush=True)
                 for iss, ss in enumerate(samples_plt):
                     ss.update(sim.Teph, sim.Peph)
                     n_oc_smp = len(ss.oc)
@@ -673,9 +673,9 @@ def plot_oc_T41(
                             sel = np.isin(
                                 ss.epo, oc_model.epo
                             )
-                        print("{:d} [{:d}] ({:d}) || ".format(n_oc_smp, np.sum(sel),iss), end="", flush=True)
+                        # print("{:d} [{:d}] ({:d}) || ".format(n_oc_smp, np.sum(sel),iss), end="", flush=True)
                         oc_smp.append(ss.oc[sel])
-                print()
+                # print()
                 print("oc_smp list to array ... ")
                 oc_smp = np.array(oc_smp).T *ocu[0]
                 print("shape(oc_smp) = ", np.shape(oc_smp))

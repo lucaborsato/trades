@@ -31,19 +31,15 @@ module f90trades
     !f2py integer::npar,nkel, nfit
     !f2py integer::nRVset
     !f2py integer::rv_trend_order
-
     !f2py real(dp),parameter::resmax
     !f2py real(dp)::tepoch,tstart,tint
     !f2py integer::idpert
     !f2py real(dp)::wrttime
+    !f2py integer::durcheck
     !f2py logical::do_hill_check,amd_hill_check
-
     !f2py real(dp),dimension(2,2)::MR_star
-    
     !f2py integer::n_priors
-
     !f2py integer::seed_pso,np_pso,nit_pso,wrt_pso
-
     !f2py integer::ncpu_in
 
     ! needed because TRADES now uses these variables in data type
@@ -54,7 +50,7 @@ module f90trades
 
 !   real(dp)::ln_err_const,inv_dof
     real(dp)::inv_dof
-    !f2py real(dp)::ln_err_const
+    ! !f2py real(dp)::ln_err_const
 
     ! variables:  parameters to fit
     ! fitting_parameters and parameters_minmax returned by a subroutine now
@@ -685,7 +681,7 @@ contains
         check_status = .true.
 
         check = check_only_boundaries(system_parameters, parameters_values)
-        write (*, *) "DEBUG check_only_boundaries : ", check
+        ! write (*, *) "DEBUG check_only_boundaries : ", check
         lnprior = zero
 
         allocate (run_all_par(npar))
@@ -695,9 +691,9 @@ contains
         call write_summary_nosigma(1, write_number, 0, run_all_par, parameters_values,&
             &chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic) ! add .true. at the end for full debug
         deallocate (run_all_par)
-        write (*, *) "DEBUG check = ", check, " check_status = ", check_status
-        write (*, *) "DEBUG after write_summary_nosigma: reduced_chi_square = ", reduced_chi_square
-        flush (6)
+        ! write (*, *) "DEBUG check = ", check, " check_status = ", check_status
+        ! write (*, *) "DEBUG after write_summary_nosigma: reduced_chi_square = ", reduced_chi_square
+        ! flush (6)
         if (.not. check .or. .not. check_status) chi_square = resmax
         call set_fitness_values(parameters_values,&
             &chi_square, reduced_chi_square, lgllhd, ln_const, bic)
@@ -957,6 +953,14 @@ contains
         return
     end subroutine set_rv_res_gls
 
+    subroutine set_durcheck(duration_check)
+        ! Input
+        integer,intent(in)::duration_check
+
+        durcheck = duration_check
+    
+        return
+    end subroutine set_durcheck
 
     ! SUBROUTINE TO INITIALISE TRADES WITHOUT READING FILES
     subroutine args_init(n_body, duration_check)
@@ -982,7 +986,7 @@ contains
         call deallocate_dataObs(obsData)
         allocate (obsData%obsT0(n_body-1))
 
-        durcheck = duration_check
+        call set_durcheck(duration_check) ! updating durcheck global variable
 
         amin = TOL_dp
         amax = 1.0e4_dp
@@ -1047,13 +1051,27 @@ contains
             obsData%obsT0(i_body)%source_id = sources_id
             obsData%nTTs = sum(obsData%obsT0(:)%nT0)
             nTTs = obsData%nTTs
-            nDurs = nTTs
-            if (durcheck .eq. 1) then
-                obsData%nDurs = obsData%nTTs
-            end if
             call set_ephem()
             call compute_oc_one_planet(obsData%obsT0(i_body))
         end if
+
+        return
+    end subroutine
+
+    subroutine set_t14_dataset(body_id, t14, et14, n_t14)
+        ! Input
+        integer, intent(in)::body_id
+        integer, intent(in)::n_t14
+        real(dp), dimension(n_t14), intent(in)::t14, et14
+        ! Local
+        integer::i_body
+
+        i_body = body_id-1
+        obsData%obsT0(i_body)%dur = t14
+        obsData%obsT0(i_body)%edur = et14
+        obsData%obsT0(i_body)%nDur = n_t14
+        obsData%nDurs = sum(obsData%obsT0(:)%nDur)
+        nDurs = obsData%nDurs
 
         return
     end subroutine
@@ -1066,9 +1084,9 @@ contains
         obsData%nTTs = sum(obsData%obsT0(:)%nT0)
         nTTs=obsData%nTTs
         if (durcheck .eq. 1) then
-            obsData%nDurs = obsData%nTTs
+            obsData%nDurs = sum(obsData%obsT0(:)%nDur)
         end if
-        nDurs=obsData%nTTs
+        nDurs=obsData%nDurs
 
         return
     end subroutine deallocate_t0_dataset
@@ -1492,7 +1510,7 @@ contains
         deallocate (temp_grid, fitness_grid) ! temporary -> useless here
 
         ! needed to update the max allowed value of the semi-major axis
-        amax = 5._dp*maxval(perturber_grid(:, 4))
+        amax = 5.0_dp*maxval(perturber_grid(:, 4))
 
         return
     end subroutine wrapper_grid_init

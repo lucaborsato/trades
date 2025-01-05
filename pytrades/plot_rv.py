@@ -17,8 +17,8 @@ import h5py
 import matplotlib.pyplot as plt
 
 # custom modules
-import constants as cst
-import ancillary as anc
+from . import constants as cst
+from . import ancillary as anc
 
 anc.set_rcParams()
 

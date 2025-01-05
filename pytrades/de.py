@@ -14,11 +14,11 @@ import matplotlib.pyplot as plt
 
 
 # local constants module
-import constants as cst
-import ancillary as anc
+from . import constants as cst
+from . import ancillary as anc
 
 from multiprocessing import Pool
-from pyde import DiffEvol
+from .pyde import DiffEvol
 
 anc.set_rcParams()
 

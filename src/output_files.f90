@@ -713,7 +713,7 @@ contains
         real(dp), dimension(:), intent(in)::resw
         logical, optional, intent(in)::to_screen
         ! Local parameters
-        real(dp)::chi_square, reduced_chi_square, lnLikelihood, ln_const, lnprior, lnprob, bic
+        real(dp)::chi_square, reduced_chi_square, lnLikelihood, ln_const, lnprior, lnprob, bic, bic_lnP
         integer::upar, j
         character(512)::flpar
         character(80)::fmt
@@ -728,7 +728,8 @@ contains
                 &priors_names, priors_values, lnprior)
         end if
         lnprob = lnLikelihood+lnprior
-        bic = bic-two*lnprior
+        ! bic = bic-two*lnprior
+        bic_lnP = -two*lnprob + real(nfit, dp)*log(real(obsData%ndata, dp))
 
         upar = get_unit(cpuid)
         flpar = ""
@@ -761,7 +762,8 @@ contains
             write (*, trim(fmt)) "# lnLikelihood = ", lnLikelihood
             write (*, trim(fmt)) "# lnPrior      = ", lnprior
             write (*, trim(fmt)) "# lnProb = lnLikelihood + lnPrior = ", lnprob
-            write (*, trim(fmt)) "# BIC = -2xlnProb + nfit x ln(ndata) = ", bic
+            write (*, trim(fmt)) "# BIC = -2xlnLikelihood + nfit x ln(ndata) = ", bic
+            write (*, trim(fmt)) "# BIC = -2xlnProb       + nfit x ln(ndata) = ", bic_lnP
             write (*, '(a,5x,a)') "# parameter ", " value "
         end if
 
@@ -784,7 +786,8 @@ contains
         write (upar, trim(fmt)) "# lnLikelihood = ", lnLikelihood
         write (upar, trim(fmt)) "# lnPrior      = ", lnprior
         write (upar, trim(fmt)) "# lnProb = lnLikelihood + lnPrior = ", lnprob
-        write (upar, trim(fmt)) "# BIC = -2xlnProb + nfit x ln(ndata) = ", bic
+        write (upar, trim(fmt)) "# BIC = -2xlnLikelihood + nfit x ln(ndata) = ", bic
+        write (upar, trim(fmt)) "# BIC = -2xlnProb       + nfit x ln(ndata) = ", bic_lnP
         write (upar, '(a,5x,a)') "# parameter ", " value "
 
         fmt = adjustl("(a10,4x,"//trim(sprec)//")")

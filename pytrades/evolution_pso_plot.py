@@ -13,30 +13,14 @@ import sys
 
 import matplotlib as mpl
 
-mpl.use("Agg")
+# mpl.use("Agg")
 import matplotlib.pyplot as plt
 
-# matplotlib rc params
-plt.rcParams["text.usetex"] = False
-# plt.rcParams['font.family']       = 'sans-serif'
-plt.rcParams["font.family"] = "serif"
-plt.rcParams["font.serif"] = ["Computer Modern Roman", "Palatino", "DejaVu Serif"]
-plt.rcParams["mathtext.fontset"] = "cm"
-plt.rcParams["figure.figsize"] = [5, 5]
-plt.rcParams["figure.facecolor"] = "white"
-plt.rcParams["savefig.facecolor"] = "white"
-plt.rcParams["figure.dpi"] = 200
-plt.rcParams["savefig.dpi"] = 300
-plt.rcParams["font.size"] = 12
-plt.rcParams["xtick.labelsize"] = plt.rcParams["font.size"] - 2
-plt.rcParams["ytick.labelsize"] = plt.rcParams["xtick.labelsize"]
-
-
 # local constants module
-import constants as cst
-import ancillary as anc
+from . import constants as cst
+from . import ancillary as anc
 
-
+anc.set_rcParams()
 # ======================================================================
 
 

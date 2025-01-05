@@ -13,7 +13,7 @@ import yaml
 # import trades_lib
 # import random
 
-import constants as cst  # local constants module
+from . import constants as cst  # local constants module
 
 # from emcee import autocorr as acor
 import emcee

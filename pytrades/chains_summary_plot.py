@@ -9,10 +9,10 @@ import numpy as np  # array
 import h5py
 
 # import random
-import constants as cst  # local constants module
-from scipy.stats import norm as scipy_norm
-import ancillary as anc
+from . import constants as cst  # local constants module
+from . import ancillary as anc
 
+from scipy.stats import norm as scipy_norm
 import matplotlib as mpl
 
 import matplotlib.pyplot as plt

@@ -4,9 +4,9 @@ import os
 import h5py
 import sys
 
-from pytrades_lib import f90trades
-import ancillary as anc
-import constants as cst
+from . import constants as cst
+from . import ancillary as anc
+from .pytrades_lib import f90trades
 
 from scipy.interpolate import interp1d
 
@@ -161,7 +161,7 @@ def set_rv_dataset(t_rv, rv_obs, erv_obs, rv_setid=None, n_rvset=1):
 
 
 # =============================================================================
-def set_t0_dataset(body_id, epo, t0, et0, sources_id=None):
+def set_t0_dataset(body_id, epo, t0, et0, t14=None, et14=None, sources_id=None):
     """
     A function to set the t0 dataset with the given parameters.
 
@@ -170,11 +170,14 @@ def set_t0_dataset(body_id, epo, t0, et0, sources_id=None):
     epo (array): Array of epoch values for the t0 observations.
     t0 (array): Array of t0 values for the observations.
     et0 (array): Array of errors on the t0 observations.
+    t14 (array): Array of t14 (durations) values for the observations.
+    et14 (array): Array of errors on the t14 (durations) observations.
     sources_id (array, optional): Array defining the sources IDs. If not provided, default sources IDs are generated.
 
     Returns:
     None
     """
+      
 
     # If sources_id is not provided, generate default sources IDs.
     if sources_id is None:
@@ -182,6 +185,9 @@ def set_t0_dataset(body_id, epo, t0, et0, sources_id=None):
 
     # Set the t0 dataset using the F90 wrapper.
     f90trades.set_t0_dataset(body_id, epo, t0, et0, sources_id)
+    # Set durations if provided
+    if (t14 is not None) and (et14 is not None):
+        f90trades.set_t14_dataset(body_id, t14, et14)
 
     return
 
@@ -219,29 +225,37 @@ def kelements_to_observed_rv_and_t0s(
     transit_flag,
 ):
     """
-    Computes orbits from a given set of Keplerian elements and generates RVs and T0s.
-
+    Computes observed radial velocities (RVs) and T0s based on given Keplerian elements.
+    
     Parameters:
         t_start (float): start time
         t_epoch (float): epoch time
         t_int (float): integration time step
         M_msun (float): mass of the sun
         R_rsun (float): radius of the sun
-        P_day (float): period in days
+        P_day (float): orbital period in days
         ecc (float): eccentricity
         argp_deg (float): argument of periapsis in degrees
         mA_deg (float): mean anomaly in degrees
         inc_deg (float): inclination in degrees
         lN_deg (float): longitude of the ascending node in degrees
-        transit_flag (int): flag for transit
-
+        transit_flag (list): flag for transiting bodies: [False, True, True, ...]
+    
     Returns:
-        tuple: Contains rv_sim (RVs), body_T0_sim (T0s), epo_sim (epochs), t0_sim, t14_sim, kel_sim
+        tuple: Contains rv_sim (RVs), body_T0_sim (T0s), epo_sim (epochs), t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable
     """
-
+   
     n_kep = 8  # number of keplerian elements in output for each T0s
     n_rv = f90trades.nrv
     n_T0s = f90trades.ntts
+    # print("Computing RVs and T0s ...", flush=True)
+    # print("n_rv    = {}".format(n_rv), flush=True)
+    # print("n_T0s   = {}".format(n_T0s), flush=True)
+    # print("t_start = {}".format(t_start), flush=True)
+    # print("t_epoch = {}".format(t_epoch), flush=True)
+    # print("t_int   = {}".format(t_int), flush=True)
+    # print("", flush=True)
+
     (rv_sim, body_T0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable) = (
         f90trades.kelements_to_rv_and_t0s(
             t_start,
@@ -281,22 +295,23 @@ def kelements_to_observed_rv(
     # n_rv,
 ):
     """
-    From keplerian elements compute orbits and return radial velocities (RVs) already set as global parameters/set.
+    Computes observed radial velocities (RVs) based on given Keplerian elements.
+    
     Parameters:
-        t_start: float - start time
-        t_epoch: float - epoch time
-        t_int: float - integration time step
-        M_msun: float - mass of the sun
-        R_rsun: float - radius of the sun
-        P_day: float - orbital period in days
-        ecc: float - eccentricity
-        argp_deg: float - argument of periapsis in degrees
-        mA_deg: float - mean anomaly in degrees
-        inc_deg: float - inclination in degrees
-        lN_deg: float - longitude of the ascending node in degrees
-        n_rv: int - number of radial velocities
+        t_start (float): start time
+        t_epoch (float): epoch time
+        t_int (float): integration time step
+        M_msun (float): mass of the sun
+        R_rsun (float): radius of the sun
+        P_day (float): orbital period in days
+        ecc (float): eccentricity
+        argp_deg (float): argument of periapsis in degrees
+        mA_deg (float): mean anomaly in degrees
+        inc_deg (float): inclination in degrees
+        lN_deg (float): longitude of the ascending node in degrees
+    
     Returns:
-        rv_sim: array - simulated radial velocities
+        tuple: Contains rv_sim (RVs) and stable flag
     """
 
     n_rv = f90trades.nrv
@@ -386,7 +401,7 @@ def kelements_to_orbits(
     Calculate orbits from Keplerian elements.
 
     Parameters:
-        steps (int): The number of steps.
+        steps (list): time steps.
         M_msun (list): List of masses in solar masses.
         R_rsun (list): List of radii in solar radii.
         P_day (list): List of orbital periods in days.
@@ -614,7 +629,7 @@ def linear_fit(x, y, ey=None):
     Returns:
     tuple: Tuple containing two tuples. The first tuple contains the intercept and its error (q, err_q).
     The second tuple contains the slope and its error (m, err_m).
-    float: The chi-squared value of the fit.
+    float: The chi-squared value of the fit. Be aware that if ey is None, the chi-squared value is not normalized and has no meaning.
     """
 
     if ey is None:
@@ -747,8 +762,6 @@ def set_transit_parameters(radius, transits, body_flag, kep_elem):
     return rp_rs, per, aRs, inc, ecc, w
 
 
-# TODO: generate lcids for pytransit model in order to automatically take into account multiple transits
-# in the same photometry, lcids should be based on epoch/transit number ...
 def get_simulate_flux(
     tm,
     photometry,
@@ -1091,6 +1104,22 @@ def phototrades_plot_oc(
     show_plot=True,
     output_folder=None,
 ):
+    """
+    Plot the observed and simulated O-C (Observed minus Calculated) values for transits of multiple planets.
+
+    Parameters:
+    - transits_obs: Dictionary containing observed transit data for each planet.
+    - Tref: Dictionary containing reference transit times for each planet.
+    - Pref: Dictionary containing reference periods for each planet.
+    - transits_sim: Dictionary containing simulated transit times for each planet.
+    - pl_names: List of planet names.
+    - figsize: Tuple representing the figure size (default is (8, 4)).
+    - show_plot: Boolean indicating whether to display the plot (default is True).
+    - output_folder: Path to the output folder for saving the plot (default is None).
+
+    Returns:
+    - None
+    """
 
     fig = plt.figure(figsize=figsize)
 
@@ -1226,6 +1255,20 @@ def phototrades_plot_oc(
 def set_photometry_portion(
     time, flux, flux_err, n_oversample=1, t_exp_d=60.0 * cst.sec2day, ancillary=None
 ):
+    """
+    Creates a portion dictionary containing time, flux, flux error, ancillary data, and additional derived information.
+
+    Parameters:
+        time (array-like): Array of time values.
+        flux (array-like): Array of flux values.
+        flux_err (array-like): Array of flux error values.
+        n_oversample (int, optional): Number of oversampling points. Default is 1.
+        t_exp_d (float, optional): Exposure time in days. Default is 60.0 sec in days.
+        ancillary (dict, optional): Dictionary with ancillary data. Default is None.
+
+    Returns:
+        dict: A dictionary containing time, flux, flux error, ancillary data, and additional information including time statistics and interpolated ancillary data.
+    """
 
     ndata = len(time)
     portion = {}
@@ -1260,6 +1303,17 @@ def set_photometry_portion(
 
 
 def get_photometry_residuals(obs_photometry, sim_photometry):
+    """
+    Calculate photometry residuals between observed and simulated photometry data.
+
+    Parameters:
+        obs_photometry (dict): A dictionary containing observed photometry data.
+        sim_photometry (dict): A dictionary containing simulated photometry data.
+
+    Returns:
+        res (array): Array of photometry residuals.
+        err2 (array): Array of squared photometry errors.
+    """
     res, err2 = [], []
     for ko, o in obs_photometry.items():
         s = sim_photometry[ko]
@@ -1276,7 +1330,17 @@ def get_photometry_residuals(obs_photometry, sim_photometry):
 
 
 def get_transit_times_residuals(obs_transits, sim_transits):
+    """
+    Calculate photometry residuals between observed and simulated transit times data.
 
+    Parameters:
+        obs_photometry (dict): A dictionary containing observed transit times data.
+        sim_photometry (dict): A dictionary containing simulated transit times data.
+
+    Returns:
+        res (array): Array of photometry residuals.
+        err2 (array): Array of squared photometry errors.
+    """
     res, err2 = [], []
     for bd, otra in obs_transits.items():
         oT0 = otra["T0s"]
@@ -1303,7 +1367,24 @@ def get_radial_velocities_residuals(
     sim_rv,
     ctrends=[0.0],
 ):
+    """
+    Calculate the residuals and errors for radial velocities data.
 
+    Parameters:
+        t_epoch (array): Array of epoch times.
+        t_rv_obs (array): Array of observed radial velocities times.
+        rv_obs (array): Array of observed radial velocities.
+        rv_obs_err (array): Array of errors in observed radial velocities.
+        rv_set_id (array): Array of IDs for radial velocity sets.
+        gammas (array): Array of gamma values.
+        jitters (array): Array of jitter values.
+        sim_rv (dict): Dictionary containing simulated radial velocities.
+        ctrends (list, optional): List of trend coefficients. Defaults to [0.0].
+
+    Returns:
+        res (array): Array of residuals for radial velocities.
+        err2 (array): Array of squared errors for radial velocities.
+    """
     trv = t_rv_obs
     orv = rv_obs
     erv = rv_obs_err
@@ -1351,8 +1432,24 @@ class PhotoTRADES:
         duration_check=1,
         do_hill_check=False,
         amd_hill_check=False,
+        rv_res_gls=False,
     ):
+        """
+        Initializes the PhotoTRADES object with the specified parameters.
 
+        Parameters:
+            n_body (int): Number of bodies.
+            t_epoch (int): Epoch time.
+            t_start (int): Start time.
+            t_int (int): Interval time.
+            duration_check (int, optional): Duration check value (default is 1).
+            do_hill_check (bool, optional): Flag for Hill check.
+            amd_hill_check (bool, optional): Flag for AMD Hill check.
+            rv_res_gls (bool, optional): Flag for RV GLS.
+
+        Returns:
+            None
+        """
         self.n_body = n_body
         self.t_epoch = t_epoch
         self.t_start = t_start
@@ -1367,6 +1464,7 @@ class PhotoTRADES:
             t_int=t_int,
             do_hill_check=do_hill_check,
             amd_hill_check=amd_hill_check,
+            rv_res_gls=rv_res_gls,
         )
 
         self.Tref = {}
@@ -1379,7 +1477,7 @@ class PhotoTRADES:
         self.n_all_transits = 0
 
         self.photometry = {}
-        self.photometry_flux_trend = {}
+        self.photometry_flux_trend_coeff = {}
         self.ancillary_coeff = {}
         self.n_photometry = 0
         self.n_photometry_points = 0
@@ -1401,7 +1499,22 @@ class PhotoTRADES:
     def add_default_physical_parameters(
         self, mass, radius, period, ecc, argp, meana, inc, longn
     ):
+        """
+        Set the default physical parameters for the object.
 
+        Parameters:
+            mass (float): The mass of the object.
+            radius (float): The radius of the object.
+            period (float): The period of the object.
+            ecc (float): The eccentricity of the object.
+            argp (float): The argument of the pericenter of the object.
+            meana (float): The mean anomaly of the object.
+            inc (float): The inclination of the object.
+            longn (float): The longitude of the ascending node of the object.
+
+        Returns:
+            None
+        """
         self.mass = mass
         self.radius = radius
         self.period = period
@@ -1414,7 +1527,18 @@ class PhotoTRADES:
         return
 
     def add_linear_ephem(self, body_id, Tref, Pref):
-
+        """
+        Adds linear ephemeris data for a specific body.
+        
+        Parameters:
+            self: The object instance.
+            body_id (int): The ID of the body for which the ephemeris data is being added.
+            Tref (float or list): The reference time for the ephemeris data.
+            Pref (float or list): The reference position for the ephemeris data.
+        
+        Returns:
+            None
+        """
         if isinstance(Tref, (float, int)):
             self.Tref[body_id] = list([Tref])
         else:
@@ -1427,7 +1551,20 @@ class PhotoTRADES:
         return
 
     def add_transits(self, body_id, T0s, err_T0s, epo=None, sources=None):
+        """
+        Adds transit data for a specific body.
+        
+        Parameters:
+            self: The object instance.
+            body_id (int): The ID of the body for which the transit data is being added.
+            T0s (array): Array of transit times.
+            err_T0s (array): Array of errors on the transit times.
+            epo (optional): The epoch value.
+            sources (array, optional): Array of sources for the transit data.
 
+        Returns:
+            None
+        """
         n = len(T0s)
         if sources is None:
             sources = np.array(["-"] * n)
@@ -1445,7 +1582,16 @@ class PhotoTRADES:
         return
 
     def update_linear_ephem(self):
-
+        """
+        Updates linear ephemeris data based on transit times and reference values for each body.
+        This function iterates over transits, calculates Tx and Px values, sorts the transit times, and computes the ephemeris.
+        
+        Parameters:
+            self: The object instance.
+            
+        Returns:
+            None
+        """
         for bd, tra_bd in self.transits.items():
             nT0 = self.n_transits[bd]
             if len(self.Tref) == 0:
@@ -1472,7 +1618,17 @@ class PhotoTRADES:
         return
 
     def get_simulated_transits(self, transits, body_flag):
-
+        """
+        Generates simulated transits based on input transits and body flags.
+        
+        Parameters:
+            self: The object instance.
+            transits: The input transits data.
+            body_flag: The flag indicating the body.
+            
+        Returns:
+            transits_out: A dictionary containing the simulated transits.
+        """
         transits_out = {}
         body_ids = np.unique(body_flag)
         for body_id in body_ids:
@@ -1496,9 +1652,22 @@ class PhotoTRADES:
 
         return transits_out
 
-    def add_photometry(self, name, data, flux_time_trend, anc_coeff=None):
+    def add_photometry(self, name, data, flux_time_trend_coeff, anc_coeff=None):
+        """
+        Adds photometry data to the object instance.
+
+        Parameters:
+            self: The object instance.
+            name (str): The name of the photometry data.
+            data (dict): The photometry data to be added.
+            flux_time_trend_coeff (dict): The flux time trend coefficients to be added.
+            anc_coeff (dict, optional): The ancillary coefficients data. Defaults to None.
+
+        Returns:
+            None
+        """
         self.photometry[name] = data
-        self.photometry_flux_trend[name] = flux_time_trend
+        self.photometry_flux_trend_coeff[name] = flux_time_trend_coeff
         if anc_coeff is None:
             self.ancillary_coeff[name] = {k: None for k in data.keys()}
         else:
@@ -1513,6 +1682,18 @@ class PhotoTRADES:
         return
 
     def add_radial_velocity(self, name, data, id_num):
+        """
+        Adds radial velocity data to the object instance.
+
+        Parameters:
+            self: The object instance.
+            name (str): The name of the radial velocity data.
+            data (dict): The radial velocity data to be added.
+            id_num (int): The ID number associated with the radial velocity data.
+
+        Returns:
+            None
+        """
         self.radial_velocity[name] = data
         self.id_radial_velocity[name] = id_num
         self.n_rv_set = len(self.radial_velocity)
@@ -1532,7 +1713,11 @@ class PhotoTRADES:
         return
 
     def set_radial_velocity_sorting(self):
-
+        """
+        Sorts the radial velocity observations based on the time of observation.
+        No parameters.
+        Returns None.
+        """
         sort_t_rv = np.argsort(self.t_rv_obs)
         self.t_rv_obs = self.t_rv_obs[sort_t_rv]
         self.rv_obs = self.rv_obs[sort_t_rv]
@@ -1544,7 +1729,11 @@ class PhotoTRADES:
         return
 
     def update_n_data(self):
-
+        """
+        Updates the total number of data points by summing the number of photometry points, all transits, and radial velocity points.
+        No parameters.
+        Returns None.
+        """
         self.n_data = self.n_photometry_points + self.n_all_transits + self.nrv
 
         return
@@ -1562,8 +1751,12 @@ class PhotoTRADES:
         step_size=None,
         n_steps_smaller_orbits=10.0,
     ):
+        """
+        Calculates the time steps, orbits, and a check value based on the provided mass, radius, period, eccentricity, argument of periapsis, mean anomaly, inclination, and longitude of the ascending node. 
+        Optionally, a step size and number of steps for smaller orbits can be specified. Returns the calculated time steps, orbits, and stable flag.
+        """
 
-        time_steps, orbits, check = kelements_to_orbits_full(
+        time_steps, orbits, stable = kelements_to_orbits_full(
             self.t_start,
             self.t_epoch,
             self.t_int,
@@ -1580,7 +1773,7 @@ class PhotoTRADES:
             n_steps_smaller_orbits=n_steps_smaller_orbits,
         )
 
-        return time_steps, orbits
+        return time_steps, orbits, stable
 
     def orbital_parameters_to_transits(
         self, mass, radius, period, ecc, w, ma, inc, long
@@ -1656,7 +1849,21 @@ class PhotoTRADES:
         kep_elem,
         time_key="time",
     ):
-
+        """
+        A function to simulate flux based on input parameters and return simulated photometry.
+        
+        Parameters:
+            radius (float): The radius parameter.
+            ld_quads (dict): Dictionary of LD (limb darkening) quadratics.
+            transits (list): List of transits.
+            durations (list): List of durations.
+            body_flag (int): Body flag parameter.
+            kep_elem (dict): Dictionary of Keplerian elements.
+            time_key (str, optional): Key for time parameter. Defaults to "time".
+        
+        Returns:
+            dict: A dictionary containing simulated photometry for each photo name.
+        """
         rp_rs, per, aRs, inc, ecc, w = set_transit_parameters(
             radius, transits, body_flag, kep_elem
         )
@@ -1682,12 +1889,29 @@ class PhotoTRADES:
         return sim_photometry
 
     def full_photodyn(self, mass, radius, period, ecc, w, ma, inc, long, ld_quads):
+        """
+        A function to perform full photodynamic calculations based on the given parameters.
 
+        Parameters:
+            mass (float): The mass parameter.
+            radius (float): The radius parameter.
+            period (float): The period parameter.
+            ecc (float): The eccentricity parameter.
+            w (float): The argument of pericenter parameter.
+            ma (float): The mean anomaly parameter.
+            inc (float): The inclination parameter.
+            long (float): The longitude of the node parameter.
+            ld_quads (dict): Dictionary of limb darkening quadratics.
+
+        Returns:
+            tuple: A tuple containing simulated photometry, radial velocity simulation, and simulated transits.
+        """
         (
             time_steps,
             orbits,
             transits,
             durations,
+            lambda_rm,
             kep_elem,
             body_flag,
             rv_sim,
@@ -1715,7 +1939,21 @@ class PhotoTRADES:
         output_folder=None,
         return_rms=False,
     ):
-
+        """
+        Plot the photometry data along with optional model and trend photometry.
+        
+        Parameters:
+            sim_photometry (dict): A dictionary containing simulated photometry data.
+            mod_photometry (dict, optional): A dictionary containing model photometry data. Defaults to None.
+            trend_photometry (dict, optional): A dictionary containing trend photometry data. Defaults to None.
+            figsize (tuple, optional): The figure size for the plot. Defaults to (3, 3).
+            show_plot (bool, optional): A flag to show the plot. Defaults to True.
+            output_folder (str, optional): The output folder path. Defaults to None.
+            return_rms (bool, optional): A flag to return RMS value. Defaults to False.
+        
+        Returns:
+            rms: The root mean square value calculated from the photometry data.
+        """
         rms = plot_photometry(
             self.photometry,
             sim_photometry,
@@ -1732,7 +1970,16 @@ class PhotoTRADES:
     def plot_oc(
         self, transits_sim, pl_names, figsize=(8, 4), show_plot=True, output_folder=None
     ):
+        """
+        Plot the O-C diagram for the transits simulation data.
 
+        Parameters:
+            transits_sim (dict): A dictionary containing the simulated transits data.
+            pl_names (list): A list of planet names.
+            figsize (tuple, optional): A tuple specifying the figure size. Default is (8, 4).
+            show_plot (bool, optional): A boolean indicating whether to display the plot. Default is True.
+            output_folder (str, optional): A string specifying the output folder path. Default is None.
+        """
         phototrades_plot_oc(
             self.transits,
             self.Tref,
@@ -1759,7 +2006,24 @@ class PhotoTRADES:
         output_folder=None,
         remove_dataset=None,
     ):
+        """
+        Plot the RV observations along with the simulated RV data and residuals.
 
+        Parameters:
+            rv_sim (dict): A dictionary containing the simulated RV data.
+            gamma_rv (array): Array of gamma RV values.
+            jitter_rv (dict): A dictionary containing jitter RV values.
+            markers (dict): A dictionary of markers for each dataset.
+            rv_trend_coeff (float or list, optional): Coefficients for RV trend calculation.
+            print_rv (bool, optional): Flag to print RV data. Default is False.
+            figsize (tuple, optional): A tuple specifying the figure size. Default is (4, 2).
+            show_plot (bool, optional): Flag to display the plot. Default is True.
+            output_folder (str, optional): Path to the output folder. Default is None.
+            remove_dataset (list, optional): List of datasets to remove.
+
+        Returns:
+            None
+        """
         t_epoch = self.t_epoch
         ms = 3
         fig = plt.figure(figsize=figsize)
@@ -1926,19 +2190,51 @@ class PhotoTRADES:
         return
 
     def get_photometry_residuals(self, sim_photometry):
+        """
+        Calculate photometry residuals between observed and simulated photometry data.
 
+        Parameters:
+            obs_photometry (dict): A dictionary containing observed photometry data.
+            sim_photometry (dict): A dictionary containing simulated photometry data.
+
+        Returns:
+            res (array): Array of photometry residuals.
+            err2 (array): Array of squared photometry errors.
+        """
         res, err2 = get_photometry_residuals(self.photometry, sim_photometry)
 
         return res, err2
 
     def get_transit_times_residuals(self, sim_transits):
+        """
+        Calculate photometry residuals between observed and simulated transit times data.
 
+        Parameters:
+            obs_photometry (dict): A dictionary containing observed transit times data.
+            sim_photometry (dict): A dictionary containing simulated transit times data.
+
+        Returns:
+            res (array): Array of photometry residuals.
+            err2 (array): Array of squared photometry errors.
+        """
         res, err2 = get_transit_times_residuals(self.transits, sim_transits)
 
         return res, err2
 
     def get_radial_velocities_residuals(self, gammas, jitters, rv_sim, ctrends=[0.0]):
+        """
+        Calculate radial velocities residuals between observed and simulated radial velocity data.
 
+        Parameters:
+            gammas (array): Array of gamma parameters.
+            jitters (array): Array of jitter parameters.
+            rv_sim (array): Array of simulated radial velocities.
+            ctrends (list, optional): List of radial velocity correction trends. Defaults to [0.0].
+
+        Returns:
+            res (array): Array of radial velocity residuals.
+            err2 (array): Array of squared radial velocity errors.
+        """
         res, err2 = get_radial_velocities_residuals(
             self.t_epoch,
             self.t_rv_obs,
@@ -1963,7 +2259,19 @@ class PhotoTRADES:
 
 class TRADESfolder:
     def __init__(self, input_path, sub_folder="", nthreads=1, seed=42, m_type="e"):
+        """
+        Initializes the TRADESfolder class with input parameters.
 
+        Parameters:
+            input_path (str): The input path for the folder.
+            sub_folder (str, optional): The sub-folder name. Defaults to "".
+            nthreads (int, optional): The number of threads to use. Defaults to 1.
+            seed (int, optional): The seed value. Defaults to 42.
+            m_type (str, optional): The type identifier. Defaults to "e".
+
+        Returns:
+            None
+        """
         self.work_path = os.path.join(input_path, "")
         self.sub_folder = sub_folder
         self.full_path = os.path.join(self.work_path, self.sub_folder, "")
@@ -1974,7 +2282,12 @@ class TRADESfolder:
         return
 
     def init_trades_from_path(self, work_path, sub_path):
-
+        """
+        Initializes the TRADES by calling a Fortran90 module, resetting the state, setting the work path, 
+        and initializing various parameters related to the system, fitting, priors, RV trend, stellar mass, 
+        and radius. It also computes physical parameters, sets up radial velocities and transit information,
+        and prepares arrays for Kepler elements. No parameters are passed in. No explicit return value.
+        """
         print("Initialising TRADES by f90 modules ...")
         sys.stdout.flush()
 
@@ -2157,13 +2470,28 @@ class TRADESfolder:
         return
 
     def init_trades(self):
-
+        """
+        Initializes the TRADES class instance by calling init_trades_from_path with work_path and sub_folder.
+        No parameters.
+        Returns None.
+        """
         self.init_trades_from_path(self.work_path, self.sub_folder)
 
         return
 
     def set_one_fit_par_boundaries(self, ifit, min_val, max_val):
+        """
+        Sets the boundaries for a single fitting parameter.
 
+        Parameters:
+            self: The instance of the class.
+            ifit: The index of the fitting parameter.
+            min_val: The minimum value for the parameter.
+            max_val: The maximum value for the parameter.
+
+        Returns:
+            None
+        """
         # self.fitting_minmax[ifit, 0] = min_val
         # self.fitting_minmax[ifit, 1] = max_val
         self.fitting_minmax = f90trades.set_one_fit_par_boundaries(
@@ -2173,7 +2501,11 @@ class TRADESfolder:
         return
 
     def reset_all_fit_boundaries(self):
-
+        """
+        Resets all fit boundaries using f90trades.reset_all_fit_boundaries() and assigns the result to self.fitting_minmax.
+        No parameters.
+        Returns None.
+        """
         # reset_all_fit_boundaries()
         # self.fitting_minmax = f90trades.parameters_minmax.copy()
         self.fitting_minmax = f90trades.reset_all_fit_boundaries()
@@ -2181,7 +2513,16 @@ class TRADESfolder:
         return
 
     def path_change(self, new_path):
+        """
+        Changes the path using f90trades.path_change.
 
+        Parameters:
+            self: The instance of the class.
+            new_path: The new path to change to.
+
+        Returns:
+            None
+        """
         f90trades.path_change(os.path.join(new_path, ""))
 
         return
@@ -2245,7 +2586,20 @@ class TRADESfolder:
         inc,
         longN,
     ):
-
+        """
+        Update system and fitting parameters based on keplerian input parameters.
+        Parameters:
+            mass: Mass of the system
+            radius: Radius of the system
+            period: Period of the system
+            ecc: Eccentricity of the system
+            argp: Argument of pericenter of the system
+            meanA: Mean anomaly of the system
+            inc: Inclination of the system
+            longN: Longitude of the ascending node of the system
+        Returns:
+            None
+        """
         n_all_par = len(self.system_parameters)
         all_par = np.zeros((n_all_par))
         fit_par = np.zeros((self.nfit))
@@ -2268,7 +2622,20 @@ class TRADESfolder:
         return
 
     def update_system_fitting_parameters(self):
-
+        """
+        Update system and fitting parameters based on default keplerian parameters.
+        Parameters:
+            mass: Mass of the system
+            radius: Radius of the system
+            period: Period of the system
+            ecc: Eccentricity of the system
+            argp: Argument of pericenter of the system
+            meanA: Mean anomaly of the system
+            inc: Inclination of the system
+            longN: Longitude of the ascending node of the system
+        Returns:
+            None
+        """
         self.update_system_fitting_parameters_from_keplerian_input(
             self.mass,
             self.radius,
@@ -2283,7 +2650,21 @@ class TRADESfolder:
         return
 
     def run_and_get_stats_from_parameters(self, fit_pars):
+        """
+        Run and get statistics from the input parameters.
 
+        Parameters:
+            fit_pars: List of fitting parameters for the function
+
+        Returns:
+            chi_square: Chi-square value
+            reduced_chi_square: Reduced chi-square value
+            lgllhd: Log-likelihood value
+            lnprior: Log-prior value
+            ln_const: Log-constant value
+            bic: Bayesian Information Criterion value
+            check: Check value
+        """
         (
             chi_square,
             reduced_chi_square,
@@ -2297,7 +2678,18 @@ class TRADESfolder:
         return chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic, check
 
     def run_and_get_stats(self):
-
+        """
+        Run and get statistics from the input parameters.
+        
+        Returns:
+            chi_square: Chi-square value
+            reduced_chi_square: Reduced chi-square value
+            lgllhd: Log-likelihood value
+            lnprior: Log-prior value
+            ln_const: Log-constant value
+            bic: Bayesian Information Criterion value
+            check: Check value
+        """
         (
             chi_square,
             reduced_chi_square,
@@ -2311,7 +2703,15 @@ class TRADESfolder:
         return chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic, check
 
     def get_all_observables_from_parameters(self, fit_par):
-
+        """
+        Run TRADES to get all TTs and RVs during the integration time.
+        
+        Parameters:
+            fit_par: The input parameters for the function.
+        
+        Returns:
+            Tuple containing ttra_full, dur_full, lambda_rm_full, id_ttra_full, stats_ttra, time_rv_nmax, rv_nmax, stats_rv.
+        """
         # run TRADES to get all TTs and RVs during the integration time
         nt0_full, nrv_nmax = f90trades.get_ntt_nrv(fit_par)
         # anc.print_both("full nRV = {:d} and nT0s = {}".format(nrv_nmax, nt0_full))
@@ -2338,7 +2738,17 @@ class TRADESfolder:
         )
 
     def save_models_from_parameters(self, fit_par, smp_h5, smp_name):
-
+        """
+        Run TRADES to save models based on the input parameters.
+        
+        Parameters:
+            fit_par: The fitting parameters.
+            smp_h5: The HDF5 file to save the models.
+            smp_name: The name of the sample.
+        
+        Returns:
+            None
+        """
         (
             ttra_full,
             dur_full,
@@ -2398,7 +2808,9 @@ class TRADESfolder:
         return
 
     def fit_pars_to_keplerian_elements(self, fit_pars):
-
+        """
+        Converts fitted parameters to Keplerian elements; returns mass, radius, period, semi-major axis, eccentricity, argument of pericenter, mean anomaly, inclination, and longitude of nodes.
+        """
         (
             mass,
             radius,
@@ -2427,7 +2839,22 @@ class TRADESfolder:
         par_description="",
         return_stats=False,
     ):
+        """
+        Runs the simulation and writes summary files based on the given parameters.
 
+        Parameters:
+            sim_name (str): The name of the simulation.
+            fit_pars (array): Fitted parameters for the simulation.
+            phy_pars (array): Physical parameters for the simulation.
+            id_sim (int): The simulation ID (default is 1).
+            sigma_fit (array): Sigma for fitted parameters (default is None).
+            sigma_phy (array): Sigma for physical parameters (default is None).
+            par_description (str): Description of the parameters (default is an empty string).
+            return_stats (bool): Flag to return statistics (default is False).
+
+        Returns:
+            Tuple: If return_stats is True, returns chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic, and check. Otherwise, returns None.
+        """
         print("RUNNING sim {}".format(sim_name))
         # print("with parameters:")
         # print("{}".format(fit_pars))
@@ -2585,7 +3012,35 @@ class TRADESfolder:
         longn,
         transit_flag=None,
     ):
+        """
+        A function that computes observables from Keplerian elements.
 
+        Parameters:
+            self: the object instance
+            t_start: the start time
+            t_epoch: the epoch time
+            t_int: the integration time
+            mass: the mass
+            radius: the radius
+            period: the period
+            ecc: the eccentricity
+            argp: the argument of pericenter
+            meana: the mean anomaly
+            inc: the inclination
+            longn: the longitude of nodes
+            transit_flag: the transit flag (default is None)
+
+        Returns:
+            Tuple containing computed observables:
+                - rv_sim: the simulated radial velocity
+                - body_t0_sim: the simulated body T0
+                - epo_sim: the simulated epoch
+                - t0_sim: the simulated T0
+                - t14_sim: the simulated T14
+                - lambda_rm_sim: the simulated lambda_rm
+                - kel_sim: the simulated kel
+                - stable: the stability flag
+        """
         if transit_flag is None:
             transit_flag = self.transit_flag
 
@@ -2631,7 +3086,27 @@ class TRADESfolder:
     def computes_observables_from_default_keplerian_elements(
         self, t_start, t_epoch, t_int, transit_flag=None
     ):
+        """
+        A function that computes observables from default Keplerian elements.
 
+        Parameters:
+            self: the object instance
+            t_start: the start time
+            t_epoch: the epoch time
+            t_int: the integration time
+            transit_flag: the transit flag (default is None)
+
+        Returns:
+            Tuple containing computed observables:
+                - rv_sim: the simulated radial velocity
+                - body_t0_sim: the simulated body T0
+                - epo_sim: the simulated epoch
+                - t0_sim: the simulated T0
+                - t14_sim: the simulated T14
+                - lambda_rm_sim: the simulated lambda_rm
+                - kel_sim: the simulated kel
+                - stable: the stability flag
+        """
         if transit_flag is None:
             transit_flag = self.transit_flag
 
@@ -2690,6 +3165,24 @@ def base_plot_orbits(
     title=None,
     show_plot=False,
 ):
+    """
+    Generate a plot displaying orbits in the sky, orbit, and side planes.
+
+    Parameters:
+    - time_steps: array of time steps
+    - orbits: array of orbital positions
+    - radius: array of radii
+    - n_body: number of bodies
+    - body_names: array of body names
+    - figsize: tuple specifying figure size (default is (4, 4))
+    - sky_scale: string specifying sky scale (default is "star")
+    - side_scale: string specifying side scale (default is "star")
+    - title: string specifying title of the plot (default is None)
+    - show_plot: boolean to determine if the plot should be displayed (default is False)
+
+    Returns:
+    - fig: the generated plot figure
+    """
     n_steps = len(time_steps)
     # base_colors = plt.get_cmap("nipy_spectral")(
     #     np.linspace(0.1, 0.9, endpoint=True, num=n_body - 1)
@@ -2982,7 +3475,19 @@ def base_plot_orbits(
 # =============================================================================
 # =============================================================================
 def angular_momentum_deficit_posterior(n_bodies, post_fit, all_pars):
+    """
+    Calculates the posterior for the angular momentum deficit given the number of bodies, post-fit data, and all parameters.
 
+    Parameters:
+    - n_bodies (int): The total number of bodies.
+    - post_fit (numpy.ndarray): The post-fit data.
+    - all_pars (list): A list of all parameters.
+
+    Returns:
+    - amd_names (list): A list of names corresponding to different parameters.
+    - amd_full (numpy.ndarray): A 2D array containing calculated values related to the angular momentum deficit.
+    - amd_stable: The stability of the angular momentum deficit.
+    """
     n_post, n_fit = np.shape(post_fit)
     n_all = len(all_pars)
     n_pairs = n_bodies - 2

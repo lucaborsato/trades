@@ -14,7 +14,7 @@ import emcee
 # import random
 # import constants as cst # local constants module
 # from scipy.stats import norm as scipy_norm
-import ancillary as anc
+from . import ancillary as anc
 
 import matplotlib as mpl
 

@@ -9,7 +9,8 @@ warnings.filterwarnings('ignore')
 import os
 import sys
 import numpy as np  # array
-import ancillary as anc  # not so good...but fast
+
+from . import ancillary as anc
 
 import h5py
 from scipy.stats import norm as scipy_norm
@@ -18,7 +19,7 @@ import pygtc
 
 import matplotlib as mpl
 
-mpl.use("Agg")
+# mpl.use("Agg")
 import matplotlib.pyplot as plt
 
 # matplotlib rc params

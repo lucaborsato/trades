@@ -148,7 +148,7 @@ obj_compile_test:
 	$(FSERDBG) $(F2PYCF) -I. -c util_qmc.f90
 	$(FSERDBG) $(F2PYCF) -I. -c opti_pso.f90
 	$(FSERDBG) $(F2PYCF) -I. -c gaussian.f90
-	$(FSERDBG) $(F2PYCF) -I. -c bootstrap.f90 driver.f90
+	$(FSERDBG) $(F2PYCF) -I. -c bootstrap.f90
 	$(FSERDBG) $(F2PYCF) -I. -c driver.f90
 obj_serial_debug:
 	$(FSERDBG) $(F2PYCF) -I. -c $(FSRCS)

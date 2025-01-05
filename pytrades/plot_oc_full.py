@@ -14,28 +14,31 @@ import gc
 
 import matplotlib as mpl
 
-mpl.use("Agg")
+# mpl.use("Agg")
 import matplotlib.pyplot as plt
 
-# matplotlib rc params
-plt.rcParams['text.usetex']       = False
-# plt.rcParams['font.family']       = 'sans-serif'
-plt.rcParams['font.family']       = 'serif'
-plt.rcParams['font.serif']        = ['Computer Modern Roman', 'Palatino', 'DejaVu Serif']
-plt.rcParams['mathtext.fontset']  = 'cm'
-plt.rcParams['figure.figsize']    = [5, 5]
-plt.rcParams["figure.facecolor"]  = 'white'
-plt.rcParams["savefig.facecolor"] = 'white'
-plt.rcParams["figure.dpi"]        = 200
-plt.rcParams["savefig.dpi"]       = 300
-plt.rcParams["font.size"]         = 12
-plt.rcParams["xtick.labelsize"]   = plt.rcParams["font.size"] - 2
-plt.rcParams["ytick.labelsize"]   = plt.rcParams["xtick.labelsize"]
+# # matplotlib rc params
+# plt.rcParams['text.usetex']       = False
+# # plt.rcParams['font.family']       = 'sans-serif'
+# plt.rcParams['font.family']       = 'serif'
+# plt.rcParams['font.serif']        = ['Computer Modern Roman', 'Palatino', 'DejaVu Serif']
+# plt.rcParams['mathtext.fontset']  = 'cm'
+# plt.rcParams['figure.figsize']    = [5, 5]
+# plt.rcParams["figure.facecolor"]  = 'white'
+# plt.rcParams["savefig.facecolor"] = 'white'
+# plt.rcParams["figure.dpi"]        = 200
+# plt.rcParams["savefig.dpi"]       = 300
+# plt.rcParams["font.size"]         = 12
+# plt.rcParams["xtick.labelsize"]   = plt.rcParams["font.size"] - 2
+# plt.rcParams["ytick.labelsize"]   = plt.rcParams["xtick.labelsize"]
 # custom modules
-import ancillary as anc
-import pytrades
-import gls
 
+from . import ancillary as anc
+from . import pytrades
+
+from . import gls
+
+anc.set_rcParams()
 # ==============================================================================
 
 

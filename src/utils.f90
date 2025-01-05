@@ -297,7 +297,6 @@ contains
         lnLikelihood = -half*chi_square+ln_const
         ! write(*,*)"lnLikelihood = ",lnLikelihood
 
-        ! bic = -two*lnLikelihood + real(nfit,dp)*log(real(ndata,dp))
         bic = -two*lnLikelihood+bic_const ! bic_const global variable
         ! write(*,*)"bic = ",bic
 
