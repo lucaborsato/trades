@@ -51,7 +51,7 @@ install `h5py`, `pyyaml`, `tqdm`, `emcee`, `scipy`, `pandas`, `pygtc`:
 
 `conda install h5py`  
 `pip install pyyaml`  
-`conda install -c conda-forge tqdm`
+`conda install -c conda-forge tqdm`  
 `pip install corner`  
 `conda install -c conda-forge emcee`  
 `conda install -c conda-forge pandas`  
