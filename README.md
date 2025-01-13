@@ -100,6 +100,20 @@ make cleanall
 make full_parallel_release
 ```
 
+## Install `pytrades` `python` package
+
+Install the `pytrades` package with the `pip` command from the main `TRADES` folder:  
+```bash
+cd trades
+pip install .
+```
+
+If you want a developer installation, that is it auto update the package with changes at the `pytrades` folder:  
+```bash
+cd trades
+pip install -e .
+```
+
 ## Use `pyTRADES`
 
 To use with `python` see notebook [import_trades_for_python](trades_example/python_examples/import_trades_for_python.ipynb) 
