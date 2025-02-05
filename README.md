@@ -71,6 +71,11 @@ for photo-dynamical approach it is needed to install `pytransit`:
 `cd PyTransit`  
 `pip install .`  
 Test with `import pytransit` to check if some requirements is still missing for `pytransit`.
+If it is not working, for example showing the error:
+`ModuleNotFoundError: No module named 'pytransit.models.transitmodel'`
+install `pytransit` with:  
+`pip install pytransit`  
+(uninstal it with `pip uninstall pytransit` if already installed from `git`).  
 
 ### Optional - `dynesty` and `ultranest`
 Still not fully tested and in development, `dynesty` and `ultranest`:  
@@ -156,6 +161,7 @@ pytrades.args_init(
     t_epoch=t_epoch,
     t_start=t_start,
     t_int=t_int,
+    encounter_check=True,
     do_hill_check=False,
     amd_hill_check=False,
     rv_res_gls=False,
@@ -165,8 +171,10 @@ pytrades.args_init(
 # t_epoch (int, optional): Optional epoch time value.
 # t_start (int, optional): Optional start time value.
 # t_int (int, optional): Optional interval time value.
+# encounter_check (bool, optional): Optional flag for encounter check. Default is True.
 # do_hill_check (bool, optional): Optional flag for Hill check.
 # amd_hill_check (bool, optional): Optional flag for AMD Hill check.
+# rv_res_gls (bool, optional): Optional flag for RV GLS check of inserted periods during fit.
 ```
 
 
@@ -354,7 +362,7 @@ t0s_b_sim = transits_sim[body_tra_flag_sim==body_id] # each transit corresponds 
 Testing only RVs output:
 
 ```python
-rv_sim = pytrades.kelements_to_rv(
+rv_sim, stable = pytrades.kelements_to_rv(
     t_start,
     t_epoch,
     t_int,

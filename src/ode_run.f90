@@ -135,7 +135,10 @@ contains
         nRV = obsDataIn%obsRV%nRV
         nTTs = obsDataIn%nTTs
 
-        Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
+        Hc = .true.
+        if (close_encounter_check) then
+            Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
+        end if
         if (amd_hill_check) call statevector_amd_hill_stability(mass, rin, Hc)
         if (.not. Hc) then
             return
@@ -343,7 +346,10 @@ contains
         nTTs = obsDataIn%nTTs
         nDurs = obsDataIn%nDurs
 
-        Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
+        Hc = .true.
+        if (close_encounter_check) then
+            Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
+        end if
         if (amd_hill_check) call statevector_amd_hill_stability(mass, rin, Hc)
         if (.not. Hc) then
             return
@@ -1678,7 +1684,10 @@ contains
         nrv_max = size(rv_nmax)
 
         Hc = .true.
-        Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
+        Hc = .true.
+        if (close_encounter_check) then
+            Hc = separation_mutual_Hill_check(mass, radius, rin, do_hill_check)
+        end if
         if (amd_hill_check) call statevector_amd_hill_stability(mass, rin, Hc)
         if (.not. Hc) then
             return

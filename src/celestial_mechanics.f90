@@ -113,7 +113,8 @@ contains
         real(dp), intent(IN)::mA, ecc
         real(dp)::mArad, E, fE, dfE
 
-        integer, parameter::maxcount = 500
+        real(dp), parameter::TOL_check = TOL_dp ! TOLERANCE
+        integer, parameter::maxcount = 100
         integer::icount
 
         EA = zero
@@ -121,14 +122,15 @@ contains
         ! if (mArad .lt. zero) mArad = mArad+dpi
         icount = 0
         E = mArad
-        if (ecc .gt. TOLERANCE) then
-            if (ecc .gt. 0.6_dp) E = pi
+        if (ecc .gt. TOL_check) then
+            ! if (ecc .gt. 0.6_dp) E = pi
+            if (ecc .ge. 0.8_dp) E = pi
             loopo: do
                 icount = icount+1
                 fE = E-ecc*sin(E)-mArad
                 dfE = one-ecc*cos(E)
                 EA = E-(fE/dfE)
-                if ((abs(E-EA) .le. TOLERANCE) .or. (icount .gt. maxcount)) then
+                if ((abs(E-EA) .le. TOL_check) .or. (icount .gt. maxcount)) then
                     exit loopo
                 end if
                 E = EA

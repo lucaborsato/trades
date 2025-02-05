@@ -208,7 +208,7 @@ contains
         logical::fstat
         character(512)::line
         integer::idx, idh, istat, it
-        character(1)::hill_temp, gls_temp
+        character(1)::encounter_temp, hill_temp, gls_temp
         character(1), dimension(5)::list_true = (/'y', 'Y', 't', 'T', '1'/)
 
         inquire (file=trim(path)//"arg.in", exist=fstat)
@@ -279,6 +279,14 @@ contains
                                 do it = 1, size(list_true)
                                     if (hill_temp .eq. list_true(it)) then
                                         do_hill_check = .true.
+                                        exit
+                                    end if
+                                end do
+                            else if (line(1:idx-1) .eq. 'close_encounter_check') then
+                                read (line(idx+1:idh), *) encounter_temp
+                                do it = 1, size(list_true)
+                                    if (encounter_temp .eq. list_true(it)) then
+                                        close_encounter_check = .true.
                                         exit
                                     end if
                                 end do

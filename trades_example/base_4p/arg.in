@@ -41,6 +41,8 @@ lmon = 0
 # secondary_parameters: define if the program has to check only boundarie for derived parameters (1) or if it has also to fix values due to derived parameters (2) or do nothing (0) with derived parameters.
 # Default secondary_parameters = 0.
 secondary_parameters = 0
+# close encounters
+close_encounter_check = T
 # Hill check
 do_hill_check = F
 # AMD Hill check

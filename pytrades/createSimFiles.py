@@ -180,6 +180,9 @@ def createARG(fpath):
     ofarg.write(line + "\n")
     print(line)
 
+    line = "# close_encounter_check: define if the program has to check the close encounters between consecutive pairs of planets or not (also star-planet). Default close_encounter_check = True. Provide: y or Y or yes or Yes or True or true, otherwise set to .false.\nclose_encounter_check = T"
+    ofarg.write(line + "\n")
+    print(line)
     line = "# do_hill_check: define if the program has to check the Mutual Hill Radius between consecutive pairs of planets or not. Default do_hill_check = False. Provide: y or Y or yes or Yes or True or true, otherwise set to .false.\ndo_hill_check = F"
     ofarg.write(line + "\n")
     print(line)

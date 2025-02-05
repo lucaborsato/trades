@@ -36,6 +36,7 @@ check_boundaries = f90trades.check_boundaries
 set_one_fit_par_boundaries = f90trades.set_one_fit_par_boundaries
 reset_all_fit_boundaries = f90trades.reset_all_fit_boundaries
 orbits_to_elements = f90trades.orbits_to_elements
+set_close_encounter_check = f90trades.set_close_encounter_check
 set_hill_check = f90trades.set_hill_check
 set_amd_hill_check = f90trades.set_amd_hill_check
 set_rv_res_gls = f90trades.set_rv_res_gls
@@ -60,6 +61,7 @@ def args_init(
     t_epoch=None,
     t_start=None,
     t_int=None,
+    encounter_check=True,
     do_hill_check=False,
     amd_hill_check=False,
     rv_res_gls=False,
@@ -73,9 +75,10 @@ def args_init(
         t_epoch (int, optional): Optional epoch time value.
         t_start (int, optional): Optional start time value.
         t_int (int, optional): Optional interval time value.
-        do_hill_check (bool, optional): Optional flag for Hill check.
-        amd_hill_check (bool, optional): Optional flag for AMD Hill check.
-
+        encounter_check (bool, optional): Optional flag for close encounter check. Default True.
+        do_hill_check (bool, optional): Optional flag for Hill check. Default False.
+        amd_hill_check (bool, optional): Optional flag for AMD Hill check. Default False.
+        rv_res_gls (bool, optional): Optional flag for RV GLS check of inserted periods during fit.
     Returns:
         None
     """
@@ -91,6 +94,10 @@ def args_init(
         f90trades.set_time_start(t_start)
     if t_int is not None:
         f90trades.set_time_int(t_int)
+
+    if encounter_check is not None:
+        set_close_encounter_check(encounter_check)
+
     if do_hill_check is not None:
         set_hill_check(do_hill_check)
     if amd_hill_check is not None:
@@ -889,6 +896,23 @@ def get_simulate_flux(
     return sim_photometry
 
 
+# TODO:
+# GET PHOTOMETRY TRENDS
+# GET PHOTOMETRY ANCILLARY
+# def get_photometry_trend(obs_photometry, trend_coeff, time_key="time"):
+
+#     out_trend = {}
+#     for name_phot, phot in obs_photometry.items():
+#         out_trend[name_phot] = {}
+#         for k, vis in phot.items():
+#             t = vis[time_key]
+#             nt = len(t)
+#             ctrend = trend_coeff[name_phot][k]
+#             tscale = t - t.min()
+#             ftrend = np.ones((nt))
+
+#     return
+
 def add_photometry_trend(
     obs_photometry,
     sim_photometry,
@@ -921,13 +945,16 @@ def add_photometry_trend(
             t = vis[time_key]
             nt = len(t)
             flux = sim_phot[k].copy()
-            pho_trend = photometry_coeff_trend[name_phot][k]
-            tscale = t - t.min()
-            ftrend = np.ones((nt))
-            if pho_trend is not None:
-                ftrend = np.zeros((nt))
-                for o, c in enumerate(pho_trend):
+            ctrend = photometry_coeff_trend[name_phot][k]
+            tscale = t - vis["time_min"]
+            
+            if ctrend is not None:
+                # ftrend = np.zeros((nt))
+                ftrend = 0.0
+                for o, c in enumerate(ctrend):
                     ftrend += c * (tscale**o)
+            else:
+                ftrend = np.ones((nt))
             anc_phot = vis["ancillary_interp"]
             acoeff = ancillary_coeff[name_phot][k]
             if (anc_phot is not None) and (acoeff is not None):
@@ -942,6 +969,7 @@ def add_photometry_trend(
             out_trend[name_phot][k] = ftrend
 
     return out_photometry, out_trend
+get_photometry_full_trend = add_photometry_trend
 
 
 def plot_photometry(

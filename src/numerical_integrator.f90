@@ -278,7 +278,10 @@ contains
                 if (abs(itime+working_step) .gt. abs(time)) working_step = time-itime
                 call eqmastro(mass, r1, dr)
                 call int_rk_a(mass, r1, dr, working_step, ok_step, next_step, r2, err)
-                Hc = separation_mutual_Hill_check(mass, radius, r2, do_hill_check)
+                
+                if (close_encounter_check) then
+                    Hc = separation_mutual_Hill_check(mass, radius, r2, do_hill_check)
+                end if
                 if (amd_hill_check) then
                     call statevector_amd_hill_stability(mass, r1, Hc)
                 end if

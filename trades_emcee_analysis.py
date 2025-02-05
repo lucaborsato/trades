@@ -12,8 +12,8 @@ from pytrades.convergence import compute_convergence, full_statistics, log_proba
 from pytrades.chains_summary_plot import plot_chains
 from pytrades.fitted_correlation_plot import plot_triangle as correlation_fitted
 from pytrades.physical_correlation_plot import plot_triangle as correlation_physical
-import plot_oc as poc
-import plot_rv as prv
+from pytrades import plot_oc as poc
+from pytrades import plot_rv as prv
 import sys
 
 # import argparse

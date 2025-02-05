@@ -933,6 +933,16 @@ contains
         return
     end subroutine set_hill_check
 
+    subroutine set_close_encounter_check(encounter_check)
+        ! Input
+        logical, intent(in)::encounter_check
+        ! Output
+        ! NONE
+        close_encounter_check = encounter_check
+
+        return
+    end subroutine set_close_encounter_check
+
     subroutine set_amd_hill_check(ah_check)
         ! Input
         logical, intent(in)::ah_check
