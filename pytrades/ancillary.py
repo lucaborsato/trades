@@ -5383,80 +5383,80 @@ def set_automatic_unit_time(val_d):
 # =============================================================================
 
 
-def de_hdf5_save_one_dataset(de_file, data_name, data, data_type, hdf5_mode="a"):
+# def de_hdf5_save_one_dataset(de_file, data_name, data, data_type, hdf5_mode="a"):
 
-    de_hdf5 = h5py.File(
-        de_file,
-        hdf5_mode,
-        # libver='latest'
-    )
-    # de_hdf5.swmr_mode = True # ERRORS WHEN ADDING/DELETING/UPDATING DATASETS AND ATTRS!!
-    if data_name in de_hdf5:
-        del de_hdf5[data_name]
-    de_hdf5.create_dataset(data_name, data=data, dtype=data_type, compression="gzip")
-    de_hdf5.close()
+#     de_hdf5 = h5py.File(
+#         de_file,
+#         hdf5_mode,
+#         # libver='latest'
+#     )
+#     # de_hdf5.swmr_mode = True # ERRORS WHEN ADDING/DELETING/UPDATING DATASETS AND ATTRS!!
+#     if data_name in de_hdf5:
+#         del de_hdf5[data_name]
+#     de_hdf5.create_dataset(data_name, data=data, dtype=data_type, compression="gzip")
+#     de_hdf5.close()
 
-    return
-
-
-def de_hdf5_update_attr(de_file, data_name, attrs_name, attrs_value):
-
-    de_hdf5 = h5py.File(
-        de_file,
-        "r+",
-        # libver='latest'
-    )
-    # de_hdf5.swmr_mode = True
-    de_hdf5[data_name].attrs[attrs_name] = attrs_value
-    de_hdf5.close()
-
-    return
+#     return
 
 
-def de_save_evolution(
-    de_file,
-    npop_de,
-    ngen_de,
-    iter_de,
-    iter_global,
-    nfit,
-    ndata,
-    de_pop,
-    de_fit,
-    de_pop_best,
-    de_fit_best,
-    de_bounds,
-    parameter_names,
-    de_maximize=True,
-):
+# def de_hdf5_update_attr(de_file, data_name, attrs_name, attrs_value):
 
-    # de_file = os.path.join(de_path, 'de_run.hdf5')
-    de_hdf5_save_one_dataset(de_file, "population", de_pop, "f8")
-    de_hdf5_update_attr(de_file, "population", "npop", npop_de)
-    de_hdf5_update_attr(de_file, "population", "ngen", ngen_de)
-    de_hdf5_update_attr(de_file, "population", "iter_de", iter_de)
-    de_hdf5_update_attr(de_file, "population", "iter_global", iter_global)
-    de_hdf5_update_attr(de_file, "population", "nfit", nfit)
-    de_hdf5_update_attr(de_file, "population", "ndata", ndata)
+#     de_hdf5 = h5py.File(
+#         de_file,
+#         "r+",
+#         # libver='latest'
+#     )
+#     # de_hdf5.swmr_mode = True
+#     de_hdf5[data_name].attrs[attrs_name] = attrs_value
+#     de_hdf5.close()
 
-    de_hdf5_save_one_dataset(de_file, "population_fitness", de_fit, "f8")
+#     return
 
-    de_hdf5_save_one_dataset(de_file, "best_population", de_pop_best, "f8")
 
-    de_hdf5_save_one_dataset(de_file, "best_fitness", de_fit_best, "f8")
+# def de_save_evolution(
+#     de_file,
+#     npop_de,
+#     ngen_de,
+#     iter_de,
+#     iter_global,
+#     nfit,
+#     ndata,
+#     de_pop,
+#     de_fit,
+#     de_pop_best,
+#     de_fit_best,
+#     de_bounds,
+#     parameter_names,
+#     de_maximize=True,
+# ):
 
-    de_hdf5_save_one_dataset(de_file, "parameters_minmax", de_bounds, "f8")
+#     # de_file = os.path.join(de_path, 'de_run.hdf5')
+#     de_hdf5_save_one_dataset(de_file, "population", de_pop, "f8")
+#     de_hdf5_update_attr(de_file, "population", "npop", npop_de)
+#     de_hdf5_update_attr(de_file, "population", "ngen", ngen_de)
+#     de_hdf5_update_attr(de_file, "population", "iter_de", iter_de)
+#     de_hdf5_update_attr(de_file, "population", "iter_global", iter_global)
+#     de_hdf5_update_attr(de_file, "population", "nfit", nfit)
+#     de_hdf5_update_attr(de_file, "population", "ndata", ndata)
 
-    # best_loc = np.argmax(de_fit_best[:iter_de])
-    # de_hdf5_save_one_dataset(de_file, 'de_parameters', de_pop_best[best_loc,:].copy(), 'f8')
-    de_parameters = de_get_best_parameters(
-        de_fit_best, de_pop_best, iter_de, de_maximize=de_maximize
-    )
-    de_hdf5_save_one_dataset(de_file, "de_parameters", de_parameters, "f8")
+#     de_hdf5_save_one_dataset(de_file, "population_fitness", de_fit, "f8")
 
-    de_hdf5_save_one_dataset(de_file, "parameter_names", parameter_names, "S10")
+#     de_hdf5_save_one_dataset(de_file, "best_population", de_pop_best, "f8")
 
-    return
+#     de_hdf5_save_one_dataset(de_file, "best_fitness", de_fit_best, "f8")
+
+#     de_hdf5_save_one_dataset(de_file, "parameters_minmax", de_bounds, "f8")
+
+#     # best_loc = np.argmax(de_fit_best[:iter_de])
+#     # de_hdf5_save_one_dataset(de_file, 'de_parameters', de_pop_best[best_loc,:].copy(), 'f8')
+#     de_parameters = de_get_best_parameters(
+#         de_fit_best, de_pop_best, iter_de, de_maximize=de_maximize
+#     )
+#     de_hdf5_save_one_dataset(de_file, "de_parameters", de_parameters, "f8")
+
+#     de_hdf5_save_one_dataset(de_file, "parameter_names", parameter_names, "S10")
+
+#     return
 
 
 # =============================================================================
@@ -5736,7 +5736,7 @@ def set_unit_base(u_in, Aoc_d):
         elif u_in.lower() in "h hour hours".split():
             ocu = [24.0, "hours"]
         elif u_in.lower() == "auto":
-            ocu = anc.set_automatic_unit_time(Aoc_d)
+            ocu = set_automatic_unit_time(Aoc_d)
         else:
             ocu = [1.0, "days"]
     except:
