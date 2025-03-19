@@ -829,8 +829,9 @@ class DEEvolution:
             ls="-",
             lw=1.3,
         )
-        if len(true_pars_dictionary) > 0 and k in true_pars_dictionary.keys():
-            plt.axhline(true_pars_dictionary[k], color="C1", ls="--", lw=1.5)
+        if (len(true_pars_dictionary) > 0) and (k in true_pars_dictionary.keys()):
+            if true_pars_dictionary[k] is not None:
+                plt.axhline(true_pars_dictionary[k], color="C1", ls="--", lw=1.5)
         plt.xlabel("N iteration")
         plt.ylabel(k)
         if show_plot:

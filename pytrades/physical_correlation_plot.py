@@ -343,7 +343,7 @@ def plot_triangle_from_file(cli):
     posterior_file = os.path.join(cli.full_path, "posterior.hdf5")
     with h5py.File(posterior_file, "r") as h5f:
         physical_names = anc.decode_list(h5f["physical_names"][...])
-        physical_posterior_in = np.array(h5f["posterior_physical"], dtype=np.float64)
+        physical_posterior_in = np.array(h5f["posterior_physical"], dtype=float)
 
     physical_posterior = anc.derived_posterior_check(physical_names, physical_posterior_in)
 

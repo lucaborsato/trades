@@ -2790,7 +2790,7 @@ class TRADESfolder:
 
         gr = smp_h5.create_group(smp_name)
         gr.create_dataset(
-            "fitting_parameters", data=fit_par, dtype=np.float64, compression="gzip"
+            "fitting_parameters", data=fit_par, dtype=float, compression="gzip"
         )
         gr["fitting_parameters"].attrs["fitting_names"] = self.fitting_names
         gr.attrs["tepoch"] = self.tepoch
@@ -2802,9 +2802,9 @@ class TRADESfolder:
 
         # anc.print_both("time_rv min = {:.5f} max = {:.5f}".format(np.min(time_rv), np.max(time_rv)))
         gr.create_dataset(
-            "time_rv_mod", data=time_rv, dtype=np.float64, compression="gzip"
+            "time_rv_mod", data=time_rv, dtype=float, compression="gzip"
         )
-        gr.create_dataset("rv_mod", data=rv, dtype=np.float64, compression="gzip")
+        gr.create_dataset("rv_mod", data=rv, dtype=float, compression="gzip")
 
         stats_ttra = np.array(stats_ttra).astype(bool)
         for ipl in range(2, self.n_bodies + 1):
@@ -2819,15 +2819,15 @@ class TRADESfolder:
             dur = dur[idx_tra]
             lambda_rm = lambda_rm[idx_tra]
             gr.create_dataset(
-                "TTs_{:d}".format(ipl), data=ttra, dtype=np.float64, compression="gzip"
+                "TTs_{:d}".format(ipl), data=ttra, dtype=float, compression="gzip"
             )
             gr.create_dataset(
-                "T41s_{:d}".format(ipl), data=dur, dtype=np.float64, compression="gzip"
+                "T41s_{:d}".format(ipl), data=dur, dtype=float, compression="gzip"
             )
             gr.create_dataset(
                 "lambda_rm_{:d}".format(ipl),
                 data=lambda_rm,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             # if np.sum(sel_tra) > 0:

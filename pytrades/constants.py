@@ -12,7 +12,7 @@ deg2rad = pi / 180.0
 rad2deg = 180.0 / pi
 
 # various
-TOLERANCE = np.finfo(np.float64(1.0)).eps
+TOLERANCE = np.finfo(float(1.0)).eps
 day2sec = 86400.0  # seconds in a day  =  24h  =  86400 s
 day2min = 1440.0  # min in a day  =  1440. min
 day2hour = 24.0

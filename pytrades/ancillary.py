@@ -59,7 +59,7 @@ all_color_maps = plt.colormaps()
 deg2rad = cst.deg2rad
 rad2deg = cst.rad2deg
 
-eps64bit = np.finfo(np.float64(1.0)).eps
+eps64bit = np.finfo(float(1.0)).eps
 eps32bit = np.finfo(np.float32(1.0)).eps
 
 # sigma =          1      0    -1       1     -2       2     -3       3
@@ -1374,7 +1374,7 @@ def read_check_good_parameters(full_path, good_status, m_factor, nfit):
     if good_status:
         good_file = os.path.join(full_path, "good_parameters.dat")
         if os.path.exists(good_file):
-            good_parameters_0 = np.genfromtxt(good_file, usecols=(1), dtype=np.float64)
+            good_parameters_0 = np.genfromtxt(good_file, usecols=(1), dtype=float)
             good_id = np.genfromtxt(good_file, usecols=(0), dtype="|S10")
             good_parameters_1 = check_good_parameters(
                 good_id, good_parameters_0, m_factor, nfit
@@ -1495,22 +1495,22 @@ def get_data(emcee_file, temp_status):
             # parameter_names_emcee = names_temp
 
         if "boundaries" in data_names:
-            parameter_boundaries = np.array(f_read["boundaries"][...], dtype=np.float64)
-        # if ('final_parameters' in data_names):  final_parameters = np.array(f_read['final_parameters'], dtype=np.float64)
+            parameter_boundaries = np.array(f_read["boundaries"][...], dtype=float)
+        # if ('final_parameters' in data_names):  final_parameters = np.array(f_read['final_parameters'], dtype=float)
         if "chains" in data_names:
             chains = np.array(
-                f_read["chains"], dtype=np.float64
+                f_read["chains"], dtype=float
             )  # shape (nwalkers, nruns, nfit)
             chains = np.swapaxes(chains, 1, 0)  # nruns x nwalkers x nfit
         if "acceptance_fraction" in data_names:
             acceptance_fraction = np.array(
-                f_read["acceptance_fraction"], dtype=np.float64
+                f_read["acceptance_fraction"], dtype=float
             )
         if "autocor_time" in data_names:
-            autocor_time = np.array(f_read["autocor_time"], dtype=np.float64)
+            autocor_time = np.array(f_read["autocor_time"], dtype=float)
         if "lnprobability" in data_names:
             lnprobability = np.array(
-                f_read["lnprobability"], dtype=np.float64
+                f_read["lnprobability"], dtype=float
             )  # nwalkers x nruns
             lnprobability = np.swapaxes(lnprobability, 1, 0)
 
@@ -1573,7 +1573,7 @@ def compute_autocor_time(chains, walkers_transposed=True):
     if walkers_transposed:
 
         _, nw, nfit = np.shape(chains)
-        autocor_time = np.zeros((nfit), dtype=np.float64)
+        autocor_time = np.zeros((nfit), dtype=float)
         for ifit in range(0, nfit):
             x = chains[:, :, ifit]
             # tau, mean, sigma = acor.acor(x)
@@ -1592,7 +1592,7 @@ def compute_autocor_time(chains, walkers_transposed=True):
     else:
 
         nw, _, nfit = chains.shape
-        autocor_time = np.zeros((nfit), dtype=np.float64)
+        autocor_time = np.zeros((nfit), dtype=float)
         for ifit in range(0, nfit):
             x = chains[:, :, ifit]
             # temp_acor = np.mean(np.array([acor.acor(x[iw, :]) for iw in range(0, nw)]), axis=1)
@@ -1625,7 +1625,7 @@ def compute_acor_time(sampler, steps_done=None):
     try:
         acor_time = sampler.acor
     except:
-        acor_time = np.zeros((nfit), dtype=np.float64) + actime_const
+        acor_time = np.zeros((nfit), dtype=float) + actime_const
 
     return acor_time
 
@@ -1698,7 +1698,7 @@ def select_transpose_convert_chains(
             if "Ms" in parameter_names_emcee[ii]:
                 m_conv = m_factor
             else:
-                m_conv = np.float64(1.0)
+                m_conv = float(1.0)
 
             chains_T[:, :, ii] = chains_T[:, :, ii] * m_conv
             parameter_boundaries[ii, :] = parameter_boundaries[ii, :] * m_conv
@@ -1765,18 +1765,18 @@ def computation_time(elapsed):
 def get_pso_data(pso_file):
 
     with h5py.File(pso_file, "r", swmr=True) as of_pso:
-        population = np.array(of_pso["population"], dtype=np.float64)
-        population_fitness = np.array(of_pso["population_fitness"], dtype=np.float64)
-        pso_parameters = np.array(of_pso["pso_parameters"], dtype=np.float64)
-        pso_fitness = np.array(of_pso["pso_fitness"], dtype=np.float64)
+        population = np.array(of_pso["population"], dtype=float)
+        population_fitness = np.array(of_pso["population_fitness"], dtype=float)
+        pso_parameters = np.array(of_pso["pso_parameters"], dtype=float)
+        pso_fitness = np.array(of_pso["pso_fitness"], dtype=float)
         if "pso_best_evolution" in list(of_pso.keys()):
             pso_best_evolution = np.array(
-                of_pso["pso_best_evolution"], dtype=np.float64
+                of_pso["pso_best_evolution"], dtype=float
             )
         else:
             pso_best_evolution = False
         if "parameters_minmax" in list(of_pso.keys()):
-            parameters_minmax = np.array(of_pso["parameters_minmax"], dtype=np.float64)
+            parameters_minmax = np.array(of_pso["parameters_minmax"], dtype=float)
         else:
             parameters_minmax = False
         if "parameter_names" in list(of_pso.keys()):
@@ -2554,7 +2554,7 @@ def geweke_test(chains_T, start_frac=0.05, n_sel_steps=5):
 
     start_step = int(start_frac * n_steps)
     sel_a = np.linspace(
-        start=start_step, stop=half, num=n_sel_steps, endpoint=False, dtype=np.int
+        start=start_step, stop=half, num=n_sel_steps, endpoint=False, dtype=int
     )
 
     zscore = np.zeros((n_sel_steps, n_chains))
@@ -2694,7 +2694,7 @@ def get_fitted(full_path):
         fit_string = "%s %s" % (fit_string, temp_string)
         fit_list.append(temp_string.split())
 
-    nfit = np.sum(np.array(fit_string.split(), dtype=np.int))
+    nfit = np.sum(np.array(fit_string.split(), dtype=int))
 
     case = []
     id_fit = []
@@ -2763,7 +2763,7 @@ def compute_hdi_full(flatchains):
         for ipar in range(npar)
     ]
 
-    hdi_a = np.array(hdi_l, dtype=np.float64)
+    hdi_a = np.array(hdi_l, dtype=float)
 
     hdi = np.reshape(hdi_a, newshape=((npar, -1)))
 
@@ -3565,7 +3565,7 @@ def derived_parameters_check(derived_names, derived_parameters_in, derived_poste
 
 #     return (
 #         np.array(names_derived, dtype=str),
-#         np.array(derived_post, dtype=np.float64).T,
+#         np.array(derived_post, dtype=float).T,
 #     )
 
 
@@ -3693,7 +3693,7 @@ def derived_parameters_check(derived_names, derived_parameters_in, derived_poste
 #             names_derived.append(name_par.replace("l2j_", "jitter_"))
 #             derived_par.append(2.0 ** parameters[idpar.index(name_par)])
 
-#     return np.array(names_derived, dtype=str), np.array(derived_par, dtype=np.float64).T
+#     return np.array(names_derived, dtype=str), np.array(derived_par, dtype=float).T
 
 
 def update_parameterisation_parameters(fitting_names, fitting_parameters):
@@ -4470,9 +4470,9 @@ def read_fitted_file(fitted_file):
         if line[0] != "#":
             lsplit = line.split()
             names.append(lsplit[0].strip())
-            fitted_par.append(np.float64(lsplit[1].strip()))
+            fitted_par.append(float(lsplit[1].strip()))
 
-    return names, np.array(fitted_par, dtype=np.float64)
+    return names, np.array(fitted_par, dtype=float)
 
 
 # ==============================================================================
@@ -4485,7 +4485,7 @@ def sturges_nbins(npost):
     Following Sturges' rule:
     nbins = log2(n) + 1
     """
-    nbins = np.ceil(np.log2(np.float64(npost))).astype(int) + 1
+    nbins = np.ceil(np.log2(float(npost))).astype(int) + 1
 
     return nbins
 
@@ -4512,7 +4512,7 @@ def freedman_diaconis_nbins(x):
         #
     )
     irq = np.abs(q75 - q25)
-    nx = np.float64(np.shape(x)[0])
+    nx = float(np.shape(x)[0])
     width = 2.0 * irq / np.power(nx, 1.0 / 3.0)
     nbins = np.ceil(np.abs(np.max(x) - np.min(x)) / width).astype(int)
 
@@ -4532,7 +4532,7 @@ def doane_nbins(x):
       g1 = 3rd-moment-skewness
       s_g1 = sqrt( (6 x (n-2)) / ((n+1) x (n+3)) )
     """
-    nxf = np.float64(np.shape(x)[0])
+    nxf = float(np.shape(x)[0])
     mux = np.mean(x)
     stdx = np.std(x, ddof=1)
     g1 = np.mean(((x - mux) / stdx) ** 3)  # skew
@@ -4571,11 +4571,11 @@ def get_auto_bins(posterior):
 def get_old_bins(x, rule="sq"):
 
     nx = np.shape(x)[0]
-    nxf = np.float64(nx)
+    nxf = float(nx)
 
     if "sq" in rule.lower():
 
-        nbins = int(np.sqrt(np.float64(nx)))
+        nbins = int(np.sqrt(float(nx)))
 
     elif "stu" in rule.lower():
 
@@ -4615,7 +4615,7 @@ def calculate_hdi(x, nbins, alpha=[0.05], mode_output=False):
 
     # probability mass distribution = (counts / ndata)
     # probability density = probability mass distribution / bin_width
-    pmd = np.asarray(counts) / np.float64(np.shape(x)[0])
+    pmd = np.asarray(counts) / float(np.shape(x)[0])
     # pdd = pmd / bin_width
     spmd = np.sort(pmd)[::-1]
     hdi_ci = []
@@ -4771,7 +4771,7 @@ def emcee_names_to_trades(emcee_names):
 
 def e_to_sqrte_boundaries(boundaries_in, names_par):
     nfit = np.shape(boundaries_in)[0]
-    boundaries_out = np.array(boundaries_in, dtype=np.float64).copy()
+    boundaries_out = np.array(boundaries_in, dtype=float).copy()
     for ifit in range(0, nfit):
         if names_par[ifit][0:2] == "ec":
             ec = boundaries_in[ifit, :]
@@ -4787,7 +4787,7 @@ def e_to_sqrte_boundaries(boundaries_in, names_par):
 
 def e_to_sqrte_fitting(fitting_in, names_par):
     nfit = np.shape(fitting_in)[0]
-    fitting_out = np.array(fitting_in, dtype=np.float64).copy()
+    fitting_out = np.array(fitting_in, dtype=float).copy()
     for ifit in range(0, nfit):
         if names_par[ifit][:2] == "ec":
             ec = fitting_in[ifit]
@@ -4806,7 +4806,7 @@ def e_to_sqrte_fitting(fitting_in, names_par):
 
 def e_to_sqrte_flatchain(fitting_in, names_par):
     _, nfit = np.shape(fitting_in)
-    fitting_out = np.array(fitting_in, dtype=np.float64).copy()
+    fitting_out = np.array(fitting_in, dtype=float).copy()
     for ifit in range(0, nfit):
         if names_par[ifit][:2] == "ec":
             ec = fitting_in[:, ifit]
@@ -4825,13 +4825,13 @@ def e_to_sqrte_flatchain(fitting_in, names_par):
 
 def e_to_sqrte_chain(fitting_in, names_par):
     _, _, nfit = np.shape(fitting_in)
-    fitting_out = np.array(fitting_in, dtype=np.float64).copy()
+    fitting_out = np.array(fitting_in, dtype=float).copy()
     for ifit in range(0, nfit):
         if names_par[ifit][:2] == "ec":
             ec = fitting_in[:, :, ifit]
             es = fitting_in[:, :, ifit + 1]
             ss = ec * ec + es * es
-            sqrte = np.power(ss, np.float64(0.25))
+            sqrte = np.power(ss, float(0.25))
             ww_rad = np.arctan2(es, ec)
             fitting_out[:, :, ifit] = sqrte * np.cos(ww_rad)
             fitting_out[:, :, ifit + 1] = sqrte * np.sin(ww_rad)
@@ -4862,7 +4862,7 @@ def e_to_sqrte_parameters(fitting_in, names_par):
 
 def sqrte_to_e_fitting(fitting_in, names_par):
     nfit = np.shape(fitting_in)[0]
-    fitting_out = np.array(fitting_in, dtype=np.float64).copy()
+    fitting_out = np.array(fitting_in, dtype=float).copy()
     for ifit in range(0, nfit):
         if "sqrtec" in names_par[ifit] or "se" in names_par[ifit]:
             sec = fitting_in[ifit]
@@ -4880,7 +4880,7 @@ def sqrte_to_e_fitting(fitting_in, names_par):
 
 def sqrte_to_e_flatchain(fitting_in, names_par):
     _, nfit = np.shape(fitting_in)
-    fitting_out = np.array(fitting_in, dtype=np.float64).copy()
+    fitting_out = np.array(fitting_in, dtype=float).copy()
     for ifit in range(0, nfit):
         if "sqrtec" in names_par[ifit] or "se" in names_par[ifit]:
             sec = fitting_in[:, ifit]
@@ -4898,7 +4898,7 @@ def sqrte_to_e_flatchain(fitting_in, names_par):
 
 def sqrte_to_e_chain(fitting_in, names_par):
     _, _, nfit = np.shape(fitting_in)
-    fitting_out = np.array(fitting_in, dtype=np.float64).copy()
+    fitting_out = np.array(fitting_in, dtype=float).copy()
     for ifit in range(0, nfit):
         if "sqrtec" in names_par[ifit] or "se" in names_par[ifit]:
             sec = fitting_in[:, :, ifit]
@@ -5069,7 +5069,7 @@ def chi2r_linear_model(par, x, y, ey=None):
     nfit = np.shape(par)[0]
     ndata = np.shape(x)[0]
     dof = ndata - nfit
-    chi2r = np.sum(np.power(wres, 2)) / np.float64(dof)
+    chi2r = np.sum(np.power(wres, 2)) / float(dof)
 
     return chi2r
 
@@ -5165,7 +5165,7 @@ def read_priors(full_path):
                 if line[0] != "#":
                     l = line.split("#")[0].split()
                     key_p = l[0]
-                    val_p = [np.float64(x) for x in l[1:]]
+                    val_p = [float(x) for x in l[1:]]
                     priors[key_p] = val_p
         of.close()
 
@@ -5264,9 +5264,9 @@ def compute_initial_walkers(
 
     # 2017-02-03 LUCA --0--
     try:
-        d_sigma = np.float64(delta_sigma)
+        d_sigma = float(delta_sigma)
     except:
-        d_sigma = np.float64(1.0e-4)
+        d_sigma = float(1.0e-4)
 
     delta_sigma_out = compute_proper_sigma(nfit, d_sigma, parameter_names)
     print(" ", end=" ")
@@ -5278,7 +5278,7 @@ def compute_initial_walkers(
                 + np.random.normal(loc=0.0, scale=delta_sigma_out[ifit])
                 for ifit in range(0, nfit)
             ],
-            dtype=np.float64,
+            dtype=float,
         )
         for p_n in parameter_names:
             if ("Ms" in p_n) or ("P" in p_n):
@@ -5344,7 +5344,7 @@ def compute_initial_walkers(
                             + np.random.normal(loc=0.0, scale=delta_sigma_out[ifit])
                             for ifit in range(0, nfit)
                         ],
-                        dtype=np.float64,
+                        dtype=float,
                     )
                     test_lg = lnprob(test_p0, *args)
                     if not np.isinf(test_lg):
