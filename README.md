@@ -31,7 +31,6 @@ git clone https://github.com/lucaborsato/trades.git
 
 ## Create conda environment
 
-
 I suggest to create an `anaconda environment`, install all the dependencies and then do `make full_parallel_release`.  
 **WARNING**: not working with `python>3.10`, `numpy>1.23.5`, and `setuptools>65.6.3` due to deprecated `distutils` for `f2py`, now using `meson`.  
 
@@ -90,6 +89,8 @@ Force `setuptools` to the version `65.6.3` and it should compile fine.
 `conda install setuptools=65.6.3`  
 
 ## Compile the `fortran` sources and build the `python` library
+
+**Required: a fortran compiler, such as `gfortran`**  
 
 Download and compile `fortran90` and `python` libraries:  
 
@@ -555,6 +556,11 @@ for i, pl_name in enumerate(body_names[1:]): # start from the first planet
       "kep_elem": kep_elem[sel],
     }
 ```
+
+### `photoTRADES` - photo-dynamical model
+
+See the jupyter notebook about the photo-dynamical model with [photoTRADES](./trades_example/photoTRADES_TOI-1130/) in the example folder.
+Data from [Borsato et al., 2024](https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..52B/abstract) about the analysis of the TOI-1130 multi-planet system.  
 
 
 ### From script and folder with `yml` configurations
