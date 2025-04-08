@@ -2960,11 +2960,15 @@ def fix_lambda(flatchain_post, names_par):
 # recenter single angle distribution
 def recenter_angle_distribution(alpha_deg, debug=False, type_out=False):
 
-    beta_deg = get_arctan_angle(alpha_deg)
+    if not np.all(np.isnan(alpha_deg)):
+        beta_deg = get_arctan_angle(alpha_deg)
+        _, recentered, rec_type = get_good_distribution(
+            beta_deg, alpha_deg, type_out=True, debug=debug
+        )
+    else:
+        rec_type = "nan"
+        recentered = alpha_deg
 
-    _, recentered, rec_type = get_good_distribution(
-        beta_deg, alpha_deg, type_out=True, debug=debug
-    )
     if type_out:
         return recentered, rec_type
     else:

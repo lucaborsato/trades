@@ -29,9 +29,10 @@ from . import plot_oc_full
 # If constants.py has a constant called `SOME_CONSTANT`:
 # from .constants import SOME_CONSTANT
 
-# If pytrades.py has a class called `Trade`:
-# from .pytrades import Trade
+# If pytrades.py has a class called `Trades`:
+# from .pytrades import Trades
+from .pytrades import PhotoTRADES
 
 # Expose them in the package namespace if needed
-# __all__ = ['anc', 'cst', 'trades', 'some_function', 'SOME_CONSTANT', 'Trade']
+# __all__ = ['anc', 'cst', 'trades', 'some_function', 'SOME_CONSTANT', 'Trades']
 		

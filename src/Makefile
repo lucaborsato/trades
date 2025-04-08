@@ -14,7 +14,8 @@ F90 = gfortran
 # f2py
 FVENDOR=$(CC)
 # F2PYCC = f2py --fcompiler=$(FVENDOR) --f90exec=$(CC) --f77exec=$(F77)
-F2PYCC = FC=$(CC) f2py
+# F2PYCC = FC=$(CC) f2py
+F2PYCC = FC=$(CC) python -m numpy.f2py
 
 # WARNING: file .f2py_f2cmap must be present (it is within the src/ folder)
 
