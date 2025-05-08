@@ -38,12 +38,12 @@ contains
         idxVX = 0
         idxVY = 0
         do i_body = 2, n_body
-            idxX(i_body) = 1+(i_body-1)*6
-            idxY(i_body) = 2+(i_body-1)*6
-            idxZ(i_body) = 3+(i_body-1)*6
-            idxVX(i_body) = 4+(i_body-1)*6
-            idxVY(i_body) = 5+(i_body-1)*6
-            idxVZ(i_body) = 6+(i_body-1)*6
+            idxX(i_body) = 1 + (i_body - 1) * 6
+            idxY(i_body) = 2 + (i_body - 1) * 6
+            idxZ(i_body) = 3 + (i_body - 1) * 6
+            idxVX(i_body) = 4 + (i_body - 1) * 6
+            idxVY(i_body) = 5 + (i_body - 1) * 6
+            idxVZ(i_body) = 6 + (i_body - 1) * 6
         end do
 
         return
@@ -57,14 +57,143 @@ contains
         logical, intent(out)::ABflag, Zflag
 
         ! C = X*VX + Y*VY
-        A = rv1(1)*rv1(4)+rv1(2)*rv1(5)
-        B = rv2(1)*rv2(4)+rv2(2)*rv2(5)
-        AB = A*B
+        A = rv1(1) * rv1(4) + rv1(2) * rv1(5)
+        B = rv2(1) * rv2(4) + rv2(2) * rv2(5)
+        AB = A * B
         ABflag = AB .le. zero
         Zflag = (rv1(3) .gt. zero) .or. (rv2(3) .gt. zero)
 
         return
     end subroutine transit_conditions
+
+    ! subroutine check_if_excluded_timerange(i_body, mass, radii, t_epoch, itime1, itime2, r1, r2, integration_step,&
+    !     &excl_body, excl_tranges, excl_status, transit_in_excluded)
+    !     ! Input
+    !     integer, intent(in)::i_body
+    !     real(dp), dimension(:), intent(in)::mass, radii
+    !     real(dp), intent(in)::t_epoch
+    !     real(dp), intent(in)::itime1, itime2
+    !     real(dp), dimension(:), intent(in)::r1, r2
+    !     real(dp), intent(in)::integration_step
+
+    !     integer, dimension(:), intent(in)::excl_body
+    !     real(dp), dimension(:, :), intent(in)::excl_tranges
+    !     ! Input/Output
+    !     integer, dimension(:), intent(inout)::excl_status
+    !     ! Output
+    !     logical, intent(inout)::transit_in_excluded
+        
+    !     ! Local
+    !     integer::n_excl, i_excl
+    !     logical, dimension(:), allocatable::sel_body
+    !     integer::n_sel
+    !     ! real(dp), dimension(:, :), allocatable::excl_tranges_body
+    !     ! integer, dimension(:), allocatable::excl_status_body
+    !     real(dp)::tmin, tmax, tr1, tr2
+    !     logical::overlap
+    !     real(dp)::ttra, dur_tra, half_dur, alpha
+    !     real(dp), dimension(4)::tcont
+    !     logical::check_ttra, check_t0, check_t1, check_t4
+
+    !     tr1 = t_epoch + itime1
+    !     tr2 = t_epoch + itime2
+    !     n_excl = size(excl_body)
+
+    !     allocate (sel_body(size(excl_body)))
+    !     sel_body = excl_body .eq. i_body
+    !     n_sel = count(sel_body)
+
+    !     if (n_sel .gt. 0) then
+
+    !         do i_excl = 1, n_excl
+    !             if (excl_status(i_excl) .eq. 0) then
+    !                 tmin = excl_tranges(i_excl, 1)
+    !                 tmax = excl_tranges(i_excl, 2)
+    !                 call compare_inttime_timerange(tr1, tr2, tmin, tmax, overlap)
+    !                 if (overlap) then
+    !                     call transit_and_contact_time(t_epoch, i_body, mass, radii, r1, r2, tr1, integration_step,&
+    !                         &ttra, dur_tra, tcont, alpha, check_ttra)
+    !                     ! update CHECKS t0 t1 t4 ==> transit_in_excluded
+    !                     ! transit_in_excluded = &
+    !                     !     & ((tcont(1) .ge. excl_tranges_body(i_excl, 1)) .and. (tcont(1) .lt. excl_tranges_body(i_excl, 2)))&
+    !                     !     & .or. &
+    !                     !     & ((tcont(4) .gt. excl_tranges_body(i_excl, 1)) .and. (tcont(4) .le. excl_tranges_body(i_excl, 2)))
+    !                     ! if (transit_in_excluded) write(*,*)"i_body ",i_body," i_excl ", i_excl, tcont(1), tcont(4), excl_tranges_body(i_excl, :)
+    !                 end if
+    !             end if
+    !         end do
+    !         ! deallocate (excl_status_body, excl_tranges_body)
+    !     end if
+    !     deallocate (sel_body)
+
+    !     return
+    ! end subroutine check_if_excluded_timerange
+
+    subroutine check_if_excluded_timerange(i_body, mass, radii, tepoch, itime1, itime2, r1, r2, integration_step,&
+        &T0,transit_in_excluded)
+        ! Input
+        integer, intent(in)::i_body
+        real(dp), dimension(:), intent(in)::mass, radii
+        real(dp), intent(in)::tepoch
+        real(dp), intent(in)::itime1, itime2
+        real(dp), dimension(:), intent(in)::r1, r2
+        real(dp), intent(in)::integration_step
+        ! Input/Output
+        type(dataT0), intent(inout)::T0
+        logical, intent(inout)::transit_in_excluded
+        
+        ! Local
+        integer::nexcl, n_status, i_excl
+        real(dp)::tmin, tmax, tr1, tr2
+        logical::overlap
+        real(dp)::ttra, dur_tra, half_dur, alpha
+        real(dp), dimension(4)::tcont
+        logical::check_ttra, check_t0, check_t1, check_t4, check_this
+
+        tr1 = tepoch + itime1
+        tr2 = tepoch + itime2
+
+        nexcl = T0%n_excl
+        n_status = sum(T0%excluded_status)
+
+        if ((nexcl .gt. 0).and.(n_status .lt. nexcl)) then
+
+            do i_excl = 1, nexcl
+                if (T0%excluded_status(i_excl) .eq. 0) then
+                    tmin = T0%excluded_time_ranges(i_excl, 1)
+                    tmax = T0%excluded_time_ranges(i_excl, 2)
+                    call compare_inttime_timerange(tr1, tr2, tmin, tmax, overlap)
+                    if (overlap) then
+                        call transit_and_contact_time(tepoch, i_body, mass, radii, r1, r2, itime1, integration_step,&
+                        &ttra, dur_tra, tcont, alpha, check_ttra)
+                        check_t0 = (ttra .ge. tmin) .and. (ttra .le. tmax)
+                        check_t1 = (tcont(1) .ge. tmin) .and. (tcont(1) .lt. tmax)
+                        check_t4 = (tcont(4) .gt. tmin) .and. (tcont(4) .le. tmax)
+                        check_this = (check_t0 .or. check_t1 .or. check_t4)
+                        transit_in_excluded = (transit_in_excluded .or. check_this)
+                        T0%excluded_t0 = ttra
+                        T0%excluded_t1 = tcont(1)
+                        T0%excluded_t4 = tcont(4)
+                        write(*,*)"i_body ",i_body," i_excl ", i_excl
+                        write(*,*)"t1 = ",tr1, " t2 = ",tr2," tmin = ",tmin," tmax = ",tmax," overlap = ",overlap
+                        write(*,*)"T0 = ",ttra," T1 = ",tcont(1)," T4 = ",tcont(4)
+                        write(*,*)"check T0 - T1 - T4 & this: ",check_t0, check_t1, check_t4, check_this
+                        write(*,*)"transit_in_excluded: ",transit_in_excluded
+                        flush(6)
+                        if (check_this) then
+                            T0%excluded_status(i_excl) = 1
+                        end if
+                        write(*,*)"status = ",T0%excluded_status(i_excl)
+                        flush(6)
+                    end if
+                end if
+            end do
+            ! deallocate (excl_status_body, excl_tranges_body)
+        end if
+        ! deallocate (sel_body)
+
+        return
+    end subroutine check_if_excluded_timerange
 
     ! ================================================================================
     ! performs the forward integration in one direction with explicit flags and args.
@@ -104,6 +233,7 @@ contains
         integer, intent(in)::dur_check
         ! Input/Output
         type(dataT0), dimension(:), intent(inout)::simT0
+        ! integer, dimension(:), intent(inout)::excl_status
         logical, intent(inout)::Hc
         ! Locals
         integer::n_body, nb_dim
@@ -121,19 +251,20 @@ contains
         integer::n_all
         real(dp)::trun1, trun2
 
-        real(dp),dimension(:),allocatable::period, sma, ecc, inc, meanA, argp, trueA, longN, dttau
-        real(dp),dimension(:),allocatable::Tref,Pref
-        integer,dimension(:),allocatable::epo_obs
+        real(dp), dimension(:), allocatable::period, sma, ecc, inc, meanA, argp, trueA, longN, dttau
+        real(dp), dimension(:), allocatable::Tref, Pref
+        integer, dimension(:), allocatable::epo_obs
         real(dp)::Tr, Pr, Tx
-        integer::epox,ntx
 
         integer::i_body, iteration, body_transiting_start, body_transiting_end
-        logical::do_transit_check
+        logical::do_transit_check, search_obs_transit, transit_in_excluded
 
-        integer::nRV, nTTs
+        integer::nRV, nTTs, nexcl_all
 
-        nRV = obsDataIn%obsRV%nRV
-        nTTs = obsDataIn%nTTs
+        nRV = obsDataIn % obsRV % nRV
+        nTTs = obsDataIn % nTTs
+        transit_in_excluded = .false.
+        nexcl_all = obsDataIn%n_excluded
 
         Hc = .true.
         if (close_encounter_check) then
@@ -150,7 +281,7 @@ contains
         integration_step = sign(step_in, time_to_int)
         call set_check_steps(t_epoch, time_to_int, integration_step, obsDataIn, n_all, t_all_steps, all_idx)
 
-        nb_dim = 6*n_body
+        nb_dim = 6 * n_body
         allocate (r1(nb_dim), r2(nb_dim))
         r1 = rin
         working_step = step_0
@@ -158,16 +289,17 @@ contains
         call set_transiting_bodies(id_transit_body, do_transit_check, body_transiting_start, body_transiting_end)
         ! Define the reference transit time for each body
         call set_transit_references_all_bodies(t_epoch, obsDataIn, Tref)
-        allocate(period(n_body), sma(n_body), ecc(n_body), inc(n_body), meanA(n_body), argp(n_body), trueA(n_body), longN(n_body), dttau(n_body))
+        allocate (period(n_body))
+        allocate (sma(n_body), ecc(n_body), inc(n_body), meanA(n_body), argp(n_body), trueA(n_body), longN(n_body), dttau(n_body))
         call elements(mass, rin, period, sma, ecc, inc, meanA, argp, trueA, longN, dttau)
-        allocate(Pref(n_body-1))
+        allocate (Pref(n_body - 1))
         Pref = period(2:n_body)
 
         trun1 = t_all_steps(1)
         integration: do iteration = 1, n_all
 
             trun2 = t_all_steps(iteration)
-            integration_step = trun2-trun1
+            integration_step = trun2 - trun1
             call one_forward_step(mass, radius, r1, integration_step, working_step, Hc, r2)
             if (.not. Hc) then
                 exit integration
@@ -180,33 +312,35 @@ contains
             end if
 
             if (do_transit_check) then
-                Tx = t_epoch+trun1+half*integration_step
+                Tx = t_epoch + trun1 + half * integration_step
 
                 do i_body = body_transiting_start, body_transiting_end
                     call transit_conditions(r1(X(i_body):VZ(i_body)), r2(X(i_body):VZ(i_body)),&
-                        &A, B, AB, ABflag, Zflag)
+                    &A, B, AB, ABflag, Zflag)
 
                     if (ABflag .and. Zflag) then
-                        if(allocated(obsDataIn%obsT0))then
-                            ntx = obsDataIn%obsT0(i_body-1)%nT0
-                            if (ntx .gt. 0) then
-                                ! Tr = obsDataIn%obsT0(i_body-1)%Tephem
-                                ! Pr = obsDataIn%obsT0(i_body-1)%Pephem
-                                Tr = Tref(i_body-1)
-                                Pr = Pref(i_body-1)
-                                if (Pr .gt. zero) then ! only if we have Pephem > 0
-                                    epox = nint(((Tx-Tr)/Pr))
-                                    allocate(epo_obs(ntx))
-                                    epo_obs = nint(((obsDataIn%obsT0(i_body-1)%T0-Tr)/Pr))
-                                    if (any(epox .eq. epo_obs)) then ! check if the epoch of the mean time of two consecutive steps is within the observed epochs
-                                        call check_T0(t_epoch, Tr, Pr, i_body, mass, radius, r1, r2,&
-                                            &trun1, integration_step,&
-                                            &transit_flag, dur_check, obsDataIn, simT0, Hc)
-                                    end if
-                                    if(allocated(epo_obs)) deallocate(epo_obs)
-                                end if ! Pr
-                            end if ! ntx
-                        end if !  allocated(obsDataIn%obsT0)
+
+                        call check_if_observed_transit(i_body, Tx, Tref, Pref, obsDataIn, search_obs_transit)
+                        if (search_obs_transit) then
+                            Tr = Tref(i_body - 1)
+                            Pr = Pref(i_body - 1)
+                            call check_T0(t_epoch, Tr, Pr, i_body, mass, radius, r1, r2,&
+                                &trun1, integration_step,&
+                                &transit_flag, dur_check, obsDataIn, simT0, Hc)
+                        end if
+
+                        if (nexcl_all .gt. 0) then
+                            call check_if_excluded_timerange(i_body, mass, radius,&
+                                &t_epoch, trun1, trun2, r1, r2, integration_step,&
+                                &simT0(i_body-1),transit_in_excluded)
+                            if (transit_in_excluded) then
+                                ! Hc = .false.
+                                ! exit integration
+                                write(*,*)" in ode_full_args: transit_in_excluded is ", transit_in_excluded, " and Hc is ", Hc
+                                flush(6)
+                            end if
+                        end if
+
                     end if ! ABflag, Zflag
                 end do ! i_body
             end if ! do_transit_check
@@ -331,20 +465,21 @@ contains
         integer::n_all
         real(dp)::trun1, trun2
 
-        real(dp),dimension(:),allocatable::period, sma, ecc, inc, meanA, argp, trueA, longN, dttau
-        real(dp),dimension(:),allocatable::Tref,Pref
-        integer,dimension(:),allocatable::epo_obs
+        real(dp), dimension(:), allocatable::period, sma, ecc, inc, meanA, argp, trueA, longN, dttau
+        real(dp), dimension(:), allocatable::Tref, Pref
+        ! integer, dimension(:), allocatable::epo_obs
         real(dp)::Tr, Pr, Tx
-        integer::epox,ntx
+        ! integer::epox, ntx
+        logical::search_obs_transit, transit_in_excluded
 
         ! if you see a variable non listed here, probably it is a global variable
         ! defined in constants.f90 or parameters.f90
 
         flush (6)
 
-        nRV = obsDataIn%obsRV%nRV
-        nTTs = obsDataIn%nTTs
-        nDurs = obsDataIn%nDurs
+        nRV = obsDataIn % obsRV % nRV
+        nTTs = obsDataIn % nTTs
+        nDurs = obsDataIn % nDurs
 
         Hc = .true.
         if (close_encounter_check) then
@@ -360,13 +495,11 @@ contains
         step_write = sign(wrttime, time_to_int)
         call set_check_steps(tepoch, time_to_int, step_write, obsDataIn, n_all, t_all_steps, all_idx)
 
-        Norb = NBDIM+3
+        Norb = NBDIM + 3
 
         allocate (r1(NBDIM), r2(NBDIM))
         r1 = rin
         working_step = step_0
-
-        
 
         ! ==================
         ! PREPARE VARIABLE TO STORE ORBIT/ENERGY/MOMENTUM/TRANSITS TO WRITE
@@ -391,7 +524,7 @@ contains
         end if
 
         if ((idtra .ge. 1) .and. (idtra .le. NB)) then
-            allocate (storetra(NBDIM+6, DIMMAX))
+            allocate (storetra(NBDIM + 6, DIMMAX))
             storetra = zero
             allocate (stat_tra(NB, DIMMAX))
             stat_tra = 0
@@ -402,16 +535,17 @@ contains
         call set_transiting_bodies(idtra, do_transit_check, body_transiting_start, body_transiting_end)
         n_body = size(mass)
         call set_transit_references_all_bodies(tepoch, obsDataIn, Tref)
-        allocate(period(n_body), sma(n_body), ecc(n_body), inc(n_body), meanA(n_body), argp(n_body), trueA(n_body), longN(n_body), dttau(n_body))
+        allocate (period(n_body), sma(n_body), ecc(n_body), inc(n_body), meanA(n_body), argp(n_body), trueA(n_body), longN(n_body))
+        allocate (dttau(n_body))
         call elements(mass, rin, period, sma, ecc, inc, meanA, argp, trueA, longN, dttau)
-        allocate(Pref(n_body-1))
+        allocate (Pref(n_body - 1))
         Pref = period(2:n_body)
 
         trun1 = t_all_steps(1)
         integration: do iteration = 1, n_all
 
             trun2 = t_all_steps(iteration)
-            integration_step = trun2-trun1
+            integration_step = trun2 - trun1
             call one_forward_step(mass, radius, r1, integration_step, working_step, Hc, r2)
             if (.not. Hc) then
                 exit integration
@@ -425,7 +559,7 @@ contains
 
             if (do_transit_check) then
                 ! T0 check (to compare and all)
-                Tx = tepoch+trun1+half*integration_step
+                Tx = tepoch + trun1 + half * integration_step
 
                 ! T0 check
                 do i_body = body_transiting_start, body_transiting_end
@@ -435,7 +569,7 @@ contains
 
                     if (ABflag .and. Zflag) then
 
-                        jtra = jtra+1
+                        jtra = jtra + 1
                         call all_transits(tepoch, jtra, i_body, mass, radius, r1, r2,&
                             &trun1, integration_step, stat_tra, storetra)
 
@@ -446,27 +580,41 @@ contains
                             storetra = zero
                         end if
 
-                        if (allocated(obsDataIn%obsT0)) then
-                            ntx = obsDataIn%obsT0(i_body-1)%nT0
-                            if (ntx .gt. 0) then
-                                ! Tr = obsDataIn%obsT0(i_body-1)%Tephem
-                                ! Pr = obsDataIn%obsT0(i_body-1)%Pephem
-                                Tr = Tref(i_body-1)
-                                Pr = Pref(i_body-1)
-                                if (Pr .gt. zero) then ! only if we have Pephem > 0
+                        ! if (allocated(obsDataIn % obsT0)) then
+                        !     ntx = obsDataIn % obsT0(i_body - 1) % nT0
+                        !     if (ntx .gt. 0) then
+                        !         ! Tr = obsDataIn%obsT0(i_body-1)%Tephem
+                        !         ! Pr = obsDataIn%obsT0(i_body-1)%Pephem
+                        !         Tr = Tref(i_body - 1)
+                        !         Pr = Pref(i_body - 1)
+                        !         if (Pr .gt. zero) then ! only if we have Pephem > 0
 
-                                    epox = nint(((Tx-Tr)/Pr))
-                                    allocate(epo_obs(ntx))
-                                    epo_obs = nint(((obsDataIn%obsT0(i_body-1)%T0-Tr)/Pr))
-                                    ! check if the epoch of the mean time of two consecutive steps is within the observed epochs
-                                    if (any(epox .eq. epo_obs)) then
-                                        call check_T0(tepoch, Tr, Pr, i_body, mass, radius, r1, r2,&
-                                            &trun1, integration_step, simT0, Hc)
-                                    end if
-                                    if(allocated(epo_obs)) deallocate(epo_obs)
-                                end if ! Pr
-                            end if ! ntx
-                        end if ! allocated(obsDataIn%obsT0)
+                        !             epox = nint(((Tx - Tr) / Pr))
+                        !             allocate (epo_obs(ntx))
+                        !             epo_obs = nint(((obsDataIn % obsT0(i_body - 1) % T0 - Tr) / Pr))
+                        !             ! check if the epoch of the mean time of two consecutive steps is within the observed epochs
+                        !             if (any(epox .eq. epo_obs)) then
+                        !                 call check_T0(tepoch, Tr, Pr, i_body, mass, radius, r1, r2,&
+                        !                     &trun1, integration_step, simT0, Hc)
+                        !             end if
+                        !             if (allocated(epo_obs)) deallocate (epo_obs)
+                        !         end if ! Pr
+                        !     end if ! ntx
+                        ! end if ! allocated(obsDataIn%obsT0)
+                        call check_if_observed_transit(i_body, Tx, Tref, Pref, obsDataIn, search_obs_transit)
+                        if (search_obs_transit) then
+                            Tr = Tref(i_body - 1)
+                            Pr = Pref(i_body - 1)
+                            call check_T0(tepoch, Tr, Pr, i_body, mass, radius, r1, r2,&
+                                &trun1, integration_step, simT0, Hc)
+                        end if
+
+                        if (n_excluded .gt. 0) then
+                            call check_if_excluded_timerange(i_body, mass, radius,&
+                                &tepoch, trun1, trun2, r1, r2, integration_step,&
+                                &simT0(i_body-1),transit_in_excluded)
+                                if (transit_in_excluded) Hc = .false.
+                        end if
 
                     end if ! ABflag, Zflag
                 end do ! i_body
@@ -477,7 +625,7 @@ contains
             if ((wrtorb .eq. 1) .or. (wrtel .eq. 1) .or. (wrtconst .eq. 1)) then
 
                 if (all_idx(iteration) .eq. 0) then
-                    save_iteration = save_iteration+1
+                    save_iteration = save_iteration + 1
                     if ((wrtorb .eq. 1) .or. (wrtel .eq. 1)) then
                         call store_orb(save_iteration, trun2, mass, r2, storeorb) ! save r_save!!
                         if (save_iteration .eq. DIMMAX) then ! write into file if reach max dimension
@@ -531,7 +679,7 @@ contains
         deallocate (r1, r2)
         deallocate (X, Y, Z)
         deallocate (VX, VY, VZ)
-        deallocate(period, sma, ecc, inc, meanA, argp, trueA, longN, dttau)
+        deallocate (period, sma, ecc, inc, meanA, argp, trueA, longN, dttau)
         deallocate (Tref, Pref)
         deallocate (t_all_steps)
         deallocate (all_idx)
@@ -617,7 +765,7 @@ contains
         logical, intent(out)::Hc
 
         ! local variables
-        integer::nRV, nTTs, nT0, ibd
+        integer::nRV, nTTs, nT0, ibd, nexcl
         real(dp), dimension(:), allocatable::sma
         real(dp), dimension(:), allocatable::ra0, ra1
         real(dp)::dt1, dt2, step
@@ -628,34 +776,40 @@ contains
         Hc = .true.
 
         ! set RV and T0s data type for simulated ones
-        nRV = obsDataIn%obsRV%nRV
-        nTTs = obsDataIn%nTTs
+        nRV = obsDataIn % obsRV % nRV
+        nTTs = obsDataIn % nTTs
 
         ! RV
         if (nRV .gt. 0) then
             call init_dataRV(nRV, simRV)
-            simRV%nRV = 0
-            if (.not. allocated(simRV%jitter)) allocate (simRV%jitter(nRVset))
-            simRV%jitter = zero
-            if (.not. allocated(simRV%gamma)) allocate (simRV%gamma(nRVset))
-            simRV%gamma = zero
-            simRV%RVsetID = obsDataIn%obsRV%RVsetID
+            simRV % nRV = 0
+            if (.not. allocated(simRV % jitter)) allocate (simRV % jitter(nRVset))
+            simRV % jitter = zero
+            if (.not. allocated(simRV % gamma)) allocate (simRV % gamma(nRVset))
+            simRV % gamma = zero
+            simRV % RVsetID = obsDataIn % obsRV % RVsetID
         end if
         ! T0
         if (nTTs .gt. 0) then
-            allocate (simT0(NB-1))
-            do ibd = 1, NB-1
-                nT0 = obsDataIn%obsT0(ibd)%nT0
+            allocate (simT0(NB - 1))
+            do ibd = 1, NB - 1
+                nT0 = obsDataIn % obsT0(ibd) % nT0
                 call init_dataT0(nT0, simT0(ibd), durcheck)
-                simT0(ibd)%nT0 = 0
-                simT0(ibd)%nDur = 0
+                simT0(ibd) % nT0 = 0
+                simT0(ibd) % nDur = 0
                 !  let's set error on TT and Dur to 1 sec! It is needed to avoid divisione by zero
-                simT0(ibd)%eT0 = one/s24h ! 1s in day
-                simT0(ibd)%edur = one/60.0_dp ! 1s in min
+                simT0(ibd) % eT0 = one / s24h ! 1s in day
+                simT0(ibd) % edur = one / 60.0_dp ! 1s in min
+                if (n_excluded .gt. 0)then
+                    nexcl = obsDataIn % obsT0(ibd) % n_excl
+                    if (nexcl .gt. 0)then
+                        call init_dataT0_excluded(nexcl, obsData%obsT0(ibd)%excluded_time_ranges, simT0(ibd))
+                    end if
+                end if
             end do
         end if
 
-        NBDIM = 6*NB
+        NBDIM = 6 * NB
         if (.not. allocated(ra0)) allocate (ra0(NBDIM), ra1(NBDIM))
 
         allocate (sma(NB))
@@ -667,9 +821,9 @@ contains
         ra1 = ra0
         deallocate (sma)
 
-        dt1 = tstart-tepoch
-        dt2 = dt1+tint
-        step = minval(period(2:NB))/ten
+        dt1 = tstart - tepoch
+        dt2 = dt1 + tint
+        step = minval(period(2:NB)) / ten
 
         if (dt1 .lt. zero) then
 
@@ -732,10 +886,10 @@ contains
 
         ! debugging=.true.
 
-        ndata = obsData%ndata
-        nRV = obsData%obsRV%nRV
-        nTTs = obsData%nTTs
-        nDurs = obsData%nDurs
+        ndata = obsData % ndata
+        nRV = obsData % obsRV % nRV
+        nTTs = obsData % nTTs
+        nDurs = obsData % nDurs
 
         stable = .true.
         ! resw = zero
@@ -750,11 +904,6 @@ contains
 
         if (.not. checkpar) then
             resw = set_max_residuals(ndata)
-            ! write(debug, '(a,a,es25.15E3)')trim(debug)," sum(resw*resw) = ",sum(resw*resw)
-            ! if (debugging)then
-            !     write(*, *)trim(debug)
-            !     flush(6)
-            ! end if
             return
         end if
 
@@ -762,27 +911,25 @@ contains
         call ode_keplerian_elements_to_data(mass, radius, period, ecc, argp, meanA, inc, longN,&
             &obsData, simRV, simT0, stable)
 
-        ! write(debug, '(a,a,l)')trim(debug)," stable:",stable
-
         if (.not. stable) then
             resw = set_max_residuals(ndata)
         else
 
             if (nRVset .gt. 0) then
                 ! set jitter into simRV
-                ns = nkel+1
-                ne = nkel+nRVset
-                simRV%jitter = two**par(ns:ne)
+                ns = nkel + 1
+                ne = nkel + nRVset
+                simRV % jitter = two**par(ns:ne)
                 ! set gamma into simRV
-                ns = ne+1
-                ne = ne+nRVset
-                simRV%gamma = par(ns:ne)
-                call set_gamma_rv(simRV%gamma, simRV%RVsetID, simRV%gamma_rv)
+                ns = ne + 1
+                ne = ne + nRVset
+                simRV % gamma = par(ns:ne)
+                call set_gamma_rv(simRV % gamma, simRV % RVsetID, simRV % gamma_rv)
                 ! compute RV trend
                 if (rv_trend_order .gt. 0) then
-                    ns = ne+1
-                    ne = ne+rv_trend_order
-                    call addRVtrend(simRV%jd, tepoch, par(ns:ne), simRV%trend)
+                    ns = ne + 1
+                    ne = ne + rv_trend_order
+                    call addRVtrend(simRV % jd, tepoch, par(ns:ne), simRV % trend)
                 end if
             end if
 
@@ -792,9 +939,13 @@ contains
 
         end if
 
+        ! -- DEBUG
+        ! call write_T0_s(simT0)
+
         call deallocate_dataRV(simRV)
         if (nTTs .gt. 0) then
-            do ibd = 1, NB-1
+            ! -- DEBUG
+            do ibd = 1, NB - 1
                 call deallocate_dataT0(simT0(ibd))
             end do
         end if
@@ -807,7 +958,7 @@ contains
         !     write(*, *)trim(debug)
         !     flush(6)
         ! end if
-            
+
         return
     end subroutine ode_lm
     ! ================================================================================
@@ -834,15 +985,15 @@ contains
         logical::checkpar
         ! logical::gls_check
 
-        integer::ndata, nRV, nTTs, nT0
+        integer::ndata, nRV, nTTs, nT0, nexcl
         integer::ns, ne
 
         integer::ibd
 
-        ndata = obsData%ndata
-        nRV = obsData%obsRV%nRV
+        ndata = obsData % ndata
+        nRV = obsData % obsRV % nRV
         ! nRVset=obsData%obsRV%nRVset
-        nTTs = obsData%nTTs
+        nTTs = obsData % nTTs
 
         Hc = .true.
         resw = zero
@@ -855,32 +1006,38 @@ contains
 
         if (nRV .gt. 0) then
             call init_dataRV(nRV, simRV)
-            simRV%nRV = 0
-            if (.not. allocated(simRV%jitter)) allocate (simRV%jitter(nRVset))
-            simRV%jitter = zero
-            if (.not. allocated(simRV%gamma)) allocate (simRV%gamma(nRVset))
-            simRV%gamma = zero
-            simRV%RVsetID = obsData%obsRV%RVsetID
+            simRV % nRV = 0
+            if (.not. allocated(simRV % jitter)) allocate (simRV % jitter(nRVset))
+            simRV % jitter = zero
+            if (.not. allocated(simRV % gamma)) allocate (simRV % gamma(nRVset))
+            simRV % gamma = zero
+            simRV % RVsetID = obsData % obsRV % RVsetID
         end if
 !
         if (nTTs .gt. 0) then
-            do ibd = 1, NB-1
-                nT0 = obsData%obsT0(ibd)%nT0
+            do ibd = 1, NB - 1
+                nT0 = obsData % obsT0(ibd) % nT0
                 call init_dataT0(nT0, simT0(ibd), durcheck)
-                simT0(ibd)%nT0 = 0
-                simT0(ibd)%nDur = 0
+                simT0(ibd) % nT0 = 0
+                simT0(ibd) % nDur = 0
                 !  let's set error on TT and Dur to 1 sec! It is needed to avoid divisione by zero
-                simT0(ibd)%eT0 = one/s24h ! 1s in day
-                simT0(ibd)%edur = one/60.0_dp ! 1s in min
+                simT0(ibd) % eT0 = one / s24h ! 1s in day
+                simT0(ibd) % edur = one / 60.0_dp ! 1s in min
+                if (n_excluded .gt. 0)then
+                    nexcl = obsData % obsT0(ibd) % n_excl
+                    if (nexcl .gt. 0)then
+                        call init_dataT0_excluded(nexcl, obsData%obsT0(ibd)%excluded_time_ranges, simT0(ibd))
+                    end if
+                end if
             end do
         end if
 
         if (.not. checkpar) then
-            if (nRV .gt. 0) simRV%RV = zero
+            if (nRV .gt. 0) simRV % RV = zero
 
             if (nTTs .gt. 0) then
-                do ibd = 1, NB-1
-                    simT0(ibd)%T0 = zero
+                do ibd = 1, NB - 1
+                    simT0(ibd) % T0 = zero
                 end do
             end if
 
@@ -893,16 +1050,16 @@ contains
 
         ! it is needed to define the which is the alarm coordinate for the transit detection
 
-        NBDIM = 6*NB
+        NBDIM = 6 * NB
         if (.not. allocated(ra0)) allocate (ra0(NBDIM), ra1(NBDIM))
 
         ! NEW VERSION 2017-11-21
         call kepelements2statevector(mass, sma, ecc, argp, meanA, inc, longN, ra0)
         ra1 = ra0
 
-        dt1 = tstart-tepoch
-        dt2 = dt1+tint
-        step = minval(period(2:NB))/ten
+        dt1 = tstart - tepoch
+        dt2 = dt1 + tint
+        step = minval(period(2:NB)) / ten
 
         if (dt1 .lt. zero) then
 
@@ -910,24 +1067,24 @@ contains
 
             if (Hc) then
                 if (abs(dt1) .le. tint) then
-                    dt2 = dt1+tint
+                    dt2 = dt1 + tint
                     call ode_forward_data(mass, radius, ra1, dt2, step, obsData, simRV, simT0, Hc)
                 end if
             end if
 
         else
 
-            dt2 = dt1+tint
+            dt2 = dt1 + tint
             call ode_forward_data(mass, radius, ra1, dt2, step, obsData, simRV, simT0, Hc)
 
         end if
 
         if (.not. Hc) then
-            if (nRV .gt. 0) simRV%RV = zero
+            if (nRV .gt. 0) simRV % RV = zero
 
             if (nTTs .gt. 0) then
-                do ibd = 1, NB-1
-                    simT0(ibd)%T0 = zero
+                do ibd = 1, NB - 1
+                    simT0(ibd) % T0 = zero
                 end do
             end if
 
@@ -938,26 +1095,26 @@ contains
 
             if (nRVset .gt. 0) then
                 ! set jitter into simRV
-                ns = nkel+1
-                ne = nkel+nRVset
-                simRV%jitter = two**par(ns:ne)
+                ns = nkel + 1
+                ne = nkel + nRVset
+                simRV % jitter = two**par(ns:ne)
                 ! set gamma into simRV
-                ns = ne+1
-                ne = ne+nRVset
-                simRV%gamma = par(ns:ne)
-                call set_gamma_rv(simRV%gamma, simRV%RVsetID, simRV%gamma_rv)
+                ns = ne + 1
+                ne = ne + nRVset
+                simRV % gamma = par(ns:ne)
+                call set_gamma_rv(simRV % gamma, simRV % RVsetID, simRV % gamma_rv)
                 ! compute RV trend
                 if (rv_trend_order .gt. 0) then
-                    ns = ne+1
-                    ne = ne+rv_trend_order
-                    call addRVtrend(simRV%jd, tepoch, par(ns:ne), simRV%trend)
+                    ns = ne + 1
+                    ne = ne + rv_trend_order
+                    call addRVtrend(simRV % jd, tepoch, par(ns:ne), simRV % trend)
                 end if
             end if
 
             ! call set_weighted_residuals(obsData, simRV, simT0, resw, oc_fit)
             call set_weighted_residuals(obsData, simRV, simT0, resw)
 
-            chi_square = sum(resw*resw)
+            chi_square = sum(resw * resw)
         end if
         call set_fitness_values(par, chi_square,&
             &reduced_chi_square, lnLikelihood, ln_const, bic)
@@ -990,10 +1147,10 @@ contains
         logical::checkpar
         ! logical::gls_check
 
-        ndata = oDataIn%ndata
-        nRV = oDataIn%obsRV%nRV
+        ndata = oDataIn % ndata
+        nRV = oDataIn % obsRV % nRV
         ! nRVset=oDataIn%obsRV%nRVset
-        nTTs = oDataIn%nTTs
+        nTTs = oDataIn % nTTs
 
         Hc = .true.
         ! resw = zero
@@ -1016,19 +1173,19 @@ contains
 
             if (nRVset .gt. 0) then
                 ! set jitter into simRV
-                ns = nkel+1
-                ne = nkel+nRVset
-                simRV%jitter = two**par(ns:ne)
+                ns = nkel + 1
+                ne = nkel + nRVset
+                simRV % jitter = two**par(ns:ne)
                 ! set gamma into simRV
-                ns = ne+1
-                ne = ne+nRVset
-                simRV%gamma = par(ns:ne)
-                call set_gamma_rv(simRV%gamma, simRV%RVsetID, simRV%gamma_rv)
+                ns = ne + 1
+                ne = ne + nRVset
+                simRV % gamma = par(ns:ne)
+                call set_gamma_rv(simRV % gamma, simRV % RVsetID, simRV % gamma_rv)
                 ! compute RV trend
                 if (rv_trend_order .gt. 0) then
-                    ns = ne+1
-                    ne = ne+rv_trend_order
-                    call addRVtrend(simRV%jd, tepoch, par(ns:ne), simRV%trend)
+                    ns = ne + 1
+                    ne = ne + rv_trend_order
+                    call addRVtrend(simRV % jd, tepoch, par(ns:ne), simRV % trend)
                 end if
             end if
 
@@ -1038,15 +1195,15 @@ contains
         end if
 
         if (rv_res_gls) then
-            call check_periodogram(simRV%jd,&
-                &oDataIn%obsRV%RV - (simRV%RV+simRV%gamma_rv+simRV%trend),&
-                &simRV%eRV, period, Hc)
+            call check_periodogram(simRV % jd,&
+                &oDataIn % obsRV % RV - (simRV % RV + simRV % gamma_rv + simRV % trend),&
+                &simRV % eRV, period, Hc)
             if (.not. Hc) resw = set_max_residuals(ndata)
         end if
 
         call deallocate_dataRV(simRV)
         if (nTTs .gt. 0) then
-            do ibd = 1, NB-1
+            do ibd = 1, NB - 1
                 call deallocate_dataT0(simT0(ibd))
             end do
         end if
@@ -1092,22 +1249,22 @@ contains
         integer, intent(in)::id_transit_body
         logical, dimension(:), intent(in)::transit_flag
         integer, intent(in)::dur_check
-        
+
         type(dataRV), intent(out)::simRV
         type(dataT0), dimension(:), allocatable, intent(out)::simT0
-        logical,intent(out)::stable
-        
+        logical, intent(out)::stable
+
         integer::n_body, nb_dim
         real(dp), dimension(:), allocatable::ra0, ra1
         real(dp), dimension(:), allocatable::sma
         real(dp)::dt1, dt2
 
-        integer::nRV, nTTs, nT14s
+        integer::nRV, nTTs, nT14s, nexcl
         integer::ibd, nT0
 
-        nRV = obsData_in%obsRV%nRV
-        nTTs = obsData_in%nTTs
-        nT14s = obsData_in%nDurs
+        nRV = obsData_in % obsRV % nRV
+        nTTs = obsData_in % nTTs
+        nT14s = obsData_in % nDurs
 
         stable = .true.
 
@@ -1117,7 +1274,7 @@ contains
         ! call get_semax_vec(mass(1), mass(2:n_body), period(2:n_body), sma(2:n_body))
         call period_to_sma(mass(1), mass(2:n_body), period(2:n_body), sma(2:n_body))
 
-        nb_dim = 6*n_body
+        nb_dim = 6 * n_body
         if (.not. allocated(ra0)) allocate (ra0(nb_dim), ra1(nb_dim))
 
         ! NEW VERSION 2017-11-21
@@ -1126,26 +1283,32 @@ contains
 
         if (nRV .gt. 0) then
             call init_dataRV(nRV, simRV)
-            simRV%nRV = 0
-            simRV%jd = obsData_in%obsRV%jd
-            simRV%RVsetID = obsData_in%obsRV%RVsetID
+            simRV % nRV = 0
+            simRV % jd = obsData_in % obsRV % jd
+            simRV % RVsetID = obsData_in % obsRV % RVsetID
         end if
 
         if (nTTs .gt. 0) then
-            allocate (simT0(n_body-1))
-            do ibd = 1, n_body-1
-                nT0 = obsData_in%obsT0(ibd)%nT0
+            allocate (simT0(n_body - 1))
+            do ibd = 1, n_body - 1
+                nT0 = obsData_in % obsT0(ibd) % nT0
                 call init_dataT0(nT0, simT0(ibd), dur_check)
-                simT0(ibd)%nT0 = 0
-                simT0(ibd)%nDur = 0
+                simT0(ibd) % nT0 = 0
+                simT0(ibd) % nDur = 0
                 !  let's set error on TT and Dur to 1 sec! It is needed to avoid division by zero
-                simT0(ibd)%eT0 = one/s24h ! 1s in day
-                simT0(ibd)%edur = one/60.0_dp ! 1s in min
+                simT0(ibd) % eT0 = one / s24h ! 1s in day
+                simT0(ibd) % edur = one / 60.0_dp ! 1s in min
+                if (n_excluded .gt. 0)then
+                    nexcl = obsData_in % obsT0(ibd) % n_excl
+                    if (nexcl .gt. 0)then
+                        call init_dataT0_excluded(nexcl, obsData_in%obsT0(ibd)%excluded_time_ranges, simT0(ibd))
+                    end if
+                end if
             end do
         end if
 
-        dt1 = t_start-t_epoch
-        dt2 = dt1+t_int
+        dt1 = t_start - t_epoch
+        dt2 = dt1 + t_int
 
         if (dt1 .lt. zero) then
             call ode_full_args(mass, radius, ra1, t_epoch, dt1, -step_in, obsData_in,&
@@ -1154,7 +1317,7 @@ contains
               &stable)
             if (stable) then
                 if (abs(dt1) .le. t_int) then
-                    dt2 = dt1+t_int
+                    dt2 = dt1 + t_int
                     call ode_full_args(mass, radius, ra1, t_epoch, dt2, step_in, obsData_in,&
                       &simRV,&
                       &id_transit_body, transit_flag, dur_check, simT0,&
@@ -1162,7 +1325,7 @@ contains
                 end if
             end if
         else
-            dt2 = dt1+t_int
+            dt2 = dt1 + t_int
             call ode_full_args(mass, radius, ra1, t_epoch, dt2, step_in, obsData_in,&
               &simRV,&
               &id_transit_body, transit_flag, dur_check, simT0,&
@@ -1172,17 +1335,17 @@ contains
         ! unstable or some bad parameters case!
         if (.not. stable) then
             if (nRV .gt. 0) then
-                simRV%RV = zero
-                simRV%RV_stat = 0
+                simRV % RV = zero
+                simRV % RV_stat = 0
             end if
             if (nTTs .gt. 0) then
-                do ibd = 1, n_body-1
-                    if (simT0(ibd)%nT0 .gt. 0) then
-                        simT0(ibd)%T0 = zero
-                        simT0(ibd)%T0_stat = 0
+                do ibd = 1, n_body - 1
+                    if (simT0(ibd) % nT0 .gt. 0) then
+                        simT0(ibd) % T0 = zero
+                        simT0(ibd) % T0_stat = 0
                         if (dur_check .eq. 1) then
-                            simT0(ibd)%dur = zero
-                            simT0(ibd)%dur_stat = 0
+                            simT0(ibd) % dur = zero
+                            simT0(ibd) % dur_stat = 0
                         end if
                     end if
                 end do
@@ -1247,7 +1410,7 @@ contains
 
         n_body = size(mass)
 
-        nRV = obsData%obsRV%nRV
+        nRV = obsData % obsRV % nRV
         if (nRV .gt. 0) then
             allocate (RV_sim(nRV))
             RV_sim = zero
@@ -1260,10 +1423,10 @@ contains
 
         if (nRV .gt. 0) then
             ! allocate (RV_sim(nRV))
-            RV_sim = simRV%RV
+            RV_sim = simRV % RV
         end if
 
-        nTTs = obsData%nTTs
+        nTTs = obsData % nTTs
 
         nstart = 1
         nend = 0
@@ -1271,31 +1434,31 @@ contains
             allocate (body_T0_sim(nTTs), epo_sim(nTTs))
             allocate (T0_sim(nTTs), T14_sim(nTTs), lambda_rm_sim(nTTs))
             allocate (kep_elem_sim(nTTs, n_kepelem))
-            do ibd = 1, n_body-1
-                nT0 = obsData%obsT0(ibd)%nT0
+            do ibd = 1, n_body - 1
+                nT0 = obsData % obsT0(ibd) % nT0
                 if (nT0 .gt. 0) then
-                    nend = nend+nT0
-                    epo_sim(nstart:nend) = obsData%obsT0(ibd)%epo
-                    T0_sim(nstart:nend) = simT0(ibd)%T0
-                    T14_sim(nstart:nend) = simT0(ibd)%dur
-                    lambda_rm_sim(nstart:nend) = simT0(ibd)%lambda_rm
-                    body_T0_sim(nstart:nend) = ibd+1
-                    kep_elem_sim(nstart:nend, 1) = simT0(ibd)%period
-                    kep_elem_sim(nstart:nend, 2) = simT0(ibd)%sma
-                    kep_elem_sim(nstart:nend, 3) = simT0(ibd)%ecc
-                    kep_elem_sim(nstart:nend, 4) = simT0(ibd)%inc
-                    kep_elem_sim(nstart:nend, 5) = simT0(ibd)%meana
-                    kep_elem_sim(nstart:nend, 6) = simT0(ibd)%argp
-                    kep_elem_sim(nstart:nend, 7) = simT0(ibd)%truea
-                    kep_elem_sim(nstart:nend, 8) = simT0(ibd)%longn
-                    nstart = nstart+nT0
+                    nend = nend + nT0
+                    epo_sim(nstart:nend) = obsData % obsT0(ibd) % epo
+                    T0_sim(nstart:nend) = simT0(ibd) % T0
+                    T14_sim(nstart:nend) = simT0(ibd) % dur
+                    lambda_rm_sim(nstart:nend) = simT0(ibd) % lambda_rm
+                    body_T0_sim(nstart:nend) = ibd + 1
+                    kep_elem_sim(nstart:nend, 1) = simT0(ibd) % period
+                    kep_elem_sim(nstart:nend, 2) = simT0(ibd) % sma
+                    kep_elem_sim(nstart:nend, 3) = simT0(ibd) % ecc
+                    kep_elem_sim(nstart:nend, 4) = simT0(ibd) % inc
+                    kep_elem_sim(nstart:nend, 5) = simT0(ibd) % meana
+                    kep_elem_sim(nstart:nend, 6) = simT0(ibd) % argp
+                    kep_elem_sim(nstart:nend, 7) = simT0(ibd) % truea
+                    kep_elem_sim(nstart:nend, 8) = simT0(ibd) % longn
+                    nstart = nstart + nT0
                 end if
             end do
         end if
 
         call deallocate_dataRV(simRV)
         if (nTTs .gt. 0) then
-            do ibd = 1, n_body-1
+            do ibd = 1, n_body - 1
                 call deallocate_dataT0(simT0(ibd))
             end do
         end if
@@ -1325,7 +1488,7 @@ contains
 
         real(dp)::chi_square, reduced_chi_square, lnLikelihood, ln_const, bic
 
-        integer::ndata, nRV, nTTs, nDurs, ibd, nT0
+        integer::ndata, nRV, nTTs, nDurs, ibd, nT0, nexcl
         integer::ns, ne
 
         ! units and file names to store and write to files
@@ -1338,10 +1501,10 @@ contains
         write (*, '(a)') " EXECUTING SIMPLE INTEGRATION AND WRITING FINAL FILES"
         write (*, '(a)') ''
 
-        ndata = obsData%ndata
-        nRV = obsData%obsRV%nRV
-        nTTs = obsData%nTTs
-        nDurs = obsData%nDurs
+        ndata = obsData % ndata
+        nRV = obsData % obsRV % nRV
+        nTTs = obsData % nTTs
+        nDurs = obsData % nDurs
 
         Hc = .true.
         resw = zero
@@ -1361,26 +1524,32 @@ contains
 
         if (nRV .gt. 0) then
             call init_dataRV(nRV, simRV)
-            simRV%nRV = 0
-            if (.not. allocated(simRV%jitter)) allocate (simRV%jitter(nRVset))
-            simRV%jitter = zero
-            if (.not. allocated(simRV%gamma)) allocate (simRV%gamma(nRVset))
-            simRV%gamma = zero
-            simRV%RVsetID = obsData%obsRV%RVsetID
+            simRV % nRV = 0
+            if (.not. allocated(simRV % jitter)) allocate (simRV % jitter(nRVset))
+            simRV % jitter = zero
+            if (.not. allocated(simRV % gamma)) allocate (simRV % gamma(nRVset))
+            simRV % gamma = zero
+            simRV % RVsetID = obsData % obsRV % RVsetID
         end if
 
         if ((idtra .ge. 1) .and. (idtra .le. NB)) call set_file_tra(cpuid, isim, wrtid, utra, fltra)
 
-        allocate (simT0(NB-1))
+        allocate (simT0(NB - 1))
         if (nTTs .gt. 0) then
-            do ibd = 1, NB-1
-                nT0 = obsData%obsT0(ibd)%nT0
+            do ibd = 1, NB - 1
+                nT0 = obsData % obsT0(ibd) % nT0
                 call init_dataT0(nT0, simT0(ibd), durcheck)
-                simT0(ibd)%nT0 = 0
-                simT0(ibd)%nDur = 0
+                simT0(ibd) % nT0 = 0
+                simT0(ibd) % nDur = 0
                 !  let's set error on TT and Dur to 1 sec! It is needed to avoid divisione by zero
-                simT0(ibd)%eT0 = one/s24h ! 1s in day
-                simT0(ibd)%edur = one/60.0_dp ! 1s in min
+                simT0(ibd) % eT0 = one / s24h ! 1s in day
+                simT0(ibd) % edur = one / 60.0_dp ! 1s in min
+                if (n_excluded .gt. 0)then
+                    nexcl = obsData % obsT0(ibd) % n_excl
+                    if (nexcl .gt. 0)then
+                        call init_dataT0_excluded(nexcl, obsData%obsT0(ibd)%excluded_time_ranges, simT0(ibd))
+                    end if
+                end if
             end do
         end if
 
@@ -1394,15 +1563,15 @@ contains
         ! write orbital elements into a file
         call outElements(isim, wrtid, mass, radius, period, sma, ecc, argp, meanA, inc, longN)
 
-        NBDIM = 6*NB
+        NBDIM = 6 * NB
         if (.not. allocated(ra0)) allocate (ra0(NBDIM), ra1(NBDIM))
 
         ! NEW VERSION 2017-11-21
         call kepelements2statevector(mass, sma, ecc, meanA, argp, inc, longN, ra0)
         ra1 = ra0
 
-        dt1 = tstart-tepoch
-        dt2 = dt1+tint
+        dt1 = tstart - tepoch
+        dt2 = dt1 + tint
         if (dt1 .lt. zero) then
 
             call ode_forward_output_data(uorb, ucon, uele, utra, fmorb, fmcon, fmele,&
@@ -1451,29 +1620,29 @@ contains
 
                 if (nRVset .gt. 0) then
                     ! set jitter into simRV
-                    ns = nkel+1
-                    ne = nkel+nRVset
-                    simRV%jitter = two**par(ns:ne)
+                    ns = nkel + 1
+                    ne = nkel + nRVset
+                    simRV % jitter = two**par(ns:ne)
                     ! set gamma into simRV
-                    ns = ne+1
-                    ne = ne+nRVset
-                    simRV%gamma = par(ns:ne)
-                    call set_gamma_rv(simRV%gamma, simRV%RVsetID, simRV%gamma_rv)
+                    ns = ne + 1
+                    ne = ne + nRVset
+                    simRV % gamma = par(ns:ne)
+                    call set_gamma_rv(simRV % gamma, simRV % RVsetID, simRV % gamma_rv)
                     ! compute RV trend
                     if (rv_trend_order .gt. 0) then
-                        ns = ne+1
-                        ne = ne+rv_trend_order
-                        call addRVtrend(simRV%jd, tepoch, par(ns:ne), simRV%trend)
+                        ns = ne + 1
+                        ne = ne + rv_trend_order
+                        call addRVtrend(simRV % jd, tepoch, par(ns:ne), simRV % trend)
                     end if
                 end if
 
                 ! call set_weighted_residuals(obsData, simRV, simT0, resw, oc_fit)
                 call set_weighted_residuals(obsData, simRV, simT0, resw)
 
-                if (simRV%nRV .gt. 0) then
-                    call check_periodogram(obsData%obsRV%jd,&
-                        &obsData%obsRV%RV-simRV%RV-simRV%gamma_rv-simRV%trend,&
-                        &obsData%obsRV%eRV,&
+                if (simRV % nRV .gt. 0) then
+                    call check_periodogram(obsData % obsRV % jd,&
+                        &obsData % obsRV % RV - simRV % RV - simRV % gamma_rv - simRV % trend,&
+                        &obsData % obsRV % eRV,&
                         &period, gls_check)
                 end if
 
@@ -1481,19 +1650,19 @@ contains
 
             end if
 
-            if (simRV%nRV .gt. 0) then
+            if (simRV % nRV .gt. 0) then
 
                 write (*, *) ""
-                write (*, '(a,i4)') " RADIAL VELOCITIES found: ", simRV%nRV
+                write (*, '(a,i4)') " RADIAL VELOCITIES found: ", simRV % nRV
                 write (*, *) ""
 
                 ! if (present(to_screen)) call write_RV(simRV)
                 call write_RV(cpuid, isim, wrtid, simRV)
 
                 call check_and_write_periodogram(cpuid, isim, wrtid,&
-                    &obsData%obsRV%jd,&
-                    &obsData%obsRV%RV-simRV%RV-simRV%gamma_rv-simRV%trend,&
-                    &obsData%obsRV%eRV, period, gls_check)
+                    &obsData % obsRV % jd,&
+                    &obsData % obsRV % RV - simRV % RV - simRV % gamma_rv - simRV % trend,&
+                    &obsData % obsRV % eRV, period, gls_check)
 
             else
 
@@ -1503,10 +1672,10 @@ contains
 
             end if
 
-            if (allocated(simT0) .and. sum(simT0(:)%nT0) .gt. 0) then
+            if (allocated(simT0) .and. sum(simT0(:) % nT0) .gt. 0) then
                 write (*, *)
-                write (*, '(a,i5)') " T0 SIM found ", sum(simT0(:)%nT0)
-                if (durcheck .eq. 1) write (*, '(a,i5)') " T41 SIM found ", sum(simT0(:)%nDur)
+                write (*, '(a,i5)') " T0 SIM found ", sum(simT0(:) % nT0)
+                if (durcheck .eq. 1) write (*, '(a,i5)') " T41 SIM found ", sum(simT0(:) % nDur)
                 write (*, *)
                 call write_T0(cpuid, isim, wrtid, simT0)
                 flush (6)
@@ -1520,7 +1689,7 @@ contains
             end if
 
             ! Reduced Chi Squares etc for report/summary
-            chi_square = sum(resw*resw)
+            chi_square = sum(resw * resw)
             call set_fitness_values(par, chi_square, reduced_chi_square, lnLikelihood, ln_const, bic)
 
         else ! ndata <= 0
@@ -1532,7 +1701,7 @@ contains
 
         call deallocate_dataRV(simRV)
         if (nTTs .gt. 0) then
-            do ibd = 1, NB-1
+            do ibd = 1, NB - 1
                 call deallocate_dataT0(simT0(ibd))
             end do
         end if
@@ -1570,7 +1739,7 @@ contains
         ! write orbital elements into a file
         call outElements(isim, wrtid, mass, radius, period, sma, ecc, argp, meana, inc, longn)
 
-        NBDIM = 6*NB
+        NBDIM = 6 * NB
         if (.not. allocated(ra0)) allocate (ra0(NBDIM), ra1(NBDIM))
 
         ! NEW VERSION 2017-11-21
@@ -1591,8 +1760,8 @@ contains
         write (*, '(a)') ' RUNNING INTEGRATION ...'
         flush (6)
 
-        dt1 = tstart-tepoch
-        dt2 = dt1+tint
+        dt1 = tstart - tepoch
+        dt2 = dt1 + tint
         if (dt1 .lt. zero) then
             call ode_forward_output_nodata(uorb, ucon, uele, utra, fmorb, fmcon, fmele,&
                 &mass, radius, ra1, dt1, Hc)
@@ -1626,15 +1795,14 @@ contains
     end subroutine ode_integrates
     ! ================================================================================
 
-! ==============================================================================
-! ==============================================================================
-! ORBITAL PARAMETERS TO ALL TRANSIT TIMES OF ALL PLANETS AND RV MODEL
-! NO T0 FIT/DATA, NO RV FIT/DATA, NO OUTPUT FILES
-! ==============================================================================
-! ==============================================================================
+    ! ==============================================================================
+    ! ==============================================================================
+    ! ORBITAL PARAMETERS TO ALL TRANSIT TIMES OF ALL PLANETS AND RV MODEL
+    ! NO T0 FIT/DATA, NO RV FIT/DATA, NO OUTPUT FILES
+    ! ==============================================================================
+    ! ==============================================================================
 
     ! ================================================================================
-    ! subroutine ode_b_orbit(mass, radius, rin, time_to_int, wrt_time,&
     subroutine ode_orbit_to_full_observables(mass, radius, rin, time_to_int, wrt_time,&
         &last_tra, ttra_full, dur_full, lambda_rm_full, id_ttra_full, stats_ttra,&
         &last_rv, time_rv_nmax, rv_nmax, stats_rv,&
@@ -1710,14 +1878,14 @@ contains
         integration: do iteration = 1, n_all
 
             trun2 = t_all_steps(iteration)
-            integration_step = trun2-trun1
+            integration_step = trun2 - trun1
             call one_forward_step(mass, radius, r1, integration_step, working_step, Hc, r2)
             if (.not. Hc) then
                 exit integration
             end if
 
             ! RV
-            last_rv = last_rv+1
+            last_rv = last_rv + 1
             if (last_rv .gt. nrv_max) then
                 Hc = .false.
                 ! return
@@ -1738,9 +1906,10 @@ contains
                 &A, B, AB, ABflag, Zflag)
 
                 if (ABflag .and. Zflag) then
-                    call transit_time(tepoch, i_body, mass, radius, r1, r2, trun1, integration_step, ttra_temp, dur_tra_temp, alpha_temp, check_ttra)
+                    call transit_time(tepoch, i_body, mass, radius, r1, r2, trun1, integration_step,&
+                        &ttra_temp, dur_tra_temp, alpha_temp, check_ttra)
                     if (check_ttra) then
-                        last_tra = last_tra+1
+                        last_tra = last_tra + 1
                         if (last_tra .gt. ntra_full) then
                             Hc = .false.
                             exit integration
@@ -1795,7 +1964,7 @@ contains
 
         Hc = .true.
 
-        NBDIM = 6*NB
+        NBDIM = 6 * NB
         if (.not. allocated(ra0)) allocate (ra0(NBDIM), ra1(NBDIM))
 
         ! NEW VERSION 2017-11-21
@@ -1815,8 +1984,8 @@ contains
         stats_ttra = .false.
         last_tra = 0
 
-        dt1 = tstart-tepoch
-        dt2 = dt1+tint
+        dt1 = tstart - tepoch
+        dt2 = dt1 + tint
 
         if (dt1 .lt. zero) then
 
@@ -1863,7 +2032,7 @@ contains
         ! Output
         ! real(dp), dimension(:, :), intent(out), allocatable::orbits
         real(dp), dimension(:, :), intent(out)::orbits
-        logical,intent(out)::check
+        logical, intent(out)::check
         ! Local
         integer::n_steps, iteration
         integer::n_body, nb_dim
@@ -1874,7 +2043,7 @@ contains
 
         n_steps = size(time_steps)
         n_body = size(mass)
-        nb_dim = n_body*6
+        nb_dim = n_body * 6
 
         if (.not. allocated(sma)) allocate (sma(n_body))
         sma = zero
@@ -1893,7 +2062,7 @@ contains
 
             ! update integration step
             trun2 = time_steps(iteration)
-            integration_step = trun2-trun1
+            integration_step = trun2 - trun1
 
             ! compute the orbit at from trun1 to trun2
             call one_forward_step(mass, radius, sv1, integration_step, working_step, check, sv2)

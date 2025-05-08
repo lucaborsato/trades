@@ -3,7 +3,8 @@ module parameters
     use custom_type
     implicit none
 
-    character(512)::path_0, path
+    ! character(512)::path_0, path
+    character(512)::path_0=".", path="."
 
     ! integration argument with default values
     integer::progtype = 0, NB = 2
@@ -63,6 +64,11 @@ module parameters
     type(dataObs)::obsData
 
     logical, dimension(:), allocatable::do_transit ! it needs to determine if a planet should transit or not
+
+    ! to read excluded observations 
+    integer::n_excluded = 0
+    integer, dimension(:), allocatable::excluded_body
+    real(dp), dimension(:,:), allocatable::excluded_time_ranges
 
     ! loglikelihood constant: - 1/2 * dof * ln(2 * pi) - 1/2 sum(ln(sigma**2)
     real(dp)::ln_err_const

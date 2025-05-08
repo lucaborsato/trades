@@ -7,7 +7,8 @@ module custom_type
 !DEC$ OPTIONS /ALIGN=(RECORDS=NATURAL)
     ! OBS DATA AS STRUCTURE
     type dataRV
-        sequence ! needed to store variables contiguous
+        ! sequence ! needed to store variables contiguous
+        ! 
         integer::nRVset
         ! nRV will be used as the number of RV datapoints for the observed one,
         ! and as a counter for the simulated one
@@ -24,7 +25,8 @@ module custom_type
 
     ! T0 data for one body!
     type dataT0
-        sequence ! needed to store variables contiguous
+        ! sequence ! needed to store variables contiguous
+
         ! nT0 will be used as the number of TTs for the observed one,
         ! and as a counter for the simulated one
         integer::nT0 = 0, nDur = 0
@@ -36,19 +38,24 @@ module custom_type
         real(dp)::Tephem = zero, eTephem = zero, Pephem = zero, ePephem = zero
         real(dp), dimension(:), allocatable::period, sma, ecc, inc, meana
         real(dp), dimension(:), allocatable::argp, truea, longn, dttau
+        ! adding excluded time ranges for a specific body
+        integer::n_excl = 0
+        real(dp), dimension(:,:), allocatable::excluded_time_ranges
+        real(dp), dimension(:), allocatable::excluded_t0, excluded_t1, excluded_t4
+        integer, dimension(:), allocatable::excluded_status
     end type dataT0
 ! ==============================================================================
 
     ! full data type
     type dataObs
-        sequence ! needed to store variables contiguous
+        ! sequence ! needed to store variables contiguous
         integer::ndata, nfree, dof = 1
         real(dp)::inv_dof
         ! RV data
         type(dataRV)::obsRV
         ! T0 and duration data
         ! and as a counter for the simulated ones
-        integer::nTTs = 0, nDurs = 0 ! default set to zero
+        integer::nTTs = 0, nDurs = 0, n_excluded = 0 ! default set to zero
         type(dataT0), dimension(:), allocatable::obsT0
     end type dataObs
 ! ==============================================================================
@@ -157,6 +164,30 @@ contains
         return
     end subroutine init_dataT0
 
+    subroutine init_dataT0_excluded(n_excl, excluded_ranges, T0)
+        ! Input
+        integer, intent(in)::n_excl
+        real(dp), dimension(:,:), intent(in):: excluded_ranges
+        ! Input/Output
+        type(dataT0), intent(inout)::T0
+
+        ! write(*,*)"init excluded"
+        T0%n_excl = n_excl
+        ! write(*,*)"T0%n_excl",T0%n_excl
+        allocate (T0%excluded_time_ranges(n_excl, 2), T0%excluded_status(n_excl))
+        allocate (T0%excluded_t0(n_excl), T0%excluded_t1(n_excl), T0%excluded_t4(n_excl))
+        T0%excluded_time_ranges = excluded_ranges
+        ! write(*,*)T0%excluded_time_ranges(:,1)
+        ! write(*,*)T0%excluded_time_ranges(:,2)
+        T0%excluded_status = 0
+        T0%excluded_t0 = zero
+        T0%excluded_t1 = zero
+        T0%excluded_t4 = zero
+        ! flush(6)
+
+        return
+    end subroutine init_dataT0_excluded
+
 ! ==============================================================================
 
     subroutine deallocate_dataT0(T0)
@@ -176,12 +207,18 @@ contains
             deallocate (T0%period, T0%sma, T0%ecc, T0%inc, T0%meana)
             deallocate (T0%argp, T0%truea, T0%longn, T0%dttau)
         end if
+        if (allocated(T0%excluded_time_ranges)) deallocate (T0%excluded_time_ranges)
+        if (allocated(T0%excluded_status)) deallocate (T0%excluded_status)
+        if (allocated(T0%excluded_t0)) deallocate(T0%excluded_t0)
+        if (allocated(T0%excluded_t1)) deallocate(T0%excluded_t1)
+        if (allocated(T0%excluded_t4)) deallocate(T0%excluded_t4)
         T0%nT0 = 0
         T0%nDur = 0
         T0%Tephem = zero
         T0%eTephem = zero
         T0%Pephem = zero
         T0%ePephem = zero
+        T0%n_excl = 0
 
         return
     end subroutine deallocate_dataT0

@@ -14,7 +14,6 @@ F90 = gfortran
 # f2py
 FVENDOR=$(CC)
 # F2PYCC = f2py --fcompiler=$(FVENDOR) --f90exec=$(CC) --f77exec=$(F77)
-# F2PYCC = FC=$(CC) f2py
 F2PYCC = FC=$(CC) python -m numpy.f2py
 
 # WARNING: file .f2py_f2cmap must be present (it is within the src/ folder)
@@ -202,6 +201,10 @@ pylib_serial_debug:
 	FFLAGS='$(PSERDBG)' $(F2PYCC) --verbose -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
 #	FFLAGS='$(F2PYCF) $(CFLAGS)' $(F2PYCC) --verbose -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
 #	$(F2PYCC) --verbose --f90exec=$(F90) --f77exec=$(F77) --f90flags='$(F2PYCF) $(CFLAGS)' -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+
+test_pylib_serial_debug:
+	rm -f $(TRADESLIB0)
+	python -m numpy.f2py --verbose --f90flags='$(PSERDBG) -fvisibility=default' -c -m $(TRADESLIB) $(TRADESLIB)_test.f90 $(FOBJS) -I$(shell pwd) --backend meson
 
 pytrades_serial_debug: obj_serial_debug pylib_serial_debug
 

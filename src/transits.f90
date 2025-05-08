@@ -548,7 +548,7 @@ contains
         real(dp)::xegr
         real(dp)::yegr
         real(dp)::dx, dy
-        real(dp)::l
+        ! real(dp)::l
 
         t_hegr = zero
         n_bodies = size(mass)
@@ -808,8 +808,8 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
     ! ------------------------------------------------------------------ !
 
 ! ==============================================================================
-! compute the transit time and proper duration from K10 eq. 15
-    subroutine compute_transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit_flag, ttra, dur_tra, alpha, rtra, check_ttra)
+! compute the transit time and proper duration as T4-T1
+    subroutine compute_transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit_flag, ttra, dur_tra, tcont, alpha, rtra, check_ttra)
         ! Input
         real(dp), intent(in)::t_epoch
         integer, intent(in)::id_body ! value: 2 to NB
@@ -817,12 +817,13 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
         real(dp), intent(in)::time_r1, integration_step
         logical, dimension(:), intent(in)::do_transit_flag
         ! Output
-        real(dp), intent(out)::ttra, dur_tra, alpha
+        real(dp), intent(out)::ttra, dur_tra
+        real(dp), dimension(4), intent(out)::tcont
+        real(dp), intent(out)::alpha
         real(dp), dimension(:), allocatable, intent(out)::rtra
         logical, intent(out)::check_ttra
         ! Local
         real(dp)::ttra_temp, lte
-        real(dp), dimension(4)::tcont
         ! real(dp), dimension(:), allocatable::rtra
 
         real(dp)::Rs, Rp, Rmin, Rmax, r_sky
@@ -880,7 +881,7 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
         logical, intent(out)::check_ttra
         ! Local
         ! real(dp)::ttra_temp, lte
-        ! real(dp), dimension(4)::tcont
+        real(dp), dimension(4)::tcont
         real(dp), dimension(:), allocatable::rtra
 
         ! real(dp)::Rs, Rp, Rmin, Rmax, r_sky
@@ -892,12 +893,43 @@ subroutine check_T0_2(t_epoch, Tref, Pref, id_body, mass, radii, r1, r2, time_r1
 
         allocate (rtra(NBDIM))
 
-        call compute_transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit, ttra, dur_tra, alpha, rtra, check_ttra)
+        call compute_transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit, ttra, dur_tra, tcont, alpha, rtra, check_ttra)
 
         deallocate (rtra)
 
         return
     end subroutine transit_time
+
+    subroutine transit_and_contact_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, ttra, dur_tra, tcont, alpha, check_ttra)
+        ! Input
+        real(dp), intent(in)::t_epoch
+        integer, intent(in)::id_body ! value: 2 to NB
+        real(dp), dimension(:), intent(in)::mass, radii, r1, r2
+        real(dp), intent(in)::time_r1, integration_step
+        ! Output
+        real(dp), intent(out)::ttra, dur_tra
+        real(dp), dimension(4), intent(out)::tcont
+        real(dp), intent(out)::alpha
+        logical, intent(out)::check_ttra
+        ! Local
+        ! real(dp)::ttra_temp, lte
+        real(dp), dimension(:), allocatable::rtra
+
+        ! real(dp)::Rs, Rp, Rmin, Rmax, r_sky
+        ! integer::sel_r
+
+        ! check_ttra = .true.
+        ! ttra = -9.e10_dp
+        ! dur_tra = -9.e10_dp
+
+        allocate (rtra(NBDIM))
+
+        call compute_transit_time(t_epoch, id_body, mass, radii, r1, r2, time_r1, integration_step, do_transit, ttra, dur_tra, tcont, alpha, rtra, check_ttra)
+
+        deallocate (rtra)
+
+        return
+    end subroutine transit_and_contact_time
 ! ==============================================================================
 
 

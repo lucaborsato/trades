@@ -48,9 +48,7 @@ module f90trades
     ! nT0, Pephem, Tephem returned by a subroutine now
     integer::nTTs=0, nDurs=0
 
-!   real(dp)::ln_err_const,inv_dof
     real(dp)::inv_dof
-    ! !f2py real(dp)::ln_err_const
 
     ! variables:  parameters to fit
     ! fitting_parameters and parameters_minmax returned by a subroutine now
@@ -133,10 +131,10 @@ contains
     subroutine initialize_trades(path_in, sub_folder, n_threads_in)
         !f2py real(dp),dimension(:),allocatable::eRVobs
         !f2py real(dp),dimension(:,:),allocatable::eT0obs
-        ! 
-        ! character*(*), intent(in)::path_in, sub_folder
+         
         character*(*), intent(in)::path_in, sub_folder
         integer, intent(in),optional::n_threads_in
+
         ! Local
         real(dp), dimension(:), allocatable::mass, radius, period, sma, ecc, argp, meanA, inc, longN
         integer, dimension(:), allocatable::nset
@@ -230,6 +228,19 @@ contains
 
         obsData%inv_dof = one/real(obsData%dof, dp)
         inv_dof = obsData%inv_dof
+        
+        if (obsData%ndata .gt. 0) then
+            bic_const = real(nfit, dp)*log(real(obsData%ndata, dp))
+        else
+            bic_const = zero
+        end if
+
+        ! IT CHECKS IF obs_excluded.dat WITH EXCLUDED TIME RANGES OF TRANSIT TIMES 
+        ! HAS BEEN PROVIDED
+        call read_excluded_obs(1)
+        call set_excluded_ranges_into_obsdata(n_excluded, excluded_body, excluded_time_ranges, obsData)
+
+        flush(6)
 
         ! IT DEFINES THE ID OF THE PARAMETERS TO BE FITTED
         call idpar()
@@ -317,6 +328,7 @@ contains
     subroutine get_system_parameters_and_minmax(npar, sys_params, sys_par_min, sys_par_max)
         ! Input
         integer,intent(in)::npar
+
         ! Output
         real(dp),dimension(npar),intent(out)::sys_params, sys_par_min, sys_par_max
 
@@ -332,11 +344,11 @@ contains
     subroutine get_default_fitting_parameters_and_minmax(fit_params, fit_par_minmax, n_fit)
         ! Input
         integer,intent(in)::n_fit
+
         ! Output
         real(dp),dimension(n_fit),intent(out)::fit_params
         real(dp),dimension(n_fit, 2),intent(out)::fit_par_minmax
-        ! ! Hide
-        ! integer intent(hide),depend(fit_params) :: n_fit=len(fit_params)
+        
         ! Local
         real(dp),dimension(:),allocatable::fitting_parameters
 
@@ -353,6 +365,7 @@ contains
     subroutine get_do_transit_flag(n_bodies, transit_flag)
         ! Input
         integer,intent(in)::n_bodies
+
         ! Output
         logical,dimension(n_bodies),intent(out)::transit_flag
 
@@ -364,6 +377,7 @@ contains
     subroutine get_observed_transits_info(n_planets, n_tra_per_body, Peph, Teph)
         ! Input
         integer,intent(in)::n_planets
+
         ! Output
         integer,dimension(n_planets),intent(out)::n_tra_per_body
         real(dp),dimension(n_planets),intent(out):: Peph, Teph
@@ -383,11 +397,9 @@ contains
         integer::n_obj, i_obj
 
         write(*, '(a)') "OBSERVATIONS DATA"
-        ! print RV
         n_rv = obsData%obsRV%nRV
         write(*, '(a, i5)') "Number of RV observations: ", n_rv
         write(*, '(a, i5)') "Number of RV datasets: ", nRVset
-        ! print T0
         if(allocated(obsData%obsT0))then
             n_obj = size(obsData%obsT0)
             do i_obj=1,n_obj
@@ -454,9 +466,9 @@ contains
     subroutine get_tofit(n_par, to_fit)
         ! Input
         integer,intent(in)::n_par
+
         ! Output
         integer,dimension(n_par),intent(out)::to_fit
-        ! Local
 
         to_fit = tofit
 
@@ -466,8 +478,10 @@ contains
     subroutine get_all_keplerian_names(all_names, n_par, str_length)
         ! Input
         integer, intent(in)::n_par, str_length
+
         ! Output
         character(1), dimension(n_par, str_length), intent(out)::all_names
+        
         ! Local
         integer::in, ic
 
@@ -504,6 +518,7 @@ contains
         ! Input
         integer,intent(in)::ifit, n_fit
         real(dp),intent(in)::min_val, max_val
+        
         ! Input/Output
         real(dp),dimension(n_fit, 2),intent(inout)::fit_par_minmax
 
@@ -518,6 +533,7 @@ contains
     subroutine reset_all_fit_boundaries(n_fit, fit_par_minmax)
         ! Input
         integer,intent(in)::n_fit
+        
         ! Output
         real(dp),dimension(n_fit, 2),intent(out)::fit_par_minmax
 
@@ -534,6 +550,7 @@ contains
         ! Input
         integer, intent(in)::cpuid
         character(*), intent(in)::path_in
+        
         ! Local variables
         character(512)::path_temp
 
@@ -565,8 +582,10 @@ contains
         ! Input
         integer, intent(in)::n_fit
         real(dp), dimension(n_fit), intent(in)::fit_parameters
+        
         ! Output
         real(dp), intent(out)::rchisq
+        
         ! local variables
         real(dp)::chi_square, lnL, lnc, lnprior, bic
 
@@ -586,10 +605,10 @@ contains
         ! Input
         integer, intent(in)::n_fit
         real(dp), dimension(n_fit), intent(in)::fit_parameters
+        
         ! Output
         real(dp), intent(out)::chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic
         logical, intent(out)::check
-        ! Local variables
 
         check = .true.
         chi_square = zero
@@ -608,13 +627,12 @@ contains
         ! Input
         integer, intent(in)::n_fit
         real(dp), dimension(n_fit), intent(in)::fit_parameters
+        
         ! Output
         real(dp), intent(out)::lgllhd
         logical, intent(out)::check
+        
         ! Local variables
-        ! integer::ns, ne
-        ! real(dp)::fitness, lnconst
-        ! real(dp), dimension(:), allocatable::jitter
         real(dp)::chi_square, reduced_chi_square, lnprior, ln_const, bic
 
         check = .true.
@@ -637,13 +655,12 @@ contains
         ! Input
         integer, intent(in)::n_fit
         real(dp), dimension(n_fit), intent(in)::fit_parameters
+        
         ! Output
         real(dp), intent(out)::lgllhd, lnp
         logical, intent(out)::check
+        
         ! Local variables
-        ! integer::ns, ne
-        ! real(dp)::fitness, lnconst
-        ! real(dp), dimension(:), allocatable::jitter
         real(dp)::chi_square, reduced_chi_square, ln_const, bic
 
         check = .true.
@@ -668,14 +685,14 @@ contains
         integer, intent(in)::n_fit
         integer, intent(in)::write_number
         real(dp), dimension(n_fit), intent(in)::parameters_values
+        
         ! Output
         real(dp), intent(out)::chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic
         logical, intent(out)::check
-        ! local variables
+        
+        ! Local variables
         real(dp), dimension(:), allocatable::run_all_par
         logical::check_status
-        ! integer::ns, ne
-!     logical::wrt_info=.true.
 
         check = .true.
         check_status = .true.
@@ -717,8 +734,6 @@ contains
     subroutine write_summary_files_long(write_number, all_parameters, n_par, parameters_values, n_fit,&
         &chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic, check)
         use driver, only: write_summary_nosigma
-!     use ode_run,only:ode_out
-!     use output_files,only:write_parameters
         integer, intent(in)::n_par
         real(dp), dimension(n_par), intent(in)::all_parameters
         integer, intent(in)::n_fit
@@ -730,14 +745,10 @@ contains
 
         real(dp), dimension(:), allocatable::run_all_par
         logical::check_status
-        ! real(dp),dimension(:),allocatable::jitter
-        ! integer::ns,ne
-        ! real(dp)::ln_const
 
         check = .true.
         check_status = .true.
 
-!     check=check_fit_boundaries(parameters_values)
         check = check_only_boundaries(system_parameters, parameters_values)
         lnprior = zero
 
@@ -791,18 +802,14 @@ contains
         ! Local variables
         real(dp)::inv_dof, nd, ln_rv=zero, ln_t0=zero, ln_dur=zero
 
-        ! write(*,*)"in set_fitness"
         chi_square = chi_square_in
-        ! write(*,*) "chi_square_in -> chi_square"
 
         if (chi_square .ge. resmax) then
             chi_square = resmax
         end if
-        ! write(*,*)"chi_square = ",chi_square
 
         inv_dof =one/real(dof,dp)
         reduced_chi_square = chi_square*inv_dof
-        ! write(*,*)"reduced_chi_square = ",reduced_chi_square
 
         ln_const = zero
         if (nrv .gt. 0)then
@@ -854,8 +861,8 @@ contains
     ! 1)
     ! check if there are derived parameters to compute and to check
     subroutine init_check_parameters(cpuid, path_in)
-        integer, intent(in)::cpuid ! cpu number: use 1
-        character(*), intent(in)::path_in ! path of the folder with derived_boundaries.dat
+        integer, intent(in)::cpuid
+        character(*), intent(in)::path_in
 
         call init_check_derived_parameters(cpuid, path_in)
 
@@ -880,7 +887,9 @@ contains
 
     subroutine deallocate_variables()
 
-        call deallocate_all() ! from 'parameters' module
+        call deallocate_all() 
+        
+        ! from 'parameters' module
 
         return
     end subroutine deallocate_variables
@@ -892,10 +901,8 @@ contains
 
     subroutine set_time_epoch(t_epoch)
         ! Input
-        ! t_epoch        == reference time epoch
         real(dp), intent(in)::t_epoch
-        ! Output
-        ! NONE
+        
         tepoch = t_epoch
 
         return
@@ -903,10 +910,8 @@ contains
 
     subroutine set_time_start(t_start)
         ! Input
-        ! t_start        == start of the integration
         real(dp), intent(in)::t_start
-        ! Output
-        ! NONE
+        
         tstart = t_start
 
         return
@@ -914,10 +919,8 @@ contains
 
     subroutine set_time_int(t_int)
         ! Input
-        ! t_int          == total integration time in days
         real(dp), intent(in)::t_int
-        ! Output
-        ! NONE
+        
         tint = t_int
 
         return
@@ -926,8 +929,7 @@ contains
     subroutine set_hill_check(hill_check)
         ! Input
         logical, intent(in)::hill_check
-        ! Output
-        ! NONE
+        
         do_hill_check = hill_check
 
         return
@@ -936,8 +938,8 @@ contains
     subroutine set_close_encounter_check(encounter_check)
         ! Input
         logical, intent(in)::encounter_check
-        ! Output
-        ! NONE
+        
+        
         close_encounter_check = encounter_check
 
         return
@@ -946,8 +948,8 @@ contains
     subroutine set_amd_hill_check(ah_check)
         ! Input
         logical, intent(in)::ah_check
-        ! Output
-        ! NONE
+        
+        
         amd_hill_check = ah_check
 
         return
@@ -956,8 +958,8 @@ contains
     subroutine set_rv_res_gls(res_gls)
         ! Input
         logical, intent(in)::res_gls
-        ! Output
-        ! NONE
+        
+        
         rv_res_gls = res_gls
 
         return
@@ -1011,6 +1013,7 @@ contains
         real(dp), dimension(n_rv), intent(in)::time_rv, obs_rv, obs_erv
         integer, dimension(n_rv), intent(in):: rv_setid
         integer, intent(in)::n_rvset
+
         ! Local
         integer::n
 
@@ -1048,6 +1051,7 @@ contains
         integer, dimension(n_t0), intent(in)::epo
         real(dp), dimension(n_t0), intent(in)::obs_t0, obs_et0
         integer, dimension(n_t0), intent(in)::sources_id
+
         ! Local
         integer::n, i_body
 
@@ -1073,6 +1077,7 @@ contains
         integer, intent(in)::body_id
         integer, intent(in)::n_t14
         real(dp), dimension(n_t14), intent(in)::t14, et14
+
         ! Local
         integer::i_body
 
@@ -1156,14 +1161,16 @@ contains
         real(dp), dimension(n_body), intent(in)::m_msun, R_rsun, P_day
         real(dp), dimension(n_body), intent(in)::ecc, argp_deg, mA_deg, inc_deg, lN_deg
         logical, dimension(n_body), intent(in)::transit_flag
+
         ! Output
         real(dp), dimension(n_rv), intent(out)::rv_sim
         integer, dimension(n_tt), intent(out)::body_t0_sim, epo_sim
         real(dp), dimension(n_tt), intent(out)::t0_sim, t14_sim, lambda_rm_sim
         real(dp), dimension(n_tt, n_kep), intent(out)::kel_sim
         logical, intent(out)::stable
+        
         ! Local
-        integer::id_transit_body = 1 ! needed to be == 1
+        integer::id_transit_body = 1
         real(dp), dimension(:), allocatable::rv_temp
         integer, dimension(:), allocatable::body_t0_temp, epo_temp
         real(dp), dimension(:), allocatable::t0_temp, t14_temp, lbd_rm_temp
@@ -1231,11 +1238,13 @@ contains
         real(dp), intent(in)::t_start, t_epoch, t_int
         real(dp), dimension(n_body), intent(in)::m_msun, R_rsun, P_day
         real(dp), dimension(n_body), intent(in)::ecc, argp_deg, mA_deg, inc_deg, lN_deg
+
         ! Output
         real(dp), dimension(n_rv), intent(out)::rv_sim
         logical, intent(out)::stable
+        
         ! Local
-        integer::id_transit_body = 0 ! needed to be == 0, so no needs to check for transits
+        integer::id_transit_body = 0
         real(dp), dimension(:), allocatable::rv_temp
         logical, dimension(n_body)::transit_flag
         integer, dimension(:), allocatable::body_t0_temp, epo_temp
@@ -1304,13 +1313,15 @@ contains
         real(dp), dimension(n_body), intent(in)::m_msun, R_rsun, P_day
         real(dp), dimension(n_body), intent(in)::ecc, argp_deg, mA_deg, inc_deg, lN_deg
         logical, dimension(n_body), intent(in)::transit_flag
+
         ! Output
         integer, dimension(n_tt), intent(out)::body_t0_sim, epo_sim
         real(dp), dimension(n_tt), intent(out)::t0_sim, t14_sim, lambda_rm_sim
         real(dp), dimension(n_tt, n_kep), intent(out)::kel_sim
         logical, intent(out)::stable
+        
         ! Local
-        integer::id_transit_body = 1 ! needed to be == 1
+        integer::id_transit_body = 1
         real(dp), dimension(:), allocatable::rv_temp
         integer, dimension(:), allocatable::body_t0_temp, epo_temp
         real(dp), dimension(:), allocatable::t0_temp, t14_temp, lbd_rm_temp
@@ -1348,6 +1359,7 @@ contains
         integer, intent(in)::n_steps, n_body, nb_dim
         real(dp), dimension(n_steps), intent(in)::time_steps
         real(dp), dimension(n_body), intent(in)::mass, radius, period, ecc, argp, meanA, inc, longN
+        
         ! Output
         real(dp), dimension(n_steps, nb_dim), intent(out)::orbits
         logical,intent(out)::check
@@ -1363,8 +1375,10 @@ contains
         integer, intent(in)::n_body, n_steps, nb_dim
         real(dp), dimension(n_body), intent(in)::mass
         real(dp), dimension(n_steps, nb_dim), intent(in):: orbits
+
         ! Output
         real(dp), dimension(n_steps), intent(out):: rvs
+        
         ! Locals
         integer::i_steps
 
@@ -1384,10 +1398,12 @@ contains
         real(dp), dimension(n_body), intent(in)::mass, radius
         real(dp), dimension(n_steps, nb_dim), intent(in)::orbits
         integer, intent(in)::transiting_body
+        
         ! Output
         real(dp), dimension(n_all_transits), intent(out)::transits, durations, lambda_rm
         real(dp), dimension(n_all_transits, 8), intent(out)::kep_elem
         integer, dimension(n_all_transits), intent(out)::body_flag
+        
         ! Local
         integer, dimension(:), allocatable::X, Y, Z
         integer, dimension(:), allocatable::VX, VY, VZ
@@ -1395,6 +1411,7 @@ contains
         logical::ABflag, Zflag
         logical::do_transit_check
         integer::body_transiting_start, body_transiting_end
+        real(dp), dimension(4)::tcont
         integer::i_steps, i_body, i_tra
         real(dp)::trun1, trun2, integration_step
         real(dp), dimension(:), allocatable::r1, r2, rtra
@@ -1428,7 +1445,7 @@ contains
                     do_transit_flag(i_body) = .true.
                     if (ABflag .and. Zflag) then
                         call compute_transit_time(zero, i_body, mass, radius, r1, r2, trun1, integration_step, do_transit_flag,&
-                            &tra, dur, lbd_rm, rtra, check_tra)
+                            &tra, dur, tcont, lbd_rm, rtra, check_tra)
                         if (check_tra) then
                             i_tra = i_tra+1
                             transits(i_tra) = tra
@@ -1507,8 +1524,6 @@ contains
         integer, intent(in)::ngrid, ncol_grid
         real(dp), dimension(ngrid, ncol_grid), intent(out)::perturber_grid
 
-!     !f2py    integer,intent(hide),depend(perturber_grid)::ngrid=shape(perturber_grid,0), ncol_grid=shape(perturber_grid,1)
-
         real(dp), dimension(:, :), allocatable::temp_grid, fitness_grid
 
         ! create/build the full grid, with all the combination of the parameters of perturber body
@@ -1531,8 +1546,10 @@ contains
         ! Input
         integer, intent(in)::n_bds
         real(dp), dimension(n_bds), intent(in)::P
+        
         ! Output
         integer, intent(out)::nt0_full, nrv_nmax
+        
         ! Local
         integer, dimension(:), allocatable::nT0_perbody
 
@@ -1556,8 +1573,10 @@ contains
         ! Input
         integer, intent(in)::n_fit
         real(dp), dimension(n_fit), intent(in)::par_fit
+        
         ! Output
         integer, intent(out)::ntt, nrv_max
+        
         ! Local
         real(dp), dimension(NB)::mass, radius
         real(dp), dimension(NB)::period, sma, ecc, argp, meanA, inc, longN
@@ -1592,8 +1611,6 @@ contains
         integer, intent(out)::nt0_full, nrv_nmax
 
 !f2py    integer,intent(hide),depend(perturber_grid)::ngrid=shape(perturber_grid,0), ncol=shape(perturber_grid,1)
-
-! !f2py    integer,intent(hide),depend(m)::n_bds=len(m)
 
         real(dp), dimension(:), allocatable::sim_all_parameters, sim_fit_parameters
         logical::tempcheck
@@ -1641,12 +1658,10 @@ contains
         integer, intent(out)::nt0_full, nrv_nmax
 
 !f2py    integer,intent(hide),depend(perturber_par)::ncol=len(perturber_par)
-! !f2py    integer,intent(hide),depend(m)::n_bds=len(m)
 
         real(dp), dimension(:), allocatable::sim_all_parameters, sim_fit_parameters
         logical::tempcheck
 
-!     integer,dimension(:),allocatable::nT0_perbody
 
         tempcheck = .true.
         allocate (sim_all_parameters(npar), sim_fit_parameters(nfit))
@@ -1712,12 +1727,14 @@ contains
         real(dp), dimension(n_fit), intent(in)::fit_parameters
         integer, intent(in)::nt0_full
         integer, intent(in)::nrv_nmax
+
         ! Output
         real(dp), dimension(nt0_full), intent(out)::ttra_full, dur_full, lambda_rm_full
         integer, dimension(nt0_full), intent(out)::id_ttra_full
         logical, dimension(nt0_full), intent(out)::stats_ttra
         real(dp), dimension(nrv_nmax), intent(out)::time_rv_nmax, rv_nmax
         logical, dimension(nrv_nmax), intent(out)::stats_rv
+
         ! Local
         real(dp), dimension(:), allocatable::mass, radius, period, sma, ecc, argp, meanA, inc, longN
         logical::checkpar = .true.
@@ -1821,9 +1838,11 @@ contains
         integer, intent(in)::nbodies, n_steps
         real(dp), dimension(nbodies), intent(in)::mass
         real(dp), dimension(n_steps, nbodies*6), intent(in)::astro_orbits
+
         ! Output
         real(dp), dimension(n_steps, nbodies*6), intent(out)::bary_orbits
         real(dp), dimension(n_steps, 6), intent(out)::barycenter_position
+        
         ! Locals
         integer::i_step
 
@@ -1840,9 +1859,9 @@ contains
         ! Input
         integer, intent(in) :: nx
         real(dp), dimension(nx), intent(in)::x, y
+
         ! Output
         real(dp), intent(out):: m, err_m, q, err_q
-        ! Locals
 
         call linfit(x, y, m, err_m, q, err_q)
 
@@ -1853,9 +1872,9 @@ contains
         ! Input
         integer, intent(in) :: nx
         real(dp), dimension(nx), intent(in)::x, y, ey
+
         ! Output
         real(dp), intent(out):: m, err_m, q, err_q
-        ! Locals
 
         call linfit(x, y, ey, m, err_m, q, err_q)
 
@@ -1868,6 +1887,7 @@ contains
     subroutine f90_period_to_sma(mass_star, mass_planet, period, sma)
         ! Input
         real(dp), intent(in)::mass_star, mass_planet, period
+
         ! Output
         real(dp), intent(out)::sma
 
@@ -1880,8 +1900,10 @@ contains
         ! Input
         integer, intent(in)::n
         real(dp), dimension(n), intent(in)::mass_star, mass_planet, period
+
         ! Output
         real(dp), dimension(n), intent(out)::sma
+        
         ! Local
         integer::i
 
@@ -1895,6 +1917,7 @@ contains
     subroutine f90_sma_to_period(mass_star, mass_planet, sma, period)
         ! Input
         real(dp), intent(in)::mass_star, mass_planet, sma
+
         ! Output
         real(dp), intent(out)::period
 
@@ -1907,8 +1930,10 @@ contains
         ! Input
         integer, intent(in)::n
         real(dp), dimension(n), intent(in)::mass_star, mass_planet, sma
+
         ! Output
         real(dp), dimension(n), intent(out)::period
+        
         ! Local
         integer::i
 
@@ -1925,6 +1950,7 @@ contains
         ! Input
         integer,intent(in)::n_body
         real(dp), dimension(n_body), intent(in)::masses, eccs, incs, periods
+
         ! Output
         real(dp), dimension(n_body), intent(out)::lambda_bodies, amd_bodies
         real(dp), intent(out)::amd
@@ -1939,11 +1965,13 @@ contains
         integer,intent(in)::n_bodies, n_fit, n_all, n_pairs
         real(dp), dimension(n_fit), intent(in)::fit_pars
         real(dp), dimension(n_all), intent(in)::all_pars
+
         ! Output
         real(dp), dimension(n_bodies), intent(out)::lambda_bodies, amd_bodies
         real(dp), intent(out)::amd
         real(dp), dimension(n_pairs), intent(out)::amd_r_pairs, amd_h_pairs
         logical, intent(out)::stable
+
         ! Local
         real(dp), dimension(n_bodies)::mass, radius, period, sma, ecc, argp, meana, inc, longn
         logical::checkpar
@@ -1963,11 +1991,13 @@ contains
         integer,intent(in)::n_bodies, n_post, n_fit, n_all, n_pairs
         real(dp), dimension(n_post, n_fit), intent(in)::post_fit
         real(dp), dimension(n_all), intent(in)::all_pars
+
         ! Output
         real(dp), dimension(n_post, n_bodies), intent(out)::lambda_bodies, amd_bodies
         real(dp), dimension(n_post), intent(out)::amd
         real(dp), dimension(n_post, n_pairs), intent(out)::amd_r_pairs, amd_h_pairs
         logical, dimension(n_post), intent(out)::stable
+        
         ! Local
         real(dp), dimension(n_fit)::fit_pars
         real(dp), dimension(n_bodies)::lbd, amd_bd
@@ -1995,9 +2025,9 @@ contains
         integer, intent(in)::n, nbody
         real(dp), dimension(n), intent(in)::jd, rv, erv
         real(dp), dimension(nbody), intent(in)::periods
+
         ! Output
         logical, intent(out)::gls_check
-        ! Local
 
         call check_periodogram(jd, rv, erv, periods, gls_check)
 

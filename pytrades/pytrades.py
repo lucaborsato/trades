@@ -89,11 +89,13 @@ def args_init(
     )
 
     if t_epoch is not None:
-        f90trades.set_time_epoch(t_epoch)
+        f90trades.set_epoch_time(t_epoch)
+
     if t_start is not None:
-        f90trades.set_time_start(t_start)
+        f90trades.set_starting_time(t_start)
+
     if t_int is not None:
-        f90trades.set_time_int(t_int)
+        f90trades.set_integration_time(t_int)
 
     if encounter_check is not None:
         set_close_encounter_check(encounter_check)
@@ -658,7 +660,7 @@ def linear_fit(x, y, ey=None):
 # DOES NOT IMPLEMENT LOG-LIKELIHOOD FUNCTION
 # =============================================================================
 def orbital_parameters_to_transits(
-    t_start, t_epoch, t_int, mass, radius, period, ecc, w, ma, inc, long, t_rv_obs
+    t_epoch, t_start, t_int, mass, radius, period, ecc, w, ma, inc, long, t_rv_obs
 ):
     """
     From orbital parameters compute orbits of the planets and return
@@ -666,8 +668,8 @@ def orbital_parameters_to_transits(
     Similar to kelements_to_orbits_full + orbits_to_transits + orbits_to_rvs
 
     Parameters:
-    - t_start: float, start time
     - t_epoch: float, epoch time
+    - t_start: float, start time
     - t_int: float, interval time
     - mass: array-like, mass values
     - radius: array-like, radius values
@@ -688,13 +690,13 @@ def orbital_parameters_to_transits(
     - kep_elem: array-like, Kepler elements
     - body_flag: array-like, body flags
     - rv_sim: dictionary, simulated RV values
-    - check: boolean, check value
+    - stable: int, stability flag: 1=stable/0=unstable
     """
 
     # Compute the orbits from the orbital parameters
-    time_steps, orbits, check = kelements_to_orbits_full(
-        t_start,
+    time_steps, orbits, stable = kelements_to_orbits_full(
         t_epoch,
+        t_start,
         t_int,
         mass,
         radius,
@@ -736,7 +738,7 @@ def orbital_parameters_to_transits(
         kep_elem,
         body_flag,
         rv_sim,
-        check,
+        stable,
     )
 
 
@@ -1830,7 +1832,7 @@ class PhotoTRADES:
             - kep_elem (list): List of keplerian elements.
             - body_flag (list): List of body flags.
             - rv_sim (list): List of simulated radial velocities.
-            - stable (list): List indicating stability.
+            - stable (int): 1=stable/0=unstable.
         """
 
         (

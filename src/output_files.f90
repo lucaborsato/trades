@@ -531,7 +531,7 @@ contains
         type(dataT0), dimension(:), intent(in)::simT0
 !     real(dp),dimension(:,:),intent(in)::T0_sim
 !     integer,dimension(:,:),intent(in)::T0_stat
-        integer::i_body, i_T0, nT0o, nT0s, nT0
+        integer::i_body, i_T0, nT0o, nT0s, nT0, nexcl,iexcl
         character(128)::fmt,hea
 
         ! fmt = adjustl("(i6,2(4("//trim(sprec)//",1x),i3))")
@@ -541,8 +541,11 @@ contains
             nT0s = simT0(i_body)%nT0
             nT0o = obsData%obsT0(i_body)%nT0
             nT0 = nT0o
+            nexcl = obsData%obsT0(i_body)%n_excl
 
             if (nT0 .gt. 0) then
+                write(*,*)""
+                write(*,*)"BODY ID ",i_body+1
 
                 if (durcheck .eq. 0) then ! do not check duration
                     fmt = adjustl(trim(fmt))//"i3"
@@ -598,6 +601,17 @@ contains
                 end if
                 write (*, *) ""
 
+            end if
+
+            if (nexcl .gt. 0) then
+                do iexcl=1,nexcl
+                    write(*,*) simT0(i_body)%excluded_time_ranges(iexcl,:),&
+                        &simT0(i_body)%excluded_t0(iexcl),&
+                        &simT0(i_body)%excluded_t1(iexcl),&
+                        &simT0(i_body)%excluded_t4(iexcl),&
+                        &simT0(i_body)%excluded_status(iexcl)
+                    
+                end do
             end if
         end do
 

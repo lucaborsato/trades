@@ -941,6 +941,97 @@ contains
         return
     end subroutine read_T0obs
 
+    subroutine read_excluded_obs(cpuid)
+        ! Input
+        integer, intent(in)::cpuid
+        ! Locals
+        integer::uread, iread, stat
+        character(512)::row
+        logical::fstat
+        integer::i_body
+        integer::n_excl
+        logical, dimension(:), allocatable::sel_body
+        real(dp), dimension(:,:), allocatable::excl_body_tranges
+
+        inquire (file=trim(path)//"obs_excluded.dat", exist=fstat)
+        if (fstat) then
+            write(*, "(a)")" FOUND EXCLUDED TIME RANGES OF TRANSIT TIMES PROVIDED IN obs_excluded.dat"
+            uread = get_unit(cpuid)
+            open (uread, file=trim(path)//"obs_excluded.dat", status='OLD')
+            n_excluded = get_rows(uread)
+            if (n_excluded .gt. 0) then
+                allocate (excluded_body(n_excluded))
+                allocate (excluded_time_ranges(n_excluded, 2))
+                iread = 0
+                obs_excluded_loop: do
+                    read (uread, '(a512)', IOSTAT=stat) row
+                    if (IS_IOSTAT_END(stat)) exit obs_excluded_loop
+                    row = trim(adjustl(row))
+                    if (row(1:1) .ne. "#" .and. len(trim(row)) .gt. 0) then
+                        iread = iread+1
+                        read (row, *) excluded_body(iread), &
+                            &excluded_time_ranges(iread, 1), excluded_time_ranges(iread, 2)
+                    end if
+                end do obs_excluded_loop
+            end if
+            close(uread)
+
+        else
+            write(*, "(a)")" NO EXCLUDED TIME RANGES OF TRANSIT TIMES PROVIDED"
+        end if
+
+        return
+    end subroutine read_excluded_obs
+
+    subroutine set_excluded_ranges_into_obsdata(n_excluded_all, excluded_body_all, excluded_time_ranges_all, obsDataIn)
+        ! Input
+        integer, intent(in)::n_excluded_all
+        integer, dimension(:), intent(in)::excluded_body_all
+        real(dp), dimension(:, :), intent(in)::excluded_time_ranges_all
+        ! Input/Output
+        type(dataObs), intent(inout)::obsDataIn
+        ! Local
+        integer::i_body,n_excl
+        logical, dimension(:), allocatable::sel_body
+        real(dp), dimension(:,:), allocatable::excl_body_tranges
+
+        if (n_excluded_all .gt. 0) then
+            ! if (.not. allocated(obsDataIn%obsT0)) allocate (obsDataIn%obsT0(NB-1))
+            allocate(sel_body(n_excluded_all))
+            do i_body = 2, NB
+                ! write(*,*)"BODY ", i_body
+                sel_body = excluded_body_all .eq. i_body
+                ! write(*,*)"sel ", sel_body
+                n_excl = count(sel_body)
+                ! write(*,*)"n ", n_excl
+                if (n_excl .gt. 0)then
+                    allocate(excl_body_tranges(n_excl, 2))
+                    ! write(*,*)"tmins"
+                    ! write(*,*)"full", excluded_time_ranges_all(:,1)
+                    excl_body_tranges(:,1) = pack(excluded_time_ranges_all(:,1), sel_body)
+                    ! write(*,*)"packed", excl_body_tranges(:,1)
+                    ! write(*,*)"tmaxs"
+                    ! write(*,*)"full", excluded_time_ranges_all(:,2)
+                    excl_body_tranges(:,2) = pack(excluded_time_ranges_all(:,2), sel_body)
+                    ! write(*,*)"packed", excl_body_tranges(:,2)
+                    call init_dataT0_excluded(n_excl, excl_body_tranges, obsDataIn%obsT0(i_body-1))
+                    deallocate(excl_body_tranges)
+                    ! write(*,*)obsDataIn%obsT0(i_body-1)%n_excl
+                    ! write(*,*)"allocated excluded_time_ranges = ", allocated(obsDataIn%obsT0(i_body-1)%excluded_time_ranges)
+                    ! write(*,*)"within tmin: ", obsDataIn%obsT0(i_body-1)%excluded_time_ranges(:,2)
+                    ! write(*,*)"within tmax: ", obsDataIn%obsT0(i_body-1)%excluded_time_ranges(:,1)
+                    ! flush(6)
+                end if
+            end do
+            deallocate(sel_body)
+            obsDataIn%n_excluded = n_excluded_all
+            write(*,*)"obsData excluded ",obsDataIn%n_excluded
+            flush(6)
+        end if
+
+        return
+    end subroutine set_excluded_ranges_into_obsdata
+
     subroutine read_priors(cpuid)
         integer, intent(in)::cpuid
 
@@ -1204,11 +1295,17 @@ contains
         write (*, '(a,i5)')&
             &" NUMBER OF DEGREES OF FREEDOM : dof = ndata - nfit - nfree = ",&
             &obsData%dof
+        
         if (obsData%ndata .gt. 0) then
             bic_const = real(nfit, dp)*log(real(obsData%ndata, dp))
         else
             bic_const = zero
         end if
+
+        ! IT CHECKS IF obs_excluded.dat WITH EXCLUDED TIME RANGES OF TRANSIT TIMES 
+        ! HAS BEEN PROVIDED
+        call read_excluded_obs(cpuid)
+        call set_excluded_ranges_into_obsdata(n_excluded, excluded_body, excluded_time_ranges, obsData)
 
         call idpar() ! IT DEFINES THE ID OF THE PARAMETERS TO BE FITTED
 
