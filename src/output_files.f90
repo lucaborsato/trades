@@ -534,10 +534,11 @@ contains
         integer::i_body, i_T0, nT0o, nT0s, nT0, nexcl,iexcl
         character(128)::fmt,hea
 
-        ! fmt = adjustl("(i6,2(4("//trim(sprec)//",1x),i3))")
-        fmt = adjustl("i6,1x,4("//trim(sprec)//",1x),i3,1x,")
-        hea = adjustl("a,5(1x,a),")
         do i_body = 1, NB-1
+            ! fmt = adjustl("(i6,2(4("//trim(sprec)//",1x),i3))")
+            fmt = adjustl("i6,1x,4("//trim(sprec)//",1x),i3,1x,")
+            hea = adjustl("a,5(1x,a),")
+            
             nT0s = simT0(i_body)%nT0
             nT0o = obsData%obsT0(i_body)%nT0
             nT0 = nT0o
@@ -628,12 +629,12 @@ contains
         integer::uT0, i_body, i_T0, nT0o, nT0s, nT0
         character(128)::fmt, hea
 
-        
-        ! fmt = adjustl("i6,1x,4("//trim(sprec)//",1x),i3,1x,8("//trim(sprec)//",1x),i3")
-        ! hea = adjustl("a,5(1x,a),9(1x,a)")
-        fmt = adjustl("i6,1x,4("//trim(sprec)//",1x),i3,1x,")
-        hea = adjustl("a,5(1x,a),")
         do i_body = 1, NB-1
+            ! fmt = adjustl("i6,1x,4("//trim(sprec)//",1x),i3,1x,8("//trim(sprec)//",1x),i3")
+            ! hea = adjustl("a,5(1x,a),9(1x,a)")
+            fmt = adjustl("i6,1x,4("//trim(sprec)//",1x),i3,1x,")
+            hea = adjustl("a,5(1x,a),")
+
             nT0s = simT0(i_body)%nT0
             nT0o = obsData%obsT0(i_body)%nT0
 

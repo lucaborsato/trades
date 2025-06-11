@@ -236,22 +236,22 @@ class AnalysisTRADES:
             ):
                 anc.print_both("Fixing parameter {} with idx {}".format(fitn, ifit))
                 # print("shape of chains_posterior = {}".format(np.shape(self.chains_posterior)))
-                self.fitting_posterior[:, ifit], i_type = (
-                    anc.recenter_angle_distribution(
+                xx, i_type = anc.recenter_angle_distribution(
                         self.fitting_posterior[:, ifit] % 360.0,
                         debug=True,
                         type_out=True,
                     )
-                )
-                # self.chains_posterior[:, :, ifit] = anc.recenter_angle_distribution(
-                #     self.chains_posterior[:, :, ifit] % 360.0, debug=True, type_out=False
-                # )
+
                 self.fitting_type[ifit] = i_type
                 if "mod" in i_type:
+                    self.fitting_posterior[:, ifit] %= 360.0
                     self.chains[:, :, ifit] %= 360.0
                     self.chains_full_thinned[:, :, ifit] %= 360.0
                     self.chains_posterior[:, :, ifit] %= 360.0
-                else:
+                elif "scale" in i_type:
+                    self.fitting_posterior[:, ifit] = anc.get_arctan_angle(
+                        self.fitting_posterior[:, ifit]
+                    )
                     self.chains[:, :, ifit] = anc.get_arctan_angle(
                         self.chains[:, :, ifit]
                     )
@@ -261,6 +261,8 @@ class AnalysisTRADES:
                     self.chains_posterior[:, :, ifit] = anc.get_arctan_angle(
                         self.chains_posterior[:, :, ifit]
                     )
+                else:
+                    print("Something weird for this parameter, maybe all values are NaN. Check it.")
         anc.print_both(
             "####################################################################"
         )
@@ -396,10 +398,10 @@ class AnalysisTRADES:
         self.posterior_file = os.path.join(self.cli.full_path, "posterior.hdf5")
         with h5py.File(self.posterior_file, "w") as p_h5f:
             p_h5f.create_dataset(
-                "posterior", data=self.fitting_posterior, dtype=np.float64
+                "posterior", data=self.fitting_posterior, dtype=float
             )
             p_h5f.create_dataset(
-                "loglikelihood", data=self.lnprob_posterior, dtype=np.float64
+                "loglikelihood", data=self.lnprob_posterior, dtype=float
             )
             p_h5f["posterior"].attrs["nfit"] = self.sim.nfit
             p_h5f["posterior"].attrs["nposterior"] = self.npost
@@ -409,27 +411,27 @@ class AnalysisTRADES:
             )
 
             p_h5f.create_dataset(
-                "posterior_physical", data=self.physical_posterior, dtype=np.float64
+                "posterior_physical", data=self.physical_posterior, dtype=float
             )
             p_h5f.create_dataset(
                 "physical_names", data=anc.encode_list(self.physical_names), dtype="S15"
             )
 
             p_h5f.create_dataset(
-                "stellar_mass", data=self.stellar_mass_posterior, dtype=np.float64
+                "stellar_mass", data=self.stellar_mass_posterior, dtype=float
             )
             p_h5f.create_dataset(
-                "stellar_radius", data=self.stellar_radius_posterior, dtype=np.float64
+                "stellar_radius", data=self.stellar_radius_posterior, dtype=float
             )
 
             p_h5f.create_dataset(
-                "fixed_parameters", data=self.fixed_parameters, dtype=np.float64
+                "fixed_parameters", data=self.fixed_parameters, dtype=float
             )
             p_h5f["fixed_parameters"].attrs["names"] = anc.encode_list(self.fixed_names)
 
             if hasattr(self, 'amd_names'):
                 p_h5f.create_dataset(
-                    "AMD", data=self.amd, dtype=np.float64
+                    "AMD", data=self.amd, dtype=float
                 )
                 p_h5f["AMD"].attrs["names"] = self.amd_names
                 p_h5f.create_dataset(
@@ -579,7 +581,7 @@ class AnalysisTRADES:
             gr.create_dataset(
                 "fitted/parameters",
                 data=fit_par,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             gr.create_dataset(
@@ -597,7 +599,7 @@ class AnalysisTRADES:
             gr.create_dataset(
                 "fitted/sigma",
                 data=sigma_fit.T,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             gr["fitted/sigma"].attrs["percentiles"] = anc.percentile_val
@@ -605,7 +607,7 @@ class AnalysisTRADES:
             gr.create_dataset(
                 "physical/parameters",
                 data=phy_par,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             gr.create_dataset(
@@ -623,7 +625,7 @@ class AnalysisTRADES:
             gr.create_dataset(
                 "physical/sigma",
                 data=sigma_phy.T,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             gr["physical/sigma"].attrs["percentiles"] = anc.percentile_val
@@ -1049,7 +1051,7 @@ class AnalysisTRADES:
                 s_h5f.create_dataset(
                     "confidence_intervals/fitted/ci",
                     data=ci_fitted.T,
-                    dtype=np.float64,
+                    dtype=float,
                     compression="gzip",
                 )
                 s_h5f.create_dataset(
@@ -1073,7 +1075,7 @@ class AnalysisTRADES:
                 s_h5f.create_dataset(
                     "confidence_intervals/physical/ci",
                     data=self.ci_physical.T,
-                    dtype=np.float64,
+                    dtype=float,
                     compression="gzip",
                 )
                 s_h5f.create_dataset(

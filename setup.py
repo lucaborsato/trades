@@ -31,8 +31,8 @@ setup(
         'Programming Language :: Python :: 3'
     ],
     zip_safe=False,
-    install_requires=[
-        'numpy==1.23.5',
-    ],
-    setup_requires=['setuptools==65.6.3']  # This is optional, but can be kept for clarity
+    # install_requires=[
+    #     'numpy==1.23.5',
+    # ],
+    # setup_requires=['setuptools==65.6.3']  # This is optional, but can be kept for clarity
 )

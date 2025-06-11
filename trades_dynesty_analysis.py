@@ -187,10 +187,10 @@ class AnalysisTRADES:
         self.posterior_file = os.path.join(self.cli.full_path, "posterior.hdf5")
         with h5py.File(self.posterior_file, "w") as p_h5f:
             p_h5f.create_dataset(
-                "posterior", data=self.fitting_posterior, dtype=np.float64
+                "posterior", data=self.fitting_posterior, dtype=float
             )
             p_h5f.create_dataset(
-                "loglikelihood", data=self.lnprob_posterior, dtype=np.float64
+                "loglikelihood", data=self.lnprob_posterior, dtype=float
             )
             p_h5f["posterior"].attrs["nfit"] = self.sim.nfit
             p_h5f["posterior"].attrs["nposterior"] = self.npost
@@ -200,7 +200,7 @@ class AnalysisTRADES:
             )
 
             p_h5f.create_dataset(
-                "posterior_physical", data=self.physical_posterior, dtype=np.float64
+                "posterior_physical", data=self.physical_posterior, dtype=float
             )
             p_h5f.create_dataset(
                 "physical_names", data=anc.encode_list(self.physical_names), dtype="S15"
@@ -320,7 +320,7 @@ class AnalysisTRADES:
             gr.create_dataset(
                 "fitted/parameters",
                 data=fit_par,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             gr.create_dataset(
@@ -338,7 +338,7 @@ class AnalysisTRADES:
             gr.create_dataset(
                 "fitted/sigma",
                 data=sigma_fit.T,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             gr["fitted/sigma"].attrs["percentiles"] = anc.percentile_val
@@ -346,7 +346,7 @@ class AnalysisTRADES:
             gr.create_dataset(
                 "physical/parameters",
                 data=phy_par,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             gr.create_dataset(
@@ -364,7 +364,7 @@ class AnalysisTRADES:
             gr.create_dataset(
                 "physical/sigma",
                 data=sigma_phy.T,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             gr["physical/sigma"].attrs["percentiles"] = anc.percentile_val
@@ -701,7 +701,7 @@ class AnalysisTRADES:
                 s_h5f.create_dataset(
                     "confidence_intervals/fitted/ci",
                     data=ci_fitted.T,
-                    dtype=np.float64,
+                    dtype=float,
                     compression="gzip",
                 )
                 s_h5f.create_dataset(
@@ -725,7 +725,7 @@ class AnalysisTRADES:
                 s_h5f.create_dataset(
                     "confidence_intervals/physical/ci",
                     data=self.ci_physical.T,
-                    dtype=np.float64,
+                    dtype=float,
                     compression="gzip",
                 )
                 s_h5f.create_dataset(

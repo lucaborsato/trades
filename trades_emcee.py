@@ -372,13 +372,19 @@ if cli.nruns > 0:
         anc.print_both("ready to go", output=of_run)
         sys.stdout.flush()
 
+        pka = {
+            'ncols': 75,
+            'dynamic_ncols': False,
+            'position': 0
+        }
         sampler.run_mcmc(
             p0,
             cli.nruns,
-            progress=cli.emcee_progress,
             thin_by=cli.thin_by,
             tune=True,  # default False
             skip_initial_state_check=False,  # default False
+            progress=cli.emcee_progress,
+            progress_kwargs=pka,
         )
     sys.stdout.flush()
     anc.print_both("", output=of_run)
