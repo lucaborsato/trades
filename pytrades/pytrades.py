@@ -718,12 +718,13 @@ def orbital_parameters_to_transits(
 
     # Set the transiting body to 1 (all planets)
     transiting_body = 1
-    # Determine the number of transits ... it has to be done in advance
-    n_transits = (t_int / period[1:]).astype(int)
     n_body = len(mass)
-    n_all_transits = np.sum(n_transits) + (
-        n_body - 1
-    )  # star has no transits by definition
+    # Determine the number of transits ... it has to be done in advance
+    # n_transits = (t_int / period[1:]).astype(int)
+    # n_all_transits = np.sum(n_transits) + (
+    #     n_body - 1
+    # )  # star has no transits by definition
+    n_all_transits = len(time_steps)*(n_body-1)
     # Compute the transits, durations, lambda_rm, Kepler elements, and body flags
     transits, durations, lambda_rm, kep_elem, body_flag = orbits_to_transits(
         n_all_transits, time_steps, mass, radius, orbits, transiting_body
