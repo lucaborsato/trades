@@ -577,11 +577,12 @@ def full_statistics(
         plt.tight_layout()
         # fig.align_ylabels(axs)
         # save figure
-        output_file = os.path.join(
-            output_folder, "{:03d}_{}.png".format(ipar + ilast, pname)
-        )
-        anc.print_both("Saving {}".format(output_file), output=olog)
-        fig.savefig(output_file, dpi=300, bbox_inches="tight")
+        if output_folder is not None:
+            output_file = os.path.join(
+                output_folder, "{:03d}_{}.png".format(ipar + ilast, pname)
+            )
+            anc.print_both("Saving {}".format(output_file), output=olog)
+            fig.savefig(output_file, dpi=300, bbox_inches="tight")
         if show_plot:
             plt.show()
         plt.close(fig)
@@ -590,7 +591,7 @@ def full_statistics(
 
 
 def log_probability_trace(
-    log_prob, lnprob_posterior, plot_folder, n_burn=0, n_thin=1, show_plot=False, figsize=(8, 8), olog=None
+    log_prob, lnprob_posterior, plot_folder=None, n_burn=0, n_thin=1, show_plot=False, figsize=(8, 8), olog=None
 ):
     lsize = 10
     tsize = lsize - 3
@@ -642,9 +643,10 @@ def log_probability_trace(
 
     plt.tight_layout()
     fig.align_ylabels(axs)
-    output_file = os.path.join(plot_folder, "lnprob_trace.png")
-    anc.print_both("\nSaving {}".format(output_file), output=olog)
-    fig.savefig(output_file, dpi=300, bbox_inches="tight")
+    if plot_folder is not None:
+        output_file = os.path.join(plot_folder, "lnprob_trace.png")
+        anc.print_both("\nSaving {}".format(output_file), output=olog)
+        fig.savefig(output_file, dpi=300, bbox_inches="tight")
     if show_plot:
         plt.show()
     plt.close(fig)

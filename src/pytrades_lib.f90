@@ -44,9 +44,10 @@ module f90trades
 
     ! needed because TRADES now uses these variables in data type
     integer::ndata, nfree, dof
-    integer::nRV=0 !,nRVset it is global now
+    integer::nRV !,nRVset it is global now
     ! nT0, Pephem, Tephem returned by a subroutine now
-    integer::nTTs=0, nDurs=0
+    integer::nTTs, nDurs
+    !f2py integer::nTTs, nDurs
 
     real(dp)::inv_dof
 
@@ -124,6 +125,20 @@ contains
 
         return
     end subroutine set_integration_time
+
+    ! --- get data info
+    subroutine get_data_info()
+
+        flush(6)
+        write(*, '(a, i5)') "Number of RV observations: ", nRV
+        write(*, '(a, i5)') "Number of RV datasets: ", nRVset
+        write(*, '(a, i5)') "Number of T0 observations: ", nTTs
+        write(*, '(a, i5)') "Number of Dur observations: ", nDurs
+        flush(6)
+
+        return
+    end subroutine get_data_info
+
     ! ============================================================================
 
     ! ============================================================================
@@ -991,12 +1006,12 @@ contains
         NBDIM = n_body*6
 
         if (allocated(e_bounds)) deallocate (e_bounds)
-        allocate (e_bounds(2, n_body))
+        allocate(e_bounds(2, n_body))
         e_bounds(1, :) = zero
         e_bounds(2, :) = one-TOL_dp
 
         call deallocate_dataObs(obsData)
-        allocate (obsData%obsT0(n_body-1))
+        allocate(obsData%obsT0(n_body-1))
 
         call set_durcheck(duration_check) ! updating durcheck global variable
 
@@ -1119,7 +1134,7 @@ contains
 
     ! ============================================================================
   !!! SUBROUTINE TO RUN TRADES INTEGRATION FROM PyORBIT
-    subroutine kelements_to_rv_and_t0s(t_start, t_epoch, t_int,&
+    subroutine kelements_to_rv_and_t0s(t_epoch, t_start, t_int,&
         &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
         &transit_flag,& ! input
         &rv_sim,&
@@ -1127,8 +1142,8 @@ contains
         &n_body, n_rv, n_tt, n_kep) ! dimensions to be not provided
 
         ! INPUT
-        ! t_start      == start of the integration
         ! t_epoch      == reference time epoch
+        ! t_start      == start of the integration
         ! t_int        == total integration time in days
 
         ! m_msun       == masses of all the bodies in Msun m_sun(n_body)
@@ -1157,7 +1172,7 @@ contains
 
         ! Input
         integer, intent(in)::n_body, n_rv, n_tt, n_kep
-        real(dp), intent(in)::t_start, t_epoch, t_int
+        real(dp), intent(in)::t_epoch, t_start, t_int
         real(dp), dimension(n_body), intent(in)::m_msun, R_rsun, P_day
         real(dp), dimension(n_body), intent(in)::ecc, argp_deg, mA_deg, inc_deg, lN_deg
         logical, dimension(n_body), intent(in)::transit_flag
@@ -1177,9 +1192,10 @@ contains
         real(dp), dimension(:, :), allocatable::kel_temp
         real(dp)::step
 
+
         step = minval(P_day(2:NB))/ten
 
-        call integration_info_to_data(t_start, t_epoch, step, t_int,&
+        call integration_info_to_data(t_epoch, t_start, step, t_int,&
             &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
             &id_transit_body, transit_flag, durcheck,&
             &rv_temp,&
@@ -1207,14 +1223,14 @@ contains
         return
     end subroutine kelements_to_rv_and_t0s
 
-    subroutine kelements_to_rv(t_start, t_epoch, t_int,&
+    subroutine kelements_to_rv(t_epoch, t_start, t_int,&
         &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
         &rv_sim, stable,&
         &n_body, n_rv) ! dimensions to be not provided
 
         ! INPUT
-        ! t_start      == start of the integration
         ! t_epoch      == reference time epoch
+        ! t_start      == start of the integration
         ! t_int        == total integration time in days
 
         ! m_msun       == masses of all the bodies in Msun m_sun(n_body)
@@ -1235,7 +1251,7 @@ contains
 
         ! Input
         integer, intent(in)::n_body, n_rv
-        real(dp), intent(in)::t_start, t_epoch, t_int
+        real(dp), intent(in)::t_epoch, t_start, t_int
         real(dp), dimension(n_body), intent(in)::m_msun, R_rsun, P_day
         real(dp), dimension(n_body), intent(in)::ecc, argp_deg, mA_deg, inc_deg, lN_deg
 
@@ -1257,7 +1273,7 @@ contains
         transit_flag = .false.
         step = minval(P_day(2:NB))/ten
 
-        call integration_info_to_data(t_start, t_epoch, step, t_int,&
+        call integration_info_to_data(t_epoch, t_start, step, t_int,&
             &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
             &id_transit_body, transit_flag, durcheck,&
             &rv_temp,&
@@ -1273,15 +1289,15 @@ contains
         return
     end subroutine kelements_to_rv
 
-    subroutine kelements_to_t0s(t_start, t_epoch, t_int,&
+    subroutine kelements_to_t0s(t_epoch, t_start, t_int,&
         &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
         &transit_flag,& ! input
         &body_t0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable,& ! output
         &n_body, n_tt, n_kep) ! dimensions to be not provided
 
         ! INPUT
-        ! t_start      == start of the integration
         ! t_epoch      == reference time epoch
+        ! t_start      == start of the integration
         ! t_int        == total integration time in days
 
         ! m_msun       == masses of all the bodies in Msun m_sun(n_body)
@@ -1309,7 +1325,7 @@ contains
 
         ! Input
         integer, intent(in)::n_body, n_tt, n_kep
-        real(dp), intent(in)::t_start, t_epoch, t_int
+        real(dp), intent(in)::t_epoch, t_start, t_int
         real(dp), dimension(n_body), intent(in)::m_msun, R_rsun, P_day
         real(dp), dimension(n_body), intent(in)::ecc, argp_deg, mA_deg, inc_deg, lN_deg
         logical, dimension(n_body), intent(in)::transit_flag
@@ -1330,14 +1346,12 @@ contains
 
         step = minval(P_day(2:NB))/ten
 
-        call integration_info_to_data(t_start, t_epoch, step, t_int,&
+        call integration_info_to_data(t_epoch, t_start, step, t_int,&
             &m_msun, R_rsun, P_day, ecc, argp_deg, mA_deg, inc_deg, lN_deg,&
             &id_transit_body, transit_flag, durcheck,&
             &rv_temp,&
             &body_t0_temp, epo_temp,&
-            &t0_temp, t14_temp, lbd_rm_temp, kel_temp,stable)
-
-        ! rv_sim      = rv_temp
+            &t0_temp, t14_temp, lbd_rm_temp, kel_temp, stable)
 
         body_t0_sim = body_t0_temp
         epo_sim = epo_temp
@@ -1364,7 +1378,6 @@ contains
         real(dp), dimension(n_steps, nb_dim), intent(out)::orbits
         logical,intent(out)::check
 
-        call args_init(n_body, 1)
         call ode_keplerian_elements_to_orbits(time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits, check)
 
         return

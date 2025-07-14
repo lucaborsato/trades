@@ -1234,14 +1234,14 @@ contains
 ! simulated RV (simRV as dataRV type), simulated transit times (simT0 as dataT0 type for each planet)
 ! =============================================================================
 ! =============================================================================
-    subroutine integration_info_to_observables(t_start, t_epoch, step_in, t_int,&
+    subroutine integration_info_to_observables(t_epoch, t_start, step_in, t_int,&
         &mass, radius, period, ecc, argp, meanA, inc, longN,&
         &obsData_in,&
         &id_transit_body, transit_flag, dur_check,&
         &simRV, simT0,&
         &stable)
 
-        real(dp), intent(in)::t_start, t_epoch, step_in, t_int
+        real(dp), intent(in)::t_epoch, t_start, step_in, t_int
         real(dp), dimension(:), intent(in)::mass, radius, period, ecc, argp, meanA, inc, longN
 
         type(dataObs), intent(in)::obsData_in
@@ -1380,7 +1380,7 @@ contains
 ! given by max number of T0 among all planets, and columns the number of planets)
 ! =============================================================================
 ! =============================================================================
-    subroutine integration_info_to_data(t_start, t_epoch, step_in, t_int,&
+    subroutine integration_info_to_data(t_epoch, t_start, step_in, t_int,&
         &mass, radius, period, ecc, argp, meanA, inc, longN,&
         &id_transit_body, transit_flag, dur_check,&
         &RV_sim,&
@@ -1388,7 +1388,7 @@ contains
         &T0_sim, T14_sim, lambda_rm_sim, kep_elem_sim,&
         &stable)
         ! Input
-        real(dp), intent(in)::t_start, t_epoch, step_in, t_int
+        real(dp), intent(in)::t_epoch, t_start, step_in, t_int
         real(dp), dimension(:), intent(in)::mass, radius, period, ecc, argp, meanA, inc, longN
         integer, intent(in)::id_transit_body
         logical, dimension(:), intent(in)::transit_flag
@@ -1416,7 +1416,9 @@ contains
             RV_sim = zero
         end if
 
-        call integration_info_to_observables(t_start, t_epoch, step_in, t_int,&
+        nTTs = obsData % nTTs
+
+        call integration_info_to_observables(t_epoch, t_start, step_in, t_int,&
             &mass, radius, period, ecc, argp, meanA, inc, longN,&
             &obsData, id_transit_body, transit_flag, dur_check,&
             &simRV, simT0, stable)
@@ -1425,8 +1427,6 @@ contains
             ! allocate (RV_sim(nRV))
             RV_sim = simRV % RV
         end if
-
-        nTTs = obsData % nTTs
 
         nstart = 1
         nend = 0

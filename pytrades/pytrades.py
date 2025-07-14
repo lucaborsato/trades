@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 anc.set_rcParams()
 
 # =============================================================================
+get_data_info = f90trades.get_data_info
 set_fitness = f90trades.set_fitness
 convert_trades_par_to_kepelem = f90trades.convert_trades_par_to_kepelem
 compute_ln_priors = f90trades.compute_ln_priors
@@ -220,8 +221,8 @@ def deallocate_t0_dataset(body_id):
 
 # =============================================================================
 def kelements_to_observed_rv_and_t0s(
-    t_start,
     t_epoch,
+    t_start,
     t_int,
     M_msun,
     R_rsun,
@@ -237,8 +238,8 @@ def kelements_to_observed_rv_and_t0s(
     Computes observed radial velocities (RVs) and T0s based on given Keplerian elements.
     
     Parameters:
-        t_start (float): start time
         t_epoch (float): epoch time
+        t_start (float): start time
         t_int (float): integration time step
         M_msun (float): mass of the sun
         R_rsun (float): radius of the sun
@@ -260,15 +261,15 @@ def kelements_to_observed_rv_and_t0s(
     # print("Computing RVs and T0s ...", flush=True)
     # print("n_rv    = {}".format(n_rv), flush=True)
     # print("n_T0s   = {}".format(n_T0s), flush=True)
-    # print("t_start = {}".format(t_start), flush=True)
     # print("t_epoch = {}".format(t_epoch), flush=True)
+    # print("t_start = {}".format(t_start), flush=True)
     # print("t_int   = {}".format(t_int), flush=True)
     # print("", flush=True)
 
     (rv_sim, body_T0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable) = (
         f90trades.kelements_to_rv_and_t0s(
-            t_start,
             t_epoch,
+            t_start,
             t_int,
             M_msun,
             R_rsun,
@@ -290,8 +291,8 @@ def kelements_to_observed_rv_and_t0s(
 
 # =============================================================================
 def kelements_to_observed_rv(
-    t_start,
     t_epoch,
+    t_start,
     t_int,
     M_msun,
     R_rsun,
@@ -307,8 +308,8 @@ def kelements_to_observed_rv(
     Computes observed radial velocities (RVs) based on given Keplerian elements.
     
     Parameters:
-        t_start (float): start time
         t_epoch (float): epoch time
+        t_start (float): start time
         t_int (float): integration time step
         M_msun (float): mass of the sun
         R_rsun (float): radius of the sun
@@ -325,8 +326,8 @@ def kelements_to_observed_rv(
 
     n_rv = f90trades.nrv
     rv_sim, stable = f90trades.kelements_to_rv(
-        t_start,
         t_epoch,
+        t_start,
         t_int,
         M_msun,
         R_rsun,
@@ -344,8 +345,8 @@ def kelements_to_observed_rv(
 
 # =============================================================================
 def kelements_to_observed_t0s(
-    t_start,
     t_epoch,
+    t_start,
     t_int,
     M_msun,
     R_rsun,
@@ -361,8 +362,8 @@ def kelements_to_observed_t0s(
     Computes orbits from a given set of Keplerian elements and generates RVs and T0s.
 
     Parameters:
-        t_start (float): start time
         t_epoch (float): epoch time
+        t_start (float): start time
         t_int (float): integration time step
         M_msun (float): mass of the sun
         R_rsun (float): radius of the sun
@@ -382,8 +383,8 @@ def kelements_to_observed_t0s(
     n_T0s = f90trades.ntts
     body_T0_sim, epo_sim, t0_sim, t14_sim, lambda_rm_sim, kel_sim, stable = (
         f90trades.kelements_to_t0s(
-            t_start,
             t_epoch,
+            t_start,
             t_int,
             M_msun,
             R_rsun,
@@ -585,7 +586,7 @@ def orbits_to_rvs(M_msun, orbits):
 
 
 def orbits_to_transits(
-    n_all_transits, time_steps, M_msun, R_rsun, orbits, transiting_body
+    n_all_transits, time_steps, M_msun, R_rsun, orbits, transiting_body=1
 ):
     """
     Convert orbital state vectors to transit times and durations.
@@ -721,6 +722,7 @@ def orbital_parameters_to_transits(
     n_body = len(mass)
     # Determine the number of transits ... it has to be done in advance
     # n_transits = (t_int / period[1:]).astype(int)
+    # n_transits = len(time_steps)
     # n_all_transits = np.sum(n_transits) + (
     #     n_body - 1
     # )  # star has no transits by definition
@@ -1790,8 +1792,8 @@ class PhotoTRADES:
         """
 
         time_steps, orbits, stable = kelements_to_orbits_full(
-            self.t_start,
             self.t_epoch,
+            self.t_start,
             self.t_int,
             mass,
             radius,
@@ -1847,8 +1849,8 @@ class PhotoTRADES:
             rv_sim,
             stable,
         ) = orbital_parameters_to_transits(
-            self.t_start,
             self.t_epoch,
+            self.t_start,
             self.t_int,
             mass,
             radius,
@@ -3032,8 +3034,8 @@ class TRADESfolder:
 
     def computes_observables_from_keplerian_elements(
         self,
-        t_start,
         t_epoch,
+        t_start,
         t_int,
         mass,
         radius,
@@ -3050,8 +3052,8 @@ class TRADESfolder:
 
         Parameters:
             self: the object instance
-            t_start: the start time
             t_epoch: the epoch time
+            t_start: the start time
             t_int: the integration time
             mass: the mass
             radius: the radius
@@ -3088,8 +3090,8 @@ class TRADESfolder:
             kel_sim,
             stable,
         ) = f90trades.kelements_to_rv_and_t0s(
-            t_start,
             t_epoch,
+            t_start,
             t_int,
             mass,
             radius,
@@ -3117,15 +3119,15 @@ class TRADESfolder:
         )
 
     def computes_observables_from_default_keplerian_elements(
-        self, t_start, t_epoch, t_int, transit_flag=None
+        self, t_epoch, t_start, t_int, transit_flag=None
     ):
         """
         A function that computes observables from default Keplerian elements.
 
         Parameters:
             self: the object instance
-            t_start: the start time
             t_epoch: the epoch time
+            t_start: the start time
             t_int: the integration time
             transit_flag: the transit flag (default is None)
 
@@ -3153,8 +3155,8 @@ class TRADESfolder:
             kel_sim,
             stable,
         ) = self.computes_observables_from_keplerian_elements(
-            t_start,
             t_epoch,
+            t_start,
             t_int,
             self.mass,
             self.radius,
