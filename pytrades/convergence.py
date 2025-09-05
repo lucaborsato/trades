@@ -220,6 +220,7 @@ def full_statistics(
     pars,
     lnp_post,
     output_folder,
+    overplot_par_name="???",
     olog=None,
     ilast=0,
     n_burn=0,
@@ -471,7 +472,10 @@ def full_statistics(
             zorder=3,
         )
         midr.axhline(
-            p, color="C1", ls="-", lw=1.3, alpha=1.0, label="MAP", zorder=5
+            p, color="C1", ls="-", lw=1.3, alpha=1.0,
+            # label="MAP",
+            label=overplot_par_name,
+            zorder=5
         )
         midr.axhline(
             hdi1[0],
@@ -527,7 +531,10 @@ def full_statistics(
             zorder=2,
         )
         bot.axvline(
-            p, color="C1", ls="-", lw=1.3, alpha=1.0, label="MAP", zorder=5
+            p, color="C1", ls="-", lw=1.3, alpha=1.0,
+            # label="MAP", 
+            label=overplot_par_name,
+            zorder=5
         )
         bot.axvline(
             hdi1[0],

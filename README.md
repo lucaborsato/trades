@@ -31,6 +31,7 @@ git clone https://github.com/lucaborsato/trades.git
 
 ## Create conda environment
 
+
 I suggest to create an `anaconda environment`, install all the dependencies and then do `make full_parallel_release`.  
 **WARNING**: not working with `python>3.10`, `numpy>1.23.5`, and `setuptools>65.6.3` due to deprecated `distutils` for `f2py`, now using `meson`.  
 
@@ -38,34 +39,34 @@ I suggest to create an `anaconda environment`, install all the dependencies and 
 
 create env with python and numpy and matplotlib  
 
-`conda create --name trades_env python=3.10 numpy=1.23.5 matplotlib`  
+`conda create --name trades_env python=3.10 numpy=1.23.5 matplotlib -y`  
 
 activate env  
 `conda activate trades_env`  
 
 install `cython` (optional, could be used from other packages):  
-`conda install cython`  
+`conda install cython -y`  
 
 install `h5py`, `pyyaml`, `tqdm`, `emcee`, `scipy`, `pandas`, `pygtc`:  
 
-`conda install h5py`  
+`conda install h5py -y`  
 `pip install pyyaml`  
-`conda install -c conda-forge tqdm`  
+`conda install -c conda-forge tqdm -y`  
 `pip install corner`  
-`conda install -c conda-forge emcee`  
-`conda install -c conda-forge pandas`  
-`conda install -c conda-forge scipy`  
-`conda install -c conda-forge astropy`  
-`conda install -c conda-forge pygtc`  
+`conda install -c conda-forge emcee -y`  
+`conda install -c conda-forge pandas -y`  
+`conda install -c conda-forge scipy -y`  
+`conda install -c conda-forge astropy -y`  
+`conda install -c conda-forge pygtc -y`  
 
 some packages needs `celerite`:  
-`conda install -c conda-forge pybind11`  
-`conda install -c conda-forge celerite`  
+`conda install -c conda-forge pybind11 -y`  
+`conda install -c conda-forge celerite -y`  
 
 for photo-dynamical approach it is needed to install `pytransit`:  
-`conda install -c conda-forge numba cudatoolkit`  
+`conda install -c conda-forge numba cudatoolkit -y`  
 `pip install semantic-version`  
-`conda install -c conda-forge arviz`  
+`conda install -c conda-forge arviz -y`  
 `git clone https://github.com/hpparvi/PyTransit.git`  
 `cd PyTransit`  
 `pip install .`  
@@ -79,18 +80,18 @@ install `pytransit` with:
 ### Optional - `dynesty` and `ultranest`
 Still not fully tested and in development, `dynesty` and `ultranest`:  
 `pip install dynesty`  
-`conda install -c conda-forge ultranest`  
+`conda install -c conda-forge ultranest -y`  
 (could use `mpi4py`, install could lead to some issues)  
 
 ### IMPORTANT
 
 Due to upgrades of the different packages, `setuptools` will be upgraded breaking the compilation through `f2py`.
 Force `setuptools` to the version `65.6.3` and it should compile fine.  
-`conda install setuptools=65.6.3`  
+`conda install setuptools=65.6.3 -y`  
 
 ## Compile the `fortran` sources and build the `python` library
 
-**Required: a fortran compiler, such as `gfortran`**  
+**Required: a fortran compiler, such as `gfortran`** 
 
 Download and compile `fortran90` and `python` libraries:  
 
@@ -546,7 +547,7 @@ transits, durations, lambda_rm, kep_elem, body_flag = pytrades.orbits_to_transit
 planets_transits = {}
 
 for i, pl_name in enumerate(body_names[1:]): # start from the first planet
-    pl_num = i+2 # first planet will have i = 0, pl_num = 2
+    pl_num = i+1 # first planet will have i = 1, pl_num = 2
     sel = body_flag == pl_num
     planets_transits[pl_name] = {
       "planet_num": pl_num,
@@ -560,8 +561,7 @@ for i, pl_name in enumerate(body_names[1:]): # start from the first planet
 ### `photoTRADES` - photo-dynamical model
 
 See the jupyter notebook about the photo-dynamical model with [photoTRADES](./trades_example/photoTRADES_TOI-1130/) in the example folder.
-Data from [Borsato et al., 2024](https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..52B/abstract) about the analysis of the TOI-1130 multi-planet system.  
-
+Data from [Borsato et al., 2024](https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..52B/abstract) about the analysis of the TOI-1130 multi-planet system.
 
 ### From script and folder with `yml` configurations
 

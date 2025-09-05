@@ -66,69 +66,6 @@ contains
         return
     end subroutine transit_conditions
 
-    ! subroutine check_if_excluded_timerange(i_body, mass, radii, t_epoch, itime1, itime2, r1, r2, integration_step,&
-    !     &excl_body, excl_tranges, excl_status, transit_in_excluded)
-    !     ! Input
-    !     integer, intent(in)::i_body
-    !     real(dp), dimension(:), intent(in)::mass, radii
-    !     real(dp), intent(in)::t_epoch
-    !     real(dp), intent(in)::itime1, itime2
-    !     real(dp), dimension(:), intent(in)::r1, r2
-    !     real(dp), intent(in)::integration_step
-
-    !     integer, dimension(:), intent(in)::excl_body
-    !     real(dp), dimension(:, :), intent(in)::excl_tranges
-    !     ! Input/Output
-    !     integer, dimension(:), intent(inout)::excl_status
-    !     ! Output
-    !     logical, intent(inout)::transit_in_excluded
-        
-    !     ! Local
-    !     integer::n_excl, i_excl
-    !     logical, dimension(:), allocatable::sel_body
-    !     integer::n_sel
-    !     ! real(dp), dimension(:, :), allocatable::excl_tranges_body
-    !     ! integer, dimension(:), allocatable::excl_status_body
-    !     real(dp)::tmin, tmax, tr1, tr2
-    !     logical::overlap
-    !     real(dp)::ttra, dur_tra, half_dur, alpha
-    !     real(dp), dimension(4)::tcont
-    !     logical::check_ttra, check_t0, check_t1, check_t4
-
-    !     tr1 = t_epoch + itime1
-    !     tr2 = t_epoch + itime2
-    !     n_excl = size(excl_body)
-
-    !     allocate (sel_body(size(excl_body)))
-    !     sel_body = excl_body .eq. i_body
-    !     n_sel = count(sel_body)
-
-    !     if (n_sel .gt. 0) then
-
-    !         do i_excl = 1, n_excl
-    !             if (excl_status(i_excl) .eq. 0) then
-    !                 tmin = excl_tranges(i_excl, 1)
-    !                 tmax = excl_tranges(i_excl, 2)
-    !                 call compare_inttime_timerange(tr1, tr2, tmin, tmax, overlap)
-    !                 if (overlap) then
-    !                     call transit_and_contact_time(t_epoch, i_body, mass, radii, r1, r2, tr1, integration_step,&
-    !                         &ttra, dur_tra, tcont, alpha, check_ttra)
-    !                     ! update CHECKS t0 t1 t4 ==> transit_in_excluded
-    !                     ! transit_in_excluded = &
-    !                     !     & ((tcont(1) .ge. excl_tranges_body(i_excl, 1)) .and. (tcont(1) .lt. excl_tranges_body(i_excl, 2)))&
-    !                     !     & .or. &
-    !                     !     & ((tcont(4) .gt. excl_tranges_body(i_excl, 1)) .and. (tcont(4) .le. excl_tranges_body(i_excl, 2)))
-    !                     ! if (transit_in_excluded) write(*,*)"i_body ",i_body," i_excl ", i_excl, tcont(1), tcont(4), excl_tranges_body(i_excl, :)
-    !                 end if
-    !             end if
-    !         end do
-    !         ! deallocate (excl_status_body, excl_tranges_body)
-    !     end if
-    !     deallocate (sel_body)
-
-    !     return
-    ! end subroutine check_if_excluded_timerange
-
     subroutine check_if_excluded_timerange(i_body, mass, radii, tepoch, itime1, itime2, r1, r2, integration_step,&
         &T0,transit_in_excluded)
         ! Input
@@ -154,43 +91,37 @@ contains
         tr2 = tepoch + itime2
 
         nexcl = T0%n_excl
-        n_status = sum(T0%excluded_status)
+        if (nexcl .gt. 0) then
+            n_status = sum(T0%excluded_status)
 
-        if ((nexcl .gt. 0).and.(n_status .lt. nexcl)) then
+            if (n_status .lt. nexcl) then
 
-            do i_excl = 1, nexcl
-                if (T0%excluded_status(i_excl) .eq. 0) then
-                    tmin = T0%excluded_time_ranges(i_excl, 1)
-                    tmax = T0%excluded_time_ranges(i_excl, 2)
-                    call compare_inttime_timerange(tr1, tr2, tmin, tmax, overlap)
-                    if (overlap) then
-                        call transit_and_contact_time(tepoch, i_body, mass, radii, r1, r2, itime1, integration_step,&
-                        &ttra, dur_tra, tcont, alpha, check_ttra)
-                        check_t0 = (ttra .ge. tmin) .and. (ttra .le. tmax)
-                        check_t1 = (tcont(1) .ge. tmin) .and. (tcont(1) .lt. tmax)
-                        check_t4 = (tcont(4) .gt. tmin) .and. (tcont(4) .le. tmax)
-                        check_this = (check_t0 .or. check_t1 .or. check_t4)
-                        transit_in_excluded = (transit_in_excluded .or. check_this)
-                        T0%excluded_t0 = ttra
-                        T0%excluded_t1 = tcont(1)
-                        T0%excluded_t4 = tcont(4)
-                        write(*,*)"i_body ",i_body," i_excl ", i_excl
-                        write(*,*)"t1 = ",tr1, " t2 = ",tr2," tmin = ",tmin," tmax = ",tmax," overlap = ",overlap
-                        write(*,*)"T0 = ",ttra," T1 = ",tcont(1)," T4 = ",tcont(4)
-                        write(*,*)"check T0 - T1 - T4 & this: ",check_t0, check_t1, check_t4, check_this
-                        write(*,*)"transit_in_excluded: ",transit_in_excluded
-                        flush(6)
-                        if (check_this) then
-                            T0%excluded_status(i_excl) = 1
+                do i_excl = 1, nexcl
+                    if (T0%excluded_status(i_excl) .eq. 0) then
+                        tmin = T0%excluded_time_ranges(i_excl, 1)
+                        tmax = T0%excluded_time_ranges(i_excl, 2)
+                        call compare_inttime_timerange(tr1, tr2, tmin, tmax, overlap)
+                        if (overlap) then
+                            call transit_and_contact_time(tepoch, i_body, mass, radii, r1, r2, itime1, integration_step,&
+                            &ttra, dur_tra, tcont, alpha, check_ttra)
+                            check_t0 = (ttra .ge. tmin) .and. (ttra .le. tmax)
+                            check_t1 = (tcont(1) .ge. tmin) .and. (tcont(1) .lt. tmax)
+                            check_t4 = (tcont(4) .gt. tmin) .and. (tcont(4) .le. tmax)
+                            check_this = (check_t0 .or. check_t1 .or. check_t4)
+                            transit_in_excluded = (transit_in_excluded .or. check_this)
+                            T0%excluded_t0 = ttra
+                            T0%excluded_t1 = tcont(1)
+                            T0%excluded_t4 = tcont(4)
+                            if (check_this) then
+                                T0%excluded_status(i_excl) = 1
+                            end if
                         end if
-                        write(*,*)"status = ",T0%excluded_status(i_excl)
-                        flush(6)
                     end if
-                end if
-            end do
-            ! deallocate (excl_status_body, excl_tranges_body)
-        end if
-        ! deallocate (sel_body)
+                end do
+                ! deallocate (excl_status_body, excl_tranges_body)
+            end if
+            ! deallocate (sel_body)
+        end if  ! nexcl
 
         return
     end subroutine check_if_excluded_timerange
@@ -260,6 +191,8 @@ contains
         logical::do_transit_check, search_obs_transit, transit_in_excluded
 
         integer::nRV, nTTs, nexcl_all
+
+        integer::ibd
 
         nRV = obsDataIn % obsRV % nRV
         nTTs = obsDataIn % nTTs
@@ -332,12 +265,11 @@ contains
                         if (nexcl_all .gt. 0) then
                             call check_if_excluded_timerange(i_body, mass, radius,&
                                 &t_epoch, trun1, trun2, r1, r2, integration_step,&
-                                &simT0(i_body-1),transit_in_excluded)
+                                &simT0(i_body-1), transit_in_excluded)
+
                             if (transit_in_excluded) then
-                                ! Hc = .false.
-                                ! exit integration
-                                write(*,*)" in ode_full_args: transit_in_excluded is ", transit_in_excluded, " and Hc is ", Hc
-                                flush(6)
+                                Hc = .false.
+                                exit integration
                             end if
                         end if
 
@@ -802,6 +734,7 @@ contains
                 simT0(ibd) % edur = one / 60.0_dp ! 1s in min
                 if (n_excluded .gt. 0)then
                     nexcl = obsDataIn % obsT0(ibd) % n_excl
+
                     if (nexcl .gt. 0)then
                         call init_dataT0_excluded(nexcl, obsData%obsT0(ibd)%excluded_time_ranges, simT0(ibd))
                     end if
@@ -880,27 +813,18 @@ contains
         integer::ibd
         integer::ns, ne
 
-        ! ! DEBUG
-        ! logical::debugging
-        ! character(512)::debug
-
-        ! debugging=.true.
-
         ndata = obsData % ndata
         nRV = obsData % obsRV % nRV
         nTTs = obsData % nTTs
         nDurs = obsData % nDurs
 
         stable = .true.
-        ! resw = zero
         checkpar = .true.
 
         allocate (mass(NB), radius(NB), period(NB), sma(NB), ecc(NB))
         allocate (argp(NB), meanA(NB), inc(NB), longN(NB))
 
         call convert_parameters(allpar, par, mass, radius, period, sma, ecc, argp, meanA, inc, longN, checkpar)
-
-        ! write(debug, '(a,l)')"----------- ode_lm: checkpar: ",checkpar
 
         if (.not. checkpar) then
             resw = set_max_residuals(ndata)
@@ -934,17 +858,12 @@ contains
             end if
 
             ! call set_weighted_residuals(obsData, simRV, simT0, resw, oc_fit)
-            ! write(debug, '(a,a,4(i4,1x))')trim(debug)," obsData%obsT0(:)nT0 = ",obsData%obsT0(:)%nT0
             call set_weighted_residuals(obsData, simRV, simT0, resw)
 
         end if
 
-        ! -- DEBUG
-        ! call write_T0_s(simT0)
-
         call deallocate_dataRV(simRV)
         if (nTTs .gt. 0) then
-            ! -- DEBUG
             do ibd = 1, NB - 1
                 call deallocate_dataT0(simT0(ibd))
             end do
@@ -952,12 +871,6 @@ contains
 
         if (allocated(mass)) deallocate (mass, radius, period, sma, ecc, argp, meanA, inc, longN)
         if (allocated(ra0)) deallocate (ra0, ra1)
-
-        ! write(debug, '(a,a,es25.15E3)')trim(debug)," sum(resw*resw) = ",sum(resw*resw)
-        ! if (debugging)then
-        !     write(*, *)trim(debug)
-        !     flush(6)
-        ! end if
 
         return
     end subroutine ode_lm

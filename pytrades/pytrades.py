@@ -3426,7 +3426,7 @@ def base_plot_orbits(
     axs.append(ax)
 
     # ---------------------------
-    # Z vs X == side plane
+    # Z vs Y == side plane
     irow, icol = 1, 1
 
     ax = plt.subplot2grid((nrows, ncols), (irow, icol))
@@ -3457,30 +3457,30 @@ def base_plot_orbits(
             zorder=zo_z + i_pl + 1,
         )
         Zpos = Z[:, i_pl] > 0.0
-        ax.plot(
-            Z[Zpos, i_pl],
-            Y[Zpos, i_pl],
-            marker="o",
-            ms=ms_z,
-            mfc="None",
-            mec="black",
-            mew=0.4,
-            ls="",
-            zorder=zo_z + i_pl + 1,
-        )
+        # ax.plot(
+        #     Z[Zpos, i_pl],
+        #     Y[Zpos, i_pl],
+        #     marker="o",
+        #     ms=ms_z,
+        #     mfc="None",
+        #     mec="black",
+        #     mew=0.4,
+        #     ls="",
+        #     zorder=zo_z + i_pl + 1,
+        # )
         Zneg = Zpos == False
-        ax.plot(
-            Z[Zneg, i_pl],
-            Y[Zneg, i_pl],
-            marker="o",
-            ms=ms_z,
-            mfc="None",
-            mec="white",
-            mew=0.3,
-            ls="",
-            # zorder=zo_z + i_pl + 0,
-            zorder=zo_s - 1,
-        )
+        # ax.plot(
+        #     Z[Zneg, i_pl],
+        #     Y[Zneg, i_pl],
+        #     marker="o",
+        #     ms=ms_z,
+        #     mfc="None",
+        #     mec="white",
+        #     mew=0.3,
+        #     ls="",
+        #     # zorder=zo_z + i_pl + 0,
+        #     zorder=zo_s - 1,
+        # )
     # ax.legend(loc='best', fontsize=leg_size)
     ax.set_title("side plane - observer at right", fontsize=tic_size)
     ax.set_xlabel("Z (au)")
@@ -3489,6 +3489,10 @@ def base_plot_orbits(
         lims = [-scale * rstar, +scale * rstar]
         xlims = lims
         ylims = lims
+    elif "pos" in side_scale.lower():
+        dZp = np.ptp(Z[Zpos, :])
+        xlims = [-scale * rstar, np.max(Z)+ dZp*0.03]
+        ylims = [-scale * rstar, +scale * rstar]
     else:
         xlims = ax.get_xlim()
         # ylims = ax.get_ylim()

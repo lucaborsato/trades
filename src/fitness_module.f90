@@ -75,11 +75,6 @@ contains
         real(dp), dimension(:), allocatable::run_all_parameters
         integer::iflag
         logical::check_status
-        ! !! DEBUG
-        ! logical::debugging
-        ! character(512)::debug
-
-        ! debugging = .true.
 
         iflag = 1
         check = .true.
@@ -87,49 +82,56 @@ contains
 
         check = check_only_boundaries(all_parameters, fit_parameters)
         
-        ! write(debug, '(a,l)') "----------- fitness_function:: check_only_boundaries : ",check
+        ! write(*, '(a,l)') "----------- fitness_function:: check_only_boundaries : ",check
+        ! flush(6)
         
         lnprior = zero
 
         ! write(*,*)"=== "
         if (check) then
             ! write(*,*)"=== in bound_fitness_function (check is True)"
+            ! flush(6)
+
             allocate (run_all_parameters(npar))
             run_all_parameters = all_parameters
             if (check_derived) check_status = check_derived_parameters(fit_parameters)
             if (fix_derived) call fix_derived_parameters(fit_parameters, run_all_parameters, check_status)
         
-            ! write(debug, '(a, a, l)')trim(debug)," check_status : ", check_status
+            ! write(*, '(a, a, l)')" check_status : ", check_status
+            ! flush(6)
         
             if (check_status) then
                 call base_fitness_function(run_all_parameters, fit_parameters,&
                     &chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic)
+                
                 ! write(*,*)"=== in bound_fitness_function (check_status is True)"
                 ! write(*,*)"=== chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic"
                 ! write(*,*)chi_square, reduced_chi_square, lnLikelihood, lnprior, ln_const, bic
+                ! flush(6)
+
             else ! check_status
+                
                 ! write(*,*)"=== in bound_fitness_function (check_status is False)"
                 ! write(*,*)"=== set statistics to bad values"
+                ! flush(6)
+
                 chi_square = resmax
                 call set_fitness_values(fit_parameters, chi_square,&
                     &reduced_chi_square, lnLikelihood, ln_const, bic)
             end if
             deallocate (run_all_parameters)
         else
+
             ! write(*,*)"=== in bound_fitness_function (check is False)"
             ! write(*,*)"=== set statistics to bad values"
+            ! flush(6)
+
             chi_square = resmax
             call set_fitness_values(fit_parameters, chi_square,&
                 &reduced_chi_square, lnLikelihood, ln_const, bic)
         end if
         
-        ! write(debug, '(a, a, ES25.15E3)')trim(debug)," chi_square : ", chi_square
-
-        ! if (debugging)then
-        !     write(*,*)trim(debug)
-        !     ! write(*,*)"=== "
-        !     flush(6)
-        ! end if
+        ! flush(6)
 
         return
     end subroutine bound_fitness_function

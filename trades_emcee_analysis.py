@@ -1177,11 +1177,13 @@ def run_analysis(cli):
                 l = "fitted"
                 if overplot is not None:
                     sim_id_str = "{}".format(overplot)
+                    overplot_name = "{}".format(overplot)
                     print("overplot -> sim_id_str = {}".format(sim_id_str))
                     overp_par = s_h5f[
                         "parameters/{:s}/{:s}/parameters".format(sim_id_str, l)
                     ][...]
                 else:
+                    overplot_name = "MAP"
                     overp_par = analysis.fitting_posterior[
                         np.argmax(analysis.lnprob_posterior), :
                     ]
@@ -1192,6 +1194,7 @@ def run_analysis(cli):
                     overp_par,
                     analysis.lnprob_posterior,
                     plots_folder,
+                    overplot_par_name=overplot_name.upper(),
                     olog=olog,
                     ilast=0,
                     n_burn=cli.nburnin,
@@ -1203,11 +1206,13 @@ def run_analysis(cli):
                 l = "physical"
                 if overplot is not None:
                     sim_id_str = "{}".format(overplot)
+                    overplot_name = "{}".format(overplot)
                     print("overplot -> sim_id_str = {}".format(sim_id_str))
                     overp_par = s_h5f[
                         "parameters/{:s}/{:s}/parameters".format(sim_id_str, l)
                     ][...]
                 else:
+                    overplot_name = "MAP"
                     overp_par = analysis.physical_posterior[
                         np.argmax(analysis.lnprob_posterior), :
                     ]
@@ -1218,6 +1223,7 @@ def run_analysis(cli):
                     overp_par,
                     analysis.lnprob_posterior,
                     plots_folder,
+                    overplot_par_name=overplot_name.upper(),
                     olog=olog,
                     ilast=analysis.sim.nfit,
                     n_burn=cli.nburnin,

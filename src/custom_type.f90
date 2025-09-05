@@ -171,19 +171,18 @@ contains
         ! Input/Output
         type(dataT0), intent(inout)::T0
 
-        ! write(*,*)"init excluded"
         T0%n_excl = n_excl
-        ! write(*,*)"T0%n_excl",T0%n_excl
-        allocate (T0%excluded_time_ranges(n_excl, 2), T0%excluded_status(n_excl))
-        allocate (T0%excluded_t0(n_excl), T0%excluded_t1(n_excl), T0%excluded_t4(n_excl))
+        
+        if (.not. allocated(T0%excluded_time_ranges))then
+            allocate (T0%excluded_time_ranges(n_excl, 2), T0%excluded_status(n_excl))
+            allocate (T0%excluded_t0(n_excl), T0%excluded_t1(n_excl), T0%excluded_t4(n_excl))
+        end if
         T0%excluded_time_ranges = excluded_ranges
-        ! write(*,*)T0%excluded_time_ranges(:,1)
-        ! write(*,*)T0%excluded_time_ranges(:,2)
+        
         T0%excluded_status = 0
         T0%excluded_t0 = zero
         T0%excluded_t1 = zero
         T0%excluded_t4 = zero
-        ! flush(6)
 
         return
     end subroutine init_dataT0_excluded
