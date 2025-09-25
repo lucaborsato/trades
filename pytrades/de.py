@@ -346,7 +346,7 @@ def run_de(conf, sim, fitness_func, working_folder, of_run=None):
                 " Updated DE hdf5 file: {}".format(de_file), output=of_run
             )
         else:
-            iter_de = ngen - 1
+            iter_de = ngen_de - 1
         anc.print_both("", output=of_run)
         anc.print_both(" completed DE", output=of_run)
         anc.print_both("", output=of_run)

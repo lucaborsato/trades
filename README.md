@@ -547,7 +547,7 @@ transits, durations, lambda_rm, kep_elem, body_flag = pytrades.orbits_to_transit
 planets_transits = {}
 
 for i, pl_name in enumerate(body_names[1:]): # start from the first planet
-    pl_num = i+1 # first planet will have i = 1, pl_num = 2
+    pl_num = i+2 # first planet will have i = 0, pl_num = 2
     sel = body_flag == pl_num
     planets_transits[pl_name] = {
       "planet_num": pl_num,

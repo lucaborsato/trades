@@ -22,7 +22,7 @@ from . import constants as cst
 from . import ancillary as anc
 from . import pytrades
 
-CLI_OC = anc.CLI_OC
+# CLI_OC = anc.CLI_OC
 filled_markers = anc.filled_markers
 size_markers = anc.size_markers
 
@@ -37,7 +37,7 @@ def set_observation_sources(sources_id, idsource_name=None):
         idname = {1: "observations"}
     else:
         idname = {i: "obs.{:d}".format(i) for i in u_id}
-        colors = ["C1"]*len(idname)
+        colors = ["C0"]*len(idname)
     
     # print("idname = {}".format(idname))
     if idsource_name is not None:
@@ -351,11 +351,14 @@ def read_samples(samples_file=None):
             for kk in TTfield:
                 if "TTs_" in kk:
                     idpl = int(kk.split("_")[1])
-                    TTs = sh5["%s/%s" % (igr, kk)][...]
+                    TTs = sh5[f"{igr:s}/{kk:s}"][...]
                     try:
-                        T41s = sh5["%s/%s" % (igr, "T41s_%d" % (idpl))][...]
+                        T41key = f"T41s_{idpl:d}"
+                        T41s = sh5[f"{igr:s}/{T41key:s}"][...]
+                        # print(T41key, np.shape(T41s))
                     except:
                         T41s = np.zeros(np.shape(TTs))
+                    
                     samples.append(oc_sample(idpl, TTs, T41s))
 
         sh5.close()
@@ -419,6 +422,11 @@ def plot_oc_T41(
     bd = sim.body_id
     ibd = bd - 1
     # letters = "a b c d e f g h i j k l m n o p q r s t u v w x y z".split()
+
+    if str(cli.plot_obs_sim).lower() == 'true':
+        plot_obs_sim = True
+    else:
+        plot_obs_sim = False
 
     letters = anc.letters
     if planet_name is None:
@@ -505,11 +513,6 @@ def plot_oc_T41(
     else:
         xlabel = "Time (BJD$_\mathrm{{TDB}} - {}$)".format(fmt.format(tscale))
 
-    fig = plt.figure(figsize=figsize)
-    fig.subplots_adjust(hspace=0.05, wspace=0.25)
-
-    axs = []
-
     nrows = 3
     # if sim.ncols in [11, 19]:
     #     ncols = 2
@@ -517,8 +520,15 @@ def plot_oc_T41(
     #     ncols = 1
     if (sim.ncols == sim.ncols_tra or sim.ncols == (sim.ncols_tra+sim.ncols_kep)):
         ncols = 1
+        figsz = figsize
     else:
         ncols = 2
+        figsz = (figsize[0]*1.5, figsize[1])
+
+    fig = plt.figure(figsize=figsz)
+    fig.subplots_adjust(hspace=0.05, wspace=0.25)
+
+    axs = []
 
     malpha = 0.88
     
@@ -557,6 +567,7 @@ def plot_oc_T41(
     px = 0.05
     py = 0.05
 
+    leghandles = []
     leg_ncol = 1
     if "out" in cli.legend:
         leg_loc = "center left"
@@ -619,20 +630,23 @@ def plot_oc_T41(
                 zorder=zobs,
                 label=src,
             ))
-    # trades
-    (lsim,) = ax.plot(
-        x,
-        sim.oc_s * ocu[0],
-        marker="o",
-        color=cfs,
-        ms=mss,
-        mec=ces,
-        mew=mews,
-        ls="",
-        zorder=zsim,
-        alpha=malpha,
-        label="simulations",
-    )
+    leghandles = lobs
+    if plot_obs_sim:
+        # trades
+        (lsim,) = ax.plot(
+            x,
+            sim.oc_s * ocu[0],
+            marker="o",
+            color=cfs,
+            ms=mss,
+            mec=ces,
+            mew=mews,
+            ls="",
+            zorder=zsim,
+            alpha=malpha,
+            label="simulations",
+        )
+        leghandles.append(lsim)
     # model
     xx = oc_model.TTlin - tscale
     # xx = oc_model.TTs - tscale
@@ -649,10 +663,10 @@ def plot_oc_T41(
         alpha=1.0,
         label="model",
     )
-
+    leghandles.append(lmod)
     # samples
     if nsmp > 0:
-        print("samples plot ... ")
+        print("O-C samples plot ... ")
         if cli.plot_samples.lower() in ["ci", "sigma"]:
             try:
                 # ==== plot 1/2/3 CI        
@@ -749,19 +763,12 @@ def plot_oc_T41(
     # =================================================================
     if cli.legend.lower() == "in" or cli.legend.lower() == "out": 
         ax.legend(
-            handles= lobs + [lsim], #, lmod, lsmp[0]],
+            handles= leghandles,
             loc=leg_loc, 
             bbox_to_anchor=leg_bbox,
             ncols=leg_ncol,
             fontsize=lfont - dlfont,
         ).set_zorder(zleg)
-    # else:
-    #     ax.legend(
-    #         loc=leg_loc, 
-    #         bbox_to_anchor=leg_bbox,
-    #         ncols=leg_ncol,
-    #         fontsize=lfont - dlfont
-    #     )
 
     if cli.limits == "sam":
         dx = np.max(xxx) - np.min(xxx)
@@ -847,6 +854,7 @@ def plot_oc_T41(
     if n_cols and dur_fit:
         # ==============================================
         # T41 duration
+        xxx = np.concatenate((x, x, x))
         y = np.concatenate(
             (
                 sim.T41o - sim.eT41o,
@@ -870,7 +878,7 @@ def plot_oc_T41(
             )
 
         # ax.axhline(np.median(data[:,6]), color='black', ls='-',lw=0.7)
-
+        
         # data
         for ksrc, src in cli.idsource_name.items():
             isrc = ksrc - 1
@@ -885,7 +893,7 @@ def plot_oc_T41(
                     ecolor=eco,
                     fmt="o",
                     ms=size_markers[isrc],
-                    mfc=cfo,
+                    mfc=eco,
                     mec=ceo,
                     mew=mewo,
                     ls="",
@@ -895,22 +903,24 @@ def plot_oc_T41(
                     zorder=zobs,
                     label=src,
                 )
-
-        # trades
-        ax.plot(
-            x,
-            sim.T41s,
-            marker="o",
-            color=cfs,
-            ms=mss,
-            mec=ces,
-            mew=mews,
-            ls="",
-            zorder=zsim,
-            alpha=malpha,
-            label="simulations",
-        )
+        if plot_obs_sim:
+            # trades
+            ax.plot(
+                x,
+                sim.T41s,
+                marker="o",
+                color=cfs,
+                ms=mss,
+                mec=ces,
+                mew=mews,
+                ls="",
+                zorder=zsim,
+                alpha=malpha,
+                label="simulations",
+            )
         # model
+        xx = oc_model.TTlin - tscale
+        xxx = np.concatenate((xxx, xx))
         yy = np.concatenate((y, oc_model.T41s))
         (lmod,) = ax.plot(
             xx,
@@ -926,22 +936,98 @@ def plot_oc_T41(
 
         # samples
         if nsmp > 0:
-            # yy = y
-            for ss in samples_plt:
-                # xx = ss.TTlin - tscale
-                yy = np.concatenate((yy, ss.T41s))
-                # print np.min(ss.T41s*ocu[0]),np.max(ss.T41s*ocu[0])
-                ax.plot(
-                    xx,
-                    ss.T41s,
-                    color=cfsm,
-                    marker="None",
-                    ls="-",
-                    lw=0.4,
-                    zorder=zsmp,
-                    alpha=0.4,
-                    label="samples",
-                )
+            print("T41s samples plot ...")
+            if cli.plot_samples.lower() in ["ci", "sigma"]:
+                # try:
+                    # ==== plot 1/2/3 CI        
+                    n_sim = len(xx)
+                    print("n_sim (TTs) = {:d}".format(n_sim))
+                    T41_smp = []
+                    print("creating T41_smp list ...")
+                    # print("n_sim (T41_smp) = ", end="", flush=True)
+                    for iss, ss in enumerate(samples_plt):
+                        # ss.update(sim.Teph, sim.Peph)
+                        n_T41_smp = len(ss.T41s)
+                        if n_T41_smp < n_sim:
+                            pass
+                        else:
+                            if n_T41_smp == n_sim:
+                                sel = np.ones(n_T41_smp, dtype=bool)
+                            elif n_T41_smp > n_sim:
+                                sel = np.isin(
+                                    ss.epo, oc_model.epo
+                                )
+                            # print("{:d} [{:d}] ({:d}) || ".format(n_oc_smp, np.sum(sel),iss), end="", flush=True)
+                            T41_smp.append(ss.T41s[sel])
+                    # print()
+                    print("T41_smp list to array ... ")
+                    T41_smp = np.array(T41_smp).T
+                    print("shape(T41_smp) = ", np.shape(T41_smp))
+                    c1, c2, c3 = 0.6827, 0.9544, 0.9974
+                    hc1, hc2, hc3 = c1*0.5, c2*0.5, c3*0.5
+
+                    print("computing CI @ 68.27-95.44-99.73 % ... ")
+                    hdi1 = np.percentile(T41_smp, [50 - (100*hc1), 50 + (100*hc1)], axis=1).T
+                    hdi2 = np.percentile(T41_smp, [50 - (100*hc2), 50 + (100*hc2)], axis=1).T
+                    hdi3 = np.percentile(T41_smp, [50 - (100*hc3), 50 + (100*hc3)], axis=1).T
+
+                    print("shape(hdi1) = ", np.shape(hdi1))
+                    print("shape(hdi2) = ", np.shape(hdi2))
+                    print("shape(hdi3) = ", np.shape(hdi3))
+                    
+                    print("plot HDI ... ")
+                    yy = np.concatenate((yy, hdi3[:, 0], hdi3[:, 1]))
+                    xxx = np.concatenate((xxx, xx, xx))
+
+                    ax.fill_between(
+                        xx,
+                        hdi1[:, 0],
+                        hdi1[:, 1],
+                        color=cfsm(gval),
+                        alpha=1.0,
+                        lw=0.0,
+                        zorder=zsmp,
+                    )
+                    ax.fill_between(
+                        xx,
+                        hdi2[:, 0],
+                        hdi2[:, 1],
+                        color=cfsm(gval+dg),
+                        alpha=1.0,
+                        lw=0.0,
+                        zorder=zsmp-1,
+                    )
+                    ax.fill_between(
+                        xx,
+                        hdi3[:, 0],
+                        hdi3[:, 1],
+                        color=cfsm(gval+(dg*2)),
+                        alpha=1.0,
+                        lw=0.0,
+                        zorder=zsmp-2,
+                    )
+                # except:
+                #     print("Issue in computing/plotting CI, back to plot all single samples")
+                #     cli.plot_samples = "all"
+            if cli.plot_samples == "all":
+                # ==== plot all the samples T41s
+                # yy = y
+                for ss in samples_plt:
+                    xx = ss.TTlin - tscale
+                    xxx = np.concatenate((xxx, xx))
+                    yy = np.concatenate((yy, ss.T41s))
+                    # print np.min(ss.T41s*ocu[0]),np.max(ss.T41s*ocu[0])
+                    ax.plot(
+                        xx,
+                        ss.T41s,
+                        color=cfsm(gval),
+                        marker="None",
+                        ls="-",
+                        lw=0.4,
+                        zorder=zsmp,
+                        alpha=0.4,
+                        label="samples",
+                    )
 
         if cli.limits == "sam":
             dx = np.max(xxx) - np.min(xxx)
@@ -956,9 +1042,11 @@ def plot_oc_T41(
             miny = np.min(yyy) - py * dy
             maxy = np.max(yyy) + py * dy
 
-        ax.set_xlim(minx, maxx)
+        if np.all(np.isinf([minx, maxx]) == False) and np.all(np.isnan([minx, maxx]) == False):
+            ax.set_xlim(minx, maxx)
         # ax.set_xlim(xlims)
-        ax.set_ylim(miny, maxy)
+        if np.all(np.isinf([miny, maxy]) == False) and np.all(np.isnan([miny, maxy]) == False):
+            ax.set_ylim(miny, maxy)
 
         axs.append(ax)
 
@@ -985,7 +1073,7 @@ def plot_oc_T41(
                     ecolor=eco,
                     fmt="o",
                     ms=size_markers[isrc],
-                    mfc=cfo,
+                    mfc=eco,
                     mec=ceo,
                     mew=mewo,
                     ls="",
@@ -998,7 +1086,7 @@ def plot_oc_T41(
         # ax.set_xlim(xlims)
         wres = sim.dT41os/sim.eT41o
         chi2 = np.sum(wres*wres)
-        print("T14 contribution to the chi_square = {:.3f}".format(chi2))
+        print("T41 contribution to the chi_square = {:.3f}".format(chi2))
 
         axs.append(ax)
 

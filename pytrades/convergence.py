@@ -219,7 +219,9 @@ def full_statistics(
     names,
     pars,
     lnp_post,
-    output_folder,
+    sel_lnprob_posterior=None,
+    # sel_lnprob_bounds = [-np.inf, np.inf],
+    output_folder=None,
     overplot_par_name="???",
     olog=None,
     ilast=0,
@@ -241,8 +243,13 @@ def full_statistics(
     lsize = 10
     tsize = lsize - 3
 
+    if str(sel_lnprob_posterior).lower() == "none":
+        sel_lnprob_posterior = np.ones(np.shape(lnp_post))
+
     n_steps, n_walkers, n_par = np.shape(chains)
-    print("### n_steps, n_walkers, n_par = {}, {}, {}".format(n_steps, n_walkers, n_par))
+    print(
+        "### n_steps, n_walkers, n_par = {}, {}, {}".format(n_steps, n_walkers, n_par)
+    )
 
     n_gr = 10
     if n_steps <= n_gr:
@@ -264,19 +271,19 @@ def full_statistics(
             or pname[0:2] == "lN"
             or "lambda" in pname
         ):
-            pmod = p%360.0
+            pmod = p % 360.0
             patg = anc.get_arctan_angle(pmod)
             pmin, pmax = flat_post[:, ipar].min(), flat_post[:, ipar].max()
             if np.logical_and(patg >= pmin, patg <= pmax):
                 p = patg
             else:
                 p = pmod
-        
-        hdi1 = anc.hpd(flat_post[:, ipar], cred=cred1)
-        hdi2 = anc.hpd(flat_post[:, ipar], cred=cred2)
-        hdi3 = anc.hpd(flat_post[:, ipar], cred=cred3)
+
+        hdi1 = anc.hpd(flat_post[sel_lnprob_posterior, ipar], cred=cred1)
+        hdi2 = anc.hpd(flat_post[sel_lnprob_posterior, ipar], cred=cred2)
+        hdi3 = anc.hpd(flat_post[sel_lnprob_posterior, ipar], cred=cred3)
         err = np.array(hdi1) - p
-        med = np.median(flat_post[:, ipar])
+        med = np.median(flat_post[sel_lnprob_posterior, ipar])
         warn = ""
         if err[0] > 0 or err[1] < 0:
             warn = "!!WARNING MAP OUT OF HDI{}%!!".format(cred1)
@@ -358,11 +365,11 @@ def full_statistics(
         integrated_ACF = emcee.autocorr.integrated_time(
             chains[:, :, ipar], tol=tolerance, quiet=True
         )
-        print("integrated_ACF ",integrated_ACF)
+        print("integrated_ACF ", integrated_ACF)
         acf_len = np.rint(np.nanmax(integrated_ACF)).astype(int)
-        print("acf_len        ",acf_len)
+        print("acf_len        ", acf_len)
         n_expected = acf_len * tolerance
-        print("n_expected     ",n_expected)
+        print("n_expected     ", n_expected)
         anc.print_both(
             "ACF {}x{} expected chain long as n = {}x{} (current {} steps)".format(
                 acf_len, n_thin, n_expected, n_thin, n_steps
@@ -370,9 +377,9 @@ def full_statistics(
             output=olog,
         )
         expected_steps[ipar] = n_expected
-        print("expected_steps[ipar] ",expected_steps[ipar])
+        print("expected_steps[ipar] ", expected_steps[ipar])
         expected_acf[ipar] = acf_len
-        print("expected_acf[ipar] ",expected_acf[ipar])
+        print("expected_acf[ipar] ", expected_acf[ipar])
 
         n_acf = 10
         acf_start = acf_len // 2
@@ -381,7 +388,7 @@ def full_statistics(
         acf_steps = np.rint(
             np.linspace(acf_start, n_steps, endpoint=True, num=n_acf)
         ).astype(int)
-        print("acf_steps ",acf_steps)
+        print("acf_steps ", acf_steps)
         tau_est = np.zeros((n_acf))
         for i_acf, n_s in enumerate(acf_steps):
             acf_mean = np.zeros((n_s))
@@ -455,7 +462,24 @@ def full_statistics(
         midc.axhline(p, color="C1", ls="-", lw=1.4, alpha=0.7)
         y = flat_post[:, ipar]
         dy = np.ptp(y)
-        midc.set_ylim([y.min() - 0.03 * dy, y.max() + 0.03 * dy])
+        ylmin = y.min() - 0.03 * dy
+        ylmax = y.max() + 0.03 * dy
+        midc.set_ylim([ylmin, ylmax])
+
+        par_lnprob_selected = flat_post[sel_lnprob_posterior, ipar]
+        if np.sum(sel_lnprob_posterior) < len(y):
+            x1 = max(ylmin, np.min(par_lnprob_selected))
+            x2 = min(ylmax, np.max(par_lnprob_selected))
+            if not x1 == x2:
+                midc.fill_between(
+                    [n_burn, midc.get_xlim()[1]],
+                    [x1, x1],
+                    [x2, x2],
+                    color="gray",
+                    alpha=0.2,
+                    zorder=2,
+                )
+
         midc.set_xlabel("steps $\\times {}$".format(n_thin), fontsize=lsize)
         axs.append(midc)
 
@@ -464,7 +488,7 @@ def full_statistics(
         midr.tick_params(axis="x", labelbottom=False)
         midr.tick_params(axis="y", labelleft=False)
         midr.hist(
-            flat_post[:, ipar],
+            flat_post[sel_lnprob_posterior, ipar],
             bins=33,
             color="black",
             density=False,
@@ -472,10 +496,14 @@ def full_statistics(
             zorder=3,
         )
         midr.axhline(
-            p, color="C1", ls="-", lw=1.3, alpha=1.0,
+            p,
+            color="C1",
+            ls="-",
+            lw=1.3,
+            alpha=1.0,
             # label="MAP",
             label=overplot_par_name,
-            zorder=5
+            zorder=5,
         )
         midr.axhline(
             hdi1[0],
@@ -520,8 +548,8 @@ def full_statistics(
         bot.tick_params(axis="y", labelrotation=45, labelsize=tsize)
         # bot.set_title(pname, fontsize=lsize+1)
         bot.plot(
-            flat_post[:, ipar],
-            lnp_post,
+            flat_post[sel_lnprob_posterior, ipar],
+            lnp_post[sel_lnprob_posterior],
             color="black",
             marker="o",
             ms=1,
@@ -531,10 +559,14 @@ def full_statistics(
             zorder=2,
         )
         bot.axvline(
-            p, color="C1", ls="-", lw=1.3, alpha=1.0,
-            # label="MAP", 
+            p,
+            color="C1",
+            ls="-",
+            lw=1.3,
+            alpha=1.0,
+            # label="MAP",
             label=overplot_par_name,
-            zorder=5
+            zorder=5,
         )
         bot.axvline(
             hdi1[0],
@@ -598,12 +630,25 @@ def full_statistics(
 
 
 def log_probability_trace(
-    log_prob, lnprob_posterior, plot_folder=None, n_burn=0, n_thin=1, show_plot=False, figsize=(8, 8), olog=None
+    log_prob,
+    lnprob_posterior,
+    sel_lnprob_posterior=None,
+    sel_lnprob_bounds=[-np.inf, np.inf],
+    plot_folder=None,
+    n_burn=0,
+    n_thin=1,
+    show_plot=False,
+    figsize=(8, 8),
+    olog=None,
 ):
     lsize = 10
     tsize = lsize - 3
 
-    map_lnprob = np.max(lnprob_posterior)
+    if str(sel_lnprob_posterior).lower() == "none":
+        sel_lnprob_posterior = np.ones(np.shape(lnprob_posterior))
+
+    # map_lnprob = np.max(lnprob_posterior)
+    map_lnprob = np.max(lnprob_posterior[sel_lnprob_posterior])
 
     fig = plt.figure(figsize=figsize, layout="constrained")
     spec = fig.add_gridspec(3, 1)
@@ -628,16 +673,30 @@ def log_probability_trace(
     mid.set_xlabel("steps $\\times {}$".format(n_thin))
 
     dlnP = np.ptp(lnprob_posterior)
-    mid.set_ylim(
-        [lnprob_posterior.min() - 0.03 * dlnP, lnprob_posterior.max() + 0.03 * dlnP]
-    )
+    ylmin = lnprob_posterior.min() - 0.03 * dlnP
+    ylmax = lnprob_posterior.max() + 0.03 * dlnP
+    mid.set_ylim([ylmin, ylmax])
+    if (
+        not np.all(np.isinf(sel_lnprob_bounds))
+        or not np.abs(sel_lnprob_bounds[0]) == sel_lnprob_bounds[1]
+    ):
+        x1 = max(ylmin, sel_lnprob_bounds[0])
+        x2 = min(ylmax, sel_lnprob_bounds[1])
+        mid.fill_between(
+            [n_burn, mid.get_xlim()[1]],
+            [x1, x1],
+            [x2, x2],
+            color="gray",
+            alpha=0.2,
+            zorder=2,
+        )
     axs.append(mid)
 
     bot = fig.add_subplot(spec[2, 0])
     bot.tick_params(axis="x", labelrotation=45, labelsize=tsize)
     bot.tick_params(axis="y", labelrotation=45, labelsize=tsize, labelleft=False)
     bot.hist(
-        lnprob_posterior,
+        lnprob_posterior[sel_lnprob_posterior],
         bins=33,
         color="black",
         density=False,

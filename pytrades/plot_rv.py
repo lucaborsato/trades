@@ -283,6 +283,7 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
     label_data = {i+1: "RV dataset \#{:d}".format(i + 1) for i in range(0, nset)}
     print("default label_data = ", label_data)
     if cli.labels is not None:
+        print("cli.labels = ", cli.labels)
         if isinstance(cli.labels, dict):
             for k, v in cli.labels.items():
                 if k in label_data.keys():

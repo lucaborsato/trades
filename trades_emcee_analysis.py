@@ -8,7 +8,11 @@ from pytrades import ancillary as anc
 # import constants as cst  # local constants module
 from pytrades.gelman_rubin import compute_gr
 from pytrades.geweke import compute_geweke
-from pytrades.convergence import compute_convergence, full_statistics, log_probability_trace
+from pytrades.convergence import (
+    compute_convergence,
+    full_statistics,
+    log_probability_trace,CLI_OC
+)
 from pytrades.chains_summary_plot import plot_chains
 from pytrades.fitted_correlation_plot import plot_triangle as correlation_fitted
 from pytrades.physical_correlation_plot import plot_triangle as correlation_physical
@@ -191,6 +195,15 @@ class AnalysisTRADES:
         ) = get_emcee_run(cli)
         self.npost, _ = np.shape(self.fitting_posterior)
 
+        # selection of the posterior based on lnProb
+        self.lnProb_selection = cli.lnProb_selection
+        # flat posterior lnProb
+        self.sel_flat_posterior_lnprob = np.logical_and(
+            self.lnprob_posterior >= cli.lnProb_selection[0],
+            self.lnprob_posterior <= cli.lnProb_selection[1],
+        )
+        self.npost_sel = np.sum(self.sel_flat_posterior_lnprob)
+
         sys.stdout.flush()
         # check if emcee run with old parameterization in (icos/sinlN) or (cosicos/sinlN)
         if self.fitting_names_original is not None:
@@ -237,10 +250,10 @@ class AnalysisTRADES:
                 anc.print_both("Fixing parameter {} with idx {}".format(fitn, ifit))
                 # print("shape of chains_posterior = {}".format(np.shape(self.chains_posterior)))
                 xx, i_type = anc.recenter_angle_distribution(
-                        self.fitting_posterior[:, ifit] % 360.0,
-                        debug=True,
-                        type_out=True,
-                    )
+                    self.fitting_posterior[:, ifit] % 360.0,
+                    debug=True,
+                    type_out=True,
+                )
 
                 self.fitting_type[ifit] = i_type
                 if "mod" in i_type:
@@ -262,7 +275,9 @@ class AnalysisTRADES:
                         self.chains_posterior[:, :, ifit]
                     )
                 else:
-                    print("Something weird for this parameter, maybe all values are NaN. Check it.")
+                    print(
+                        "Something weird for this parameter, maybe all values are NaN. Check it."
+                    )
         anc.print_both(
             "####################################################################"
         )
@@ -385,8 +400,10 @@ class AnalysisTRADES:
 
         # compute AMD
         anc.print_both("Compute angular momentum deficit (AMD) ...")
-        self.amd_names, self.amd, self.amd_stable = pytrades.angular_momentum_deficit_posterior(
-            self.sim.n_bodies, self.fitting_posterior, self.sim.system_parameters
+        self.amd_names, self.amd, self.amd_stable = (
+            pytrades.angular_momentum_deficit_posterior(
+                self.sim.n_bodies, self.fitting_posterior, self.sim.system_parameters
+            )
         )
         anc.print_both("Preparation of the analysis of TRADES simulation done.")
 
@@ -397,14 +414,15 @@ class AnalysisTRADES:
 
         self.posterior_file = os.path.join(self.cli.full_path, "posterior.hdf5")
         with h5py.File(self.posterior_file, "w") as p_h5f:
-            p_h5f.create_dataset(
-                "posterior", data=self.fitting_posterior, dtype=float
-            )
+            p_h5f.create_dataset("posterior", data=self.fitting_posterior, dtype=float)
             p_h5f.create_dataset(
                 "loglikelihood", data=self.lnprob_posterior, dtype=float
             )
             p_h5f["posterior"].attrs["nfit"] = self.sim.nfit
             p_h5f["posterior"].attrs["nposterior"] = self.npost
+
+            p_h5f["sel_flat_posterior_lnprob"] = self.sel_flat_posterior_lnprob
+            p_h5f["sel_flat_posterior_lnprob"].attrs["nposterior_sel"] = self.npost_sel
 
             p_h5f.create_dataset(
                 "fitting_names", data=anc.encode_list(self.fitting_names), dtype="S15"
@@ -429,14 +447,10 @@ class AnalysisTRADES:
             )
             p_h5f["fixed_parameters"].attrs["names"] = anc.encode_list(self.fixed_names)
 
-            if hasattr(self, 'amd_names'):
-                p_h5f.create_dataset(
-                    "AMD", data=self.amd, dtype=float
-                )
+            if hasattr(self, "amd_names"):
+                p_h5f.create_dataset("AMD", data=self.amd, dtype=float)
                 p_h5f["AMD"].attrs["names"] = self.amd_names
-                p_h5f.create_dataset(
-                    "AMD_stable", data=self.amd_stable, dtype=bool
-                )
+                p_h5f.create_dataset("AMD_stable", data=self.amd_stable, dtype=bool)
                 p_h5f["AMD_stable"].attrs["n_stable"] = np.sum(self.amd_stable)
 
         anc.print_both(" Saved posterior file: {}".format(self.posterior_file))
@@ -476,8 +490,8 @@ class AnalysisTRADES:
             )
             sys.stdout.flush()
             samples_fit_par = anc.take_n_samples(
-                self.fitting_posterior,
-                lnprob=self.lnprob_posterior,
+                self.fitting_posterior[self.sel_flat_posterior_lnprob, :],
+                lnprob=self.lnprob_posterior[self.sel_flat_posterior_lnprob],
                 # post_ci=self.ci_fitted[0:2, :],
                 post_ci=None,
                 n_samples=self.cli.n_samples,
@@ -533,11 +547,15 @@ class AnalysisTRADES:
         anc.print_both("#############################")
 
         sigma_hdi_fit = anc.hdi_to_sigma(fit_temp, ci_fit)
-        mad_fit, rms_fit = anc.posterior_to_rms_mad(self.fitting_posterior, fit_temp)
+        mad_fit, rms_fit = anc.posterior_to_rms_mad(
+            self.fitting_posterior[self.sel_flat_posterior_lnprob, :], fit_temp
+        )
         sigma_fit = np.column_stack((rms_fit, mad_fit, sigma_hdi_fit.T)).T
 
         sigma_hdi_phy = anc.hdi_to_sigma(phy_par, ci_phy)
-        mad_phy, rms_phy = anc.posterior_to_rms_mad(self.physical_posterior, phy_par)
+        mad_phy, rms_phy = anc.posterior_to_rms_mad(
+            self.physical_posterior[self.sel_flat_posterior_lnprob, :], phy_par
+        )
         sigma_phy = np.column_stack((rms_phy, mad_phy, sigma_hdi_phy.T)).T
 
         (
@@ -560,9 +578,7 @@ class AnalysisTRADES:
         )
 
         summary_file = os.path.join(
-            self.sim.full_path,
-            full_sim_name,
-            "parameters_summary.txt"
+            self.sim.full_path, full_sim_name, "parameters_summary.txt"
         )
         anc.save_latex_table(summary_file, add_digit=1)
 
@@ -735,8 +751,12 @@ class AnalysisTRADES:
         sim_name = "median"
         par_desc = "median of posterior and median of physical posterior"
         anc.print_both("\nPARAMETERS: {} ==> {}".format(par_desc, id_sim))
-        median_fit = np.median(self.fitting_posterior, axis=0)
-        median_phys = np.median(self.physical_posterior, axis=0)
+        median_fit = np.median(
+            self.fitting_posterior[self.sel_flat_posterior_lnprob, :], axis=0
+        )
+        median_phys = np.median(
+            self.physical_posterior[self.sel_flat_posterior_lnprob, :], axis=0
+        )
         sys.stdout.flush()
 
         self.run_and_save_from_parameters(
@@ -785,9 +805,13 @@ class AnalysisTRADES:
         par_desc = "map of posterior"
         anc.print_both("\nPARAMETERS: {} ==> {}".format(par_desc, id_sim))
 
-        map_idx = np.argmax(self.lnprob_posterior)
-        map_fit = self.fitting_posterior[map_idx, :].copy()
-        map_phy = self.physical_posterior[map_idx, :].copy()
+        map_idx = np.argmax(self.lnprob_posterior[self.sel_flat_posterior_lnprob])
+        map_fit = self.fitting_posterior[self.sel_flat_posterior_lnprob, :][
+            map_idx, :
+        ].copy()
+        map_phy = self.physical_posterior[self.sel_flat_posterior_lnprob, :][
+            map_idx, :
+        ].copy()
 
         # _, map_phy, _, _, _, _ = anc.compute_physical_parameters(
         #     self.sim.n_bodies,
@@ -846,12 +870,14 @@ class AnalysisTRADES:
         anc.print_both("\nPARAMETERS: {} ==> {}".format(par_desc, id_sim))
 
         median = np.percentile(
-            self.fitting_posterior,
+            self.fitting_posterior[self.sel_flat_posterior_lnprob, :],
             50.0,
             axis=0,
             #
         )
-        mean = np.mean(self.fitting_posterior, axis=0)
+        mean = np.mean(
+            self.fitting_posterior[self.sel_flat_posterior_lnprob, :], axis=0
+        )
         mode_fit = 3 * median - 2 * mean
 
         if np.any(np.isnan(mode_fit)):
@@ -882,12 +908,14 @@ class AnalysisTRADES:
             else:
 
                 median = np.percentile(
-                    self.physical_posterior,
+                    self.physical_posterior[self.sel_flat_posterior_lnprob, :],
                     50.0,
                     axis=0,
                     #
                 )
-                mean = np.mean(self.physical_posterior, axis=0)
+                mean = np.mean(
+                    self.physical_posterior[self.sel_flat_posterior_lnprob, :], axis=0
+                )
                 mode_phy = 3 * median - 2 * mean
 
                 for p_n in self.physical_names:
@@ -956,12 +984,14 @@ class AnalysisTRADES:
 
         try:
             map_hdi_fit, _, map_hdi_idx = anc.select_maxlglhd_with_hdi(
-                self.fitting_posterior,
+                self.fitting_posterior[self.sel_flat_posterior_lnprob, :],
                 self.ci_fitted.T,
-                self.lnprob_posterior,
+                self.lnprob_posterior[self.sel_flat_posterior_lnprob],
                 return_idmax=True,
             )
-            map_hdi_phy = self.physical_posterior[map_hdi_idx, :]
+            map_hdi_phy = self.physical_posterior[self.sel_flat_posterior_lnprob, :][
+                map_hdi_idx, :
+            ]
             sys.stdout.flush()
             self.run_and_save_from_parameters(
                 map_hdi_fit,
@@ -1022,7 +1052,9 @@ class AnalysisTRADES:
 
         anc.print_both("Computing HDI/CI")
         # hdi_ci, mode_parameters = anc.compute_hdi_full(fitting_posterior, mode_output=True)
-        hdi_ci = anc.compute_hdi_full(self.fitting_posterior)
+        hdi_ci = anc.compute_hdi_full(
+            self.fitting_posterior[self.sel_flat_posterior_lnprob, :]
+        )
         ci_fitted = hdi_ci.T
         anc.print_both(
             " shape: hdi_ci = {} ci_fitted = {}".format(
@@ -1034,7 +1066,9 @@ class AnalysisTRADES:
         # ci_fitted: nci x nfit
         # nci -> -1sigma(0) +1sigma(1) -2sigma(2) +2sigma(3) -3sigma(4) +3sigma(5)
 
-        hdi_ci_phys = anc.compute_hdi_full(self.physical_posterior)
+        hdi_ci_phys = anc.compute_hdi_full(
+            self.physical_posterior[self.sel_flat_posterior_lnprob, :]
+        )
         self.ci_physical = hdi_ci_phys.T
         anc.print_both(
             " shape: hdi_ci_phys = {} ci_physical = {}".format(
@@ -1140,6 +1174,23 @@ def run_analysis(cli):
         "shape of posterior phy = {}".format(np.shape(analysis.physical_posterior))
     )
     anc.print_both("npost = {}".format(analysis.npost))
+    if analysis.npost_sel != analysis.npost:
+        anc.print_both("Selected by lnProb = {}".format(analysis.lnProb_selection))
+        anc.print_both(
+            "shape of posterior fit = {}".format(
+                np.shape(
+                    analysis.fitting_posterior[analysis.sel_flat_posterior_lnprob, :]
+                )
+            )
+        )
+        anc.print_both(
+            "shape of posterior phy = {}".format(
+                np.shape(
+                    analysis.physical_posterior[analysis.sel_flat_posterior_lnprob, :]
+                )
+            )
+        )
+        anc.print_both("npost_sel = {}".format(analysis.npost_sel))
 
     logs_folder = os.path.join(cli.full_path, "logs")
     os.makedirs(logs_folder, exist_ok=True)
@@ -1159,7 +1210,9 @@ def run_analysis(cli):
     log_probability_trace(
         analysis.lnprobability_full_thinned,
         analysis.lnprob_posterior,
-        plots_folder,
+        sel_lnprob_posterior=analysis.sel_flat_posterior_lnprob,
+        sel_lnprob_bounds=analysis.lnProb_selection,
+        plot_folder=plots_folder,
         n_burn=cli.nburnin,
         n_thin=conf_run.thin_by,
         show_plot=False,
@@ -1193,7 +1246,9 @@ def run_analysis(cli):
                     analysis.fitting_names,
                     overp_par,
                     analysis.lnprob_posterior,
-                    plots_folder,
+                    sel_lnprob_posterior=analysis.sel_flat_posterior_lnprob,
+                    # sel_lnprob_bounds = analysis.lnProb_selection,
+                    output_folder=plots_folder,
                     overplot_par_name=overplot_name.upper(),
                     olog=olog,
                     ilast=0,
@@ -1222,7 +1277,9 @@ def run_analysis(cli):
                     analysis.physical_names,
                     overp_par,
                     analysis.lnprob_posterior,
-                    plots_folder,
+                    sel_lnprob_posterior=analysis.sel_flat_posterior_lnprob,
+                    # sel_lnprob_bounds = analysis.lnProb_selection,
+                    output_folder=plots_folder,
                     overplot_par_name=overplot_name.upper(),
                     olog=olog,
                     ilast=analysis.sim.nfit,
@@ -1259,7 +1316,7 @@ def run_analysis(cli):
             cli,
             logs_folder,
             plots_folder,
-            analysis.fitting_posterior,
+            analysis.fitting_posterior[analysis.sel_flat_posterior_lnprob, :],
             analysis.fitting_names,
             analysis.sim.fitting_minmax,
         )
@@ -1271,7 +1328,7 @@ def run_analysis(cli):
             cli,
             logs_folder,
             plots_folder,
-            analysis.physical_posterior,
+            analysis.physical_posterior[analysis.sel_flat_posterior_lnprob, :],
             analysis.physical_names,
         )
 

@@ -59,6 +59,7 @@ analysis:
     n_samples: 120 # set to 0 if you don't want to simulate and save samples --> samples_ttra_rv.hdf5
     overplot: map_hdi # initial, pso, de, median, map_hdi, map, mode, adhoc
     corner_type: pygtc # pygtc, custom, both
+    lnProb_selection: [None, None] # further selection on ln-probability, default [None, None] = [-np.inf, np.inf]
     all_analysis: True # if set to False you should set by hand the following arguments, otherwise it run all of them
     save_posterior: False
     save_parameters: False
@@ -81,6 +82,7 @@ OC:
     plot_title: True # True or False
     unit: "auto" # unit of the O-C, if "auto" it auto-detect best unit for each body, otherwise set to: "d", "h", "m", "s".
     samples_file: None # hdf5 file name with samples created by analysis/n_samples > 0: i.e. samples_ttra_rv.hdf5
+    plot_obs_sim: False # plot simulations point corrisponding to observations? True/False. Default=True.
     plot_samples: "ci" # how to plot samples: "ci" == "sigma", or "all". "all" will plot each samples
     limits: "obs" # x-y limits based on observations (obs) or samples (sam)
     kep_ele: False # plot of Keplerian Elements of each transiting body during transits

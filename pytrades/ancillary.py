@@ -93,6 +93,7 @@ def set_colors(ncolors, vmin=0.05, vmax=0.95, colormap="nipy_spectral"):
 
     return colors
 
+
 def get_color(pos, colormap="nipy_spectral"):
 
     try:
@@ -103,6 +104,7 @@ def get_color(pos, colormap="nipy_spectral"):
     color = cmp(x)
 
     return color
+
 
 # ==============================================================================
 def set_rcParams():
@@ -259,6 +261,29 @@ def set_overplot(arg_in):
             q_folder = p_folder.split("sim_")[1]
             if arg_str == q_folder:
                 arg_out = p_folder
+
+    return arg_out
+
+
+# ==============================================================================
+
+
+def set_lnprob_selection(arg_in):
+
+    arg_out = [-np.inf, np.inf]
+    s = [-1, 1]
+    for i, a in enumerate(arg_in):
+        if str(a).lower() == "none":
+            arg_out[i] = s[i] * np.inf
+        else:
+            try:
+                arg_out[i] = float(a)
+            except:
+                arg_out[i] = s[i] * np.inf
+    if arg_out[0] == arg_out[1]:
+        arg_out = [-np.inf, np.inf]
+    elif arg_out[0] > arg_out[1]:
+        arg_out = [arg_out[1], arg_out[0]]
 
     return arg_out
 
@@ -596,7 +621,8 @@ class CLI_OC:
         plot_title=False,
         ocunit="d",
         samples_file=None,
-        plot_samples= "ci",
+        plot_obs_sim=False,
+        plot_samples="ci",
         limits="obs",
         kep_ele=False,
         linear_ephemeris=None,
@@ -628,13 +654,14 @@ class CLI_OC:
         self.plot_title = plot_title
         self.ocunit = ocunit
         self.samples_file = samples_file
+        self.plot_obs_sim = plot_obs_sim
         if plot_samples.lower() != "all":
             self.plot_samples = "ci"
         else:
             self.plot_samples = plot_samples.lower()
         self.limits = limits
         self.kep_ele = kep_ele
-        self.linear_ephemeris=linear_ephemeris
+        self.linear_ephemeris = linear_ephemeris
         self.legend = legend
         self.idsource_name = idsource_name
         self.color_map = color_map
@@ -660,7 +687,7 @@ class CLI_RV:
         self.sim_type = os.path.basename(full_path)
         self.idsim = int(idsim)
         self.lmflag = int(lmflag)
-        
+
         # self.tscale = tscale
         self.tscale = [0.0, ".0f"]
         if isinstance(tscale, (list, np.ndarray)):
@@ -869,6 +896,7 @@ class ConfigurationAnalysis:
             "n_samples": 0,
             "corner_type": "pygtc",
             "overplot": "map_hdi",
+            "lnProb_selection": [-np.inf, np.inf],
             "all_analysis": False,
             "save_posterior": False,
             "save_parameters": False,
@@ -905,6 +933,8 @@ class ConfigurationAnalysis:
         if self.overplot == "mle":
             self.overplot = "map_hdi"
 
+        self.lnProb_selection = set_lnprob_selection(conf_analysis["lnProb_selection"])
+
         self.gr_steps = set_int_argument(conf_analysis["gr_steps"], default=10)
         self.gk_steps = set_int_argument(conf_analysis["gk_steps"], default=10)
 
@@ -940,15 +970,15 @@ class ConfigurationAnalysis:
             "tscale": None,
             "unit": "auto",
             "samples_file": None,
+            "plot_obs_sim": False,
             "plot_samples": "ci",
             "limits": "obs",
             "kep_ele": False,
-            "linear_ephemeris":None,
+            "linear_ephemeris": None,
             "legend": "in",
             "idsource_name": None,
             "color_map": "nipy_spectral",
         }
-        # print("conf_oc[idsource_name]    = {}".format(conf_oc["idsource_name"]))
 
         conf_keys = conf_oc.keys()
         if "OC" in conf_all.keys():
@@ -959,7 +989,6 @@ class ConfigurationAnalysis:
                         conf_oc[k] = None
                     else:
                         conf_oc[k] = v
-        # print("conf_oc[idsource_name]    = {}".format(conf_oc["idsource_name"]))
 
         self.plot_oc = conf_oc["plot_oc"]
         self.idplanet_name = conf_oc["idplanet_name"]
@@ -992,6 +1021,7 @@ class ConfigurationAnalysis:
                             tscale=conf_oc["tscale"],
                             ocunit=conf_oc["unit"],
                             samples_file=samples_file,
+                            plot_obs_sim=conf_oc["plot_obs_sim"],
                             plot_samples=conf_oc["plot_samples"],
                             limits=conf_oc["limits"],
                             kep_ele=conf_oc["kep_ele"],
@@ -1503,9 +1533,7 @@ def get_data(emcee_file, temp_status):
             )  # shape (nwalkers, nruns, nfit)
             chains = np.swapaxes(chains, 1, 0)  # nruns x nwalkers x nfit
         if "acceptance_fraction" in data_names:
-            acceptance_fraction = np.array(
-                f_read["acceptance_fraction"], dtype=float
-            )
+            acceptance_fraction = np.array(f_read["acceptance_fraction"], dtype=float)
         if "autocor_time" in data_names:
             autocor_time = np.array(f_read["autocor_time"], dtype=float)
         if "lnprobability" in data_names:
@@ -1770,9 +1798,7 @@ def get_pso_data(pso_file):
         pso_parameters = np.array(of_pso["pso_parameters"], dtype=float)
         pso_fitness = np.array(of_pso["pso_fitness"], dtype=float)
         if "pso_best_evolution" in list(of_pso.keys()):
-            pso_best_evolution = np.array(
-                of_pso["pso_best_evolution"], dtype=float
-            )
+            pso_best_evolution = np.array(of_pso["pso_best_evolution"], dtype=float)
         else:
             pso_best_evolution = False
         if "parameters_minmax" in list(of_pso.keys()):
@@ -5690,9 +5716,7 @@ def set_proper_latex(
 
 def save_latex_table(parameters_file, scale_mpMs=True, to_print=False, add_digit=0):
 
-    (
-        names, units, param, rms, mad, n1err, p1err, n2err, p2err, n3err, p3err
-    ) = (
+    (names, units, param, rms, mad, n1err, p1err, n2err, p2err, n3err, p3err) = (
         read_parameters_summary(parameters_file)
     )
 
@@ -5728,8 +5752,9 @@ def save_latex_table(parameters_file, scale_mpMs=True, to_print=False, add_digit
     return None
 
 
-# 
+#
 # ==============================================================================
+
 
 def set_unit_base(u_in, Aoc_d):
     try:

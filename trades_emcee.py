@@ -135,11 +135,11 @@ def neg_lnprob(p):
     lnP = lnprob_real(p)
     return -lnP
 
-def residuals_func(fitting_parameters):
-    to_min = minimize_func(fitting_parameters)
-    resw = np.zeros(ndata) + to_min / ndata
+# def residuals_func(fitting_parameters):
+#     to_min = minimize_func(fitting_parameters)
+#     resw = np.zeros(ndata) + to_min / ndata
 
-    return resw
+#     return resw
 
 
 # INITIALISE SCRIPT FOLDER/LOG FILE
