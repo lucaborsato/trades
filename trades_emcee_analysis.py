@@ -6,14 +6,14 @@ from pytrades import pytrades
 from pytrades import ancillary as anc
 
 # import constants as cst  # local constants module
-from pytrades.gelman_rubin import compute_gr
-from pytrades.geweke import compute_geweke
+# from pytrades.gelman_rubin import compute_gr
+# from pytrades.geweke import compute_geweke
 from pytrades.convergence import (
-    compute_convergence,
+    # compute_convergence,
     full_statistics,
-    log_probability_trace,CLI_OC
+    log_probability_trace
 )
-from pytrades.chains_summary_plot import plot_chains
+# from pytrades.chains_summary_plot import plot_chains
 from pytrades.fitted_correlation_plot import plot_triangle as correlation_fitted
 from pytrades.physical_correlation_plot import plot_triangle as correlation_physical
 from pytrades import plot_oc as poc
