@@ -136,61 +136,150 @@ contains
         return
     end subroutine rkck_a
 
-    function get_emax(emold, error, rscal) result(emax)
-        real(dp)::emax
-        real(dp), intent(in)::emold
-        real(dp), dimension(:), intent(in)::error, rscal
-        real(dp), dimension(:), allocatable::ertemp
-        real(dp)::maxtemp
-        integer::i
+!     function get_emax(emold, error, rscal) result(emax)
+!         real(dp)::emax
+!         real(dp), intent(in)::emold
+!         real(dp), dimension(:), intent(in)::error, rscal
+!         real(dp), dimension(:), allocatable::ertemp
+!         real(dp)::maxtemp
+!         integer::i
 
-        allocate (ertemp(size(error)))
-        ! ertemp = zero
-        do i = 7, NBDIM
-            if (abs(rscal(i)) .le. TOL_dp) then
-                ertemp(i) = TOL_dp
+!         allocate (ertemp(size(error)))
+!         ! ertemp = zero
+!         do i = 7, NBDIM
+!             if (abs(rscal(i)) .le. TOL_dp) then
+!                 ertemp(i) = TOL_dp
+!             else
+!                 ertemp(i) = abs(error(i))/rscal(i)
+!             end if
+!         end do
+!         maxtemp = maxval(ertemp(7:NBDIM))
+!         emax = max(emold, maxtemp)
+!         deallocate (ertemp)
+
+!         return
+!     end function get_emax
+
+!     ! it calls the integrator and select the right step for the integration
+!     subroutine int_rk_a(m, rin, drdt, initial_step, ok_step, next_step, rout, err)
+!         real(dp), dimension(:), intent(in)::m, rin, drdt
+!         real(dp), intent(in)::initial_step
+!         real(dp), intent(out)::ok_step, next_step
+!         real(dp), dimension(:), intent(out)::rout, err
+!         real(dp), dimension(:), allocatable::rscal
+!         real(dp)::emax, working_step, scale_factor
+!         ! safety factor = sfac ;
+!         real(dp), parameter::sfac = 0.9_dp
+!         real(dp), parameter::exp1 = one/5.0_dp
+
+!         working_step = initial_step !uses a temporary variable
+!         scale_factor = one
+!         allocate (rscal(NBDIM))
+!         rscal = abs(rin)+abs(working_step*drdt)
+!         sel: do
+! !       emax=0._dp
+!             emax = TOL_dp
+!             call rkck_a(m, rin, drdt, working_step, rout, err)
+!             emax = get_emax(emax, err, rscal)
+!             scale_factor = sfac*((tol_int/emax)**(exp1))
+!             ok_step = working_step
+!             working_step = working_step*scale_factor
+!             if (tol_int .ge. emax) exit sel
+!         end do sel
+!         next_step = working_step
+!         deallocate (rscal)
+
+!         return
+!     end subroutine int_rk_a
+
+    subroutine int_rk_a(mass, rin, drdt, initial_step, ok_step, next_step, rout, rerr)
+        ! Input
+        real(dp), dimension(:), intent(in) :: mass
+        real(dp), dimension(:), intent(in) :: rin, drdt
+        real(dp), intent(in) :: initial_step
+        ! Output
+        real(dp), intent(out) :: ok_step, next_step
+        real(dp), dimension(:), intent(out) :: rout, rerr
+        ! Local variables
+        real(dp) :: err_old
+        real(dp), parameter :: safe_factor = 0.9_dp
+        real(dp), parameter :: minscale = 0.2_dp, maxscale = 5.0_dp
+        real(dp), parameter :: atol = 1.0e-15_dp, rtol = 1.0e-13_dp
+        real(dp), parameter :: err_default = 1.0e-10_dp
+        ! | Metodo    | Soluzione accettata | Errore stimato | k corretto |
+        ! | --------- | ------------------- | -------------- | ---------- |
+        ! | RKCK5(4)  | ordine 5            | differenza 5−4 | **4**      |
+        ! | DOPRI5(4) | ordine 5            | differenza 5−4 | **4**      |
+        ! Valori moderni (Hairer / Söderlind / DOPRI)
+        ! Per RK embedded di ordine 5(4), i valori più usati sono:
+        ! alpha ≈ 0.7 / (k+1)
+        ! beta  ≈ 0.4 / (k+1)
+        ! con 
+        ! 𝑘 +  1 = 5
+        ! k+1=5:
+        ! alpha = 0.14
+        ! beta  = 0.08
+        ! Oppure (molto comune):
+        ! alpha = 0.2
+        ! beta  = 0.1
+        ! | Fonte             | α           | β     | Carattere          |
+        ! | ----------------- | ----------- | ----- | ------------------ |
+        ! | Numerical Recipes | 0.10        | 0.175 | Molto conservativo |
+        ! | Hairer–Wanner     | 0.14        | 0.08  | Bilanciato         |
+        ! | Söderlind         | 0.2         | 0.1   | Moderno, stabile   |
+        ! | Solo P controller | 1/(k+1)=0.2 | 0     | Semplice           |
+        ! real(dp), parameter :: k = 5.0_dp, beta = 0.4_dp/k, alpha = (one/k) - 0.75_dp*beta
+        real(dp), parameter :: alpha = 0.2_dp, beta = 0.1_dp
+        real(dp) :: working_step
+        real(dp) :: sk, scale_factor, errval
+        logical :: accept_step
+        integer :: i, ndim
+
+        err_old = 1.0e-12_dp
+        ndim = size(rin)
+        working_step = initial_step
+        do 
+            call rkck_a(mass, rin, drdt, working_step, rout, rerr)
+            ! scaled norm of the rerr
+            errval = zero
+            doerr: do i = 7,ndim
+                sk = atol + rtol * max(abs(rin(i)), abs(rout(i)))
+                errval = errval + (rerr(i)/sk)**2
+            end do doerr
+            errval = sqrt(errval/real(ndim-6, dp))
+
+            ! accept step if errval <= 1
+            if (errval <= one)then
+                accept_step = .true.
             else
-                ertemp(i) = abs(error(i))/rscal(i)
+                accept_step = .false.
             end if
+
+            ! propose new step 
+            if (errval > zero) then
+                scale_factor = safe_factor * errval**(-alpha) * err_old**(beta)
+            else
+                scale_factor = maxscale
+            end if
+
+            ! new step
+            scale_factor = min(maxscale, max(minscale, scale_factor))
+            next_step = working_step * scale_factor
+
+            ! ==== Aggiorna errore precedente ====
+            if (accept_step) then
+                ok_step = working_step
+                err_old = max(errval, err_default)
+                exit
+            else
+                working_step = next_step
+            end if
+
         end do
-        maxtemp = maxval(ertemp(7:NBDIM))
-        emax = max(emold, maxtemp)
-        deallocate (ertemp)
-
-        return
-    end function get_emax
-
-    ! it calls the integrator and select the right step for the integration
-    subroutine int_rk_a(m, rin, drdt, initial_step, ok_step, next_step, rout, err)
-        real(dp), dimension(:), intent(in)::m, rin, drdt
-        real(dp), intent(in)::initial_step
-        real(dp), intent(out)::ok_step, next_step
-        real(dp), dimension(:), intent(out)::rout, err
-        real(dp), dimension(:), allocatable::rscal
-        real(dp)::emax, working_step, scale_factor
-        ! safety factor = sfac ;
-        real(dp), parameter::sfac = 0.9_dp
-        real(dp), parameter::exp1 = one/5.0_dp
-
-        working_step = initial_step !uses a temporary variable
-        scale_factor = one
-        allocate (rscal(NBDIM))
-        rscal = abs(rin)+abs(working_step*drdt)
-        sel: do
-!       emax=0._dp
-            emax = TOL_dp
-            call rkck_a(m, rin, drdt, working_step, rout, err)
-            emax = get_emax(emax, err, rscal)
-            scale_factor = sfac*((tol_int/emax)**(exp1))
-            ok_step = working_step
-            working_step = working_step*scale_factor
-            if (tol_int .ge. emax) exit sel
-        end do sel
-        next_step = working_step
-        deallocate (rscal)
 
         return
     end subroutine int_rk_a
+
     ! ------------------------------------------------------------------ !
 
     subroutine integrates_rk(m, rin, dt, rout)

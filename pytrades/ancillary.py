@@ -66,6 +66,8 @@ eps32bit = np.finfo(np.float32(1.0)).eps
 # sigma pos        0      1     2       3      4       5      6       7
 percentile_val = [68.27, 50.0, 15.865, 84.135, 2.265, 97.735, 0.135, 99.865]
 
+credible_val = [0.6827, 0.9544, 0.9974]
+
 parameters_folders = [
     "0000_sim_initial",
     "0004_sim_pso",
@@ -4724,7 +4726,8 @@ def calculate_hpd(trace):
     # cred = 0.9544 <-> -/+ 2 sigma
     # cred = 0.9974 <-> -/+ 3 sigma
 
-    credval = [0.6827, 0.9544, 0.9974]
+    # credval = [0.6827, 0.9544, 0.9974]
+    credval = credible_val
     hdi = [hpd(trace, cred=c) for c in credval]
 
     return hdi
@@ -4960,24 +4963,31 @@ def sqrte_to_e_parameters(fitting_in, names_par):
 
 
 # ==============================================================================
-def check_wrapped_parameters(names_par):
+def check_wrapped_parameters(names_par, bounds_par):
 
-    nfit = len(names_par)
-    wrapped = [False] * nfit
+    # nfit = len(names_par)
+    # wrapped = [False] * nfit
+
+    # for ifit, name in enumerate(names_par):
+    #     if (
+    #         # ("cos" in name)
+    #         # or ("sin" in name)
+    #         # or
+    #         ("lambda" in name)
+    #         or (name[0] == "w")
+    #         or ("mA" in name)
+    #     ):
+    #         wrapped[ifit] = True
 
     for ifit, name in enumerate(names_par):
-        if (
-            # ("cos" in name)
-            # or ("sin" in name)
-            # or
-            ("lambda" in name)
-            or (name[0] == "w")
-            or ("mA" in name)
-        ):
-            wrapped[ifit] = True
+        dbd = np.ptp(bounds_par[ifit,:])
+        if ('mA' in name) or (name[0] == 'w') or ('lN' in name) or ('lambda' in name):
+            if dbd == 360.0:
+                wrapped.append(ifit)
+        elif ('cos' in name) or ('sin' in name):
+            wrapped.append(ifit)
 
     return wrapped
-
 
 # ==============================================================================
 

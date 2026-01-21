@@ -307,10 +307,10 @@ def lnprob(fitting_parameters):
     loglhd = 0.0
     check = 1
     # loglhd, check = f90trades.fortran_loglikelihood(
-    #     np.asarray(fitting_parameters, dtype=np.float64)
+    #     np.asarray(fitting_parameters, dtype=float)
     # )
     loglhd, logprior, check = f90trades.fortran_logprob(
-        np.asarray(fitting_parameters, dtype=np.float64)
+        np.asarray(fitting_parameters, dtype=float)
     )
     # not needed to add ln_err_const, because it is included in the loglhd now
     # loglhd = loglhd + ln_err_const # ln_err_const: global variable
@@ -391,12 +391,12 @@ for iter_global in range(0, n_global):
         anc.print_both(" completed run_pso", of_run)
 
         pso_best_evolution = np.asarray(
-            f90trades.pso_best_evolution[...], dtype=np.float64
+            f90trades.pso_best_evolution[...], dtype=float
         )
         anc.print_both(" pso_best_evolution retrieved", of_run)
 
         anc.print_both(" last pso_best_evolution", of_run)
-        last_pso_fitness = pso_best_evolution[-1, -1].astype(np.float64)
+        last_pso_fitness = pso_best_evolution[-1, -1].astype(float)
         anc.print_both(" fitness = {}".format(last_pso_fitness), of_run)
 
         # SAVE PSO SIMULATION IN pso_run.hdf5 FILE
@@ -405,20 +405,20 @@ for iter_global in range(0, n_global):
         )
         pso_hdf5 = h5py.File(os.path.join(pso_path, "pso_run.hdf5"), "w")
         pso_hdf5.create_dataset(
-            "population", data=f90trades.population, dtype=np.float64
+            "population", data=f90trades.population, dtype=float
         )
         pso_hdf5.create_dataset(
-            "population_fitness", data=f90trades.population_fitness, dtype=np.float64
+            "population_fitness", data=f90trades.population_fitness, dtype=float
         )
-        pso_hdf5.create_dataset("pso_parameters", data=pso_parameters, dtype=np.float64)
+        pso_hdf5.create_dataset("pso_parameters", data=pso_parameters, dtype=float)
         pso_hdf5.create_dataset(
-            "pso_fitness", data=np.array(pso_fitness), dtype=np.float64
-        )
-        pso_hdf5.create_dataset(
-            "pso_best_evolution", data=pso_best_evolution, dtype=np.float64
+            "pso_fitness", data=np.array(pso_fitness), dtype=float
         )
         pso_hdf5.create_dataset(
-            "parameters_minmax", data=trades_minmax, dtype=np.float64
+            "pso_best_evolution", data=pso_best_evolution, dtype=float
+        )
+        pso_hdf5.create_dataset(
+            "parameters_minmax", data=trades_minmax, dtype=float
         )
         pso_hdf5.create_dataset(
             "parameter_names", data=anc.encode_list(trades_names), dtype="S10"
@@ -584,18 +584,18 @@ for iter_global in range(0, n_global):
         f_hdf5.create_dataset(
             "parameter_names", data=anc.encode_list(parameter_names), dtype="S10"
         )
-        f_hdf5.create_dataset("boundaries", data=parameters_minmax, dtype=np.float64)
-        f_hdf5.create_dataset("chains", (nwalkers, nruns, nfit), dtype=np.float64)
+        f_hdf5.create_dataset("boundaries", data=parameters_minmax, dtype=float)
+        f_hdf5.create_dataset("chains", (nwalkers, nruns, nfit), dtype=float)
         f_hdf5["chains"].attrs["nwalkers"] = nwalkers
         f_hdf5["chains"].attrs["nruns"] = nruns
         f_hdf5["chains"].attrs["nfit"] = nfit
         f_hdf5["chains"].attrs["nfree"] = nfree
-        f_hdf5.create_dataset("lnprobability", (nwalkers, nruns), dtype=np.float64)
+        f_hdf5.create_dataset("lnprobability", (nwalkers, nruns), dtype=float)
         # f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
         f_hdf5.create_dataset(
-            "acceptance_fraction", data=np.zeros((nfit)), dtype=np.float64
+            "acceptance_fraction", data=np.zeros((nfit)), dtype=float
         )
-        f_hdf5.create_dataset("autocor_time", data=np.zeros((nfit)), dtype=np.float64)
+        f_hdf5.create_dataset("autocor_time", data=np.zeros((nfit)), dtype=float)
         f_hdf5.close()
 
         pos = p0
@@ -662,7 +662,7 @@ for iter_global in range(0, n_global):
 
         # save chains with original shape as hdf5 file
         f_hdf5 = h5py.File(os.path.join(pso_path, "emcee_summary.hdf5"), "w")
-        f_hdf5.create_dataset("chains", data=sampler.chain, dtype=np.float64)
+        f_hdf5.create_dataset("chains", data=sampler.chain, dtype=float)
         f_hdf5["chains"].attrs["nwalkers"] = nwalkers
         f_hdf5["chains"].attrs["nruns"] = nruns
         f_hdf5["chains"].attrs["nfit"] = nfit
@@ -671,15 +671,15 @@ for iter_global in range(0, n_global):
         f_hdf5.create_dataset(
             "parameter_names", data=anc.encode_list(parameter_names), dtype="S10"
         )
-        f_hdf5.create_dataset("boundaries", data=parameters_minmax, dtype=np.float64)
+        f_hdf5.create_dataset("boundaries", data=parameters_minmax, dtype=float)
         f_hdf5.create_dataset(
-            "acceptance_fraction", data=sampler.acceptance_fraction, dtype=np.float64
+            "acceptance_fraction", data=sampler.acceptance_fraction, dtype=float
         )
         f_hdf5["acceptance_fraction"].attrs[
             "mean_acceptance_fraction"
         ] = mean_acceptance_fraction
-        f_hdf5.create_dataset("autocor_time", data=acor_time, dtype=np.float64)
-        f_hdf5.create_dataset("lnprobability", data=lnprobability, dtype=np.float64)
+        f_hdf5.create_dataset("autocor_time", data=acor_time, dtype=float)
+        f_hdf5.create_dataset("lnprobability", data=lnprobability, dtype=float)
         # f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
         f_hdf5.close()
 

@@ -33,7 +33,7 @@ def save_models_from_parameters(
     if trades_type:
         trades_fit_par, trades_names_par = fit_par_in, names_par_in
         gr.create_dataset(
-            "trades_par", data=trades_fit_par, dtype=np.float64, compression="gzip"
+            "trades_par", data=trades_fit_par, dtype=float, compression="gzip"
         )
         gr.create_dataset(
             "trades_names_par", data=trades_names_par, dtype="S20", compression="gzip"
@@ -42,20 +42,20 @@ def save_models_from_parameters(
         names_par = anc.emcee_names_to_trades(trades_names_par)
         fit_par = anc.e_to_sqrte_fitting(trades_fit_par, trades_names_par)
         gr.create_dataset("fit_par", data=fit_par,
-                          dtype=np.float64, compression="gzip")
+                          dtype=float, compression="gzip")
         gr.create_dataset("names_par", data=names_par,
                           dtype="S20", compression="gzip")
     else:
         fit_par, names_par = fit_par_in, names_par_in
         gr.create_dataset("fit_par", data=fit_par,
-                          dtype=np.float64, compression="gzip")
+                          dtype=float, compression="gzip")
         gr.create_dataset("names_par", data=names_par,
                           dtype="S20", compression="gzip")
         trades_fit_par = fit_par
         # trades_fit_par = anc.sqrte_to_e_fitting(fit_par_in, names_par_in)
         # trades_names_par = anc.emcee_names_to_trades(names_par_in)
         # gr.create_dataset(
-        #     "trades_par", data=trades_fit_par, dtype=np.float64, compression="gzip"
+        #     "trades_par", data=trades_fit_par, dtype=float, compression="gzip"
         # )
         # gr.create_dataset(
         #     "trades_names_par", data=trades_names_par, dtype="S20", compression="gzip"
@@ -85,8 +85,8 @@ def save_models_from_parameters(
     id_rv = np.argsort(time_rvx)
     time_rv, rv = time_rvx[id_rv], rvx[id_rv]
     gr.create_dataset("time_rv_mod", data=time_rv,
-                      dtype=np.float64, compression="gzip")
-    gr.create_dataset("rv_mod", data=rv, dtype=np.float64, compression="gzip")
+                      dtype=float, compression="gzip")
+    gr.create_dataset("rv_mod", data=rv, dtype=float, compression="gzip")
 
     stats_ttra = np.array(stats_ttra).astype(bool)
     for ipl in range(2, NB + 1):
@@ -100,10 +100,10 @@ def save_models_from_parameters(
         ttra = ttra[idx_tra]
         dur = dur[idx_tra]
         gr.create_dataset(
-            "TTs_%d" % (ipl), data=ttra, dtype=np.float64, compression="gzip"
+            "TTs_%d" % (ipl), data=ttra, dtype=float, compression="gzip"
         )
         gr.create_dataset(
-            "T41s_%d" % (ipl), data=dur, dtype=np.float64, compression="gzip"
+            "T41s_%d" % (ipl), data=dur, dtype=float, compression="gzip"
         )
     return
 
@@ -269,9 +269,9 @@ def main():
     posterior_file = os.path.join(cli.full_path, "posterior.hdf5")
     p_h5f = h5py.File(posterior_file, "w")
     p_h5f.create_dataset(
-        "posterior", data=flatchain_posterior, dtype=np.float64)
+        "posterior", data=flatchain_posterior, dtype=float)
     p_h5f.create_dataset(
-        "loglikelihood", data=lnprob_burnin.reshape((-1)), dtype=np.float64
+        "loglikelihood", data=lnprob_burnin.reshape((-1)), dtype=float
     )
     p_h5f["posterior"].attrs["nfit"] = nfit
     p_h5f["posterior"].attrs["nposterior"] = np.shape(flatchain_posterior)[0]
@@ -519,7 +519,7 @@ def main():
             s_h5f.create_dataset(
                 "parameters/{:s}/fitted/parameters".format(s_id_sim),
                 data=parameters,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             s_h5f.create_dataset(
@@ -537,7 +537,7 @@ def main():
             s_h5f.create_dataset(
                 "parameters/{:s}/fitted/sigma".format(s_id_sim),
                 data=sigma_par.T,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             s_h5f["parameters/{:s}/fitted/sigma".format(s_id_sim)].attrs[
@@ -547,7 +547,7 @@ def main():
             s_h5f.create_dataset(
                 "parameters/{:s}/derived/parameters".format(s_id_sim),
                 data=derived_par,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             s_h5f.create_dataset(
@@ -565,7 +565,7 @@ def main():
             s_h5f.create_dataset(
                 "parameters/{:s}/derived/sigma".format(s_id_sim),
                 data=sigma_derived.T,
-                dtype=np.float64,
+                dtype=float,
                 compression="gzip",
             )
             s_h5f["parameters/{:s}/derived/sigma".format(s_id_sim)].attrs[
@@ -659,7 +659,7 @@ def main():
     s_h5f.create_dataset(
         "confidence_intervals/fitted/ci",
         data=ci_fitted.T,
-        dtype=np.float64,
+        dtype=float,
         compression="gzip",
     )
     s_h5f.create_dataset(
@@ -677,7 +677,7 @@ def main():
     s_h5f.create_dataset(
         "confidence_intervals/fitted/percentiles",
         data=np.array(anc.percentile_val[2:]),
-        dtype=np.float64,
+        dtype=float,
         compression="gzip",
     )  # now it not true...
 
@@ -795,7 +795,7 @@ def main():
         compression="gzip",
     )
     h5f.create_dataset(
-        "derived_posterior", data=der_posterior, dtype=np.float64, compression="gzip"
+        "derived_posterior", data=der_posterior, dtype=float, compression="gzip"
     )
     h5f.create_dataset(
         "units_derived",
@@ -817,7 +817,7 @@ def main():
     s_h5f.create_dataset(
         "confidence_intervals/derived/ci",
         data=ci_derived.T,
-        dtype=np.float64,
+        dtype=float,
         compression="gzip",
     )
     s_h5f.create_dataset(
@@ -835,7 +835,7 @@ def main():
     s_h5f.create_dataset(
         "confidence_intervals/derived/percentiles",
         data=np.array(anc.percentile_val[2:]),
-        dtype=np.float64,
+        dtype=float,
         compression="gzip",
     )
     # ==============================================================================

@@ -446,7 +446,14 @@ def plot_oc_T41(
     u_src = np.unique(sim.sources)
     # n_src = len(u_src)
     # ocolors = anc.set_colors(n_src, colormap=cli.color_map)
-    n_idsrc = np.max(list(cli.idsource_name.keys()))
+    if isinstance(cli.idsource_name, dict):
+        n_idsrc = np.max(list(cli.idsource_name.keys()))
+    elif isinstance(cli.idsource_name, (list, np.ndarray)):
+        n_idsrc = len(cli.idsource_name)
+        cli.idsource_name = {i+1: val for i, val in enumerate(cli.idsource_name)}
+    else:
+        cli.idsource_name = {1: "observations"}
+        n_idsrc = 1
     
     if isinstance(cli.color_map, dict):
         # full_colors = cli.color_map

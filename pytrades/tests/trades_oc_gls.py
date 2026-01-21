@@ -163,22 +163,22 @@ def get_args():
         cli.body_id = 2
 
     try:
-        cli.t_start = np.float64(cli.t_start)
+        cli.t_start = float(cli.t_start)
     except:
         cli.t_start = 0.0
 
     try:
-        cli.t_end = np.float64(cli.t_end)
+        cli.t_end = float(cli.t_end)
     except:
         cli.t_end = 365.25
 
     try:
-        cli.tref = np.float64(cli.tref)
+        cli.tref = float(cli.tref)
     except:
         cli.tref = None
 
     try:
-        cli.pref = np.float64(cli.pref)
+        cli.pref = float(cli.pref)
     except:
         cli.pref = None
 

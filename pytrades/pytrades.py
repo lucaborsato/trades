@@ -2578,7 +2578,7 @@ class TRADESfolder:
 
         return
 
-    def print_summary_boundaries(self, par_print="all"):
+    def print_summary_boundaries(self, par_print="all", return_boundaries=False):
         """
         Print summary boundaries based on the specified parameter print options.
 
@@ -2589,15 +2589,24 @@ class TRADESfolder:
             None
         """
 
+        if return_boundaries:
+            out = {}
+        else:
+            out = None
+
         sys.stdout.flush()
         if ("fix" in par_print) or ("all" in par_print):
             print("# fixed value", flush=True)
             for n, p in zip(self.fixed_names, self.fixed_parameters):
                 print("{:12s} = {:16.8f}".format(n, p), flush=True)
+            if return_boundaries:
+                out["fixed"] = {n: p for n, p in zip(self.fixed_names, self.fixed_parameters)}
         if ("fit" in par_print) or ("all" in par_print):
             print("# fitted min -- max", flush=True)
             for n, p in zip(self.fitting_names, self.fitting_minmax):
                 print("{:12s} = {:16.8f} -- {:16.8f}".format(n, p[0], p[1]), flush=True)
+            if return_boundaries:
+                out["fitted"] = {n: p for n, p in zip(self.fitting_names, self.fitting_minmax)}
 
         if ("sys" in par_print) or ("all" in par_print):
             print("# system min -- max", flush=True)
@@ -2605,10 +2614,12 @@ class TRADESfolder:
                 self.all_names, self.system_parameters_min, self.system_parameters_max
             ):
                 print("{:12s} = {:16.8f} -- {:16.8f}".format(n, pl, pu), flush=True)
+            if return_boundaries:
+                out["physical"] = {n: [p1, p2] for n, p1, p2 in zip(self.all_names, self.system_parameters_min, self.system_parameters_max)}
 
         print("", flush=True)
 
-        return
+        return out
 
     def update_system_fitting_parameters_from_keplerian_input(
         self,

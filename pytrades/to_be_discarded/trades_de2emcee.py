@@ -443,7 +443,7 @@ def lnprob(fitting_parameters):
     # loglhd, logprior = 0.0, 0.0
     # check = 1
     loglhd, logprior, check = pytrades.fortran_logprob(
-        # np.asarray(fitting_parameters, dtype=np.float64)
+        # np.asarray(fitting_parameters, dtype=float)
         fitting_parameters
     )
     if check == 0:
@@ -862,18 +862,18 @@ for iter_global in range(0, n_global):
         f_hdf5.create_dataset(
             "parameter_names", data=anc.encode_list(parameter_names), dtype="S10"
         )
-        f_hdf5.create_dataset("boundaries", data=parameters_minmax, dtype=np.float64)
-        f_hdf5.create_dataset("chains", (nwalkers, nruns, nfit), dtype=np.float64)
+        f_hdf5.create_dataset("boundaries", data=parameters_minmax, dtype=float)
+        f_hdf5.create_dataset("chains", (nwalkers, nruns, nfit), dtype=float)
         f_hdf5["chains"].attrs["nwalkers"] = nwalkers
         f_hdf5["chains"].attrs["nruns"] = nruns
         f_hdf5["chains"].attrs["nfit"] = nfit
         f_hdf5["chains"].attrs["nfree"] = nfree
-        f_hdf5.create_dataset("lnprobability", (nwalkers, nruns), dtype=np.float64)
+        f_hdf5.create_dataset("lnprobability", (nwalkers, nruns), dtype=float)
         # f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
         f_hdf5.create_dataset(
-            "acceptance_fraction", data=np.zeros((nfit)), dtype=np.float64
+            "acceptance_fraction", data=np.zeros((nfit)), dtype=float
         )
-        f_hdf5.create_dataset("autocor_time", data=np.zeros((nfit)), dtype=np.float64)
+        f_hdf5.create_dataset("autocor_time", data=np.zeros((nfit)), dtype=float)
         f_hdf5.close()
 
         pos = p0
@@ -940,7 +940,7 @@ for iter_global in range(0, n_global):
 
         # save chains with original shape as hdf5 file
         f_hdf5 = h5py.File(os.path.join(de_path, "emcee_summary.hdf5"), "w")
-        f_hdf5.create_dataset("chains", data=sampler.chain, dtype=np.float64)
+        f_hdf5.create_dataset("chains", data=sampler.chain, dtype=float)
         f_hdf5["chains"].attrs["nwalkers"] = nwalkers
         f_hdf5["chains"].attrs["nruns"] = nruns
         f_hdf5["chains"].attrs["nfit"] = nfit
@@ -949,15 +949,15 @@ for iter_global in range(0, n_global):
         f_hdf5.create_dataset(
             "parameter_names", data=anc.encode_list(parameter_names), dtype="S10"
         )
-        f_hdf5.create_dataset("boundaries", data=parameters_minmax, dtype=np.float64)
+        f_hdf5.create_dataset("boundaries", data=parameters_minmax, dtype=float)
         f_hdf5.create_dataset(
-            "acceptance_fraction", data=sampler.acceptance_fraction, dtype=np.float64
+            "acceptance_fraction", data=sampler.acceptance_fraction, dtype=float
         )
         f_hdf5["acceptance_fraction"].attrs[
             "mean_acceptance_fraction"
         ] = mean_acceptance_fraction
-        f_hdf5.create_dataset("autocor_time", data=acor_time, dtype=np.float64)
-        f_hdf5.create_dataset("lnprobability", data=lnprobability, dtype=np.float64)
+        f_hdf5.create_dataset("autocor_time", data=acor_time, dtype=float)
+        f_hdf5.create_dataset("lnprobability", data=lnprobability, dtype=float)
         # f_hdf5['lnprobability'].attrs['ln_err_const'] = ln_err_const
         f_hdf5.close()
 

@@ -14,10 +14,10 @@ import constants as cst
 
 def main():
     # integration parameters
-    t_start = np.float64(2454965.0)
-    t_epoch = np.float64(2455088.212)
-    t_int = np.float64(500.0)
-    step_in = np.float64(1.0e-3)
+    t_start = float(2454965.0)
+    t_epoch = float(2455088.212)
+    t_int = float(500.0)
+    step_in = float(1.0e-3)
 
     print("set integration parameters")
 
