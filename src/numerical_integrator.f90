@@ -72,17 +72,9 @@ contains
         real(dp), dimension(:), intent(in)::m, rin, drdt
         real(dp), intent(in)::h
         real(dp), dimension(:), intent(out)::rout, error
-        real(dp), dimension(:), allocatable::rtemp
 
-        !coefficients k(6*NB)[s], s=1,6
-        real(dp), dimension(:), allocatable::k2, k3, k4, k5, k6
-
-        ! !coefficients A[2:6]
-        ! real(dp), parameter::A2 = one/5.0_dp
-        ! real(dp), parameter::A3 = three/10.0_dp
-        ! real(dp), parameter::A4 = three/5.0_dp
-        ! real(dp), parameter::A5 = one
-        ! real(dp), parameter::A6 = 7.0_dp/8.0_dp
+        ! Use automatic arrays for performance (avoids repetitive heap allocations)
+        real(dp), dimension(size(rin))::rtemp, k2, k3, k4, k5, k6
 
         ! coefficients BXY, X=2:6, Y=1:5
         real(dp), parameter::B21 = one/5.0_dp
@@ -103,21 +95,17 @@ contains
 
         !coefficients C[1:6]
         real(dp), parameter::C1 = 37.0_dp/378.0_dp
-        ! real(dp), parameter::C2 = zero
         real(dp), parameter::C3 = 250.0_dp/621.0_dp
         real(dp), parameter::C4 = 125.0_dp/594.0_dp
-        ! real(dp), parameter::C5 = zero
         real(dp), parameter::C6 = 512.0_dp/1771.0_dp
 
         !coefficients E[s], s=1,6 for the error ==> DC in NR
         real(dp), parameter::E1 = C1-(2825.0_dp/27648.0_dp)
-        ! real(dp), parameter::E2 = zero
         real(dp), parameter::E3 = C3-(18575.0_dp/48384.0_dp)
         real(dp), parameter::E4 = C4-(13525.0_dp/55296.0_dp)
         real(dp), parameter::E5 = -277.0_dp/14336.0_dp
         real(dp), parameter::E6 = C6-0.25_dp
 
-        allocate (rtemp(NBDIM), k2(NBDIM), k3(NBDIM), k4(NBDIM), k5(NBDIM), k6(NBDIM))
         !Numerical Recipes algorithm
         rtemp = rin+B21*h*drdt
         call eqmastro(m, rtemp, k2)
@@ -131,68 +119,59 @@ contains
         call eqmastro(m, rtemp, k6)
         rout = rin+h*(C1*drdt+C3*k3+C4*k4+C6*k6)
         error = h*(E1*drdt+E3*k3+E4*k4+E5*k5+E6*k6)
-        deallocate (rtemp, k2, k3, k4, k5, k6)
 
         return
     end subroutine rkck_a
 
-!     function get_emax(emold, error, rscal) result(emax)
-!         real(dp)::emax
-!         real(dp), intent(in)::emold
-!         real(dp), dimension(:), intent(in)::error, rscal
-!         real(dp), dimension(:), allocatable::ertemp
-!         real(dp)::maxtemp
-!         integer::i
+    function get_emax(emold, error, rscal) result(emax)
+        real(dp)::emax
+        real(dp), intent(in)::emold
+        real(dp), dimension(:), intent(in)::error, rscal
+        integer::i
 
-!         allocate (ertemp(size(error)))
-!         ! ertemp = zero
-!         do i = 7, NBDIM
-!             if (abs(rscal(i)) .le. TOL_dp) then
-!                 ertemp(i) = TOL_dp
-!             else
-!                 ertemp(i) = abs(error(i))/rscal(i)
-!             end if
-!         end do
-!         maxtemp = maxval(ertemp(7:NBDIM))
-!         emax = max(emold, maxtemp)
-!         deallocate (ertemp)
+        emax = emold
+        ! Optimized: removed temporary ertemp allocation
+        do i = 7, size(error)
+            if (abs(rscal(i)) .le. TOL_dp) then
+                emax = max(emax, TOL_dp)
+            else
+                emax = max(emax, abs(error(i))/rscal(i))
+            end if
+        end do
 
-!         return
-!     end function get_emax
+        return
+    end function get_emax
 
-!     ! it calls the integrator and select the right step for the integration
-!     subroutine int_rk_a(m, rin, drdt, initial_step, ok_step, next_step, rout, err)
-!         real(dp), dimension(:), intent(in)::m, rin, drdt
-!         real(dp), intent(in)::initial_step
-!         real(dp), intent(out)::ok_step, next_step
-!         real(dp), dimension(:), intent(out)::rout, err
-!         real(dp), dimension(:), allocatable::rscal
-!         real(dp)::emax, working_step, scale_factor
-!         ! safety factor = sfac ;
-!         real(dp), parameter::sfac = 0.9_dp
-!         real(dp), parameter::exp1 = one/5.0_dp
+    ! it calls the integrator and select the right step for the integration
+    subroutine int_rk_a(m, rin, drdt, initial_step, ok_step, next_step, rout, err)
+        real(dp), dimension(:), intent(in)::m, rin, drdt
+        real(dp), intent(in)::initial_step
+        real(dp), intent(out)::ok_step, next_step
+        real(dp), dimension(:), intent(out)::rout, err
+        real(dp), dimension(size(rin))::rscal
+        real(dp)::emax, working_step, scale_factor
+        ! safety factor = sfac ;
+        real(dp), parameter::sfac = 0.9_dp
+        real(dp), parameter::exp1 = one/5.0_dp
 
-!         working_step = initial_step !uses a temporary variable
-!         scale_factor = one
-!         allocate (rscal(NBDIM))
-!         rscal = abs(rin)+abs(working_step*drdt)
-!         sel: do
-! !       emax=0._dp
-!             emax = TOL_dp
-!             call rkck_a(m, rin, drdt, working_step, rout, err)
-!             emax = get_emax(emax, err, rscal)
-!             scale_factor = sfac*((tol_int/emax)**(exp1))
-!             ok_step = working_step
-!             working_step = working_step*scale_factor
-!             if (tol_int .ge. emax) exit sel
-!         end do sel
-!         next_step = working_step
-!         deallocate (rscal)
+        working_step = initial_step !uses a temporary variable
+        scale_factor = one
+        rscal = abs(rin)+abs(working_step*drdt)
+        sel: do
+            emax = TOL_dp
+            call rkck_a(m, rin, drdt, working_step, rout, err)
+            emax = get_emax(emax, err, rscal)
+            scale_factor = sfac*((tol_int/emax)**(exp1))
+            ok_step = working_step
+            working_step = working_step*scale_factor
+            if (tol_int .ge. emax) exit sel
+        end do sel
+        next_step = working_step
 
-!         return
-!     end subroutine int_rk_a
+        return
+    end subroutine int_rk_a
 
-    subroutine int_rk_a(mass, rin, drdt, initial_step, ok_step, next_step, rout, rerr)
+    subroutine int_rk_a2(mass, rin, drdt, initial_step, ok_step, next_step, rout, rerr, err_prev)
         ! Input
         real(dp), dimension(:), intent(in) :: mass
         real(dp), dimension(:), intent(in) :: rin, drdt
@@ -200,85 +179,81 @@ contains
         ! Output
         real(dp), intent(out) :: ok_step, next_step
         real(dp), dimension(:), intent(out) :: rout, rerr
+        ! Optional PI controller state
+        real(dp), intent(inout) :: err_prev
         ! Local variables
         real(dp) :: err_old
         real(dp), parameter :: safe_factor = 0.9_dp
         real(dp), parameter :: minscale = 0.2_dp, maxscale = 5.0_dp
-        real(dp), parameter :: atol = 1.0e-15_dp, rtol = 1.0e-13_dp
+        real(dp), parameter :: atol = 1.0e-15_dp ! Absolute tolerance
         real(dp), parameter :: err_default = 1.0e-10_dp
-        ! | Metodo    | Soluzione accettata | Errore stimato | k corretto |
-        ! | --------- | ------------------- | -------------- | ---------- |
-        ! | RKCK5(4)  | ordine 5            | differenza 5−4 | **4**      |
-        ! | DOPRI5(4) | ordine 5            | differenza 5−4 | **4**      |
-        ! Valori moderni (Hairer / Söderlind / DOPRI)
-        ! Per RK embedded di ordine 5(4), i valori più usati sono:
-        ! alpha ≈ 0.7 / (k+1)
-        ! beta  ≈ 0.4 / (k+1)
-        ! con 
-        ! 𝑘 +  1 = 5
-        ! k+1=5:
-        ! alpha = 0.14
-        ! beta  = 0.08
-        ! Oppure (molto comune):
-        ! alpha = 0.2
-        ! beta  = 0.1
-        ! | Fonte             | α           | β     | Carattere          |
-        ! | ----------------- | ----------- | ----- | ------------------ |
-        ! | Numerical Recipes | 0.10        | 0.175 | Molto conservativo |
-        ! | Hairer–Wanner     | 0.14        | 0.08  | Bilanciato         |
-        ! | Söderlind         | 0.2         | 0.1   | Moderno, stabile   |
-        ! | Solo P controller | 1/(k+1)=0.2 | 0     | Semplice           |
-        ! real(dp), parameter :: k = 5.0_dp, beta = 0.4_dp/k, alpha = (one/k) - 0.75_dp*beta
+        
+        ! Adaptive PI controller parameters for embedded RK5(4)
         real(dp), parameter :: alpha = 0.2_dp, beta = 0.1_dp
         real(dp) :: working_step
-        real(dp) :: sk, scale_factor, errval
+        real(dp) :: sk, scale_factor, errval, rtol
         logical :: accept_step
         integer :: i, ndim
 
-        err_old = 1.0e-12_dp
+        ! Use global tol_int if possible, otherwise fixed rtol
+        rtol = tol_int
+        
+        ! Initialize err_old: if err_prev is provided, use it, 
+        ! otherwise use 1.0 to start with P-control behavior
+        err_old = err_prev
+
         ndim = size(rin)
         working_step = initial_step
         do 
             call rkck_a(mass, rin, drdt, working_step, rout, rerr)
-            ! scaled norm of the rerr
+            
+            ! Scaled norm of the estimated error
             errval = zero
-            doerr: do i = 7,ndim
+            do i = 7, ndim
                 sk = atol + rtol * max(abs(rin(i)), abs(rout(i)))
                 errval = errval + (rerr(i)/sk)**2
-            end do doerr
-            errval = sqrt(errval/real(ndim-6, dp))
+            end do
+            
+            if (ndim > 6) then
+                errval = sqrt(errval/real(ndim-6, dp))
+            else
+                errval = zero
+            end if
 
             ! accept step if errval <= 1
-            if (errval <= one)then
+            if (errval <= one) then
                 accept_step = .true.
             else
                 accept_step = .false.
             end if
 
-            ! propose new step 
+            ! propose new step using PI or P controller
             if (errval > zero) then
                 scale_factor = safe_factor * errval**(-alpha) * err_old**(beta)
             else
                 scale_factor = maxscale
             end if
 
-            ! new step
+            ! damp scale factor
             scale_factor = min(maxscale, max(minscale, scale_factor))
             next_step = working_step * scale_factor
 
             ! ==== Aggiorna errore precedente ====
             if (accept_step) then
                 ok_step = working_step
-                err_old = max(errval, err_default)
+                ! Store error for next step
+                err_prev = max(errval, err_default)
                 exit
             else
+                ! Step rejected: reset PI state for retry to avoid oscillations
+                err_old = one
                 working_step = next_step
             end if
 
         end do
 
         return
-    end subroutine int_rk_a
+    end subroutine int_rk_a2
 
     ! ------------------------------------------------------------------ !
 
@@ -287,16 +262,17 @@ contains
         real(dp), intent(in)::dt
         real(dp), dimension(:), intent(out)::rout
 
-        real(dp)::itime, working_step, ok_step, next_step
-        real(dp), dimension(:), allocatable::r1, r2, drdt, error
+        real(dp)::itime, working_step, ok_step, next_step, err_prev
+        ! Use automatic arrays for performance
+        real(dp), dimension(size(rin))::r1, r2, drdt, error
 
         rout = zero
-        allocate (r1(NBDIM), r2(NBDIM), drdt(NBDIM), error(NBDIM))
         r1 = rin
         r2 = rin
 
         working_step = half*dt
         itime = zero
+        err_prev = one ! Initialize PI controller state
 
         loopint: do
             call eqmastro(m, r1, drdt)
@@ -307,8 +283,9 @@ contains
                 itime = dt
 
             else
-
-                call int_rk_a(m, r1, drdt, working_step, ok_step, next_step, r2, error)
+                ! call int_rk_a(m, r1, drdt, working_step, ok_step, next_step, r2, error)
+                ! Use improved int_rk_a2 with persistent PI error state
+                call int_rk_a2(m, r1, drdt, working_step, ok_step, next_step, r2, error, err_prev)
                 itime = itime+ok_step
                 working_step = next_step
 
@@ -317,7 +294,6 @@ contains
             r1 = r2
         end do loopint
         rout = r2
-        deallocate (r1, r2, drdt, error)
 
         return
     end subroutine integrates_rk
@@ -348,25 +324,26 @@ contains
         real(dp), dimension(:), intent(out)::rout
         ! **local**
         integer::n_body, nb_dim
-        real(dp)::working_step, ok_step, next_step, itime
-        real(dp), dimension(:), allocatable::dr, r1, r2, err
-        ! if you see a variable non listed here, probably it is a global variable
-        ! defined in constants.f90 or parameters.f90
+        real(dp)::working_step, ok_step, next_step, itime, err_prev
+        ! Use automatic arrays for performance
+        real(dp), dimension(size(rin))::dr, r1, r2, err
 
         n_body = size(mass)
         nb_dim = n_body*6
         working_step = sign(stepsize, time)
 
         itime = zero
-        allocate (dr(nb_dim), r1(nb_dim), r2(nb_dim), err(nb_dim))
         r1 = rin
+        err_prev = one ! Initialize PI controller state
 
         if (abs(time) .gt. TOL_dp) then
             integration: do
 
                 if (abs(itime+working_step) .gt. abs(time)) working_step = time-itime
                 call eqmastro(mass, r1, dr)
-                call int_rk_a(mass, r1, dr, working_step, ok_step, next_step, r2, err)
+                ! call int_rk_a(mass, r1, dr, working_step, ok_step, next_step, r2, err)
+                ! Use improved int_rk_a2 with persistent PI error state
+                call int_rk_a2(mass, r1, dr, working_step, ok_step, next_step, r2, err, err_prev)
                 
                 if (close_encounter_check) then
                     Hc = separation_mutual_Hill_check(mass, radius, r2, do_hill_check)
@@ -398,8 +375,6 @@ contains
 
         stepsize = next_step
 
-        deallocate (dr, r1, r2, err)
-
         return
     end subroutine one_forward_step
 
@@ -412,23 +387,24 @@ contains
         ! **Output**
         real(dp), dimension(:), intent(out)::rout
         ! **local**
-        real(dp)::working_step, ok_step, next_step, itime
-        real(dp), dimension(:), allocatable::dr, r1, r2, err
-        ! if you see a variable non listed here, probably it is a global variable
-        ! defined in constants.f90 or parameters.f90
+        real(dp)::working_step, ok_step, next_step, itime, err_prev
+        ! Use automatic arrays for performance
+        real(dp), dimension(size(rin))::dr, r1, r2, err
 
         working_step = sign(stepsize, time)
 
         itime = zero
-        allocate (dr(NBDIM), r1(NBDIM), r2(NBDIM), err(NBDIM))
         r1 = rin
+        err_prev = one ! Initialize PI controller state
 
         if (abs(time) .gt. TOL_dp) then
             integration: do
 
                 if (abs(itime+working_step) .gt. abs(time)) working_step = time-itime
                 call eqmastro(mass, r1, dr)
-                call int_rk_a(mass, r1, dr, working_step, ok_step, next_step, r2, err)
+                ! call int_rk_a(mass, r1, dr, working_step, ok_step, next_step, r2, err)
+                ! Use improved int_rk_a2 with persistent PI error state
+                call int_rk_a2(mass, r1, dr, working_step, ok_step, next_step, r2, err, err_prev)
                 itime = itime+ok_step
 
                 if (abs(itime) .ge. abs(time)) then
@@ -449,8 +425,6 @@ contains
         end if
 
         stepsize = next_step
-
-        deallocate (dr, r1, r2, err)
 
         return
     end subroutine one_forward_step_no_check

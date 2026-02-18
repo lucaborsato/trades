@@ -25,7 +25,6 @@ from dynesty import plotting as dyplot
 
 from pytrades.constants import Mjups, Msear
 from pytrades import ancillary as anc
-# from pytrades_lib import f90trades
 from pytrades import pytrades
 
 # =============================================================================
@@ -76,7 +75,6 @@ sim = pytrades.TRADESfolder(
 sim.init_trades()
 sys.stdout.flush()
 
-
 #
 # FUNCTION NEEDED BY DYNESTY
 #
@@ -90,8 +88,34 @@ def my_prior_transform(cube):
     return params
 
 
-def lnL_dynesty(fitting_parameters):
+# def lnL_dynesty(fitting_parameters):
 
+#     (
+#         # chi_square,
+#         # reduced_chi_square,
+#         # lgllhd,
+#         # lnprior,
+#         # ln_const,
+#         # bic,
+#         # check,
+#         _,
+#         _,
+#         lnL,
+#         lnp,
+#         _,
+#         _,
+#         check,
+#     ) = sim.run_and_get_stats_from_parameters(fitting_parameters)
+
+#     # return lnL + lnp
+#     return lnL
+
+
+# bounds = sim.fitting_minmax
+# lnp_u = np.log(1.0/np.ptp(bounds, axis=1))
+lnp_u = 0.0
+
+def lnL_lnp_dynesty(fitting_parameters):
     (
         # chi_square,
         # reduced_chi_square,
@@ -106,11 +130,13 @@ def lnL_dynesty(fitting_parameters):
         lnp,
         _,
         _,
-        check,
+        _,
     ) = sim.run_and_get_stats_from_parameters(fitting_parameters)
 
-    return lnL + lnp
+    # bounds = sim.fitting_minmax
+    # lnp_u = np.log(1.0/np.ptp(bounds, axis=1))
 
+    return (lnL, lnp+lnp_u)
 
 # INITIALISE SCRIPT FOLDER/LOG FILE
 working_folder, _, of_run = init_folder(working_path, cli.sub_folder)
@@ -129,13 +155,11 @@ if cli.dynesty_just_plots and dyne_output_exists:
         results = pickle.load(handle)
 
 else:
-    wrapped_pars = anc.check_wrapped_parameters(sim.fitting_names)
-    if np.any(wrapped_pars):
-        wrapped_pars = np.arange(0,sim.nfit,1)[wrapped_pars]
-    else:
+    wrapped_pars = anc.check_wrapped_parameters(sim.fitting_names, sim.fitting_minmax)
+    if len(wrapped_pars) < 1:
         wrapped_pars = None
 
-    nlive_min = 2 * sim.nfit
+    nlive_min = 4 * sim.nfit
     if cli.dynesty_live_points < nlive_min:
         n_live_points = nlive_min
         anc.print_both("set n_live_points = {}".format(n_live_points), output=of_run)
@@ -164,7 +188,7 @@ else:
     if cli.nthreads > 1:
 
 
-        with Pool(cli.nthreads, lnL_dynesty, my_prior_transform) as pool:
+        with Pool(cli.nthreads, lnL_lnp_dynesty, my_prior_transform) as pool:
         # with Pool(cli.nthreads) as pool:
 
             if resume:
@@ -185,7 +209,8 @@ else:
                     periodic=wrapped_pars,
                     pool=pool,
                     queue_size=cli.nthreads,
-                    use_pool={'prior_transform': False}
+                    use_pool={'prior_transform': False},
+                    blob=True
                 )
             sampler.run_nested(
                 dlogz_init=cli.dynesty_dlogz,
@@ -202,13 +227,14 @@ else:
                 )
         else:
             sampler = dynesty.DynamicNestedSampler(
-                lnL_dynesty,
+                lnL_lnp_dynesty,
                 my_prior_transform,
                 sim.nfit,
                 nlive=n_live_points,
                 bound=cli.dynesty_bound,
                 sample=cli.dynesty_sample,
                 periodic=wrapped_pars,
+                blob=True
             )
 
         sampler.run_nested(
@@ -259,68 +285,8 @@ else:
     with open(dynesty_output_file, "wb") as handle:
         pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-anc.print_both("Plotting ... ", output=of_run)
-plot_folder = os.path.join(
-    working_folder, "plots"
-)
-os.makedirs(plot_folder, exist_ok=True)
-
-# analytic evidence solution
-anc.print_both("... runplot: analytic evidence solution ... ", output=of_run)
-fig, axes = dyplot.runplot(
-    results, 
-    color='C0',
-    logplot=True, 
-)
-for ax in axes:
-    ax.xaxis.label.set_fontsize(18)
-    ax.yaxis.label.set_fontsize(18)
-    ax.tick_params(axis='both', labelsize=14)
-fig.tight_layout()
-fig.align_ylabels(axes)
-fig_file = os.path.join(plot_folder, "01_dynesty_runplot.png")
-fig.savefig(fig_file, dpi=300, bbox_inches="tight")
-plt.close(fig)
-
-# traceplot
-anc.print_both("... traceplot ... ", output=of_run)
-fig, axes = dyplot.traceplot(
-    results, 
-    show_titles=True, 
-    trace_cmap='viridis',
-    title_kwargs={'fontsize': 8, 'y': 0.5, 'x': 1.05, "loc":"left"},
-    labels=sim.fitting_names,
-    quantiles=None,
-    fig=plt.subplots(sim.nfit, 2, figsize=(14, 20))
-)
-# fig.tight_layout()
-fig.align_ylabels(axes)
-fig_file = os.path.join(plot_folder, "02_dynesty_traceplot.png")
-fig.savefig(fig_file, dpi=300, bbox_inches="tight")
-plt.close(fig)
-
-# cornerplot
-anc.print_both("... cornerplot ... ", output=of_run)
-fig, axes = dyplot.cornerplot(
-    results, 
-    color="C0",
-    show_titles=True, 
-    title_kwargs={'y': 1.05, "x": 0.05, "loc":"left"},
-    labels=sim.fitting_names,
-    quantiles=None,
-    fig=plt.subplots(sim.nfit, sim.nfit, figsize=(14, 14))
-)
-
-fig.align_ylabels(axes)
-for axs in axes:
-    for ax in axs:
-        ax.xaxis.labelpad = 50
-        ax.yaxis.labelpad = 50
-
-# fig.tight_layout()
-fig_file = os.path.join(plot_folder, "03_dynesty_cornerplot.png")
-fig.savefig(fig_file, dpi=300, bbox_inches="tight")
-plt.close(fig)
+anc.print_both("Completed dynesty run", output=of_run)
+sys.stdout.flush()
 
 of_run.close()
 sim.reset()

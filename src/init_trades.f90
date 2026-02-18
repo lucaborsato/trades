@@ -960,6 +960,8 @@ contains
             open (uread, file=trim(path)//"obs_excluded.dat", status='OLD')
             n_excluded = get_rows(uread)
             if (n_excluded .gt. 0) then
+                if (allocated(excluded_body)) deallocate (excluded_body)
+                if (allocated(excluded_time_ranges)) deallocate (excluded_time_ranges)
                 allocate (excluded_body(n_excluded))
                 allocate (excluded_time_ranges(n_excluded, 2))
                 iread = 0

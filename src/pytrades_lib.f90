@@ -2050,4 +2050,31 @@ contains
     ! ============================================================================
     ! ============================================================================
 
+    subroutine trueanomaly_to_eccanomaly(trueanom, ecc, eccanom)
+        real(dp), intent(in)::trueanom, ecc
+        real(dp), intent(out)::eccanom
+
+        eccanom = trueAnom_ecc_to_eccAnom(trueanom, ecc)
+
+        return
+    end subroutine trueanomaly_to_eccanomaly
+
+    subroutine meananomaly_to_eccanomaly(meananom, ecc, eccanom)
+        real(dp), intent(in)::meananom, ecc
+        real(dp), intent(out)::eccanom
+
+        eccanom = EAnom(meananom, ecc)
+
+        return
+    end subroutine meananomaly_to_eccanomaly
+
+    subroutine meananomaly_to_trueanomaly(meananom, ecc, trueanom)
+        real(dp), intent(in)::meananom, ecc
+        real(dp), intent(out)::trueanom
+
+        trueanom = calculate_true_anomaly(meananom, ecc)
+
+        return
+    end subroutine meananomaly_to_trueanomaly
+
 end module f90trades

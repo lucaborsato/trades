@@ -750,8 +750,7 @@ class ConfigurationRun:
             "thin_by": 1,
             "emcee_restart": False,
             "emcee_progress": True,
-            "pre_optimise": True,
-            "pre_optimize": True,
+            "pre_optimise": False,
             "move": {"type": ["ai"], "fraction": [1.0]},
         }
         emcee_keys = cemcee.keys()
@@ -825,9 +824,8 @@ class ConfigurationRun:
         self.thin_by = set_int_argument(cemcee["thin_by"], default=1)
         self.emcee_restart = set_bool_argument(cemcee["emcee_restart"])
         self.emcee_progress = set_bool_argument(cemcee["emcee_progress"])
-        self.pre_optimise = set_bool_argument(
-            cemcee["pre_optimise"]
-        ) or set_bool_argument(cemcee["pre_optimize"])
+
+        self.pre_optimise = set_bool_argument(cemcee["pre_optimise"])
 
         # print()
         # print("====================")
@@ -4979,6 +4977,7 @@ def check_wrapped_parameters(names_par, bounds_par):
     #     ):
     #         wrapped[ifit] = True
 
+    wrapped = []
     for ifit, name in enumerate(names_par):
         dbd = np.ptp(bounds_par[ifit,:])
         if ('mA' in name) or (name[0] == 'w') or ('lN' in name) or ('lambda' in name):

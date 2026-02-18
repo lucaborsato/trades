@@ -53,6 +53,9 @@ angular_momentum_deficit_fit_parameters = (
 )
 check_rv_res_periodogram = f90trades.check_rv_res_periodogram
 # angular_momentum_deficit_posterior = f90trades.angular_momentum_deficit_posterior
+trueanomaly_to_eccanomaly = f90trades.trueanomaly_to_eccanomaly
+meananomaly_to_eccanomaly = f90trades.meananomaly_to_eccanomaly
+meananomaly_to_trueanomaly = f90trades.meananomaly_to_trueanomaly
 # =============================================================================
 
 

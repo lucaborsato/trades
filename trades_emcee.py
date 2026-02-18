@@ -110,7 +110,7 @@ def lnprob(fitting_parameters):
     ) = sim.run_and_get_stats_from_parameters(fitting_parameters)
 
     if check == 0:
-        return -np.inf
+        return -np.inf, 0.0
         # return -2.0e30
 
     return lgllhd + lnprior
