@@ -113,18 +113,22 @@ def lnprob(fitting_parameters):
         return -np.inf, 0.0
         # return -2.0e30
 
-    return lgllhd + lnprior
+    return lgllhd + lnprior, lnprior
 
+
+def lnprob_de(fitting_parameters):
+    lnP, _ = lnprob(fitting_parameters)
+    return lnP
 
 def lnprob_real(fitting_parameters):
-    lnP = lnprob(fitting_parameters)
+    lnP, _ = lnprob(fitting_parameters)
     if np.isinf(lnP):
         lnP = -huge
     return lnP
 
 
 def minimize_func(fitting_parameters):
-    lnL = lnprob(fitting_parameters)
+    lnL = lnprob_de(fitting_parameters)
     to_min = -2.0 * lnL
     if np.isinf(to_min):
         to_min = huge
@@ -193,7 +197,7 @@ if de_run or de_resume or de_to_emcee:
     (
         de_par, de_lnP, de_pop_best, de_fit_best, de_pop, de_fit
     ) = de.run_de(
-        cli, sim, lnprob, working_folder, of_run=of_run
+        cli, sim, lnprob_de, working_folder, of_run=of_run
     )
     fitting_parameters = de_par.copy()
 
@@ -338,8 +342,7 @@ if cli.nruns > 0:
             else:
                 anc.print_both("Not changing fitting parameters")
         p0 = compute_initial_walkers(
-            # lnprob_sq,
-            lnprob,
+            lnprob_de,
             sim.nfit,
             cli.nwalkers,
             fitting_parameters,
@@ -347,7 +350,6 @@ if cli.nruns > 0:
             cli.delta_sigma,
             sim.fitting_names,
             args=(),
-            # of_run=None,
             of_run=of_run,
         )
     sys.stdout.flush()
@@ -361,10 +363,6 @@ if cli.nruns > 0:
             sim.nfit,
             lnprob,
             pool=threads_pool,
-            # moves=[
-            #     (emcee.moves.DEMove(), 0.8),
-            #     (emcee.moves.DESnookerMove(), 0.2),
-            # ],
             moves=cli.emcee_move,
             backend=backend,
         )
