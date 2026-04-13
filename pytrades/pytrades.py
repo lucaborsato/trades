@@ -715,10 +715,7 @@ def orbital_parameters_to_transits(
 
     # Select the time steps that correspond to the observed RV times
     sel_t_rv = np.isin(time_steps, t_rv_obs)
-    # Compute the radial velocity at the selected times
-    rv = orbits_to_rvs(mass, orbits[sel_t_rv, :])
-    # Create a dictionary with the simulated RV values
-    rv_sim = {"time": time_steps[sel_t_rv], "rv": rv}
+    n_rv_obs = len(t_rv_obs)
 
     # Set the transiting body to 1 (all planets)
     transiting_body = 1
@@ -730,11 +727,25 @@ def orbital_parameters_to_transits(
     #     n_body - 1
     # )  # star has no transits by definition
     n_all_transits = len(time_steps)*(n_body-1)
-    # Compute the transits, durations, lambda_rm, Kepler elements, and body flags
-    transits, durations, lambda_rm, kep_elem, body_flag = orbits_to_transits(
-        n_all_transits, time_steps, mass, radius, orbits, transiting_body
-    )
-    # kep_elem == period 0, sma 1, ecc 2, inc 3, meana 4, argp 5, truea 6, longn 7
+
+    if stable == 0:
+        rv_sim = {"time": time_steps[sel_t_rv], "rv": np.zeros((n_rv_obs))}
+        transits = np.zeros((n_all_transits))
+        durations = np.zeros((n_all_transits))
+        lambda_rm = np.zeros((n_all_transits))
+        kep_elem = np.zeros((n_all_transits, 8))
+        body_flag = np.zeros((n_all_transits))
+    else:
+        # Compute the radial velocity at the selected times
+        rv = orbits_to_rvs(mass, orbits[sel_t_rv, :])
+        # Create a dictionary with the simulated RV values
+        rv_sim = {"time": time_steps[sel_t_rv], "rv": rv}
+        # Compute the transits, durations, lambda_rm, Kepler elements, and body flags
+        transits, durations, lambda_rm, kep_elem, body_flag = orbits_to_transits(
+            n_all_transits, time_steps, mass, radius, orbits, transiting_body
+        )
+        # kep_elem == period 0, sma 1, ecc 2, inc 3, meana 4, argp 5, truea 6, longn 7
+        
     return (
         time_steps,
         orbits,
