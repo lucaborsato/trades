@@ -200,6 +200,7 @@ if de_run or de_resume or de_to_emcee:
         cli, sim, lnprob_de, working_folder, of_run=of_run
     )
     fitting_parameters = de_par.copy()
+    de_pop_flat = np.reshape(de_pop, (cli.ngen_de * cli.npop_de, sim.nfit))
 
 
 elif cli.trades_previous is not None:
@@ -218,6 +219,7 @@ elif cli.trades_previous is not None:
     for n, p in zip(sim.fitting_names, fitting_parameters):
         anc.print_both("{:20s} {:23.16e}".format(n, p), output=of_run)
     anc.print_both("", output=of_run)
+    de_pop_flat = None
 
 else:
     # INITIAL PARAMETER SET (NEEDED ONLY TO HAVE THE PROPER ARRAY/VECTOR)
@@ -230,6 +232,7 @@ else:
         output=of_run,
     )
     fitting_parameters = initial_parameters.copy()
+    de_pop_flat = None
 
 sys.stdout.flush()
 
@@ -341,7 +344,10 @@ if cli.nruns > 0:
                 sys.stdout.flush()
             else:
                 anc.print_both("Not changing fitting parameters")
-        p0 = compute_initial_walkers(
+        if de_pop_flat is not None:
+            p0 = de_pop_flat[-cli.nwalkers:, :]
+        else:
+            p0 = compute_initial_walkers(
             lnprob_de,
             sim.nfit,
             cli.nwalkers,

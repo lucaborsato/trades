@@ -1,33 +1,34 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import sys
+import os
+import numpy as np  # array
+import h5py
+import emcee
+import pickle
+import dill
+
+import matplotlib.pyplot as plt
+
 # from pytrades_lib import pytrades
 from pytrades import pytrades
 from pytrades import ancillary as anc
 
 # import constants as cst  # local constants module
-# from pytrades.gelman_rubin import compute_gr
-# from pytrades.geweke import compute_geweke
+from pytrades.gelman_rubin import compute_gr
+from pytrades.geweke import compute_geweke
 from pytrades.convergence import (
-    # compute_convergence,
+    compute_convergence,
     full_statistics,
-    log_probability_trace
+    log_probability_trace,
 )
-# from pytrades.chains_summary_plot import plot_chains
+from pytrades.chains_summary_plot import plot_chains
 from pytrades.fitted_correlation_plot import plot_triangle as correlation_fitted
 from pytrades.physical_correlation_plot import plot_triangle as correlation_physical
 from pytrades import plot_oc as poc
 from pytrades import plot_rv as prv
-import sys
 
-# import argparse
-# import time
-import os
-import numpy as np  # array
-import h5py
-import emcee
-
-import matplotlib.pyplot as plt
 
 # import numba
 # numba.set_num_threads(1)
@@ -87,6 +88,10 @@ def get_emcee_run(cli):
             burnin_done=False,
             full_chains_thinned=True,
         )
+        lnpriors = None
+        lnpriors_full_thinned = None
+        lnpriors_posterior = None
+        lnpriors_posterior_flat = None
 
     else:
         fitting_names_original = None
@@ -109,6 +114,7 @@ def get_emcee_run(cli):
         fitting_posterior = backend.get_chain(
             discard=cli.nburnin, flat=True, thin=cli.use_thin
         )
+
         anc.print_both("... loading log_prob ...")
         sys.stdout.flush()
         lnprobability = backend.get_log_prob()  # nruns x nwalkers
@@ -125,7 +131,27 @@ def get_emcee_run(cli):
         lnprob_posterior = backend.get_log_prob(
             discard=cli.nburnin, flat=True, thin=cli.use_thin
         )
-        sys.stdout.flush()
+
+        try:
+            anc.print_both("... loading lnpriors ...")
+            lnpriors = backend.get_blob()
+            anc.print_both("... loading thinned lnpriors ...")
+            lnpriors_full_thinned = backend.get_blob(thin=cli.use_thin)
+            anc.print_both("... loading thinned posterior lnpriors ...")
+            lnpriors_posterior = backend.get_blob(
+                discard=cli.nburnin, flat=False, thin=cli.use_thin
+            )
+            anc.print_both("... loading thinned flat posterior lnpriors ...")
+            lnpriors_posterior_flat = backend.get_blob(
+                discard=cli.nburnin, flat=True, thin=cli.use_thin
+            )
+            sys.stdout.flush()
+        except:
+            anc.print_both("... probably run emcee without blobs, setting lnpriors to 0.0")
+            lnpriors = np.zeros(np.shape(lnprobability))
+            lnpriors_full_thinned = np.zeros(np.shape(lnprobability_full_thinned))
+            lnpriors_posterior = np.zeros(np.shape(lnprobability_posterior))
+            lnpriors_posterior_flat = np.zeros(np.shape(lnprob_posterior))
 
     anc.print_both("... done")
     sys.stdout.flush()
@@ -139,6 +165,10 @@ def get_emcee_run(cli):
         lnprobability_full_thinned,
         lnprobability_posterior,
         lnprob_posterior,
+        lnpriors,
+        lnpriors_full_thinned,
+        lnpriors_posterior,
+        lnpriors_posterior_flat,
         emcee_file,
         fitting_names_original,
     )
@@ -182,18 +212,24 @@ class AnalysisTRADES:
         # get data from the hdf5 file
         anc.print_both("\nGet data from hdf5 file ...")
         (
-            self.chains,
-            self.chains_full_thinned,
-            self.chains_posterior,
-            self.fitting_posterior,
-            self.lnprobability,
-            self.lnprobability_full_thinned,
-            self.lnprobability_posterior,
-            self.lnprob_posterior,
+            self.chains, # nsteps x nwalkers x nfit
+            self.chains_full_thinned, # nsteps/thinning x nwalkers x nfit
+            self.chains_posterior, # (nsteps-burnin)/thinning x nwalkers x nfit
+            self.fitting_posterior, # nposterior x nfit
+            self.lnprobability, # nsteps x nwalkers
+            self.lnprobability_full_thinned, # nsteps/thinning x nwalkers
+            self.lnprobability_posterior, # (nsteps-burnin)/thinning x nwalkers
+            self.lnprob_posterior, # nposterior
+            self.lnpriors, # nsteps x nwalkers
+            self.lnpriors_full_thinned, # nsteps/thinning x nwalkers
+            self.lnpriors_posterior, # (nsteps-burnin)/thinning x nwalkers
+            self.lnpriors_posterior_flat, # nposterior
             self.emcee_file,
             self.fitting_names_original,
         ) = get_emcee_run(cli)
         self.npost, _ = np.shape(self.fitting_posterior)
+
+        self.lnlikelihood_posterior_flat = self.lnprob_posterior - self.lnpriors_posterior_flat
 
         # selection of the posterior based on lnProb
         self.lnProb_selection = cli.lnProb_selection
@@ -282,7 +318,7 @@ class AnalysisTRADES:
             "####################################################################"
         )
         for fitn, fitt in zip(self.fitting_names, self.fitting_type):
-            print(fitn, fitt)
+            anc.print_both(f"{fitn}: {fitt}")
         anc.print_both(
             "####################################################################"
         )
@@ -416,7 +452,13 @@ class AnalysisTRADES:
         with h5py.File(self.posterior_file, "w") as p_h5f:
             p_h5f.create_dataset("posterior", data=self.fitting_posterior, dtype=float)
             p_h5f.create_dataset(
-                "loglikelihood", data=self.lnprob_posterior, dtype=float
+                "lnlikelihood", data=self.lnlikelihood_posterior_flat, dtype=float
+            )
+            p_h5f.create_dataset(
+                "lnpriors", data=self.lnpriors_posterior_flat, dtype=float
+            )
+            p_h5f.create_dataset(
+                "lnprobability", data=self.lnprob_posterior, dtype=float
             )
             p_h5f["posterior"].attrs["nfit"] = self.sim.nfit
             p_h5f["posterior"].attrs["nposterior"] = self.npost
@@ -454,6 +496,7 @@ class AnalysisTRADES:
                 p_h5f["AMD_stable"].attrs["n_stable"] = np.sum(self.amd_stable)
 
         anc.print_both(" Saved posterior file: {}".format(self.posterior_file))
+        return
 
     # ---------------------------------
     def save_observables_from_samples(self, samples_fit_par, smp_h5, olog=None):
@@ -526,7 +569,6 @@ class AnalysisTRADES:
         anc.print_both(out_folder)
         os.makedirs(out_folder, exist_ok=True)
 
-        # compute sigma fit/phy!!
         anc.print_both("#############################")
         anc.print_both("CHECK SCALE/MOD FITTING ANGULAR PARAMETER")
         fit_temp = np.copy(fit_par)
@@ -546,6 +588,7 @@ class AnalysisTRADES:
                 )
         anc.print_both("#############################")
 
+        # compute sigma fit/phy!!
         sigma_hdi_fit = anc.hdi_to_sigma(fit_temp, ci_fit)
         mad_fit, rms_fit = anc.posterior_to_rms_mad(
             self.fitting_posterior[self.sel_flat_posterior_lnprob, :], fit_temp
@@ -1051,7 +1094,6 @@ class AnalysisTRADES:
     def summary_parameters(self):
 
         anc.print_both("Computing HDI/CI")
-        # hdi_ci, mode_parameters = anc.compute_hdi_full(fitting_posterior, mode_output=True)
         hdi_ci = anc.compute_hdi_full(
             self.fitting_posterior[self.sel_flat_posterior_lnprob, :]
         )
@@ -1131,8 +1173,8 @@ class AnalysisTRADES:
                 self.save_median_parameters()
                 self.save_map_parameters()
                 self.save_map_hdi_parameters()
-                self.save_mode_parameters()
-                self.save_from_file_parameters()
+                # self.save_mode_parameters()
+                # self.save_from_file_parameters()
 
         self.get_and_save_samples()
 
@@ -1159,10 +1201,10 @@ def run_analysis(cli):
     sys.stdout.flush()
 
     # analysis.fit_to_physical()
-    anc.print_both("ndata  = {}".format(analysis.sim.ndata))
-    anc.print_both(" nfit  = {}".format(analysis.sim.nfit))
-    anc.print_both("  dof  = {}".format(analysis.sim.dof))
-    anc.print_both("star = {}".format(analysis.sim.MR_star))
+    anc.print_both("ndata = {}".format(analysis.sim.ndata))
+    anc.print_both(" nfit = {}".format(analysis.sim.nfit))
+    anc.print_both("  dof = {}".format(analysis.sim.dof))
+    anc.print_both("star  = {}".format(analysis.sim.MR_star))
 
     anc.print_both(
         "shape of chains_posterior = {}".format(np.shape(analysis.chains_posterior))
