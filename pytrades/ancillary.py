@@ -968,6 +968,7 @@ class ConfigurationAnalysis:
             "idplanet_name": None,
             "lmflag": 0,
             "tscale": None,
+            "plot_title": True,
             "unit": "auto",
             "samples_file": None,
             "plot_obs_sim": False,
@@ -1019,6 +1020,7 @@ class ConfigurationAnalysis:
                             idsim=isim,
                             lmflag=conf_oc["lmflag"],
                             tscale=conf_oc["tscale"],
+                            plot_title=conf_oc["plot_title"],
                             ocunit=conf_oc["unit"],
                             samples_file=samples_file,
                             plot_obs_sim=conf_oc["plot_obs_sim"],
@@ -1042,6 +1044,7 @@ class ConfigurationAnalysis:
             "sim_name": ["map_hdi", "map", "median", "initial"],
             "lmflag": 0,
             "tscale": None,
+            "plot_title": True,
             "samples_file": None,
             "limits": "obs",
             "labels": None,
@@ -1085,6 +1088,7 @@ class ConfigurationAnalysis:
                                 idsim=isim,
                                 lmflag=conf_rv["lmflag"],
                                 tscale=conf_rv["tscale"],
+                                plot_title=conf_rv["plot_title"],
                                 samples_file=samples_file,
                                 limits=conf_rv["limits"],
                                 labels=conf_rv["labels"],
@@ -5017,14 +5021,6 @@ def compute_Kms(Ms_sun, Mp_jup, inc_deg, P_day, ecc):
 # ==============================================================================
 
 
-# epoch or transit number for each T0 given a T0ref and a Pref
-def calculate_epoch(T0, Tref, Pref):
-
-    epo = np.rint((T0 - Tref) / Pref).astype(int)
-
-    return epo
-
-
 # ==============================================================================
 
 
@@ -5536,6 +5532,12 @@ def compute_epoch(Tref, Pref, TTs):
 
     return epo
 
+# epoch or transit number for each T0 given a T0ref and a Pref
+def calculate_epoch(T0, Tref, Pref):
+    # epo = np.rint((T0 - Tref) / Pref).astype(int)
+    epo = compute_epoch(Tref, Pref, T0)
+
+    return epo
 
 # =============================================================================
 def u1u2_to_q1q2(u1, u2):

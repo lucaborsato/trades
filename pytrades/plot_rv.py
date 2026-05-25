@@ -10,6 +10,8 @@ import glob  # glob: globbing file...loading multiple files as *.pippa
 import numpy as np  # array
 
 import h5py
+import pickle
+import dill
 
 # import matplotlib as mpl
 # mpl.use("Agg")
@@ -224,7 +226,7 @@ def axtitle(ax, labtitle="", fontsize=8):
 set_colors = anc.set_colors
 # ==============================================================================
 
-def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
+def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, save_pkl=True, show_plot=False):
 
     tscale = cli.tscale[0]
     fmt = "{:" + cli.tscale[1] + "}"
@@ -242,6 +244,11 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
         xlabel = "Time (BJD$_\mathrm{TDB}$)"
     else:
         xlabel = "Time (BJD$_\mathrm{{TDB}} - {}$)".format(fmt.format(tscale))
+
+    if str(cli.plot_title).lower() == 'true':
+        plot_title = True
+    else:
+        plot_title = False
 
     axs = []
 
@@ -262,7 +269,7 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
     ax = plt.subplot2grid((nrows, ncols), (0, 0), rowspan=2)
     set_axis_default(ax, ticklabel_size=tfont, aspect="auto", labeldown=False)
     ax.set_ylabel("RV (m/s)", fontsize=lfont)
-    if cli.plot_title:
+    if plot_title:
         axtitle(ax, labtitle="Radial Velocities", fontsize=lfont)
 
     ax.axhline(0.0, color="black", ls="-", lw=0.7, zorder=2)
@@ -601,7 +608,7 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
 
     fig.align_ylabels(axs)
 
-    if save_plot:
+    if save_plot or save_pkl:
         print("full_path", cli.full_path)
         # folder_out = os.path.join(os.path.dirname(cli.full_path), 'plots')
         folder_out = os.path.join(cli.full_path, "plots")
@@ -610,14 +617,22 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, show_plot=False):
             os.makedirs(folder_out)
         fname = os.path.basename(sim_file)
         plt_file = os.path.join(folder_out, os.path.splitext(fname)[0])
-        fig.savefig("{:s}.png".format(plt_file), bbox_inches="tight",
-        )
-        print("Saved plot into:")
-        print("{:s}".format("{:s}.png".format(plt_file)))
-        fig.savefig("{:s}.pdf".format(plt_file), bbox_inches="tight",
-            # dpi=72
-        )
-        print("{:s}".format("{:s}.pdf".format(plt_file)))
+        if save_plot:
+            fig.savefig("{:s}.png".format(plt_file), bbox_inches="tight",
+            )
+            print("Saved plot into:")
+            print("{:s}".format("{:s}.png".format(plt_file)))
+            fig.savefig("{:s}.pdf".format(plt_file), bbox_inches="tight",
+                # dpi=72
+            )
+            print("{:s}".format("{:s}.pdf".format(plt_file)))
+        if save_pkl:
+            try:
+                with open(f"{plt_file}.pkl", "wb") as of:
+                    pickle.dump(fig, of)
+            except:
+                with open(f"{plt_file}.pkl", "wb") as of:
+                    dill.dump(fig, of)
 
     if show_plot:
         plt.show()

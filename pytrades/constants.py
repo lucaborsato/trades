@@ -97,6 +97,7 @@ sphere_earth = 4.0*np.pi*((Rear*100000.0)**3)/3.0 # Rear in km to cm
 rho_earth = (Mear*1000.0)/sphere_earth # gr/cm^3
 
 MJD = 2400000.5  # MJD ref time to convert to JD
+tkplr= 2454833.0 # Kepler BJD ref time
 btjd = 2457000.0  # TESS BJD ref time
 
 # others

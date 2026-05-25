@@ -1483,25 +1483,29 @@ contains
         call kepelements2statevector(mass, sma, ecc, meanA, argp, inc, longN, ra0)
         ra1 = ra0
 
-        dt1 = tstart - tepoch
-        dt2 = dt1 + tint
-        if (dt1 .lt. zero) then
+        if (checkpar) then
+            dt1 = tstart - tepoch
+            dt2 = dt1 + tint
+            if (dt1 .lt. zero) then
 
-            call ode_forward_output_data(uorb, ucon, uele, utra, fmorb, fmcon, fmele,&
-                &mass, radius, ra1, dt1, obsData, simRV, simT0, Hc)
+                call ode_forward_output_data(uorb, ucon, uele, utra, fmorb, fmcon, fmele,&
+                    &mass, radius, ra1, dt1, obsData, simRV, simT0, Hc)
 
-            if (Hc) then
-                if (abs(dt1) .le. tint) then
-                    call ode_forward_output_data(uorb, ucon, uele, utra, fmorb, fmcon, fmele,&
-                        &mass, radius, ra1, dt2, obsData, simRV, simT0, Hc)
+                if (Hc) then
+                    if (abs(dt1) .le. tint) then
+                        call ode_forward_output_data(uorb, ucon, uele, utra, fmorb, fmcon, fmele,&
+                            &mass, radius, ra1, dt2, obsData, simRV, simT0, Hc)
+                    end if
                 end if
+
+            else
+
+                call ode_forward_output_data(uorb, ucon, uele, utra, fmorb, fmcon, fmele,&
+                    &mass, radius, ra1, dt2, obsData, simRV, simT0, Hc)
+
             end if
-
         else
-
-            call ode_forward_output_data(uorb, ucon, uele, utra, fmorb, fmcon, fmele,&
-                &mass, radius, ra1, dt2, obsData, simRV, simT0, Hc)
-
+            Hc = .false.
         end if
 
         write (*, *)

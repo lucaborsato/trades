@@ -12,6 +12,8 @@ import glob
 import numpy as np  # array
 
 import h5py
+import pickle
+import dill
 
 # import matplotlib as mpl
 # mpl.use('Agg')
@@ -282,7 +284,7 @@ class oc_sample:
         self.T41s = np.array(T41s_s)  # computed in min in trades
 
     def update(self, Teph, Peph):
-        self.epo = anc.calculate_epoch(self.TTs, Teph, Peph)
+        self.epo = anc.calculate_epoch(self.TTs, Teph, Peph).astype(int)
         self.TTlin = Teph + self.epo * Peph
         self.oc = self.TTs - self.TTlin
 
@@ -416,6 +418,7 @@ def plot_oc_T41(
     samples=None,
     figsize=(5, 5),
     save_plot=True,
+    save_pkl =True,
     show_plot=False,
 ):
     sim = get_sim_data(file_in, idsource_name=cli.idsource_name, kep_ele=cli.kep_ele)
@@ -427,6 +430,12 @@ def plot_oc_T41(
         plot_obs_sim = True
     else:
         plot_obs_sim = False
+
+    if str(cli.plot_title).lower() == 'true':
+        plot_title = True
+    else:
+        plot_title = False
+    print(f"Title? input = {cli.plot_title} --> output = {plot_title}")
 
     letters = anc.letters
     if planet_name is None:
@@ -588,7 +597,7 @@ def plot_oc_T41(
     ax = plt.subplot2grid((nrows, ncols), (0, 0), rowspan=2)
     set_axis_default(ax, ticklabel_size=tfont, aspect="auto", labeldown=False)
     ax.set_ylabel("O-C ({:s})".format(ocu[1]), fontsize=lfont)
-    if cli.plot_title:
+    if plot_title:
         # axtitle(ax, labtitle="planet {:s}: transit times".format(planet), fontsize=lfont)
         axtitle(ax, labtitle="planet {:s}: TTV".format(planet), fontsize=lfont)
 
@@ -1100,20 +1109,28 @@ def plot_oc_T41(
     fig.align_ylabels(axs)
     plt.tight_layout()
 
-    if save_plot == True:
+    if save_plot or save_pkl:
         folder_out = os.path.join(os.path.dirname(file_in), "plots")
         if not os.path.isdir(folder_out):
             os.makedirs(folder_out)
         fname = os.path.basename(file_in)
         plt_file = os.path.join(folder_out, os.path.splitext(fname)[0])
-        for ext in ["png", "pdf"]:
-            fig.savefig(
-                "{:s}.{:s}".format(plt_file, ext),
-                bbox_inches="tight",
-                dpi=300
-            )   
-            print("Saved plot into:")
-            print("{:s}.{:s}".format(plt_file, ext))
+        if save_plot:
+            for ext in ["png", "pdf"]:
+                fig.savefig(
+                    "{:s}.{:s}".format(plt_file, ext),
+                    bbox_inches="tight",
+                    dpi=300
+                )   
+                print("Saved plot into:")
+                print("{:s}.{:s}".format(plt_file, ext))
+        if save_pkl:
+            try:
+                with open(f"{plt_file}.pkl", "wb") as of:
+                    pickle.dump(fig, of)
+            except:
+                with open(f"{plt_file}.pkl", "wb") as of:
+                    dill.dump(fig, of)
 
     if show_plot:
         plt.show()
