@@ -91,8 +91,6 @@ Force `setuptools` to the version `65.6.3` and it should compile fine.
 
 ## Compile the `fortran` sources and build the `python` library
 
-**Required: a fortran compiler, such as `gfortran`** 
-
 Download and compile `fortran90` and `python` libraries:  
 
 If not done:  
@@ -529,7 +527,7 @@ bary_orbits, barycentre = pytrades.astrocentric_to_barycentric_orbits(mass, orbi
 
 Get the RV in m/s for each time step:  
 ```python
-rvs = pytrades.orbits_to_rvs(mass, orbits)
+rvs, rvs_planets = pytrades.orbits_to_rvs(mass, orbits)
 ```
 
 Get all possible Transit Times with associated durations, mis-alignments, and Keplerian elements:
@@ -547,7 +545,7 @@ transits, durations, lambda_rm, kep_elem, body_flag = pytrades.orbits_to_transit
 planets_transits = {}
 
 for i, pl_name in enumerate(body_names[1:]): # start from the first planet
-    pl_num = i+2 # first planet will have i = 0, pl_num = 2
+    pl_num = i+1 # first planet will have i = 1, pl_num = 2
     sel = body_flag == pl_num
     planets_transits[pl_name] = {
       "planet_num": pl_num,
@@ -558,10 +556,6 @@ for i, pl_name in enumerate(body_names[1:]): # start from the first planet
     }
 ```
 
-### `photoTRADES` - photo-dynamical model
-
-See the jupyter notebook about the photo-dynamical model with [photoTRADES](./trades_example/photoTRADES_TOI-1130/) in the example folder.
-Data from [Borsato et al., 2024](https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..52B/abstract) about the analysis of the TOI-1130 multi-planet system.
 
 ### From script and folder with `yml` configurations
 
@@ -574,9 +568,27 @@ To use as it was _initially_ intended (in `python`) you can:
 4. after it finished you have to modify the `analysis`, `OC` and `RV` sections of the `configuration.yml` file and you will have the analysis results with  
   > `python /path/to/pytrades/trades_emcee_analysis.py --input configuration.yml`  
 
-You can look at the `trades_emcee.py` and `trades_emcee_analysis.py` to learn how to use the different part of `pytrades` and there are a few other notebooks to plot `PyDE` run, `emcee` chains, RV and OCs.  
+With `trades` version `v2.22.0`, it is now possible to use a Graphical User Interface (GUI) to create the folder with all needed files.
+Enter the `trades_gui` folder, add the required dependences with `pip install -r requirements.txt`, and then from a terminal type:  
+```bash
+    ./run.sh
+```
+or  
+```bash
+    streamlit run app.py
+```
+If something is not clear open an issue and I will try to answer and solve a possible problem. Be aware that this GUI has been developed with aid of `opencode/GLM5.3Flash@openrouter`.  
+
+For better understanding on how `pytrades` combined with `PyDE` and `emcee` works, you can look at the `trades_emcee.py` and `trades_emcee_analysis.py`. 
+This will also help the user to learn how to use the different part of `pytrades` and there are a few other notebooks to plot `PyDE` run, `emcee` chains, RV and OCs.  
 
 ---
+**`TRADES` v2.22.0 by Luca Borsato - 2026-09-24**  
+
+- When computing all the possible RVs in a "full" integration, the single planetary are returned alongside the "normal" RV of the star.  
+- Preliminary version of a gui to create folder with all neded files, modify the stellar and planetary parameters, integration settings and running/analysis configuration.  
+
+
 **`TRADES` v2.21.0 by Luca Borsato - 2016-2024**  
 It is now possible to add flag to distinguish different telescopes for each Transit times.  
 
@@ -585,4 +597,3 @@ It is now possible to add flag to distinguish different telescopes for each Tran
 `TRADES` v2.19.0 by Luca Borsato - 2016-2023  
 
 Long README and description in [README_long](README_long.md).
-

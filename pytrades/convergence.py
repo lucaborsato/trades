@@ -4,9 +4,9 @@
 # no more "zero" integer division bugs!:P
 # import argparse
 import os
-import sys
+# import sys
 import numpy as np  # array
-import time
+# import time
 
 import emcee
 
@@ -16,7 +16,7 @@ import emcee
 # from scipy.stats import norm as scipy_norm
 from . import ancillary as anc
 
-import matplotlib as mpl
+# import matplotlib as mpl
 
 import matplotlib.pyplot as plt
 

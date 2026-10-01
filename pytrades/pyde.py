@@ -25,7 +25,7 @@ Implements the differential evolution optimization method by Storn & Price
 """
 
 # from numba import njit
-from numpy import asarray, zeros, zeros_like, tile, array, argmin, mod, arange, delete
+from numpy import asarray, zeros, zeros_like, tile, array, argmin, mod
 from numpy.random import random, randint, rand, seed as rseed, uniform
 from numpy.random import shuffle
 
@@ -53,7 +53,6 @@ def trades_select_index(i, idx):
 
     icp = idx.copy()
     icp.pop(i)
-    # icp = delete(idx, i)
     shuffle(icp)
     (v1, v2, v3) = icp[0:3]
 
@@ -90,7 +89,6 @@ def evolve_population(pop, pop2, f, c):
     npop, ndim = pop.shape
 
     idx = [i for i in range(npop)]
-    # idx = arange(npop)
 
     for i in range(npop):
         # --- Vector selection ---

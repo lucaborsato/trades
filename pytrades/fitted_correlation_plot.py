@@ -4,8 +4,6 @@
 # no more "zero" integer division bugs!:P
 # import argparse
 import warnings
-# warnings.simplefilter("ignore", np.RankWarning)
-warnings.filterwarnings('ignore')
 import os
 import sys
 import numpy as np  # array
@@ -13,21 +11,23 @@ import numpy as np  # array
 from . import ancillary as anc
 
 import h5py
-from scipy.stats import norm as scipy_norm
+# from scipy.stats import norm as scipy_norm
 
 import pygtc
 
-import matplotlib as mpl
+# import matplotlib as mpl
 
 # mpl.use("Agg")
 import matplotlib.pyplot as plt
 
-# matplotlib rc params
-anc.set_rcParams()
 
 import matplotlib.cm as cm
 from matplotlib.ticker import FormatStrFormatter
 
+# warnings.simplefilter("ignore", np.RankWarning)
+warnings.filterwarnings('ignore')
+# matplotlib rc params
+anc.set_rcParams()
 
 def set_xaxis(
     ax,

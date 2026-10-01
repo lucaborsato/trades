@@ -1,0 +1,10 @@
+0.01 0.0 20.0      # Mass [Mjup]
+0.1 0.0 20.0      # Radius [Rjup]
+10.0 1.0 1000.0      # Period [day]
+999.0 0.0 0.0      # semi major axis [AU]
+0.0 0.0 1.0      # eccentricity
+90.0 80.0 100.09346546      # argument of the pericenter [deg]
+0.0 0.0 360.0      # mean anomaly [deg]
+900000000.0 0.0 0.0      # time of pericenter passage [JD]
+90.0 0.0 180.0      # orbit inclination [deg]
+180.0 0.0 360.0      # longitude of the ascending node [deg]

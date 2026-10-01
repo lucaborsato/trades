@@ -11,19 +11,18 @@ from .pytrades_lib import f90trades
 from scipy.interpolate import interp1d
 
 import pytransit
-import numba
+# import numba
+
+import matplotlib.pyplot as plt
 
 # os.environ["OMP_NUM_THREADS"] = "1"
-
 # numba.set_num_threads(1)
 # numba.config.THREADING_LAYER = "tbb"
-
 # numba.config.DISABLE_JIT = 1
 
 
 set_unit_base = anc.set_unit_base
 
-import matplotlib.pyplot as plt
 
 # =============================================================================
 anc.set_rcParams()
@@ -577,12 +576,13 @@ def orbits_to_rvs(M_msun, orbits):
     - M_msun: float, shape (n_body), mass of the star in solar masses
     - orbits: array-like, shape (n_steps, n_body * 6),orbital state vectors
     Returns:
-    - rvs: array-like, radial velocity
+    - rvs: array-like, radial velocity in m/s
+    - rvs_planets: array-like, shape (n_steps, n_body-1), radial velocity of each planet in m/s
     """
 
-    rvs = f90trades.orbits_to_rvs(M_msun, orbits)
+    rvs, rvs_planets = f90trades.orbits_to_rvs(M_msun, orbits)
 
-    return rvs
+    return rvs, rvs_planets
 
 
 # =============================================================================
@@ -737,15 +737,15 @@ def orbital_parameters_to_transits(
         body_flag = np.zeros((n_all_transits))
     else:
         # Compute the radial velocity at the selected times
-        rv = orbits_to_rvs(mass, orbits[sel_t_rv, :])
+        rv, rv_planets = orbits_to_rvs(mass, orbits[sel_t_rv, :])
         # Create a dictionary with the simulated RV values
-        rv_sim = {"time": time_steps[sel_t_rv], "rv": rv}
+        rv_sim = {"time": time_steps[sel_t_rv], "rv": rv, "rv_planets": rv_planets}
         # Compute the transits, durations, lambda_rm, Kepler elements, and body flags
         transits, durations, lambda_rm, kep_elem, body_flag = orbits_to_transits(
             n_all_transits, time_steps, mass, radius, orbits, transiting_body
         )
         # kep_elem == period 0, sma 1, ecc 2, inc 3, meana 4, argp 5, truea 6, longn 7
-        
+    
     return (
         time_steps,
         orbits,
@@ -3553,7 +3553,7 @@ def angular_momentum_deficit_posterior(n_bodies, post_fit, all_pars):
     - amd_stable: The stability of the angular momentum deficit.
     """
     n_post, n_fit = np.shape(post_fit)
-    n_all = len(all_pars)
+    # n_all = len(all_pars)
     n_pairs = n_bodies - 2
 
     lambdas_bodies, amd_bodies, amd, amd_r_pairs, amd_h_pairs, amd_stable = (

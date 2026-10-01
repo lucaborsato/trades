@@ -7,7 +7,7 @@ import os  #  os: operating system
 
 # import glob # glob: globbing file...loading multiple files as *.pippa
 # import sys # sys: system
-import numpy as np  # array
+# import numpy as np  # array
 
 # --------------------------------------------------------------------------
 

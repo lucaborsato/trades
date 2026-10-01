@@ -10,7 +10,7 @@ module f90trades
     use celestial_mechanics
     use init_trades
     use derived_parameters_mod
-    use radial_velocities, only: addRVtrend, set_gamma_rv, get_RV
+    use radial_velocities, only: addRVtrend, set_gamma_rv, get_RV, get_RV_with_components
     use lin_fit, only: linfit
     use linear_ephem
     use fitness_module
@@ -1383,7 +1383,7 @@ contains
         return
     end subroutine kelements_to_orbits
 
-    subroutine orbits_to_rvs(n_steps, n_body, nb_dim, mass, orbits, rvs)
+    subroutine orbits_to_rvs(n_steps, n_body, nb_dim, mass, orbits, rvs, rvs_planets)
         ! Input
         integer, intent(in)::n_body, n_steps, nb_dim
         real(dp), dimension(n_body), intent(in)::mass
@@ -1391,12 +1391,14 @@ contains
 
         ! Output
         real(dp), dimension(n_steps), intent(out):: rvs
+        real(dp), dimension(n_steps, n_body-1), intent(out):: rvs_planets
         
         ! Locals
         integer::i_steps
 
         do i_steps = 1, n_steps
-            call get_RV(mass, orbits(i_steps, :), rvs(i_steps))
+            ! call get_RV(mass, orbits(i_steps, :), rvs(i_steps))
+            call get_RV_with_components(mass, orbits(i_steps, :), rvs(i_steps), rvs_planets(i_steps, :))
         end do
 
         return

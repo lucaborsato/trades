@@ -31,6 +31,33 @@ contains
         return
     end subroutine get_RV
 
+    subroutine get_RV_with_components(mass, ri, rv_sim, rv_comp)
+        real(dp), dimension(:), intent(in)::mass
+        real(dp), dimension(:), intent(in)::ri
+        real(dp), intent(out)::rv_sim
+        real(dp), dimension(:), intent(out):: rv_comp
+
+        ! Local
+        integer::n_body, nb_dim, i
+        real(dp), dimension(:), allocatable::rbarRV
+        real(dp), dimension(:), allocatable::barRV
+        real(dp), dimension(:), allocatable:: q
+        integer, dimension(:), allocatable::i_vz
+
+        n_body = size(mass)
+        nb_dim = n_body * 6
+        allocate (barRV(6), rbarRV(nb_dim), q(n_body-1))
+        call barycenter(mass, ri, barRV, rbarRV) ! astrocentric 2 barycentric
+        rv_sim = -rbarRV(6)*AU/s24h ! rv as -Zstar,bar m/s
+        q = mass(2:n_body) / mass(1)
+        i_vz = [(i, i=12,nb_dim,6)]
+        rv_comp = q * rbarRV(i_vz) * AU / s24h
+        deallocate (barRV, rbarRV, q, i_vz)
+
+        return
+    end subroutine get_RV_with_components
+
+
     subroutine get_and_set_RV_data(mass, rin, idx, obsDataIn, simRV)
         ! **Input**
         real(dp), dimension(:), intent(in)::mass

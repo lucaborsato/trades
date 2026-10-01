@@ -6,7 +6,7 @@
 import os
 import sys
 import numpy as np  # array
-import time
+# import time
 
 # import h5py
 # import random
@@ -14,7 +14,7 @@ import time
 # from scipy.stats import norm as scipy_norm
 from . import ancillary as anc
 
-import matplotlib as mpl
+# import matplotlib as mpl
 
 import matplotlib.pyplot as plt
 

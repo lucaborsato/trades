@@ -7,7 +7,7 @@ import argparse
 import os
 import numpy as np  # array
 import h5py
-import sys
+# import sys
 import yaml
 
 # import trades_lib
@@ -141,7 +141,7 @@ def print_both(line, output=None):
 
 def decode_list(alist):
 
-    if not "st" in str(type(alist[0])):
+    if "st" not in str(type(alist[0])):
         blist = [a.decode("utf-8") for a in alist]
     else:
         blist = alist
@@ -151,7 +151,7 @@ def decode_list(alist):
 
 def encode_list(alist):
 
-    if not "bytes" in str(type(alist[0])):
+    if "bytes" not in str(type(alist[0])):
         blist = [a.encode("utf-8") for a in alist]
     else:
         blist = alist

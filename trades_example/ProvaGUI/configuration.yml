@@ -1,0 +1,95 @@
+run:
+  full_path: .
+  sub_folder: test_emcee
+  seed: 42
+  mass_type: e
+  delta_sigma: 0.0001
+  nthreads: 34
+  pyde:
+    type: run
+    npop: 68
+    ngen: 42000
+    save: 4200
+    f: 0.5
+    c: 0.5
+    maximize: true
+  emcee:
+    nwalkers: 68
+    nruns: 2000
+    thin_by: 100
+    emcee_restart: false
+    emcee_progress: true
+    pre_optimise: true
+    move:
+      type:
+      - de
+      - desnooker
+      fraction:
+      - 0.8
+      - 0.2
+analysis:
+  full_path: ./test_emcee
+  m_type: e
+  nburnin: 100
+  emcee_old_save: false
+  temp_status: true
+  use_thin: 1
+  seed: 42
+  from_file: null
+  n_samples: 42
+  overplot: map_hdi
+  corner_type: pygtc
+  lnProb_selection:
+  - null
+  - null
+  all_analysis: true
+  save_posterior: true
+  save_parameters: true
+  chain: true
+  gelman_rubin: true
+  gr_steps: 10
+  geweke: true
+  gk_steps: 10
+  correlation_fitted: true
+  correlation_physical: true
+OC:
+  plot_oc: true
+  full_path: ./test_emcee
+  sim_name:
+  - de
+  - initial
+  - median
+  - map_hdi
+  - map
+  idplanet_name: {}
+  lmflag: 0
+  tscale: null
+  plot_title: true
+  unit: auto
+  samples_file: null
+  plot_obs_sim: false
+  plot_samples: ci
+  limits: obs
+  kep_ele: false
+  legend: in
+  linear_ephemeris: null
+  idsource_name: null
+  color_map: nipy_spectral
+RV:
+  plot_rv: true
+  full_path: ./test_emcee
+  sim_name:
+  - de
+  - initial
+  - median
+  - map_hdi
+  - map
+  lmflag: 0
+  tscale: null
+  plot_title: true
+  samples_file: null
+  limits: obs
+  legend: in
+  labels:
+  - RVdataset#1
+  color_map: nipy_spectral

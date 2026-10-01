@@ -20,7 +20,7 @@ import dill
 import matplotlib.pyplot as plt
 
 # custom modules
-from . import constants as cst
+# from . import constants as cst
 from . import ancillary as anc
 from . import pytrades
 
@@ -39,7 +39,7 @@ def set_observation_sources(sources_id, idsource_name=None):
         idname = {1: "observations"}
     else:
         idname = {i: "obs.{:d}".format(i) for i in u_id}
-        colors = ["C0"]*len(idname)
+        # colors = ["C0"]*len(idname)
     
     # print("idname = {}".format(idname))
     if idsource_name is not None:

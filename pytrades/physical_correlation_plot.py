@@ -12,11 +12,10 @@ from . import ancillary as anc
 import pygtc
 import matplotlib.pyplot as plt
 
-anc.set_rcParams()
-
 import matplotlib.cm as cm
 from matplotlib.ticker import FormatStrFormatter
 
+anc.set_rcParams()
 
 def set_xaxis(
     ax,
