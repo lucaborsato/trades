@@ -569,7 +569,7 @@ def kelements_to_orbits_full(
 # =============================================================================
 
 
-def orbits_to_rvs(M_msun, orbits):
+def orbits_to_rvs(M_msun, orbits, return_rvs_planets=False):
     """
     Calculate radial velocity from stellar mass and orbital state vectors.
     Parameters:
@@ -582,7 +582,10 @@ def orbits_to_rvs(M_msun, orbits):
 
     rvs, rvs_planets = f90trades.orbits_to_rvs(M_msun, orbits)
 
-    return rvs, rvs_planets
+    if return_rvs_planets:
+        return rvs, rvs_planets
+    else:
+        return rvs
 
 
 # =============================================================================

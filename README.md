@@ -527,7 +527,7 @@ bary_orbits, barycentre = pytrades.astrocentric_to_barycentric_orbits(mass, orbi
 
 Get the RV in m/s for each time step:  
 ```python
-rvs, rvs_planets = pytrades.orbits_to_rvs(mass, orbits)
+rvs, rvs_planets = pytrades.orbits_to_rvs(mass, orbits, return_rvs_planets=True)
 ```
 
 Get all possible Transit Times with associated durations, mis-alignments, and Keplerian elements:
