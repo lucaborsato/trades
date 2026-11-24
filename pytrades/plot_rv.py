@@ -11,7 +11,6 @@ import numpy as np  # array
 
 import h5py
 import pickle
-import dill
 
 # import matplotlib as mpl
 # mpl.use("Agg")
@@ -631,6 +630,8 @@ def plot_rv(cli, figsize=(5,5), samples=None, save_plot=True, save_pkl=True, sho
                 with open(f"{plt_file}.pkl", "wb") as of:
                     pickle.dump(fig, of)
             except:
+                import dill
+
                 with open(f"{plt_file}.pkl", "wb") as of:
                     dill.dump(fig, of)
 

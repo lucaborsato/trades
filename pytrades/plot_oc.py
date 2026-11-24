@@ -13,7 +13,6 @@ import numpy as np  # array
 
 import h5py
 import pickle
-import dill
 
 # import matplotlib as mpl
 # mpl.use('Agg')
@@ -1129,6 +1128,8 @@ def plot_oc_T41(
                 with open(f"{plt_file}.pkl", "wb") as of:
                     pickle.dump(fig, of)
             except:
+                import dill
+
                 with open(f"{plt_file}.pkl", "wb") as of:
                     dill.dump(fig, of)
 
