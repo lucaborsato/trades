@@ -1,0 +1,3 @@
+# Optional fallback when pickle cannot serialize O-C or RV figures.
+# Tested with Python 3.14.8. The build and core simulations need no extra packages.
+dill==0.4.1
