@@ -23,101 +23,46 @@ These T0s and RVs are computed during the integration of the planetary orbits.
 [Borsato et al., 2024](https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..52B/abstract): updated version with photo-dynamical approach.
 
 
-## Download `trades` source
+## Install pyTRADES on Linux or WSL
+
+Install GCC, GNU Fortran and GNU Make. On Ubuntu or Debian:
 
 ```bash
-git clone https://github.com/lucaborsato/trades.git
+sudo apt install gcc gfortran make
 ```
 
-## Create conda environment
+If you use Ubuntu's system Python, install its development headers with `sudo apt install python3-dev`.
 
+In your Python environment, clone the repository and install it with pip:
 
-I suggest to create an `anaconda environment`, install all the dependencies and then do `make full_parallel_release`.  
-**WARNING**: not working with `python>3.10`, `numpy>1.23.5`, and `setuptools>65.6.3` due to deprecated `distutils` for `f2py`, now using `meson`.  
-
-**Strongly suggested** way to create an environment and install all dependencies:  
-
-create env with python and numpy and matplotlib  
-
-`conda create --name trades_env python=3.10 numpy=1.23.5 matplotlib -y`  
-
-activate env  
-`conda activate trades_env`  
-
-install `cython` (optional, could be used from other packages):  
-`conda install cython -y`  
-
-install `h5py`, `pyyaml`, `tqdm`, `emcee`, `scipy`, `pandas`, `pygtc`:  
-
-`conda install h5py -y`  
-`pip install pyyaml`  
-`conda install -c conda-forge tqdm -y`  
-`pip install corner`  
-`conda install -c conda-forge emcee -y`  
-`conda install -c conda-forge pandas -y`  
-`conda install -c conda-forge scipy -y`  
-`conda install -c conda-forge astropy -y`  
-`conda install -c conda-forge pygtc -y`  
-
-some packages needs `celerite`:  
-`conda install -c conda-forge pybind11 -y`  
-`conda install -c conda-forge celerite -y`  
-
-for photo-dynamical approach it is needed to install `pytransit`:  
-`conda install -c conda-forge numba cudatoolkit -y`  
-`pip install semantic-version`  
-`conda install -c conda-forge arviz -y`  
-`git clone https://github.com/hpparvi/PyTransit.git`  
-`cd PyTransit`  
-`pip install .`  
-Test with `import pytransit` to check if some requirements is still missing for `pytransit`.
-If it is not working, for example showing the error:
-`ModuleNotFoundError: No module named 'pytransit.models.transitmodel'`
-install `pytransit` with:  
-`pip install pytransit`  
-(uninstal it with `pip uninstall pytransit` if already installed from `git`).  
-
-### Optional - `dynesty` and `ultranest`
-Still not fully tested and in development, `dynesty` and `ultranest`:  
-`pip install dynesty`  
-`conda install -c conda-forge ultranest -y`  
-(could use `mpi4py`, install could lead to some issues)  
-
-### IMPORTANT
-
-Due to upgrades of the different packages, `setuptools` will be upgraded breaking the compilation through `f2py`.
-Force `setuptools` to the version `65.6.3` and it should compile fine.  
-`conda install setuptools=65.6.3 -y`  
-
-## Compile the `fortran` sources and build the `python` library
-
-Download and compile `fortran90` and `python` libraries:  
-
-If not done:  
 ```bash
-git clone https://github.com/lucaborsato/trades.git
-conda activate trades_env
-```
-Enter `TRADES` `fortran90` source directory, clean from previous compilations, and compile everything:  
-```bash
-cd trades/src
-make cleanall
-make full_parallel_release
-```
-
-## Install `pytrades` `python` package
-
-Install the `pytrades` package with the `pip` command from the main `TRADES` folder:  
-```bash
+git clone https://github.com/LucaMalavolta/trades.git
 cd trades
-pip install .
+python -m pip install .
+cd ..
+python -c "import pytrades; from pytrades import pytrades_lib; print(pytrades_lib.__file__)"
 ```
 
-If you want a developer installation, that is it auto update the package with changes at the `pytrades` folder:  
+Pip installs the Python dependencies and builds the Fortran extension for
+the active Python interpreter, including CPython 3.14. Run the import check
+outside the checkout so Python loads the installed package.
+
+For an editable installation, run `python -m pip install -e .` in the
+checkout. Repeat it after changing the Fortran sources.
+
+### Optional samplers
+
+To use the dynesty and UltraNest scripts, install the samplers with pip: `python -m pip install dynesty ultranest`.
+
+### Build the standalone Fortran executables
+
+From the repository root, run:
+
 ```bash
-cd trades
-pip install -e .
+make -C src trades_parallel_release
 ```
+
+The executables are written to the bin directory.
 
 ## Use `pyTRADES`
 

@@ -1,0 +1,2 @@
+include src/Makefile src/.f2py_f2cmap
+recursive-include src *.f90
