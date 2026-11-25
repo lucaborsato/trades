@@ -7,14 +7,10 @@ undefine LDFLAGS
 CC = gfortran
 # CC = ifort
 
-F77 = gfortran
-F90 = gfortran
-# F77 = ifort
-
-# f2py
-FVENDOR=$(CC)
-# F2PYCC = f2py --fcompiler=$(FVENDOR) --f90exec=$(CC) --f77exec=$(F77)
-F2PYCC = FC=$(CC) python -m numpy.f2py
+# C compiler and Python interpreter for the F2PY extension
+C_COMPILER ?= gcc
+PYTHON ?= python
+F2PYCC = $(PYTHON) -m numpy.f2py
 
 # WARNING: file .f2py_f2cmap must be present (it is within the src/ folder)
 
@@ -48,10 +44,9 @@ COMP=-fopenmp
 # for MPI
 CMPI= -DMPI
 # for F2PY
-F2PYCF = -fPIC -shared
+F2PYCF = -fPIC
 TRADESLIB=pytrades_lib
-# TRADESLIB0=pytrades_lib.cpython-38-x86_64-linux-gnu.so
-TRADESLIB0=pytrades_lib.cpython-*-x86_64-linux-gnu.so
+TRADESLIB0 = $(TRADESLIB)$(shell $(PYTHON) -c 'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX"))')
 
 # executable
 TARGET_0=../bin/trades_integrates
@@ -109,11 +104,6 @@ echoflag:
 	@echo "F2PY PARALLEL DEBUG  : " $(PPARDBG)
 	@echo "F90  PARALLEL RELEASE: " $(FPARREL)
 	@echo "F2PY PARALLEL RELEASE: " $(PPARREL)
-	@echo ""
-	@echo "FFLAGS='$(PSERDBG)' $(F2PYCC) --verbose -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)"
-	@echo ""
-	@echo "$(F2PYCC) --verbose --f90exec=$(F90) --f77exec=$(F77) --f90flags='$(F2PYCF) $(CFLAGS)' -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)"
-	@echo ""
 
 # compile the sources to objects
 obj_compile_test:
@@ -192,49 +182,57 @@ trades_parallel_release: obj_parallel_release
 	$(FPARREL) $(FOBJS) -I. trades_pik_pso.f90 -o $(TARGET_OMP_3)
 	$(FPARREL) $(FOBJS) -I. trades_timing_fitness.f90 -o $(TARGET_OMP_6)
 
-# compile the python library only
+# Generate wrappers with the active NumPy and compile them with GCC and gfortran.
+# The core Fortran objects and module files are provided by the matching obj_* target.
+.PHONY: pylib_serial_debug pylib_serial_release pylib_parallel_debug pylib_parallel_release
+pylib_serial_debug: obj_serial_debug
+pylib_serial_debug: wrapper_fflags = $(PSERDBG)
+pylib_serial_release: obj_serial_release
+pylib_serial_release: wrapper_fflags = $(PSERREL)
+pylib_parallel_debug: obj_parallel_debug
+pylib_parallel_debug: wrapper_fflags = $(PPARDBG)
+pylib_parallel_release: obj_parallel_release
+pylib_parallel_release: wrapper_fflags = $(PPARREL)
+pylib_parallel_debug pylib_parallel_release: wrapper_ldflags = $(COMP) $(GOMP)
 
-copy_pytrades:
-	cp $(TRADESLIB0) ../pytrades/$(TRADESLIB).so
-
-pylib_serial_debug:
-	FFLAGS='$(PSERDBG)' $(F2PYCC) --verbose -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-#	FFLAGS='$(F2PYCF) $(CFLAGS)' $(F2PYCC) --verbose -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-#	$(F2PYCC) --verbose --f90exec=$(F90) --f77exec=$(F77) --f90flags='$(F2PYCF) $(CFLAGS)' -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+pylib_serial_debug pylib_serial_release pylib_parallel_debug pylib_parallel_release:
+	@set -eu; \
+	build_dir=$$(mktemp -d .pytrades-build.XXXXXXXX); \
+	trap 'rm -rf -- "$$build_dir"' EXIT; \
+	python_include=$$($(PYTHON) -c 'import sysconfig; print(sysconfig.get_path("include"))'); \
+	numpy_include=$$($(PYTHON) -c 'import numpy; print(numpy.get_include())'); \
+	f2py_include=$$($(PYTHON) -c 'import numpy.f2py; print(numpy.f2py.get_include())'); \
+	$(F2PYCC) --quiet --lower --f2cmap .f2py_f2cmap --build-dir "$$build_dir" -m $(TRADESLIB) $(TRADESLIB).f90; \
+	$(C_COMPILER) -O2 -fPIC -I"$$python_include" -I"$$numpy_include" -I"$$f2py_include" \
+	    -c "$$build_dir/$(TRADESLIB)module.c" -o "$$build_dir/$(TRADESLIB)module.o"; \
+	$(C_COMPILER) -O2 -fPIC -I"$$python_include" -I"$$numpy_include" -I"$$f2py_include" \
+	    -c "$$f2py_include/fortranobject.c" -o "$$build_dir/fortranobject.o"; \
+	$(CC) $(wrapper_fflags) -I. -J"$$build_dir" \
+	    -c $(TRADESLIB).f90 -o "$$build_dir/$(TRADESLIB).o"; \
+	(cd "$$build_dir" && $(CC) $(wrapper_fflags) -I.. -c $(TRADESLIB)-f2pywrappers2.f90); \
+	$(CC) -shared $(FOBJS) "$$build_dir"/*.o $(wrapper_ldflags) -o "$$build_dir/$(TRADESLIB0)"; \
+	mv "$$build_dir/$(TRADESLIB0)" "$(TRADESLIB0)"
 
 test_pylib_serial_debug:
-	rm -f $(TRADESLIB0)
-	python -m numpy.f2py --verbose --f90flags='$(PSERDBG) -fvisibility=default' -c -m $(TRADESLIB) $(TRADESLIB)_test.f90 $(FOBJS) -I$(shell pwd) --backend meson
+	rm -f "$(TRADESLIB0)"
+	$(PYTHON) -m numpy.f2py --verbose --f90flags='$(PSERDBG) -fvisibility=default' -c -m $(TRADESLIB) $(TRADESLIB)_test.f90 $(FOBJS) -I$(shell pwd) --backend meson
 
-pytrades_serial_debug: obj_serial_debug pylib_serial_debug
+.PHONY: pytrades_serial_debug pytrades_serial_release pytrades_parallel_debug pytrades_parallel_release
+pytrades_serial_debug: pylib_serial_debug
+pytrades_serial_release: pylib_serial_release
+pytrades_parallel_debug: pylib_parallel_debug
+pytrades_parallel_release: pylib_parallel_release
 
-pylib_serial_release:
-	FFLAGS='$(PSERREL)' $(F2PYCC) --quiet -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-#	FFLAGS='$(F2PYCF) $(COPT)' $(F2PYCC) --quiet -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-#	$(F2PYCC) --quiet --f90flags='$(F2PYCF) $(COPT)' -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
+# Compile the Fortran executables and the Python library.
+.PHONY: full_serial_debug full_serial_release full_parallel_debug full_parallel_release copy_pytrades
+full_serial_debug: trades_serial_debug pylib_serial_debug
+full_serial_release: trades_serial_release pylib_serial_release
+full_parallel_debug: trades_parallel_debug pylib_parallel_debug
+full_parallel_release: trades_parallel_release pylib_parallel_release
 
-pytrades_serial_release: obj_serial_release pylib_serial_release
-
-pylib_parallel_debug:
-	FFLAGS='$(PPARDBG)' $(F2PYCC) --verbose $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-#	$(F2PYCC) --verbose --f90flags='$(F2PYCF) $(CFLAGS) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-
-pytrades_parallel_debug: obj_parallel_debug pylib_parallel_debug copy_pytrades
-
-pylib_parallel_release:
-	FFLAGS='$(PPARREL)' $(F2PYCC) --quiet $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-#	$(F2PYCC) --quiet --f90flags='$(F2PYCF) $(COPT) $(COMP)' $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-
-pytrades_parallel_release: obj_parallel_release pylib_parallel_release copy_pytrades
-
-# compile both FORTRAN and python library
-full_serial_debug: trades_serial_debug pylib_serial_debug copy_pytrades
-
-full_serial_release: trades_serial_release pylib_serial_release copy_pytrades
-
-full_parallel_debug: trades_parallel_debug pylib_parallel_debug copy_pytrades
-
-full_parallel_release: trades_parallel_release pylib_parallel_release copy_pytrades
+copy_pytrades pytrades_parallel_debug pytrades_parallel_release \
+full_serial_debug full_serial_release full_parallel_debug full_parallel_release:
+	cp "$(TRADESLIB0)" ../pytrades/$(TRADESLIB).so
 
 test_debug: pytrades_serial_debug
 	$(CC) $(PSERDBG) -I. -c $(TRADESLIB).f90
@@ -246,17 +244,12 @@ test_release: pytrades_serial_release
 	@mkdir -p ../bin
 	$(FSERREL) $(FOBJS) $(TRADESLIB).o -I. trades_test.f90 -o $(TARGET_SER_5)
 
-#test_meson: obj_parallel_release
-#	FFLAGS='$(COPT) $(COMP)' $(F2PYCC) --quiet $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-#	FFLAGS='' $(F2PYCC) --quiet $(GOMP) -c $(TRADESLIB).f90 $(FOBJS) -m $(TRADESLIB)
-#	copy_pytrades
-
 # clean objs, mod, and lib
 clean:
 	rm -f *.o *.mod
 
 clean_pytrades: clean
-	rm -f $(TRADESLIB0) ../pytrades/$(TRADESLIB).so
+	rm -f $(TRADESLIB).*.so ../pytrades/$(TRADESLIB).so
 
 clean_exe:
 	rm -f $(TARGET_0)

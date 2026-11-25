@@ -5,3 +5,9 @@ cheops/
 *.mod
 *.vscode
 *.ipynb_checkpoints
+/build/
+/dist/
+/trades.egg-info/
+__pycache__/
+/pytrades/pytrades_lib*.so
+/src/pytrades_lib*.so

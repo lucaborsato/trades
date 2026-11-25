@@ -58,6 +58,8 @@ module f90trades
 
 contains
 
+    ! The name 'check' for a dummy argument collides with F2PY validation metadata.
+
     ! ============================================================================
 
     ! SET ARGS AND PARAMETERS WITH SINGLE SUBROUTINES TO BE CALLED BY PYTHON IF NEEDED
@@ -579,14 +581,14 @@ contains
     end subroutine init_pso
 
     ! ============================================================================
-    subroutine check_boundaries(n_all, all_fix_par, n_fit, fit_par, check)
+    subroutine check_boundaries(n_all, all_fix_par, n_fit, fit_par, check_ok)
         integer,intent(in)::n_all, n_fit
         real(dp),dimension(n_all),intent(in)::all_fix_par
         real(dp),dimension(n_fit),intent(in)::fit_par
-        logical,intent(out)::check
+        logical,intent(out)::check_ok
 
-        check = .true.
-        check = check_only_boundaries(all_fix_par, fit_par)
+        check_ok = .true.
+        check_ok = check_only_boundaries(all_fix_par, fit_par)
 
         return
     end subroutine
@@ -616,48 +618,48 @@ contains
     ! ============================================================================
 
     subroutine fortran_fitness_function(fit_parameters, chi_square,&
-         &reduced_chi_square, lgllhd, lnprior, ln_const, bic, check, n_fit)
+         &reduced_chi_square, lgllhd, lnprior, ln_const, bic, check_ok, n_fit)
         ! Input
         integer, intent(in)::n_fit
         real(dp), dimension(n_fit), intent(in)::fit_parameters
         
         ! Output
         real(dp), intent(out)::chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic
-        logical, intent(out)::check
+        logical, intent(out)::check_ok
 
-        check = .true.
+        check_ok = .true.
         chi_square = zero
         lgllhd = zero
 
         call bound_fitness_function(system_parameters, fit_parameters,&
             &chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic)
-        if (chi_square .ge. resmax) check = .false.
+        if (chi_square .ge. resmax) check_ok = .false.
 
         return
     end subroutine fortran_fitness_function
 
     ! ============================================================================
 
-    subroutine fortran_loglikelihood(fit_parameters, lgllhd, check, n_fit)
+    subroutine fortran_loglikelihood(fit_parameters, lgllhd, check_ok, n_fit)
         ! Input
         integer, intent(in)::n_fit
         real(dp), dimension(n_fit), intent(in)::fit_parameters
         
         ! Output
         real(dp), intent(out)::lgllhd
-        logical, intent(out)::check
+        logical, intent(out)::check_ok
         
         ! Local variables
         real(dp)::chi_square, reduced_chi_square, lnprior, ln_const, bic
 
-        check = .true.
+        check_ok = .true.
         chi_square = zero
         lgllhd = zero
 
         ! write(*,*)"DEBUG: bound_fitness_function"
         call bound_fitness_function(system_parameters, fit_parameters,&
             &chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic)
-        if (chi_square .ge. resmax) check = .false.
+        if (chi_square .ge. resmax) check_ok = .false.
         ! write(*,*)"DEBUG: chi_square, reduced_chi_square, lgllhd, ln_const, bic"
         ! write(*,*)chi_square, reduced_chi_square, lgllhd, ln_const, bic
 
@@ -666,19 +668,19 @@ contains
 
     ! ============================================================================
 
-    subroutine fortran_logprob(fit_parameters, lgllhd, lnp, check, n_fit)
+    subroutine fortran_logprob(fit_parameters, lgllhd, lnp, check_ok, n_fit)
         ! Input
         integer, intent(in)::n_fit
         real(dp), dimension(n_fit), intent(in)::fit_parameters
         
         ! Output
         real(dp), intent(out)::lgllhd, lnp
-        logical, intent(out)::check
+        logical, intent(out)::check_ok
         
         ! Local variables
         real(dp)::chi_square, reduced_chi_square, ln_const, bic
 
-        check = .true.
+        check_ok = .true.
         chi_square = zero
         lgllhd = zero
         lnp = zero
@@ -686,7 +688,7 @@ contains
         ! write(*,*)"DEBUG: bound_fitness_function"
         call bound_fitness_function(system_parameters, fit_parameters,&
             &chi_square, reduced_chi_square, lgllhd, lnp, ln_const, bic)
-        if (chi_square .ge. resmax) check = .false.
+        if (chi_square .ge. resmax) check_ok = .false.
 
         return
     end subroutine fortran_logprob
@@ -694,7 +696,7 @@ contains
     ! ============================================================================
 
     subroutine write_summary_files(write_number, parameters_values,&
-        &chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic, check, n_fit)
+        &chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic, check_ok, n_fit)
         use driver, only: write_summary_nosigma
         ! Input
         integer, intent(in)::n_fit
@@ -703,17 +705,17 @@ contains
         
         ! Output
         real(dp), intent(out)::chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic
-        logical, intent(out)::check
+        logical, intent(out)::check_ok
         
         ! Local variables
         real(dp), dimension(:), allocatable::run_all_par
         logical::check_status
 
-        check = .true.
+        check_ok = .true.
         check_status = .true.
 
-        check = check_only_boundaries(system_parameters, parameters_values)
-        ! write (*, *) "DEBUG check_only_boundaries : ", check
+        check_ok = check_only_boundaries(system_parameters, parameters_values)
+        ! write (*, *) "DEBUG check_only_boundaries : ", check_ok
         lnprior = zero
 
         allocate (run_all_par(npar))
@@ -723,14 +725,14 @@ contains
         call write_summary_nosigma(1, write_number, 0, run_all_par, parameters_values,&
             &chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic) ! add .true. at the end for full debug
         deallocate (run_all_par)
-        ! write (*, *) "DEBUG check = ", check, " check_status = ", check_status
+        ! write (*, *) "DEBUG check_ok = ", check_ok, " check_status = ", check_status
         ! write (*, *) "DEBUG after write_summary_nosigma: reduced_chi_square = ", reduced_chi_square
         ! flush (6)
-        if (.not. check .or. .not. check_status) chi_square = resmax
+        if (.not. check_ok .or. .not. check_status) chi_square = resmax
         call set_fitness_values(parameters_values,&
             &chi_square, reduced_chi_square, lgllhd, ln_const, bic)
 
-        if (.not. check) then
+        if (.not. check_ok) then
             write (*, '(a)') '*******'
             write (*, '(a)') 'WARNING'
             write (*, '(a)') 'WARNING'
@@ -747,7 +749,7 @@ contains
     ! ============================================================================
 
     subroutine write_summary_files_long(write_number, all_parameters, n_par, parameters_values, n_fit,&
-        &chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic, check)
+        &chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic, check_ok)
         use driver, only: write_summary_nosigma
         integer, intent(in)::n_par
         real(dp), dimension(n_par), intent(in)::all_parameters
@@ -756,18 +758,18 @@ contains
         real(dp), dimension(n_fit), intent(in)::parameters_values
 
         real(dp), intent(out)::chi_square, reduced_chi_square, lgllhd, lnprior, ln_const, bic
-        logical, intent(out)::check
+        logical, intent(out)::check_ok
 
         real(dp), dimension(:), allocatable::run_all_par
         logical::check_status
 
-        check = .true.
+        check_ok = .true.
         check_status = .true.
 
-        check = check_only_boundaries(system_parameters, parameters_values)
+        check_ok = check_only_boundaries(system_parameters, parameters_values)
         lnprior = zero
 
-        if (check) then
+        if (check_ok) then
             allocate (run_all_par(n_par))
             run_all_par = all_parameters
             if (check_derived) check_status = check_derived_parameters(parameters_values)
@@ -779,7 +781,7 @@ contains
                 chi_square = resmax ! set it to resmax
                 call set_fitness_values(parameters_values,&
                 & chi_square, reduced_chi_square, lgllhd, ln_const, bic)
-                check = .false.
+                check_ok = .false.
             end if
             deallocate (run_all_par)
 
@@ -797,8 +799,8 @@ contains
             write (*, '(a)') '*******'
         end if
 
-        ! call fortran_loglikelihood(parameters_values, lgllhd, check, n_fit)
-        ! if (chi_square .ge. resmax) check = .false.
+        ! call fortran_loglikelihood(parameters_values, lgllhd, check_ok, n_fit)
+        ! if (chi_square .ge. resmax) check_ok = .false.
 
         return
     end subroutine write_summary_files_long
@@ -1368,7 +1370,7 @@ contains
     end subroutine kelements_to_t0s
     ! ============================================================================
 
-    subroutine kelements_to_orbits(n_steps, n_body, nb_dim, time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits, check)
+    subroutine kelements_to_orbits(n_steps, n_body, nb_dim, time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits, check_ok)
         ! Input
         integer, intent(in)::n_steps, n_body, nb_dim
         real(dp), dimension(n_steps), intent(in)::time_steps
@@ -1376,9 +1378,9 @@ contains
         
         ! Output
         real(dp), dimension(n_steps, nb_dim), intent(out)::orbits
-        logical,intent(out)::check
+        logical,intent(out)::check_ok
 
-        call ode_keplerian_elements_to_orbits(time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits, check)
+        call ode_keplerian_elements_to_orbits(time_steps, mass, radius, period, ecc, argp, meanA, inc, longN, orbits, check_ok)
 
         return
     end subroutine kelements_to_orbits
